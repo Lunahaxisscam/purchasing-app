@@ -12,29 +12,27 @@ export default async function handler(req, res) {
   const supabase = createClient(supabaseUrl, supabaseKey)
 
   try {
-    // 1. Delete all existing records in materials
-    const { error: delErr } = await supabase
-      .from('materials')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000')
-
-    if (delErr) {
-      return res.status(500).json({ error: 'Failed to delete old materials: ' + delErr.message })
-    }
-
-    // 2. Insert in chunks of 50
-    const chunkSize = 50
-    let inserted = 0
+    // 1. Update existing materials with new fields (satuan, unit, etc.)
+    const chunkSize = 20
+    let updated = 0
     for (let i = 0; i < materialsData.length; i += chunkSize) {
       const chunk = materialsData.slice(i, i + chunkSize)
-      const { error: insErr } = await supabase.from('materials').insert(chunk)
-      if (insErr) {
-        return res.status(500).json({ error: `Failed to insert chunk ${i}: ${insErr.message}` })
-      }
-      inserted += chunk.length
+      await Promise.all(chunk.map(async item => {
+        await supabase
+          .from('materials')
+          .update({
+            satuan: item.satuan,
+            unit: item.unit,
+            name: item.name,
+            category: item.category,
+            qty: item.qty
+          })
+          .eq('kode', item.kode)
+      }))
+      updated += chunk.length
     }
 
-    return res.status(200).json({ success: true, count: inserted })
+    return res.status(200).json({ success: true, count: updated })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

@@ -1,1 +1,2981 @@
-[{"kode": "MAT-0001", "code": "MAT-0001", "name": "BB Blockboard (DF - 18 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0002", "code": "MAT-0002", "name": "BB Blockboard (Polos - 15 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0003", "code": "MAT-0003", "name": "BB Blockboard (Polos - 18 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0004", "code": "MAT-0004", "name": "BB Blockboard (SF - 15mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0005", "code": "MAT-0005", "name": "BB Blockboard (SF - 18mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0006", "code": "MAT-0006", "name": "HMR (Polos - 12 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0007", "code": "MAT-0007", "name": "HMR (Polos - 15 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0008", "code": "MAT-0008", "name": "HMR (Polos - 3 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0009", "code": "MAT-0009", "name": "HMR (Polos - 6 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0010", "code": "MAT-0010", "name": "HMR (Polos - 9 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0011", "code": "MAT-0011", "name": "HMR (Polos - n)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0012", "code": "MAT-0012", "name": "PVC Board (15mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0013", "code": "MAT-0013", "name": "PVC Board (18mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0014", "code": "MAT-0014", "name": "Triplek (Bending - 9 mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0015", "code": "MAT-0015", "name": "Triplek (DF - 18mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0016", "code": "MAT-0016", "name": "Triplek (Polos - 12mm - BBCC)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0017", "code": "MAT-0017", "name": "Triplek (Polos - 15mm - BBCC)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0018", "code": "MAT-0018", "name": "Triplek (Polos - 18mm - BBCC)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0019", "code": "MAT-0019", "name": "Triplek (Polos - 3mm - BBCC)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0020", "code": "MAT-0020", "name": "Triplek (Polos - 6mm - BBCC)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0021", "code": "MAT-0021", "name": "Triplek (Polos - 9mm - BBCC)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0022", "code": "MAT-0022", "name": "Triplek (SF - 12mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0023", "code": "MAT-0023", "name": "Triplek (SF - 15mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0024", "code": "MAT-0024", "name": "Triplek (SF - 18mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0025", "code": "MAT-0025", "name": "Triplek (SF - 6mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0026", "code": "MAT-0026", "name": "Triplek (SF - 9mm)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0027", "code": "MAT-0027", "name": "Triplek ALBA BTR (18mm - Abadi Klender)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0028", "code": "MAT-0028", "name": "Triplek MC (12mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0029", "code": "MAT-0029", "name": "Triplek MC (15mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0030", "code": "MAT-0030", "name": "Triplek MC (18mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0031", "code": "MAT-0031", "name": "Triplek MC (9mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0032", "code": "MAT-0032", "name": "Triplek Max Happan (18mm - Abadi Klender)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0033", "code": "MAT-0033", "name": "Triplek Max Happan (9mm - Abadi Klender)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0034", "code": "MAT-0034", "name": "Triplek Meranti Uty (18mm - Abadi Klender)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0035", "code": "MAT-0035", "name": "Triplek Meranti Uty (9mm - Abadi Klender)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0036", "code": "MAT-0036", "name": "Triplek Uty (12mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0037", "code": "MAT-0037", "name": "Triplek Uty (15mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0038", "code": "MAT-0038", "name": "Triplek Uty (18mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0039", "code": "MAT-0039", "name": "Triplek Uty (9mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0040", "code": "MAT-0040", "name": "Triplek Uty A (12mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0041", "code": "MAT-0041", "name": "Triplek Uty A (15mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0042", "code": "MAT-0042", "name": "Triplek Uty A (18mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0043", "code": "MAT-0043", "name": "Triplek Uty A (9mm - Tanjung Jayaprima Abadi)", "category": "Plywood & Board", "qty": "0"}, {"kode": "MAT-0044", "code": "MAT-0044", "name": "Edging Pattern (Edg Taco - 4cm)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0045", "code": "MAT-0045", "name": "Edging Solid (Edg Taco - 4cm)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0046", "code": "MAT-0046", "name": "Edging Woodgrain (Edg Taco - 4cm)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0047", "code": "MAT-0047", "name": "HPL PATTERN (TACO - FA)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0048", "code": "MAT-0048", "name": "HPL SOLID (TACO - A)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0049", "code": "MAT-0049", "name": "HPL SOLID (TACO - AA)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0050", "code": "MAT-0050", "name": "HPL SOLID (TACO - AB)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0051", "code": "MAT-0051", "name": "HPL SOLID (TACO - D)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0052", "code": "MAT-0052", "name": "HPL SOLID (TACO - DB)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0053", "code": "MAT-0053", "name": "HPL SOLID (TACO - G)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0054", "code": "MAT-0054", "name": "HPL SOLID (TACO - SA)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0055", "code": "MAT-0055", "name": "HPL SOLID (TACO - SB)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0056", "code": "MAT-0056", "name": "HPL WOODGRAIN (TACO - AA)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0057", "code": "MAT-0057", "name": "HPL WOODGRAIN (TACO - AC)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0058", "code": "MAT-0058", "name": "HPL WOODGRAIN (TACO - B)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0059", "code": "MAT-0059", "name": "HPL WOODGRAIN (TACO - DP)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0060", "code": "MAT-0060", "name": "HPL WOODGRAIN (TACO - FC)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0061", "code": "MAT-0061", "name": "HPL WOODGRAIN (TACO - GL)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0062", "code": "MAT-0062", "name": "HPL WOODGRAIN (TACO - H)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0063", "code": "MAT-0063", "name": "HPL WOODGRAIN (TACO - J)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0064", "code": "MAT-0064", "name": "HPL WOODGRAIN (TACO - JG)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0065", "code": "MAT-0065", "name": "HPL WOODGRAIN (TACO - KM)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0066", "code": "MAT-0066", "name": "HPL WOODGRAIN (TACO - KY)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0067", "code": "MAT-0067", "name": "HPL WOODGRAIN (TACO - NT)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0068", "code": "MAT-0068", "name": "HPL WOODGRAIN (TACO - SL)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0069", "code": "MAT-0069", "name": "Tacosheet (Taco - P02)", "category": "HPL & Edging", "qty": "0"}, {"kode": "MAT-0070", "code": "MAT-0070", "name": "List Siku WPC (Abu Doff - 24mm)", "category": "WPC & Panel", "qty": "0"}, {"kode": "MAT-0071", "code": "MAT-0071", "name": "WPC CAOSO (Abu Doff - 24mm)", "category": "WPC & Panel", "qty": "0"}, {"kode": "MAT-0072", "code": "MAT-0072", "name": "WPC CAOSO (Capucino Serat - 10mm)", "category": "WPC & Panel", "qty": "0"}, {"kode": "MAT-0073", "code": "MAT-0073", "name": "WPC CAOSO (Capucino Serat - 24mm)", "category": "WPC & Panel", "qty": "0"}, {"kode": "MAT-0074", "code": "MAT-0074", "name": "WPC CAOSO (Kayu Kuning Serat - 10mm)", "category": "WPC & Panel", "qty": "0"}, {"kode": "MAT-0075", "code": "MAT-0075", "name": "WPC CAOSO (Kayu Kuning Serat - 24mm)", "category": "WPC & Panel", "qty": "0"}, {"kode": "MAT-0076", "code": "MAT-0076", "name": "Bracket B9-19 (Cabang 3 - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0077", "code": "MAT-0077", "name": "Bracket BP-16 (Oval - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0078", "code": "MAT-0078", "name": "Bracket BP-19 (Bulat - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0079", "code": "MAT-0079", "name": "Bracket BP-19 (Lurus - 1 inch - Baleno)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0080", "code": "MAT-0080", "name": "Bracket BP-19 (T - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0081", "code": "MAT-0081", "name": "Bracket Siku L (12 x 20cm - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0082", "code": "MAT-0082", "name": "Bracket Siku L (12 x 20cm - Silver)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0083", "code": "MAT-0083", "name": "DTNS DoubleTrack (25cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0084", "code": "MAT-0084", "name": "DTNS DoubleTrack (30cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0085", "code": "MAT-0085", "name": "DTNS DoubleTrack (35cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0086", "code": "MAT-0086", "name": "DTNS DoubleTrack (40cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0087", "code": "MAT-0087", "name": "DTNS DoubleTrack (45cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0088", "code": "MAT-0088", "name": "DTNS DoubleTrack (50cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0089", "code": "MAT-0089", "name": "DTNS DoubleTrack (55cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0090", "code": "MAT-0090", "name": "DTSM DoubleTrack (25cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0091", "code": "MAT-0091", "name": "DTSM DoubleTrack (30cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0092", "code": "MAT-0092", "name": "DTSM DoubleTrack (30cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0093", "code": "MAT-0093", "name": "DTSM DoubleTrack (35cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0094", "code": "MAT-0094", "name": "DTSM DoubleTrack (35cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0095", "code": "MAT-0095", "name": "DTSM DoubleTrack (40cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0096", "code": "MAT-0096", "name": "DTSM DoubleTrack (40cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0097", "code": "MAT-0097", "name": "DTSM DoubleTrack (45cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0098", "code": "MAT-0098", "name": "DTSM DoubleTrack (45cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0099", "code": "MAT-0099", "name": "DTSM DoubleTrack (50cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0100", "code": "MAT-0100", "name": "DTSM DoubleTrack (50cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0101", "code": "MAT-0101", "name": "DTSM DoubleTrack (55cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0102", "code": "MAT-0102", "name": "DTSM DoubleTrack (55cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0103", "code": "MAT-0103", "name": "DTSM DoubleTrack (60cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0104", "code": "MAT-0104", "name": "Door Closer (Hitam - Dekson)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0105", "code": "MAT-0105", "name": "Engsel (BKK - Hafele Econo)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0106", "code": "MAT-0106", "name": "Engsel (BKK - Knockers)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0107", "code": "MAT-0107", "name": "Engsel (BKK - Taco)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0108", "code": "MAT-0108", "name": "Engsel (Lurus - Hafele Econo)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0109", "code": "MAT-0109", "name": "Engsel (Lurus - Knockers)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0110", "code": "MAT-0110", "name": "Engsel (Lurus - Knockers Anti Karat)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0111", "code": "MAT-0111", "name": "Engsel (Lurus - Taco)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0112", "code": "MAT-0112", "name": "Engsel (Stgh BKK - Hafele Econo)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0113", "code": "MAT-0113", "name": "Engsel (Stgh BKK - Knockers)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0114", "code": "MAT-0114", "name": "Engsel (Stgh BKK - Taco)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0115", "code": "MAT-0115", "name": "Engsel Frame (EFA-0 Lurus - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0116", "code": "MAT-0116", "name": "Engsel Kupu-kupu (Hitam - Dekson)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0117", "code": "MAT-0117", "name": "Engsel Pivot Kaca (T86 - Silver)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0118", "code": "MAT-0118", "name": "Engsel Robot (BKK - Femarg)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0119", "code": "MAT-0119", "name": "Engsel Robot (Lurus - Femarg)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0120", "code": "MAT-0120", "name": "Engsel Robot (StghBkk - Femarg)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0121", "code": "MAT-0121", "name": "Gas Spring (40N - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0122", "code": "MAT-0122", "name": "Gas Spring (60N - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0123", "code": "MAT-0123", "name": "Gas Spring (80N - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0124", "code": "MAT-0124", "name": "Gas Srping (100N - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0125", "code": "MAT-0125", "name": "Gas Srping (40N Mini - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0126", "code": "MAT-0126", "name": "Gas Srping (60N Mini - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0127", "code": "MAT-0127", "name": "Grendel (Hitam - Dekson)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0128", "code": "MAT-0128", "name": "Gromet 8x16 (Kotak - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0129", "code": "MAT-0129", "name": "Gromet 8x16 (Kotak - Silver)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0130", "code": "MAT-0130", "name": "Gromet Plastik (Bulat - Abu)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0131", "code": "MAT-0131", "name": "Gromet Plastik (Bulat - Coklat)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0132", "code": "MAT-0132", "name": "Gromet Plastik (Bulat - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0133", "code": "MAT-0133", "name": "Gromet Plastik (Bulat - Putih)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0134", "code": "MAT-0134", "name": "Gromet Stainles (Bulat - Silver)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0135", "code": "MAT-0135", "name": "Gromet stop kontak 20x12x8 (Kotak - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0136", "code": "MAT-0136", "name": "Handle (KNOB Bulat 1903 - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0137", "code": "MAT-0137", "name": "Handle (KNOB TK82 - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0138", "code": "MAT-0138", "name": "Handle (KNOB TK85 - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0139", "code": "MAT-0139", "name": "Handle (Motif 15 - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0140", "code": "MAT-0140", "name": "Handle (TA14-Hitam - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0141", "code": "MAT-0141", "name": "Handle (TA21-40cm - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0142", "code": "MAT-0142", "name": "Hanger 200-SM (Lifter Slow - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0143", "code": "MAT-0143", "name": "Hanger Stainless (Bulat - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0144", "code": "MAT-0144", "name": "Hanger Stainless (Oval - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0145", "code": "MAT-0145", "name": "Kaki Meja (Kotak - 20cm - Stainless)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0146", "code": "MAT-0146", "name": "Kaki Meja (Segitiga - 10cm - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0147", "code": "MAT-0147", "name": "Kapstock (4 Kait - 30cm)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0148", "code": "MAT-0148", "name": "Kunci Laci + Plat (HL138 - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0149", "code": "MAT-0149", "name": "Lubang Hawa (5x15 - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0150", "code": "MAT-0150", "name": "Lubang Hawa (5x15 - Silver)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0151", "code": "MAT-0151", "name": "Lubang Hawa (5x20 - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0152", "code": "MAT-0152", "name": "Lubang Hawa (5x20 - Silver)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0153", "code": "MAT-0153", "name": "Lubang Hawa (8x15 - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0154", "code": "MAT-0154", "name": "Lubang Hawa (8x15 - Silver)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0155", "code": "MAT-0155", "name": "Lubang Hawa (Stainless - Bulat)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0156", "code": "MAT-0156", "name": "Push On (TO3-SS - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0157", "code": "MAT-0157", "name": "Push On (Twin)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0158", "code": "MAT-0158", "name": "Push On Besar (TO4-35N - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0159", "code": "MAT-0159", "name": "Push On Kaca (Double - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0160", "code": "MAT-0160", "name": "Push On Kaca (Single - Hitam)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0161", "code": "MAT-0161", "name": "Rak Panci (6kait - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0162", "code": "MAT-0162", "name": "Rak Piring (60cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0163", "code": "MAT-0163", "name": "Rak Piring (70cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0164", "code": "MAT-0164", "name": "Rak Piring (80cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0165", "code": "MAT-0165", "name": "Rak Piring (90cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0166", "code": "MAT-0166", "name": "Rak Piring Laci (30cm)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0167", "code": "MAT-0167", "name": "Rak Sendok (Uk. Pintu 30cm - Abu)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0168", "code": "MAT-0168", "name": "Rak Sendok (Uk. Pintu 40cm - Abu)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0169", "code": "MAT-0169", "name": "Rak Sendok (Uk. Pintu 50cm - Abu)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0170", "code": "MAT-0170", "name": "Rel Lemari (Pocket Door - 40cm)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0171", "code": "MAT-0171", "name": "Rel Lemari (Pocket Door - 50cm)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0172", "code": "MAT-0172", "name": "Rel Meja Tarik (8002 - Winston)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0173", "code": "MAT-0173", "name": "Rel Sliding Atas (SD 02 - U - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0174", "code": "MAT-0174", "name": "Rel Sliding Atas (SD 452 - A - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0175", "code": "MAT-0175", "name": "Rel Sliding Bawah (SD 02 - M - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0176", "code": "MAT-0176", "name": "Rel Sliding Bawah (SD 452 - B - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0177", "code": "MAT-0177", "name": "Roda Sliding (SD 3141 - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0178", "code": "MAT-0178", "name": "Set Rel Sliding 452 SD (2Pintu - 2mtr - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0179", "code": "MAT-0179", "name": "Set Rel Sliding 452 SD (2Pintu - 3mtr - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0180", "code": "MAT-0180", "name": "Tandem (25cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0181", "code": "MAT-0181", "name": "Tandem (25cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0182", "code": "MAT-0182", "name": "Tandem (25cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0183", "code": "MAT-0183", "name": "Tandem (30cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0184", "code": "MAT-0184", "name": "Tandem (30cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0185", "code": "MAT-0185", "name": "Tandem (30cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0186", "code": "MAT-0186", "name": "Tandem (35cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0187", "code": "MAT-0187", "name": "Tandem (35cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0188", "code": "MAT-0188", "name": "Tandem (35cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0189", "code": "MAT-0189", "name": "Tandem (40cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0190", "code": "MAT-0190", "name": "Tandem (40cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0191", "code": "MAT-0191", "name": "Tandem (40cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0192", "code": "MAT-0192", "name": "Tandem (45cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0193", "code": "MAT-0193", "name": "Tandem (45cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0194", "code": "MAT-0194", "name": "Tandem (45cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0195", "code": "MAT-0195", "name": "Tandem (50cm - Hafele)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0196", "code": "MAT-0196", "name": "Tandem (50cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0197", "code": "MAT-0197", "name": "Tandem (50cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0198", "code": "MAT-0198", "name": "Tandem (55cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0199", "code": "MAT-0199", "name": "Tandem (55cm - Huben)", "category": "Hardware & Fitting", "qty": "0"}, {"kode": "MAT-0200", "code": "MAT-0200", "name": "Down - Lampu Downlight Mini (3w - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0201", "code": "MAT-0201", "name": "KB Kabel (2x0.75 - Lotusku)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0202", "code": "MAT-0202", "name": "KB Kabel (2x1.5 - Lotusku)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0203", "code": "MAT-0203", "name": "KB Kabel (3x1.5 - Lotusku)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0204", "code": "MAT-0204", "name": "Kabel LED (2x14 - 80m)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0205", "code": "MAT-0205", "name": "Kepala Colokan (S-28 Bulat - Uticon)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0206", "code": "MAT-0206", "name": "LED (3000K - Huben)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0207", "code": "MAT-0207", "name": "LED (3000k WW - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0208", "code": "MAT-0208", "name": "LED (4000K - Huben)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0209", "code": "MAT-0209", "name": "LED (4000k NW - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0210", "code": "MAT-0210", "name": "LED (6000K - Huben)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0211", "code": "MAT-0211", "name": "LED (6000k W - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0212", "code": "MAT-0212", "name": "LED (6500K - Huben)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0213", "code": "MAT-0213", "name": "LED Selang (4000k NW - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0214", "code": "MAT-0214", "name": "RL (Non-Sayap - Hitam)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0215", "code": "MAT-0215", "name": "RL (Non-Sayap - Putih)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0216", "code": "MAT-0216", "name": "RL (Sayap - Hitam)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0217", "code": "MAT-0217", "name": "RL (Sayap - Putih)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0218", "code": "MAT-0218", "name": "SK Stop Kontak (1gang - Morgen)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0219", "code": "MAT-0219", "name": "SK Stop Kontak (1gang - Schneider)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0220", "code": "MAT-0220", "name": "SK Stop Kontak (2gang - Schneider)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0221", "code": "MAT-0221", "name": "SK Stop Kontak (3gang - Schneider)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0222", "code": "MAT-0222", "name": "SR Saklar (1gang - Schneider)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0223", "code": "MAT-0223", "name": "SR Saklar (2gang - Schneider)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0224", "code": "MAT-0224", "name": "SR Saklar (3gang - Schneider)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0225", "code": "MAT-0225", "name": "SR Saklar (Bulat - Hitam)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0226", "code": "MAT-0226", "name": "SR Saklar (Bulat - Putih)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0227", "code": "MAT-0227", "name": "Spotlight 4000k (3w - Inlite)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0228", "code": "MAT-0228", "name": "Spotlight 4000k (5w - Inlite)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0229", "code": "MAT-0229", "name": "Trafo (10A - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0230", "code": "MAT-0230", "name": "Trafo (15A - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0231", "code": "MAT-0231", "name": "Trafo (3A - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0232", "code": "MAT-0232", "name": "Trafo (5A - Yamasaki)", "category": "Kelistrikan & Lampu", "qty": "0"}, {"kode": "MAT-0233", "code": "MAT-0233", "name": "Edging Huben (EA 17 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0234", "code": "MAT-0234", "name": "Edging Huben (EA 19 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0235", "code": "MAT-0235", "name": "Frame Huben (FA 128 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0236", "code": "MAT-0236", "name": "Frame Huben (FA 21 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0237", "code": "MAT-0237", "name": "Frame Huben (GP 36 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0238", "code": "MAT-0238", "name": "Frame Huben (GP 37 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0239", "code": "MAT-0239", "name": "Frame Huben (LP 376 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0240", "code": "MAT-0240", "name": "Handle Huben (FHD 128 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0241", "code": "MAT-0241", "name": "Handle Huben (FHD 21 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0242", "code": "MAT-0242", "name": "Handle Huben (GP 37 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0243", "code": "MAT-0243", "name": "Handle Huben (LP 375 - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0244", "code": "MAT-0244", "name": "List L (2X2cm - Anodized)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0245", "code": "MAT-0245", "name": "List T (8mm - Hitam)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0246", "code": "MAT-0246", "name": "List T (8mm - SS)", "category": "Aluminium & Profil", "qty": "0"}, {"kode": "MAT-0247", "code": "MAT-0247", "name": "Amplas Bulat (Grid 100)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0248", "code": "MAT-0248", "name": "Amplas Bulat (Grid 80)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0249", "code": "MAT-0249", "name": "Amplas Gulung (Grid 100)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0250", "code": "MAT-0250", "name": "Amplas Gulung (Grid 80)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0251", "code": "MAT-0251", "name": "Baut Frame (701)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0252", "code": "MAT-0252", "name": "Biji Ambalan (AKP 15 - SS)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0253", "code": "MAT-0253", "name": "Biji Ambalan (RH 21)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0254", "code": "MAT-0254", "name": "Cat Tusir (1/4)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0255", "code": "MAT-0255", "name": "Doubletape Foam (4m - Foam)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0256", "code": "MAT-0256", "name": "Fisher (S6)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0257", "code": "MAT-0257", "name": "Fisher (S8 - Abu)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0258", "code": "MAT-0258", "name": "Isi Cutter", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0259", "code": "MAT-0259", "name": "Kabel Duckting (1m - TC5)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0260", "code": "MAT-0260", "name": "Kabel Duckting (2m - 2cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0261", "code": "MAT-0261", "name": "Kabel Duckting (2m - TC4)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0262", "code": "MAT-0262", "name": "Kabel Ties", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0263", "code": "MAT-0263", "name": "Kabel Tray (Hitam)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0264", "code": "MAT-0264", "name": "Kain Bal", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0265", "code": "MAT-0265", "name": "Kepala Amplas", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0266", "code": "MAT-0266", "name": "Klem Kabel (10mm - Putih)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0267", "code": "MAT-0267", "name": "Kompon (1kg)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0268", "code": "MAT-0268", "name": "Kuas Cat (1 inch)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0269", "code": "MAT-0269", "name": "Kuas Rol (60 cm - Mini)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0270", "code": "MAT-0270", "name": "Kuas Rol (Supra - Besar)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0271", "code": "MAT-0271", "name": "Lakban Kertas", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0272", "code": "MAT-0272", "name": "Lasdop (1 mm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0273", "code": "MAT-0273", "name": "Lasdop (2 mm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0274", "code": "MAT-0274", "name": "Lem Alteco", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0275", "code": "MAT-0275", "name": "Lem Kuning", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0276", "code": "MAT-0276", "name": "Lem Milan", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0277", "code": "MAT-0277", "name": "Lem Putih", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0278", "code": "MAT-0278", "name": "Magnet Pintu (40mm - Hitam)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0279", "code": "MAT-0279", "name": "Magnet Pintu (40mm - Silver)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0280", "code": "MAT-0280", "name": "Mata Bor Beton (8mm - VPR)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0281", "code": "MAT-0281", "name": "Mata Bor Gromet (80mm - Kugel)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0282", "code": "MAT-0282", "name": "Mata Bor Keramik (S6)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0283", "code": "MAT-0283", "name": "Mata Bor Obeng / Driver (6,5mm - VPR)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0284", "code": "MAT-0284", "name": "Mata Jig Saw", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0285", "code": "MAT-0285", "name": "Mata P. Gerinda", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0286", "code": "MAT-0286", "name": "Mata P. Keramik", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0287", "code": "MAT-0287", "name": "Mata Router (6 mm - Bearing)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0288", "code": "MAT-0288", "name": "Mata Router (6 mm - Non Bearing)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0289", "code": "MAT-0289", "name": "Maxbond (Kaca)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0290", "code": "MAT-0290", "name": "Mohair (Hitam)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0291", "code": "MAT-0291", "name": "Paku Beton (5 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0292", "code": "MAT-0292", "name": "Paku Beton (7 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0293", "code": "MAT-0293", "name": "Paku Tembak (F 15)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0294", "code": "MAT-0294", "name": "Paku Tembak (F 20)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0295", "code": "MAT-0295", "name": "Paku Tembak (F 30)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0296", "code": "MAT-0296", "name": "Pelurus Pintu (Felterre)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0297", "code": "MAT-0297", "name": "Pembersih Kaca", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0298", "code": "MAT-0298", "name": "Pensil Tukang (18 cm - Makita)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0299", "code": "MAT-0299", "name": "Pledge", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0300", "code": "MAT-0300", "name": "Roda (2 Inch - Hitam)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0301", "code": "MAT-0301", "name": "Roda Castrol (PU + Hidup lock - T - 7cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0302", "code": "MAT-0302", "name": "Roda Castrol (PU Mati - T - 7cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0303", "code": "MAT-0303", "name": "Roda Meja (1 inch - Type C)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0304", "code": "MAT-0304", "name": "Roda Peninggi Pintu (Hitam - 1,5 x 7,7mm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0305", "code": "MAT-0305", "name": "Roll Cat (Besar)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0306", "code": "MAT-0306", "name": "Roll Cat (Kecil)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0307", "code": "MAT-0307", "name": "Sealant (Abu Muda)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0308", "code": "MAT-0308", "name": "Sealant (Abu Tua)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0309", "code": "MAT-0309", "name": "Sealant (Cklt Muda)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0310", "code": "MAT-0310", "name": "Sealant (Cklt Tua)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0311", "code": "MAT-0311", "name": "Sealant (Clear)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0312", "code": "MAT-0312", "name": "Sealant (Hitam)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0313", "code": "MAT-0313", "name": "Sealant (Putih)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0314", "code": "MAT-0314", "name": "Sealtape (10 m - Onda)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0315", "code": "MAT-0315", "name": "Sekrup (2 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0316", "code": "MAT-0316", "name": "Sekrup (2,5 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0317", "code": "MAT-0317", "name": "Sekrup (3 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0318", "code": "MAT-0318", "name": "Sekrup (4 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0319", "code": "MAT-0319", "name": "Sekrup (5 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0320", "code": "MAT-0320", "name": "Sekrup (7 cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0321", "code": "MAT-0321", "name": "Sekrup Engsel", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0322", "code": "MAT-0322", "name": "Sekrup Gantung (Tanda Tanya - 5cm)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0323", "code": "MAT-0323", "name": "Siku Frame (AH-21 - Silver)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0324", "code": "MAT-0324", "name": "Siku Frame (AH-45 - Silver)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0325", "code": "MAT-0325", "name": "Solasi Listrik (17 yard - Goal Tape)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0326", "code": "MAT-0326", "name": "Staples Tembak", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0327", "code": "MAT-0327", "name": "Stop Kran (Blu - Cabang 1)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0328", "code": "MAT-0328", "name": "Tenol", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0329", "code": "MAT-0329", "name": "Thiner", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0330", "code": "MAT-0330", "name": "Tutup Sekrup (Abu)", "category": "Bahan Habis Pakai", "qty": "0"}, {"kode": "MAT-0331", "code": "MAT-0331", "name": "Tutup Sekrup (Putih)", "category": "Bahan Habis Pakai", "qty": "0"}]
+[
+  {
+    "kode": "MAT-0001",
+    "code": "MAT-0001",
+    "name": "BB Blockboard (DF - 18 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0002",
+    "code": "MAT-0002",
+    "name": "BB Blockboard (Polos - 15 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0003",
+    "code": "MAT-0003",
+    "name": "BB Blockboard (Polos - 18 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0004",
+    "code": "MAT-0004",
+    "name": "BB Blockboard (SF - 15mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0005",
+    "code": "MAT-0005",
+    "name": "BB Blockboard (SF - 18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0006",
+    "code": "MAT-0006",
+    "name": "HMR (Polos - 12 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0007",
+    "code": "MAT-0007",
+    "name": "HMR (Polos - 15 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0008",
+    "code": "MAT-0008",
+    "name": "HMR (Polos - 3 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0009",
+    "code": "MAT-0009",
+    "name": "HMR (Polos - 6 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0010",
+    "code": "MAT-0010",
+    "name": "HMR (Polos - 9 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0011",
+    "code": "MAT-0011",
+    "name": "HMR (Polos - n)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0012",
+    "code": "MAT-0012",
+    "name": "PVC Board (15mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0013",
+    "code": "MAT-0013",
+    "name": "PVC Board (18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0014",
+    "code": "MAT-0014",
+    "name": "Triplek (Bending - 9 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0015",
+    "code": "MAT-0015",
+    "name": "Triplek (DF - 18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0016",
+    "code": "MAT-0016",
+    "name": "Triplek (Polos - 12mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0017",
+    "code": "MAT-0017",
+    "name": "Triplek (Polos - 15mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0018",
+    "code": "MAT-0018",
+    "name": "Triplek (Polos - 18mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0019",
+    "code": "MAT-0019",
+    "name": "Triplek (Polos - 3mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0020",
+    "code": "MAT-0020",
+    "name": "Triplek (Polos - 6mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0021",
+    "code": "MAT-0021",
+    "name": "Triplek (Polos - 9mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0022",
+    "code": "MAT-0022",
+    "name": "Triplek (SF - 12mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0023",
+    "code": "MAT-0023",
+    "name": "Triplek (SF - 15mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0024",
+    "code": "MAT-0024",
+    "name": "Triplek (SF - 18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0025",
+    "code": "MAT-0025",
+    "name": "Triplek (SF - 6mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0026",
+    "code": "MAT-0026",
+    "name": "Triplek (SF - 9mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0027",
+    "code": "MAT-0027",
+    "name": "Triplek ALBA BTR (18mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0028",
+    "code": "MAT-0028",
+    "name": "Triplek MC (12mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0029",
+    "code": "MAT-0029",
+    "name": "Triplek MC (15mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0030",
+    "code": "MAT-0030",
+    "name": "Triplek MC (18mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0031",
+    "code": "MAT-0031",
+    "name": "Triplek MC (9mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0032",
+    "code": "MAT-0032",
+    "name": "Triplek Max Happan (18mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0033",
+    "code": "MAT-0033",
+    "name": "Triplek Max Happan (9mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0034",
+    "code": "MAT-0034",
+    "name": "Triplek Meranti Uty (18mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0035",
+    "code": "MAT-0035",
+    "name": "Triplek Meranti Uty (9mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0036",
+    "code": "MAT-0036",
+    "name": "Triplek Uty (12mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0037",
+    "code": "MAT-0037",
+    "name": "Triplek Uty (15mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0038",
+    "code": "MAT-0038",
+    "name": "Triplek Uty (18mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0039",
+    "code": "MAT-0039",
+    "name": "Triplek Uty (9mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0040",
+    "code": "MAT-0040",
+    "name": "Triplek Uty A (12mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0041",
+    "code": "MAT-0041",
+    "name": "Triplek Uty A (15mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0042",
+    "code": "MAT-0042",
+    "name": "Triplek Uty A (18mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0043",
+    "code": "MAT-0043",
+    "name": "Triplek Uty A (9mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0044",
+    "code": "MAT-0044",
+    "name": "Edging Pattern (Edg Taco - 4cm)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0045",
+    "code": "MAT-0045",
+    "name": "Edging Solid (Edg Taco - 4cm)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0046",
+    "code": "MAT-0046",
+    "name": "Edging Woodgrain (Edg Taco - 4cm)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0047",
+    "code": "MAT-0047",
+    "name": "HPL PATTERN (TACO - FA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0048",
+    "code": "MAT-0048",
+    "name": "HPL SOLID (TACO - A)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0049",
+    "code": "MAT-0049",
+    "name": "HPL SOLID (TACO - AA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0050",
+    "code": "MAT-0050",
+    "name": "HPL SOLID (TACO - AB)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0051",
+    "code": "MAT-0051",
+    "name": "HPL SOLID (TACO - D)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0052",
+    "code": "MAT-0052",
+    "name": "HPL SOLID (TACO - DB)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0053",
+    "code": "MAT-0053",
+    "name": "HPL SOLID (TACO - G)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0054",
+    "code": "MAT-0054",
+    "name": "HPL SOLID (TACO - SA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0055",
+    "code": "MAT-0055",
+    "name": "HPL SOLID (TACO - SB)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0056",
+    "code": "MAT-0056",
+    "name": "HPL WOODGRAIN (TACO - AA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0057",
+    "code": "MAT-0057",
+    "name": "HPL WOODGRAIN (TACO - AC)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0058",
+    "code": "MAT-0058",
+    "name": "HPL WOODGRAIN (TACO - B)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0059",
+    "code": "MAT-0059",
+    "name": "HPL WOODGRAIN (TACO - DP)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0060",
+    "code": "MAT-0060",
+    "name": "HPL WOODGRAIN (TACO - FC)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0061",
+    "code": "MAT-0061",
+    "name": "HPL WOODGRAIN (TACO - GL)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0062",
+    "code": "MAT-0062",
+    "name": "HPL WOODGRAIN (TACO - H)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0063",
+    "code": "MAT-0063",
+    "name": "HPL WOODGRAIN (TACO - J)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0064",
+    "code": "MAT-0064",
+    "name": "HPL WOODGRAIN (TACO - JG)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0065",
+    "code": "MAT-0065",
+    "name": "HPL WOODGRAIN (TACO - KM)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0066",
+    "code": "MAT-0066",
+    "name": "HPL WOODGRAIN (TACO - KY)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0067",
+    "code": "MAT-0067",
+    "name": "HPL WOODGRAIN (TACO - NT)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0068",
+    "code": "MAT-0068",
+    "name": "HPL WOODGRAIN (TACO - SL)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "MAT-0069",
+    "code": "MAT-0069",
+    "name": "Tacosheet (Taco - P02)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0070",
+    "code": "MAT-0070",
+    "name": "List Siku WPC (Abu Doff - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0071",
+    "code": "MAT-0071",
+    "name": "WPC CAOSO (Abu Doff - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0072",
+    "code": "MAT-0072",
+    "name": "WPC CAOSO (Capucino Serat - 10mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0073",
+    "code": "MAT-0073",
+    "name": "WPC CAOSO (Capucino Serat - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0074",
+    "code": "MAT-0074",
+    "name": "WPC CAOSO (Kayu Kuning Serat - 10mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0075",
+    "code": "MAT-0075",
+    "name": "WPC CAOSO (Kayu Kuning Serat - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0076",
+    "code": "MAT-0076",
+    "name": "Bracket B9-19 (Cabang 3 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0077",
+    "code": "MAT-0077",
+    "name": "Bracket BP-16 (Oval - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0078",
+    "code": "MAT-0078",
+    "name": "Bracket BP-19 (Bulat - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0079",
+    "code": "MAT-0079",
+    "name": "Bracket BP-19 (Lurus - 1 inch - Baleno)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0080",
+    "code": "MAT-0080",
+    "name": "Bracket BP-19 (T - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0081",
+    "code": "MAT-0081",
+    "name": "Bracket Siku L (12 x 20cm - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0082",
+    "code": "MAT-0082",
+    "name": "Bracket Siku L (12 x 20cm - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0083",
+    "code": "MAT-0083",
+    "name": "DTNS DoubleTrack (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0084",
+    "code": "MAT-0084",
+    "name": "DTNS DoubleTrack (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0085",
+    "code": "MAT-0085",
+    "name": "DTNS DoubleTrack (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0086",
+    "code": "MAT-0086",
+    "name": "DTNS DoubleTrack (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0087",
+    "code": "MAT-0087",
+    "name": "DTNS DoubleTrack (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0088",
+    "code": "MAT-0088",
+    "name": "DTNS DoubleTrack (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0089",
+    "code": "MAT-0089",
+    "name": "DTNS DoubleTrack (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0090",
+    "code": "MAT-0090",
+    "name": "DTSM DoubleTrack (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0091",
+    "code": "MAT-0091",
+    "name": "DTSM DoubleTrack (30cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0092",
+    "code": "MAT-0092",
+    "name": "DTSM DoubleTrack (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0093",
+    "code": "MAT-0093",
+    "name": "DTSM DoubleTrack (35cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0094",
+    "code": "MAT-0094",
+    "name": "DTSM DoubleTrack (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0095",
+    "code": "MAT-0095",
+    "name": "DTSM DoubleTrack (40cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0096",
+    "code": "MAT-0096",
+    "name": "DTSM DoubleTrack (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0097",
+    "code": "MAT-0097",
+    "name": "DTSM DoubleTrack (45cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0098",
+    "code": "MAT-0098",
+    "name": "DTSM DoubleTrack (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0099",
+    "code": "MAT-0099",
+    "name": "DTSM DoubleTrack (50cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0100",
+    "code": "MAT-0100",
+    "name": "DTSM DoubleTrack (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0101",
+    "code": "MAT-0101",
+    "name": "DTSM DoubleTrack (55cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0102",
+    "code": "MAT-0102",
+    "name": "DTSM DoubleTrack (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0103",
+    "code": "MAT-0103",
+    "name": "DTSM DoubleTrack (60cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0104",
+    "code": "MAT-0104",
+    "name": "Door Closer (Hitam - Dekson)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0105",
+    "code": "MAT-0105",
+    "name": "Engsel (BKK - Hafele Econo)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0106",
+    "code": "MAT-0106",
+    "name": "Engsel (BKK - Knockers)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0107",
+    "code": "MAT-0107",
+    "name": "Engsel (BKK - Taco)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0108",
+    "code": "MAT-0108",
+    "name": "Engsel (Lurus - Hafele Econo)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0109",
+    "code": "MAT-0109",
+    "name": "Engsel (Lurus - Knockers)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0110",
+    "code": "MAT-0110",
+    "name": "Engsel (Lurus - Knockers Anti Karat)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0111",
+    "code": "MAT-0111",
+    "name": "Engsel (Lurus - Taco)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0112",
+    "code": "MAT-0112",
+    "name": "Engsel (Stgh BKK - Hafele Econo)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0113",
+    "code": "MAT-0113",
+    "name": "Engsel (Stgh BKK - Knockers)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0114",
+    "code": "MAT-0114",
+    "name": "Engsel (Stgh BKK - Taco)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0115",
+    "code": "MAT-0115",
+    "name": "Engsel Frame (EFA-0 Lurus - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0116",
+    "code": "MAT-0116",
+    "name": "Engsel Kupu-kupu (Hitam - Dekson)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0117",
+    "code": "MAT-0117",
+    "name": "Engsel Pivot Kaca (T86 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0118",
+    "code": "MAT-0118",
+    "name": "Engsel Robot (BKK - Femarg)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0119",
+    "code": "MAT-0119",
+    "name": "Engsel Robot (Lurus - Femarg)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0120",
+    "code": "MAT-0120",
+    "name": "Engsel Robot (StghBkk - Femarg)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0121",
+    "code": "MAT-0121",
+    "name": "Gas Spring (40N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0122",
+    "code": "MAT-0122",
+    "name": "Gas Spring (60N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0123",
+    "code": "MAT-0123",
+    "name": "Gas Spring (80N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0124",
+    "code": "MAT-0124",
+    "name": "Gas Srping (100N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0125",
+    "code": "MAT-0125",
+    "name": "Gas Srping (40N Mini - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0126",
+    "code": "MAT-0126",
+    "name": "Gas Srping (60N Mini - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0127",
+    "code": "MAT-0127",
+    "name": "Grendel (Hitam - Dekson)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0128",
+    "code": "MAT-0128",
+    "name": "Gromet 8x16 (Kotak - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0129",
+    "code": "MAT-0129",
+    "name": "Gromet 8x16 (Kotak - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0130",
+    "code": "MAT-0130",
+    "name": "Gromet Plastik (Bulat - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0131",
+    "code": "MAT-0131",
+    "name": "Gromet Plastik (Bulat - Coklat)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0132",
+    "code": "MAT-0132",
+    "name": "Gromet Plastik (Bulat - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0133",
+    "code": "MAT-0133",
+    "name": "Gromet Plastik (Bulat - Putih)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0134",
+    "code": "MAT-0134",
+    "name": "Gromet Stainles (Bulat - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0135",
+    "code": "MAT-0135",
+    "name": "Gromet stop kontak 20x12x8 (Kotak - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0136",
+    "code": "MAT-0136",
+    "name": "Handle (KNOB Bulat 1903 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0137",
+    "code": "MAT-0137",
+    "name": "Handle (KNOB TK82 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0138",
+    "code": "MAT-0138",
+    "name": "Handle (KNOB TK85 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0139",
+    "code": "MAT-0139",
+    "name": "Handle (Motif 15 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0140",
+    "code": "MAT-0140",
+    "name": "Handle (TA14-Hitam - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0141",
+    "code": "MAT-0141",
+    "name": "Handle (TA21-40cm - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0142",
+    "code": "MAT-0142",
+    "name": "Hanger 200-SM (Lifter Slow - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0143",
+    "code": "MAT-0143",
+    "name": "Hanger Stainless (Bulat - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0144",
+    "code": "MAT-0144",
+    "name": "Hanger Stainless (Oval - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0145",
+    "code": "MAT-0145",
+    "name": "Kaki Meja (Kotak - 20cm - Stainless)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0146",
+    "code": "MAT-0146",
+    "name": "Kaki Meja (Segitiga - 10cm - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0147",
+    "code": "MAT-0147",
+    "name": "Kapstock (4 Kait - 30cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0148",
+    "code": "MAT-0148",
+    "name": "Kunci Laci + Plat (HL138 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0149",
+    "code": "MAT-0149",
+    "name": "Lubang Hawa (5x15 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0150",
+    "code": "MAT-0150",
+    "name": "Lubang Hawa (5x15 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0151",
+    "code": "MAT-0151",
+    "name": "Lubang Hawa (5x20 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0152",
+    "code": "MAT-0152",
+    "name": "Lubang Hawa (5x20 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0153",
+    "code": "MAT-0153",
+    "name": "Lubang Hawa (8x15 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0154",
+    "code": "MAT-0154",
+    "name": "Lubang Hawa (8x15 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0155",
+    "code": "MAT-0155",
+    "name": "Lubang Hawa (Stainless - Bulat)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0156",
+    "code": "MAT-0156",
+    "name": "Push On (TO3-SS - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0157",
+    "code": "MAT-0157",
+    "name": "Push On (Twin)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0158",
+    "code": "MAT-0158",
+    "name": "Push On Besar (TO4-35N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0159",
+    "code": "MAT-0159",
+    "name": "Push On Kaca (Double - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0160",
+    "code": "MAT-0160",
+    "name": "Push On Kaca (Single - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0161",
+    "code": "MAT-0161",
+    "name": "Rak Panci (6kait - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0162",
+    "code": "MAT-0162",
+    "name": "Rak Piring (60cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0163",
+    "code": "MAT-0163",
+    "name": "Rak Piring (70cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0164",
+    "code": "MAT-0164",
+    "name": "Rak Piring (80cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0165",
+    "code": "MAT-0165",
+    "name": "Rak Piring (90cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0166",
+    "code": "MAT-0166",
+    "name": "Rak Piring Laci (30cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0167",
+    "code": "MAT-0167",
+    "name": "Rak Sendok (Uk. Pintu 30cm - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0168",
+    "code": "MAT-0168",
+    "name": "Rak Sendok (Uk. Pintu 40cm - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0169",
+    "code": "MAT-0169",
+    "name": "Rak Sendok (Uk. Pintu 50cm - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0170",
+    "code": "MAT-0170",
+    "name": "Rel Lemari (Pocket Door - 40cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0171",
+    "code": "MAT-0171",
+    "name": "Rel Lemari (Pocket Door - 50cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0172",
+    "code": "MAT-0172",
+    "name": "Rel Meja Tarik (8002 - Winston)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Set",
+    "unit": "Set"
+  },
+  {
+    "kode": "MAT-0173",
+    "code": "MAT-0173",
+    "name": "Rel Sliding Atas (SD 02 - U - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0174",
+    "code": "MAT-0174",
+    "name": "Rel Sliding Atas (SD 452 - A - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0175",
+    "code": "MAT-0175",
+    "name": "Rel Sliding Bawah (SD 02 - M - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0176",
+    "code": "MAT-0176",
+    "name": "Rel Sliding Bawah (SD 452 - B - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0177",
+    "code": "MAT-0177",
+    "name": "Roda Sliding (SD 3141 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0178",
+    "code": "MAT-0178",
+    "name": "Set Rel Sliding 452 SD (2Pintu - 2mtr - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0179",
+    "code": "MAT-0179",
+    "name": "Set Rel Sliding 452 SD (2Pintu - 3mtr - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0180",
+    "code": "MAT-0180",
+    "name": "Tandem (25cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0181",
+    "code": "MAT-0181",
+    "name": "Tandem (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0182",
+    "code": "MAT-0182",
+    "name": "Tandem (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0183",
+    "code": "MAT-0183",
+    "name": "Tandem (30cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0184",
+    "code": "MAT-0184",
+    "name": "Tandem (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0185",
+    "code": "MAT-0185",
+    "name": "Tandem (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0186",
+    "code": "MAT-0186",
+    "name": "Tandem (35cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0187",
+    "code": "MAT-0187",
+    "name": "Tandem (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0188",
+    "code": "MAT-0188",
+    "name": "Tandem (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0189",
+    "code": "MAT-0189",
+    "name": "Tandem (40cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0190",
+    "code": "MAT-0190",
+    "name": "Tandem (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0191",
+    "code": "MAT-0191",
+    "name": "Tandem (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0192",
+    "code": "MAT-0192",
+    "name": "Tandem (45cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0193",
+    "code": "MAT-0193",
+    "name": "Tandem (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0194",
+    "code": "MAT-0194",
+    "name": "Tandem (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0195",
+    "code": "MAT-0195",
+    "name": "Tandem (50cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0196",
+    "code": "MAT-0196",
+    "name": "Tandem (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0197",
+    "code": "MAT-0197",
+    "name": "Tandem (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0198",
+    "code": "MAT-0198",
+    "name": "Tandem (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0199",
+    "code": "MAT-0199",
+    "name": "Tandem (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "MAT-0200",
+    "code": "MAT-0200",
+    "name": "Down - Lampu Downlight Mini (3w - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0201",
+    "code": "MAT-0201",
+    "name": "KB Kabel (2x0.75 - Lotusku)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "MAT-0202",
+    "code": "MAT-0202",
+    "name": "KB Kabel (2x1.5 - Lotusku)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "MAT-0203",
+    "code": "MAT-0203",
+    "name": "KB Kabel (3x1.5 - Lotusku)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "MAT-0204",
+    "code": "MAT-0204",
+    "name": "Kabel LED (2x14 - 80m)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "MAT-0205",
+    "code": "MAT-0205",
+    "name": "Kepala Colokan (S-28 Bulat - Uticon)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0206",
+    "code": "MAT-0206",
+    "name": "LED (3000K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0207",
+    "code": "MAT-0207",
+    "name": "LED (3000k WW - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0208",
+    "code": "MAT-0208",
+    "name": "LED (4000K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0209",
+    "code": "MAT-0209",
+    "name": "LED (4000k NW - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0210",
+    "code": "MAT-0210",
+    "name": "LED (6000K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0211",
+    "code": "MAT-0211",
+    "name": "LED (6000k W - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0212",
+    "code": "MAT-0212",
+    "name": "LED (6500K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0213",
+    "code": "MAT-0213",
+    "name": "LED Selang (4000k NW - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0214",
+    "code": "MAT-0214",
+    "name": "RL (Non-Sayap - Hitam)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0215",
+    "code": "MAT-0215",
+    "name": "RL (Non-Sayap - Putih)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0216",
+    "code": "MAT-0216",
+    "name": "RL (Sayap - Hitam)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0217",
+    "code": "MAT-0217",
+    "name": "RL (Sayap - Putih)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0218",
+    "code": "MAT-0218",
+    "name": "SK Stop Kontak (1gang - Morgen)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0219",
+    "code": "MAT-0219",
+    "name": "SK Stop Kontak (1gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0220",
+    "code": "MAT-0220",
+    "name": "SK Stop Kontak (2gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0221",
+    "code": "MAT-0221",
+    "name": "SK Stop Kontak (3gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0222",
+    "code": "MAT-0222",
+    "name": "SR Saklar (1gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0223",
+    "code": "MAT-0223",
+    "name": "SR Saklar (2gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0224",
+    "code": "MAT-0224",
+    "name": "SR Saklar (3gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0225",
+    "code": "MAT-0225",
+    "name": "SR Saklar (Bulat - Hitam)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0226",
+    "code": "MAT-0226",
+    "name": "SR Saklar (Bulat - Putih)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0227",
+    "code": "MAT-0227",
+    "name": "Spotlight 4000k (3w - Inlite)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0228",
+    "code": "MAT-0228",
+    "name": "Spotlight 4000k (5w - Inlite)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0229",
+    "code": "MAT-0229",
+    "name": "Trafo (10A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0230",
+    "code": "MAT-0230",
+    "name": "Trafo (15A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0231",
+    "code": "MAT-0231",
+    "name": "Trafo (3A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0232",
+    "code": "MAT-0232",
+    "name": "Trafo (5A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0233",
+    "code": "MAT-0233",
+    "name": "Edging Huben (EA 17 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0234",
+    "code": "MAT-0234",
+    "name": "Edging Huben (EA 19 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0235",
+    "code": "MAT-0235",
+    "name": "Frame Huben (FA 128 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0236",
+    "code": "MAT-0236",
+    "name": "Frame Huben (FA 21 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0237",
+    "code": "MAT-0237",
+    "name": "Frame Huben (GP 36 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0238",
+    "code": "MAT-0238",
+    "name": "Frame Huben (GP 37 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0239",
+    "code": "MAT-0239",
+    "name": "Frame Huben (LP 376 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0240",
+    "code": "MAT-0240",
+    "name": "Handle Huben (FHD 128 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0241",
+    "code": "MAT-0241",
+    "name": "Handle Huben (FHD 21 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0242",
+    "code": "MAT-0242",
+    "name": "Handle Huben (GP 37 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0243",
+    "code": "MAT-0243",
+    "name": "Handle Huben (LP 375 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "MAT-0244",
+    "code": "MAT-0244",
+    "name": "List L (2X2cm - Anodized)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0245",
+    "code": "MAT-0245",
+    "name": "List T (8mm - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0246",
+    "code": "MAT-0246",
+    "name": "List T (8mm - SS)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0247",
+    "code": "MAT-0247",
+    "name": "Amplas Bulat (Grid 100)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0248",
+    "code": "MAT-0248",
+    "name": "Amplas Bulat (Grid 80)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0249",
+    "code": "MAT-0249",
+    "name": "Amplas Gulung (Grid 100)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "MAT-0250",
+    "code": "MAT-0250",
+    "name": "Amplas Gulung (Grid 80)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "MAT-0251",
+    "code": "MAT-0251",
+    "name": "Baut Frame (701)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0252",
+    "code": "MAT-0252",
+    "name": "Biji Ambalan (AKP 15 - SS)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0253",
+    "code": "MAT-0253",
+    "name": "Biji Ambalan (RH 21)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0254",
+    "code": "MAT-0254",
+    "name": "Cat Tusir (1/4)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Kaleng",
+    "unit": "Kaleng"
+  },
+  {
+    "kode": "MAT-0255",
+    "code": "MAT-0255",
+    "name": "Doubletape Foam (4m - Foam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0256",
+    "code": "MAT-0256",
+    "name": "Fisher (S6)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0257",
+    "code": "MAT-0257",
+    "name": "Fisher (S8 - Abu)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0258",
+    "code": "MAT-0258",
+    "name": "Isi Cutter",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Kotak",
+    "unit": "Kotak"
+  },
+  {
+    "kode": "MAT-0259",
+    "code": "MAT-0259",
+    "name": "Kabel Duckting (1m - TC5)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0260",
+    "code": "MAT-0260",
+    "name": "Kabel Duckting (2m - 2cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0261",
+    "code": "MAT-0261",
+    "name": "Kabel Duckting (2m - TC4)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0262",
+    "code": "MAT-0262",
+    "name": "Kabel Ties",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "MAT-0263",
+    "code": "MAT-0263",
+    "name": "Kabel Tray (Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0264",
+    "code": "MAT-0264",
+    "name": "Kain Bal",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "MAT-0265",
+    "code": "MAT-0265",
+    "name": "Kepala Amplas",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0266",
+    "code": "MAT-0266",
+    "name": "Klem Kabel (10mm - Putih)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0267",
+    "code": "MAT-0267",
+    "name": "Kompon (1kg)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Kg",
+    "unit": "Kg"
+  },
+  {
+    "kode": "MAT-0268",
+    "code": "MAT-0268",
+    "name": "Kuas Cat (1 inch)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0269",
+    "code": "MAT-0269",
+    "name": "Kuas Rol (60 cm - Mini)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0270",
+    "code": "MAT-0270",
+    "name": "Kuas Rol (Supra - Besar)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0271",
+    "code": "MAT-0271",
+    "name": "Lakban Kertas",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0272",
+    "code": "MAT-0272",
+    "name": "Lasdop (1 mm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0273",
+    "code": "MAT-0273",
+    "name": "Lasdop (2 mm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0274",
+    "code": "MAT-0274",
+    "name": "Lem Alteco",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0275",
+    "code": "MAT-0275",
+    "name": "Lem Kuning",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Blek",
+    "unit": "Blek"
+  },
+  {
+    "kode": "MAT-0276",
+    "code": "MAT-0276",
+    "name": "Lem Milan",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Blek",
+    "unit": "Blek"
+  },
+  {
+    "kode": "MAT-0277",
+    "code": "MAT-0277",
+    "name": "Lem Putih",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "MAT-0278",
+    "code": "MAT-0278",
+    "name": "Magnet Pintu (40mm - Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0279",
+    "code": "MAT-0279",
+    "name": "Magnet Pintu (40mm - Silver)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0280",
+    "code": "MAT-0280",
+    "name": "Mata Bor Beton (8mm - VPR)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0281",
+    "code": "MAT-0281",
+    "name": "Mata Bor Gromet (80mm - Kugel)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0282",
+    "code": "MAT-0282",
+    "name": "Mata Bor Keramik (S6)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0283",
+    "code": "MAT-0283",
+    "name": "Mata Bor Obeng / Driver (6,5mm - VPR)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0284",
+    "code": "MAT-0284",
+    "name": "Mata Jig Saw",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0285",
+    "code": "MAT-0285",
+    "name": "Mata P. Gerinda",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0286",
+    "code": "MAT-0286",
+    "name": "Mata P. Keramik",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0287",
+    "code": "MAT-0287",
+    "name": "Mata Router (6 mm - Bearing)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0288",
+    "code": "MAT-0288",
+    "name": "Mata Router (6 mm - Non Bearing)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0289",
+    "code": "MAT-0289",
+    "name": "Maxbond (Kaca)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0290",
+    "code": "MAT-0290",
+    "name": "Mohair (Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0291",
+    "code": "MAT-0291",
+    "name": "Paku Beton (5 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0292",
+    "code": "MAT-0292",
+    "name": "Paku Beton (7 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0293",
+    "code": "MAT-0293",
+    "name": "Paku Tembak (F 15)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0294",
+    "code": "MAT-0294",
+    "name": "Paku Tembak (F 20)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0295",
+    "code": "MAT-0295",
+    "name": "Paku Tembak (F 30)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0296",
+    "code": "MAT-0296",
+    "name": "Pelurus Pintu (Felterre)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "MAT-0297",
+    "code": "MAT-0297",
+    "name": "Pembersih Kaca",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "MAT-0298",
+    "code": "MAT-0298",
+    "name": "Pensil Tukang (18 cm - Makita)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0299",
+    "code": "MAT-0299",
+    "name": "Pledge",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "MAT-0300",
+    "code": "MAT-0300",
+    "name": "Roda (2 Inch - Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0301",
+    "code": "MAT-0301",
+    "name": "Roda Castrol (PU + Hidup lock - T - 7cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0302",
+    "code": "MAT-0302",
+    "name": "Roda Castrol (PU Mati - T - 7cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0303",
+    "code": "MAT-0303",
+    "name": "Roda Meja (1 inch - Type C)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0304",
+    "code": "MAT-0304",
+    "name": "Roda Peninggi Pintu (Hitam - 1,5 x 7,7mm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0305",
+    "code": "MAT-0305",
+    "name": "Roll Cat (Besar)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0306",
+    "code": "MAT-0306",
+    "name": "Roll Cat (Kecil)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0307",
+    "code": "MAT-0307",
+    "name": "Sealant (Abu Muda)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0308",
+    "code": "MAT-0308",
+    "name": "Sealant (Abu Tua)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0309",
+    "code": "MAT-0309",
+    "name": "Sealant (Cklt Muda)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0310",
+    "code": "MAT-0310",
+    "name": "Sealant (Cklt Tua)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0311",
+    "code": "MAT-0311",
+    "name": "Sealant (Clear)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0312",
+    "code": "MAT-0312",
+    "name": "Sealant (Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0313",
+    "code": "MAT-0313",
+    "name": "Sealant (Putih)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "MAT-0314",
+    "code": "MAT-0314",
+    "name": "Sealtape (10 m - Onda)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0315",
+    "code": "MAT-0315",
+    "name": "Sekrup (2 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0316",
+    "code": "MAT-0316",
+    "name": "Sekrup (2,5 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0317",
+    "code": "MAT-0317",
+    "name": "Sekrup (3 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0318",
+    "code": "MAT-0318",
+    "name": "Sekrup (4 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0319",
+    "code": "MAT-0319",
+    "name": "Sekrup (5 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0320",
+    "code": "MAT-0320",
+    "name": "Sekrup (7 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0321",
+    "code": "MAT-0321",
+    "name": "Sekrup Engsel",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0322",
+    "code": "MAT-0322",
+    "name": "Sekrup Gantung (Tanda Tanya - 5cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0323",
+    "code": "MAT-0323",
+    "name": "Siku Frame (AH-21 - Silver)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0324",
+    "code": "MAT-0324",
+    "name": "Siku Frame (AH-45 - Silver)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0325",
+    "code": "MAT-0325",
+    "name": "Solasi Listrik (17 yard - Goal Tape)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0326",
+    "code": "MAT-0326",
+    "name": "Staples Tembak",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "MAT-0327",
+    "code": "MAT-0327",
+    "name": "Stop Kran (Blu - Cabang 1)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0328",
+    "code": "MAT-0328",
+    "name": "Tenol",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "MAT-0329",
+    "code": "MAT-0329",
+    "name": "Thiner",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Liter",
+    "unit": "Liter"
+  },
+  {
+    "kode": "MAT-0330",
+    "code": "MAT-0330",
+    "name": "Tutup Sekrup (Abu)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "MAT-0331",
+    "code": "MAT-0331",
+    "name": "Tutup Sekrup (Putih)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  }
+]

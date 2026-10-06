@@ -133,7 +133,12 @@ export default function App() {
     ]
     const result = { ...rows }
     const { data: allProj } = await supabase.from('projects').select('*')
-    const projList = allProj || []
+    const projList = (allProj || []).sort((a, b) => {
+      const numA = parseInt(a.kode, 10)
+      const numB = parseInt(b.kode, 10)
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+      return (a.kode || '').localeCompare(b.kode || '')
+    })
 
     await Promise.all(specs.map(async ([name, table]) => {
       const orderCol = table === 'materials' ? 'kode' : (table === 'purchase_requests' ? 'pr_number' : 'created_at')
@@ -141,11 +146,21 @@ export default function App() {
       const { data } = await supabase.from(table).select('*').order(orderCol, { ascending })
       let items = data || []
 
+      if (name === 'projects') {
+        items.sort((a, b) => {
+          const numA = parseInt(a.kode, 10)
+          const numB = parseInt(b.kode, 10)
+          if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+          return (a.kode || '').localeCompare(b.kode || '')
+        })
+      }
+
       items = items.map(item => {
         const proj = projList.find(p => p.id === item.project_id)
+        const projLabel = proj ? (proj.kode ? `[${proj.kode}] ${proj.name}` : proj.name) : '—'
         return {
           ...item,
-          project_name: proj?.name || '—'
+          project_name: projLabel
         }
       })
 
@@ -210,7 +225,7 @@ export default function App() {
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
-    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Receiving' : 'Data')))
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Receiving' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data'))))
     const itemName = item.delivery_note || item.pr_number || item.name || item.kode || item.code || 'Item'
     const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
     if (!ok) return
@@ -219,7 +234,9 @@ export default function App() {
       vendors: 'vendors',
       materials: 'materials',
       requests: 'purchase_requests',
-      receivings: 'receivings'
+      receivings: 'receivings',
+      projects: 'projects',
+      past_projects: 'projects'
     }[pageTarget] || pageTarget
     
     // optimistic update
@@ -377,7 +394,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
   }
 
   const columns = headersFor(page, displayRows)
-  const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings'].includes(page)
+  const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'projects', 'past_projects'].includes(page)
 
   return (
     <>
@@ -557,10 +574,10 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
 
 function headersFor(page, rows) {
   const defaults = {
-    projects: ['name', 'status', 'created_at'],
-    past_projects: ['name', 'status', 'created_at'],
+    projects: ['kode', 'name', 'status', 'created_at'],
+    past_projects: ['kode', 'name', 'status', 'created_at'],
     vendors: ['name', 'phone', 'contact', 'created_at'],
-    materials: ['kode', 'name', 'category', 'qty'],
+    materials: ['kode', 'name', 'category', 'qty', 'satuan'],
     requests: ['pr_number', 'project_name', 'title', 'materials_summary', 'priority', 'status', 'notes', 'created_at'],
     approvals: ['step_number', 'status', 'note', 'decided_at'],
     receivings: ['delivery_note', 'invoice_no', 'status', 'received_date', 'note'],
@@ -579,6 +596,7 @@ function pretty(x) {
   if (x === 'name') return 'Nama'
   if (x === 'category') return 'Category'
   if (x === 'qty') return 'Qty'
+  if (x === 'satuan' || x === 'unit') return 'Satuan'
   if (x === 'contact') return 'Kontak'
   if (x === 'pr_number') return 'No. PR'
   if (x === 'project_name') return 'Project'
@@ -645,6 +663,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         kode: mat.kode || mat.code || '—',
         name: mat.name,
         category: mat.category || '—',
+        satuan: mat.satuan || mat.unit || 'Pcs',
         qty: Number(itemQty) || 1
       }])
     }
@@ -680,7 +699,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     let data = {}
     if (page === 'requests') {
       const summary = prItemsList.length
-        ? prItemsList.map(it => `${it.qty}x ${it.name}`).join(', ')
+        ? prItemsList.map(it => `${it.qty} ${it.satuan || ''} ${it.name}`).join(', ')
         : (form.title || '—')
 
       data = {
@@ -706,6 +725,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
           material_id: it.material_id,
           item_name: it.name,
           kode: it.kode,
+          unit: it.satuan,
           quantity: it.qty
         }))
         await supabase.from('pr_items').insert(itemRecords)
@@ -722,7 +742,9 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         category: form.category || null,
         kode: form.kode || null,
         code: form.kode || null,
-        qty: form.qty || '0'
+        qty: form.qty || '0',
+        satuan: form.satuan || 'Lembar',
+        unit: form.satuan || 'Lembar'
       }
     } else if (page === 'vendors') {
       data = {
@@ -732,6 +754,8 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       }
     } else if (page === 'projects') {
       data = {
+        kode: form.kode || null,
+        code: form.kode || null,
         name: form.name,
         status: form.status
       }
@@ -765,7 +789,9 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
               >
                 <option value="">-- Pilih Project --</option>
                 {allProjects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>
+                    {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                  </option>
                 ))}
               </select>
             </label>
@@ -792,7 +818,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                     <option value="">-- Pilih Material --</option>
                     {allMaterials.map(m => (
                       <option key={m.id} value={m.id}>
-                        {m.kode ? `[${m.kode}] ` : ''}{m.name}
+                        {m.kode ? `[${m.kode}] ` : ''}{m.name} ({m.satuan || 'Pcs'})
                       </option>
                     ))}
                   </select>
@@ -823,6 +849,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                         <th style={{ padding: '4px 6px' }}>Kode</th>
                         <th style={{ padding: '4px 6px' }}>Nama Material</th>
                         <th style={{ padding: '4px 6px', width: '50px' }}>Qty</th>
+                        <th style={{ padding: '4px 6px', width: '60px' }}>Satuan</th>
                         <th style={{ padding: '4px 6px', width: '40px', textAlign: 'center' }}>Aksi</th>
                       </tr>
                     </thead>
@@ -832,6 +859,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                           <td style={{ padding: '4px 6px' }}><b>{it.kode}</b></td>
                           <td style={{ padding: '4px 6px' }}>{it.name}</td>
                           <td style={{ padding: '4px 6px' }}><b>{it.qty}</b></td>
+                          <td style={{ padding: '4px 6px' }}>{it.satuan || '—'}</td>
                           <td style={{ padding: '4px 6px', textAlign: 'center' }}>
                             <button
                               type="button"
@@ -863,6 +891,25 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
             {field('name', 'Nama Material', 'text', true)}
             {field('category', 'Kategori', 'text', false)}
             {field('qty', 'Qty', 'number', false)}
+            <label>Satuan
+              <select value={form.satuan || 'Lembar'} onChange={e => setForm({ ...form, satuan: e.target.value })}>
+                <option value="Lembar">Lembar</option>
+                <option value="Batang">Batang</option>
+                <option value="Kaleng">Kaleng</option>
+                <option value="Roll">Roll</option>
+                <option value="Meter">Meter</option>
+                <option value="Pcs">Pcs</option>
+                <option value="Box">Box</option>
+                <option value="Set">Set</option>
+                <option value="Botol">Botol</option>
+                <option value="Blek">Blek</option>
+                <option value="Kg">Kg</option>
+                <option value="Liter">Liter</option>
+                <option value="Pasang">Pasang</option>
+                <option value="Kotak">Kotak</option>
+                <option value="Bungkus">Bungkus</option>
+              </select>
+            </label>
           </>
         )}
         {page === 'vendors' && (
@@ -874,6 +921,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         )}
         {page === 'projects' && (
           <>
+            {field('kode', 'Kode Project (Nomor)', 'text', true)}
             {field('name', 'Nama Project', 'text', true)}
             <label>Status
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
