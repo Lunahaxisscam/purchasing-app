@@ -49,7 +49,8 @@ const statusOptions = [
 ]
 
 const receivingStatusOptions = [
-  { value: 'SELESAI', label: 'Selesai (Lengkap)', group: 'Normal' },
+  { value: 'SELESAI', label: 'Selesai (Langsung ke Proyek)', group: 'Normal' },
+  { value: 'MASUK_GUDANG', label: '📦 Masuk ke Gudang (Stok WS)', group: 'Normal' },
   { value: 'OTW', label: 'OTW (Dalam Pengiriman)', group: 'Normal' },
   { value: 'PENDING', label: 'Pending (Belum Dikirim)', group: 'Normal' },
   { value: 'KENDALA_KURANG', label: '⚠️ Kendala: Barang Kurang / Parsial', group: 'Pilihan Kendala' },
@@ -214,16 +215,30 @@ export default function App() {
     if (!supabase) return
     const isKendala = isReceivingKendala(newStatus)
     const kendalaType = isKendala ? newStatus.replace('KENDALA_', '') : null
+    const isGudang = newStatus === 'MASUK_GUDANG'
 
     setRows(prev => ({
       ...prev,
-      receivings: (prev.receivings || []).map(r => r.id === receiving.id ? { ...r, status: newStatus, kendala: kendalaType } : r)
+      receivings: (prev.receivings || []).map(r => r.id === receiving.id ? {
+        ...r,
+        status: newStatus,
+        kendala: kendalaType,
+        masuk_gudang: isGudang ? true : r.masuk_gudang,
+        alokasi: isGudang ? 'MASUK_GUDANG' : r.alokasi
+      } : r)
     }))
 
-    const { error } = await supabase.from('receivings').update({
+    const updatePayload = {
       status: newStatus,
       kendala: kendalaType
-    }).eq('id', receiving.id)
+    }
+    if (isGudang) {
+      updatePayload.masuk_gudang = true
+      updatePayload.alokasi = 'MASUK_GUDANG'
+      updatePayload.gudang_at = new Date().toISOString()
+    }
+
+    const { error } = await supabase.from('receivings').update(updatePayload).eq('id', receiving.id)
 
     if (error) {
       setNotice(`Gagal update status receiving: ${error.message}`)
@@ -231,6 +246,27 @@ export default function App() {
     } else {
       const label = prettyReceivingStatus(newStatus)
       setNotice(`Status receiving "${receiving.delivery_note || 'Data'}" berhasil diubah ke "${label}".`)
+      loadAll()
+    }
+  }
+
+  async function moveToWarehouse(receiving) {
+    if (!supabase) return
+    const ok = window.confirm(`Apakah Anda yakin ingin memasukkan barang dari "${receiving.delivery_note || 'Penerimaan'}" ke Stok Gudang Workshop?`)
+    if (!ok) return
+
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('receivings').update({
+      status: 'MASUK_GUDANG',
+      alokasi: 'MASUK_GUDANG',
+      masuk_gudang: true,
+      gudang_at: now
+    }).eq('id', receiving.id)
+
+    if (error) {
+      setNotice(`Gagal memasukkan ke gudang: ${error.message}`)
+    } else {
+      setNotice(`Barang "${receiving.delivery_note || 'Data'}" berhasil dimasukkan ke Stok Gudang Workshop.`)
       loadAll()
     }
   }
@@ -356,6 +392,7 @@ export default function App() {
             say={setNotice}
             onStatusChange={updateProjectStatus}
             onReceivingStatusChange={updateReceivingStatus}
+            onMoveToWarehouse={moveToWarehouse}
             onDecideApproval={decideApproval}
             onDelete={deleteItem}
             setPage={setPage}
@@ -417,7 +454,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onDecideApproval, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -430,7 +467,8 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
     else if (projectFilter === 'ON_GOING') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'ON_GOING')
     else displayRows = allProjects.filter(p => normalizeStatus(p.status) !== 'DONE')
   } else if (page === 'receivings') {
-    if (receivingFilter === 'SELESAI') displayRows = rows.filter(r => r.status === 'SELESAI')
+    if (receivingFilter === 'SELESAI') displayRows = rows.filter(r => r.status === 'SELESAI' && !r.masuk_gudang)
+    else if (receivingFilter === 'MASUK_GUDANG') displayRows = rows.filter(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang)
     else if (receivingFilter === 'OTW') displayRows = rows.filter(r => r.status === 'OTW')
     else if (receivingFilter === 'kendala') displayRows = rows.filter(r => isReceivingKendala(r.status))
   }
@@ -491,7 +529,15 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                 className={`pill ${receivingFilter === 'SELESAI' ? 'active' : ''}`}
                 onClick={() => setReceivingFilter('SELESAI')}
               >
-                Selesai ({rows.filter(r => r.status === 'SELESAI').length})
+                Selesai Langsung ({rows.filter(r => r.status === 'SELESAI' && !r.masuk_gudang).length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'MASUK_GUDANG' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('MASUK_GUDANG')}
+                style={rows.some(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang) ? { borderColor: '#137333', color: '#137333', fontWeight: 'bold' } : {}}
+              >
+                📦 Di Gudang ({rows.filter(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang).length})
               </button>
               <button
                 type="button"
@@ -564,24 +610,51 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                             <option value="DONE">Done</option>
                           </select>
                         ) : page === 'receivings' && h === 'status' ? (
-                          <select
-                            className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
-                            value={r.status || 'PENDING'}
-                            onChange={e => onReceivingStatusChange(r, e.target.value)}
-                          >
-                            <optgroup label="Status Normal">
-                              <option value="SELESAI">Selesai (Lengkap)</option>
-                              <option value="OTW">OTW (Dalam Pengiriman)</option>
-                              <option value="PENDING">Pending (Belum Dikirim)</option>
-                            </optgroup>
-                            <optgroup label="Pilihan Kendala">
-                              <option value="KENDALA_KURANG">⚠️ Kendala: Barang Kurang / Parsial</option>
-                              <option value="KENDALA_RUSAK">⚠️ Kendala: Barang Rusak / Cacat</option>
-                              <option value="KENDALA_SALAH_SPEK">⚠️ Kendala: Salah Spesifikasi</option>
-                              <option value="KENDALA_RETUR">⚠️ Kendala: Retur ke Vendor</option>
-                              <option value="KENDALA_TERLAMBAT">⚠️ Kendala: Pengiriman Terlambat</option>
-                            </optgroup>
-                          </select>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <select
+                              className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : (r.status === 'MASUK_GUDANG' || r.masuk_gudang ? 'status-gudang' : 'status-normal')}`}
+                              value={r.status || 'PENDING'}
+                              onChange={e => onReceivingStatusChange(r, e.target.value)}
+                            >
+                              <optgroup label="Status Normal">
+                                <option value="SELESAI">Selesai (Langsung Proyek)</option>
+                                <option value="MASUK_GUDANG">📦 Masuk ke Gudang (Stok WS)</option>
+                                <option value="OTW">OTW (Dalam Pengiriman)</option>
+                                <option value="PENDING">Pending (Belum Dikirim)</option>
+                              </optgroup>
+                              <optgroup label="Pilihan Kendala">
+                                <option value="KENDALA_KURANG">⚠️ Kendala: Barang Kurang / Parsial</option>
+                                <option value="KENDALA_RUSAK">⚠️ Kendala: Barang Rusak / Cacat</option>
+                                <option value="KENDALA_SALAH_SPEK">⚠️ Kendala: Salah Spesifikasi</option>
+                                <option value="KENDALA_RETUR">⚠️ Kendala: Retur ke Vendor</option>
+                                <option value="KENDALA_TERLAMBAT">⚠️ Kendala: Pengiriman Terlambat</option>
+                              </optgroup>
+                            </select>
+                            {r.status === 'MASUK_GUDANG' || r.masuk_gudang ? (
+                              <span style={{ fontSize: '11px', color: '#137333', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                ✓ Tersimpan di Gudang
+                              </span>
+                            ) : r.status === 'SELESAI' ? (
+                              <button
+                                type="button"
+                                onClick={() => onMoveToWarehouse(r)}
+                                style={{
+                                  background: '#e6f4ea',
+                                  color: '#137333',
+                                  border: '1px solid #ceead6',
+                                  borderRadius: '4px',
+                                  padding: '3px 6px',
+                                  fontSize: '10px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  width: 'fit-content'
+                                }}
+                                title="Simpan barang ke stok gudang workshop"
+                              >
+                                📦 + Masukkan ke Gudang
+                              </button>
+                            ) : null}
+                          </div>
                         ) : (
                           format(rawVal)
                         )}
@@ -700,13 +773,21 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     category: '',
     kode: '',
     qty: '0',
+    satuan: 'Lembar',
     phone: '',
     contact: '',
     title: '',
     pr_number: nextPrNum,
     project_id: allProjects.find(p => normalizeStatus(p.status) !== 'DONE')?.id || allProjects[0]?.id || '',
     notes: '',
-    priority: 'NORMAL'
+    priority: 'NORMAL',
+    delivery_note: '',
+    invoice_no: '',
+    receiving_status: 'SELESAI',
+    received_date: new Date().toISOString().slice(0, 10),
+    received_by: '',
+    handover_status: 'CONFIRMED',
+    handover_date: new Date().toISOString().slice(0, 10)
   })
   const [saving, setSaving] = useState(false)
 
@@ -826,6 +907,29 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         code: form.kode || null,
         name: form.name,
         status: form.status
+      }
+    } else if (page === 'receivings') {
+      const isKendala = isReceivingKendala(form.receiving_status || 'SELESAI')
+      const isGudang = form.receiving_status === 'MASUK_GUDANG'
+      data = {
+        project_id: form.project_id || null,
+        delivery_note: form.delivery_note,
+        invoice_no: form.invoice_no || null,
+        status: form.receiving_status || 'SELESAI',
+        kendala: isKendala ? (form.receiving_status || '').replace('KENDALA_', '') : null,
+        alokasi: isGudang ? 'MASUK_GUDANG' : 'LANGSUNG_LAPANGAN',
+        masuk_gudang: isGudang,
+        gudang_at: isGudang ? new Date().toISOString() : null,
+        received_date: form.received_date || new Date().toISOString().slice(0, 10),
+        note: form.notes || null
+      }
+    } else if (page === 'handovers') {
+      data = {
+        project_id: form.project_id || null,
+        received_by: form.received_by,
+        status: form.handover_status || 'CONFIRMED',
+        handover_date: form.handover_date || new Date().toISOString().slice(0, 10),
+        note: form.notes || null
       }
     }
 
@@ -998,6 +1102,72 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                 <option value="DONE">Done</option>
               </select>
             </label>
+          </>
+        )}
+        {page === 'receivings' && (
+          <>
+            <label>Project
+              <select
+                value={form.project_id}
+                onChange={e => setForm({ ...form, project_id: e.target.value })}
+                required
+              >
+                <option value="">-- Pilih Project --</option>
+                {allProjects.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {field('delivery_note', 'Surat Jalan / No. PO', 'text', true)}
+            {field('invoice_no', 'No. Invoice', 'text', false)}
+            <label>Tujuan Alokasi / Opsi Gudang
+              <select value={form.receiving_status || 'SELESAI'} onChange={e => setForm({ ...form, receiving_status: e.target.value })}>
+                <optgroup label="Status Normal">
+                  <option value="SELESAI">Selesai (Langsung ke Proyek)</option>
+                  <option value="MASUK_GUDANG">📦 Masukkan ke Gudang (Stok WS)</option>
+                  <option value="OTW">OTW (Dalam Pengiriman)</option>
+                  <option value="PENDING">Pending (Belum Dikirim)</option>
+                </optgroup>
+                <optgroup label="Pilihan Kendala">
+                  <option value="KENDALA_KURANG">⚠️ Kendala: Barang Kurang / Parsial</option>
+                  <option value="KENDALA_RUSAK">⚠️ Kendala: Barang Rusak / Cacat</option>
+                  <option value="KENDALA_SALAH_SPEK">⚠️ Kendala: Salah Spesifikasi</option>
+                  <option value="KENDALA_RETUR">⚠️ Kendala: Retur ke Vendor</option>
+                  <option value="KENDALA_TERLAMBAT">⚠️ Kendala: Pengiriman Terlambat</option>
+                </optgroup>
+              </select>
+            </label>
+            {field('received_date', 'Tanggal Diterima', 'date', false)}
+            {field('notes', 'Catatan Penerimaan', 'text', false)}
+          </>
+        )}
+        {page === 'handovers' && (
+          <>
+            <label>Project
+              <select
+                value={form.project_id}
+                onChange={e => setForm({ ...form, project_id: e.target.value })}
+                required
+              >
+                <option value="">-- Pilih Project --</option>
+                {allProjects.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {field('received_by', 'Diterima Oleh (Mandor / Tukang Lapangan)', 'text', true)}
+            <label>Status Serah Terima
+              <select value={form.handover_status || 'CONFIRMED'} onChange={e => setForm({ ...form, handover_status: e.target.value })}>
+                <option value="CONFIRMED">CONFIRMED (Sudah Diserahkan)</option>
+                <option value="DRAFT">DRAFT</option>
+              </select>
+            </label>
+            {field('handover_date', 'Tanggal Serah Terima', 'date', false)}
+            {field('notes', 'Catatan Serah Terima', 'text', false)}
           </>
         )}
         <div className="actions">
