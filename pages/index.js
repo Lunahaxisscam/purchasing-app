@@ -459,6 +459,12 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
+  const [prFilter, setPrFilter] = useState('all')
+  const [approvalFilter, setApprovalFilter] = useState('all')
+  const [materialFilter, setMaterialFilter] = useState('all')
+  const [vendorFilter, setVendorFilter] = useState('all')
+  const [handoverFilter, setHandoverFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const title = labels[page]
 
   let displayRows = rows
@@ -467,6 +473,16 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
     else if (projectFilter === 'NOT_START') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'NOT_START')
     else if (projectFilter === 'ON_GOING') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'ON_GOING')
     else displayRows = allProjects.filter(p => normalizeStatus(p.status) !== 'DONE')
+  } else if (page === 'requests') {
+    if (prFilter === 'DRAFT') displayRows = rows.filter(r => r.status === 'DRAFT')
+    else if (prFilter === 'SUBMITTED') displayRows = rows.filter(r => r.status === 'SUBMITTED')
+    else if (prFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
+    else if (prFilter === 'URGENT') displayRows = rows.filter(r => r.priority === 'URGENT')
+  } else if (page === 'approvals') {
+    if (approvalFilter === 'PENDING') displayRows = rows.filter(r => r.status === 'PENDING')
+    else if (approvalFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
+    else if (approvalFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')
+    else if (approvalFilter === 'REJECTED') displayRows = rows.filter(r => r.status === 'REJECTED')
   } else if (page === 'receivings') {
     if (receivingFilter === 'SELESAI') displayRows = rows.filter(r => r.status === 'SELESAI' && !r.masuk_gudang)
     else if (receivingFilter === 'MASUK_GUDANG') displayRows = rows.filter(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang)
@@ -474,6 +490,22 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
     else if (receivingFilter === 'RUSAK') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RUSAK'))
     else if (receivingFilter === 'RETUR') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RETUR'))
     else if (receivingFilter === 'kendala') displayRows = rows.filter(r => isReceivingKendala(r.status))
+  } else if (page === 'materials') {
+    if (materialFilter === 'Lainnya') displayRows = rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category))
+    else if (materialFilter !== 'all') displayRows = rows.filter(r => r.category === materialFilter)
+  } else if (page === 'vendors') {
+    if (vendorFilter === 'HAS_PHONE') displayRows = rows.filter(r => !!r.phone)
+    else if (vendorFilter === 'HAS_CONTACT') displayRows = rows.filter(r => !!r.contact)
+  } else if (page === 'handovers') {
+    if (handoverFilter === 'CONFIRMED') displayRows = rows.filter(r => r.status === 'CONFIRMED' || r.status === 'SELESAI')
+    else if (handoverFilter === 'DRAFT') displayRows = rows.filter(r => r.status !== 'CONFIRMED' && r.status !== 'SELESAI')
+  }
+
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim()
+    displayRows = displayRows.filter(row => {
+      return Object.values(row).some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q))
+    })
   }
 
   const columns = headersFor(page, displayRows)
@@ -515,6 +547,86 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                 onClick={() => setProjectFilter('all')}
               >
                 Semua ({allProjects.length})
+              </button>
+            </div>
+          )}
+          {page === 'requests' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${prFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setPrFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'DRAFT' ? 'active' : ''}`}
+                onClick={() => setPrFilter('DRAFT')}
+              >
+                Draft ({rows.filter(r => r.status === 'DRAFT').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'SUBMITTED' ? 'active' : ''}`}
+                onClick={() => setPrFilter('SUBMITTED')}
+              >
+                Submitted ({rows.filter(r => r.status === 'SUBMITTED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'APPROVED' ? 'active' : ''}`}
+                onClick={() => setPrFilter('APPROVED')}
+              >
+                Approved ({rows.filter(r => r.status === 'APPROVED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'URGENT' ? 'active' : ''}`}
+                onClick={() => setPrFilter('URGENT')}
+                style={rows.some(r => r.priority === 'URGENT') ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
+              >
+                🚨 Urgent ({rows.filter(r => r.priority === 'URGENT').length})
+              </button>
+            </div>
+          )}
+          {page === 'approvals' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'PENDING' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('PENDING')}
+                style={rows.some(r => r.status === 'PENDING') ? { borderColor: '#d97706', color: '#d97706', fontWeight: 'bold' } : {}}
+              >
+                ⏳ Menunggu ({rows.filter(r => r.status === 'PENDING').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'APPROVED' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('APPROVED')}
+              >
+                ✓ Disetujui ({rows.filter(r => r.status === 'APPROVED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'REVISI' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('REVISI')}
+              >
+                ✎ Revisi ({rows.filter(r => r.status === 'REVISI').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'REJECTED' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('REJECTED')}
+              >
+                ✕ Ditolak ({rows.filter(r => r.status === 'REJECTED').length})
               </button>
             </div>
           )}
@@ -567,8 +679,118 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
               </button>
             </div>
           )}
+          {page === 'materials' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Plywood & Board' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Plywood & Board')}
+              >
+                Plywood & Board ({rows.filter(r => r.category === 'Plywood & Board').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'HPL & Edging' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('HPL & Edging')}
+              >
+                HPL & Edging ({rows.filter(r => r.category === 'HPL & Edging').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Hardware & Fitting' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Hardware & Fitting')}
+              >
+                Hardware & Fitting ({rows.filter(r => r.category === 'Hardware & Fitting').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Bahan Habis Pakai' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Bahan Habis Pakai')}
+              >
+                Bahan Habis Pakai ({rows.filter(r => r.category === 'Bahan Habis Pakai').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Lainnya' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Lainnya')}
+              >
+                Lainnya ({rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category)).length})
+              </button>
+            </div>
+          )}
+          {page === 'vendors' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${vendorFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setVendorFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${vendorFilter === 'HAS_PHONE' ? 'active' : ''}`}
+                onClick={() => setVendorFilter('HAS_PHONE')}
+              >
+                Ada Telepon ({rows.filter(r => !!r.phone).length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${vendorFilter === 'HAS_CONTACT' ? 'active' : ''}`}
+                onClick={() => setVendorFilter('HAS_CONTACT')}
+              >
+                Ada Kontak/Email ({rows.filter(r => !!r.contact).length})
+              </button>
+            </div>
+          )}
+          {page === 'handovers' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${handoverFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setHandoverFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${handoverFilter === 'CONFIRMED' ? 'active' : ''}`}
+                onClick={() => setHandoverFilter('CONFIRMED')}
+              >
+                ✓ Confirmed ({rows.filter(r => r.status === 'CONFIRMED' || r.status === 'SELESAI').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${handoverFilter === 'DRAFT' ? 'active' : ''}`}
+                onClick={() => setHandoverFilter('DRAFT')}
+              >
+                Draft ({rows.filter(r => r.status !== 'CONFIRMED' && r.status !== 'SELESAI').length})
+              </button>
+            </div>
+          )}
         </div>
-        <div className="toolbar-actions">
+        <div className="toolbar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            type="search"
+            placeholder="🔍 Cari..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              fontSize: '12px',
+              borderRadius: '8px',
+              border: '1px solid #d5dedb',
+              width: '160px',
+              background: '#ffffff'
+            }}
+          />
           {page === 'past_projects' && (
             <button type="button" className="outline" onClick={() => setPage('projects')}>
               ← Ke Project Aktif
