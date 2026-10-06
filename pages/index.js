@@ -107,30 +107,20 @@ export default function App() {
       ['handovers', 'handovers']
     ]
     const result = { ...rows }
-    const { data: attachments } = await supabase.from('attachments').select('*')
-    const attList = attachments || []
+    const { data: allProj } = await supabase.from('projects').select('*')
+    const projList = allProj || []
 
     await Promise.all(specs.map(async ([name, table]) => {
-      const orderCol = table === 'materials' ? 'kode' : 'created_at'
-      const ascending = table === 'materials'
+      const orderCol = table === 'materials' ? 'kode' : (table === 'purchase_requests' ? 'pr_number' : 'created_at')
+      const ascending = table === 'materials' || table === 'purchase_requests'
       const { data } = await supabase.from(table).select('*').order(orderCol, { ascending })
       let items = data || []
 
       items = items.map(item => {
-        let att = null
-        if (name === 'requests') {
-          att = attList.find(a => a.purchase_request_id === item.id)
-        } else if (name === 'approvals') {
-          att = attList.find(a => a.purchase_request_id === item.purchase_request_id)
-        } else if (name === 'receivings') {
-          att = attList.find(a => a.receiving_id === item.id || a.purchase_request_id === item.purchase_request_id)
-        } else if (name === 'handovers') {
-          att = attList.find(a => a.handover_id === item.id)
-        }
+        const proj = projList.find(p => p.id === item.project_id)
         return {
           ...item,
-          file_name: att?.file_name || null,
-          file_path: att?.file_path || null
+          project_name: proj?.name || '—'
         }
       })
 
@@ -170,12 +160,16 @@ export default function App() {
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
-    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : 'Data')
-    const itemName = item.name || item.kode || item.code || 'Item'
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : 'Data'))
+    const itemName = item.pr_number || item.name || item.kode || item.code || 'Item'
     const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
     if (!ok) return
 
-    const table = pageTarget === 'vendors' ? 'vendors' : (pageTarget === 'materials' ? 'materials' : pageTarget)
+    const table = {
+      vendors: 'vendors',
+      materials: 'materials',
+      requests: 'purchase_requests'
+    }[pageTarget] || pageTarget
     
     // optimistic update
     setRows(prev => ({
@@ -325,7 +319,7 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
   }
 
   const columns = headersFor(page, displayRows)
-  const hasDeleteAction = ['vendors', 'materials'].includes(page)
+  const hasDeleteAction = ['vendors', 'materials', 'requests'].includes(page)
 
   return (
     <>
@@ -378,7 +372,16 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
           )}
         </div>
       </div>
-      {open && <Create page={page} close={() => setOpen(false)} refresh={refresh} say={say} />}
+      {open && (
+        <Create
+          page={page}
+          allProjects={allProjects}
+          existingRequests={displayRows}
+          close={() => setOpen(false)}
+          refresh={refresh}
+          say={say}
+        />
+      )}
       <div className="panel table">
         <table>
           <thead>
@@ -397,21 +400,7 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
                     const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
                     return (
                       <td key={h}>
-                        {h === 'file_name' ? (
-                          r.file_path ? (
-                            <a
-                              href={r.file_path}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-file"
-                              title={`Unduh / Buka Dokumen: ${r.file_name}`}
-                            >
-                              📄 {r.file_name}
-                            </a>
-                          ) : (
-                            '—'
-                          )
-                        ) : ['projects', 'past_projects'].includes(page) && h === 'status' ? (
+                        {['projects', 'past_projects'].includes(page) && h === 'status' ? (
                           <select
                             className={`status-select status-${normalizeStatus(r.status)}`}
                             value={normalizeStatus(r.status)}
@@ -461,10 +450,10 @@ function headersFor(page, rows) {
     past_projects: ['name', 'status', 'created_at'],
     vendors: ['name', 'phone', 'contact', 'created_at'],
     materials: ['kode', 'name', 'category', 'qty'],
-    requests: ['pr_number', 'priority', 'status', 'notes', 'file_name', 'created_at'],
-    approvals: ['step_number', 'status', 'note', 'decided_at', 'file_name'],
-    receivings: ['delivery_note', 'invoice_no', 'status', 'received_date', 'note', 'file_name'],
-    handovers: ['received_by', 'status', 'handover_date', 'note', 'file_name']
+    requests: ['pr_number', 'project_name', 'title', 'priority', 'status', 'notes', 'created_at'],
+    approvals: ['step_number', 'status', 'note', 'decided_at'],
+    receivings: ['delivery_note', 'invoice_no', 'status', 'received_date', 'note'],
+    handovers: ['received_by', 'status', 'handover_date', 'note']
   }
   if (['materials', 'vendors', 'projects', 'past_projects', 'requests', 'approvals', 'receivings', 'handovers'].includes(page)) {
     return defaults[page]
@@ -480,8 +469,9 @@ function pretty(x) {
   if (x === 'category') return 'Category'
   if (x === 'qty') return 'Qty'
   if (x === 'contact') return 'Kontak'
-  if (x === 'file_name') return 'Dokumen / File'
   if (x === 'pr_number') return 'No. PR'
+  if (x === 'project_name') return 'Project'
+  if (x === 'title') return 'Judul Kebutuhan'
   if (x === 'step_number') return 'Step'
   if (x === 'delivery_note') return 'Surat Jalan / PO'
   if (x === 'invoice_no') return 'No. Invoice'
@@ -504,7 +494,8 @@ function format(v) {
   return String(v)
 }
 
-function Create({ page, close, refresh, say }) {
+function Create({ page, allProjects = [], existingRequests = [], close, refresh, say }) {
+  const nextPrNum = 'PR-' + String((existingRequests || []).length + 1).padStart(3, '0')
   const [form, setForm] = useState({
     name: '',
     status: 'ON_GOING',
@@ -514,6 +505,9 @@ function Create({ page, close, refresh, say }) {
     phone: '',
     contact: '',
     title: '',
+    pr_number: nextPrNum,
+    project_id: allProjects.find(p => normalizeStatus(p.status) !== 'DONE')?.id || allProjects[0]?.id || '',
+    notes: '',
     priority: 'NORMAL'
   })
   const [saving, setSaving] = useState(false)
@@ -542,7 +536,14 @@ function Create({ page, close, refresh, say }) {
 
     let data = {}
     if (page === 'requests') {
-      data = { title: form.title, priority: form.priority, status: 'DRAFT' }
+      data = {
+        project_id: form.project_id || null,
+        title: form.title,
+        pr_number: form.pr_number || nextPrNum,
+        priority: form.priority || 'NORMAL',
+        status: 'DRAFT',
+        notes: form.notes || form.title
+      }
     } else if (page === 'materials') {
       data = {
         name: form.name,
@@ -584,13 +585,27 @@ function Create({ page, close, refresh, say }) {
         </div>
         {page === 'requests' && (
           <>
-            {field('title', 'Judul kebutuhan', 'text', true)}
-            <label>Prioritas
-              <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
-                <option>NORMAL</option>
-                <option>URGENT</option>
+            <label>Project
+              <select
+                value={form.project_id}
+                onChange={e => setForm({ ...form, project_id: e.target.value })}
+                required
+              >
+                <option value="">-- Pilih Project --</option>
+                {allProjects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
               </select>
             </label>
+            {field('title', 'Judul Kebutuhan', 'text', true)}
+            {field('pr_number', 'Nomor PR', 'text', true)}
+            <label>Prioritas
+              <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+                <option value="NORMAL">NORMAL</option>
+                <option value="URGENT">URGENT</option>
+              </select>
+            </label>
+            {field('notes', 'Catatan Tambahan', 'text', false)}
           </>
         )}
         {page === 'materials' && (
