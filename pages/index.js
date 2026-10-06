@@ -5,17 +5,31 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const supabase = url && key ? createClient(url, key) : null
 
-const modules = [
-  ['dashboard', 'Dashboard'],
-  ['projects', 'Projects'],
-  ['vendors', 'Vendors'],
-  ['materials', 'Materials'],
-  ['requests', 'Purchase Request'],
-  ['approvals', 'Approval'],
-  ['receivings', 'Receiving'],
-  ['handovers', 'Handover'],
-  ['past_projects', 'Past Project']
+const navSections = [
+  {
+    items: [
+      ['dashboard', 'Dashboard'],
+      ['projects', 'Projects'],
+      ['vendors', 'Vendors'],
+      ['materials', 'Materials']
+    ]
+  },
+  {
+    items: [
+      ['requests', 'Purchase Request'],
+      ['approvals', 'Approval'],
+      ['receivings', 'Receiving'],
+      ['handovers', 'Handover']
+    ]
+  },
+  {
+    items: [
+      ['past_projects', 'Past Project']
+    ]
+  }
 ]
+
+const modules = navSections.flatMap(s => s.items)
 
 const labels = {
   projects: 'Project',
@@ -172,10 +186,15 @@ export default function App() {
           </div>
         </div>
         <nav>
-          {modules.map(([id, name]) => (
-            <button className={page === id ? 'active' : ''} onClick={() => setPage(id)} key={id}>
-              {name}
-            </button>
+          {navSections.map((sec, sIdx) => (
+            <div key={sIdx} className="nav-group">
+              {sIdx > 0 && <div className="nav-divider" />}
+              {sec.items.map(([id, name]) => (
+                <button className={page === id ? 'active' : ''} onClick={() => setPage(id)} key={id}>
+                  {name}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="account">

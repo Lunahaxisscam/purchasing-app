@@ -79,3 +79,14 @@
   border-color: #c93b2b;
   color: #a8281a;
 }
+
+/* Sidebar navigation groups and dividers */
+.nav-group {
+  display: grid;
+  gap: 4px;
+}
+.nav-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 10px 4px;
+}
