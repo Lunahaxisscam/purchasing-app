@@ -61,3 +61,21 @@
   margin-bottom: 20px;
   font-weight: 600;
 }
+
+/* Delete action button */
+.btn-delete {
+  background: #fff;
+  color: #c93b2b;
+  border: 1px solid #f2c0bb;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-delete:hover {
+  background: #fdf2f2;
+  border-color: #c93b2b;
+  color: #a8281a;
+}

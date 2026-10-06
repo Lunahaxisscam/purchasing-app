@@ -129,6 +129,31 @@ export default function App() {
     }
   }
 
+  async function deleteItem(pageTarget, item) {
+    if (!supabase) return
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : 'Data')
+    const itemName = item.name || item.kode || item.code || 'Item'
+    const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
+    if (!ok) return
+
+    const table = pageTarget === 'vendors' ? 'vendors' : (pageTarget === 'materials' ? 'materials' : pageTarget)
+    
+    // optimistic update
+    setRows(prev => ({
+      ...prev,
+      [pageTarget]: (prev[pageTarget] || []).filter(x => x.id !== item.id)
+    }))
+
+    const { error } = await supabase.from(table).delete().eq('id', item.id)
+    if (error) {
+      setNotice(`Gagal menghapus ${typeLabel.toLowerCase()}: ${error.message}`)
+      loadAll()
+    } else {
+      setNotice(`${typeLabel} "${itemName}" berhasil dihapus.`)
+      loadAll()
+    }
+  }
+
   if (loading) return <div className="center">Memuat aplikasi…</div>
   if (!session) return <Login email={email} password={password} setEmail={setEmail} setPassword={setPassword} login={login} error={error} configured={!!supabase} />
 
@@ -182,6 +207,7 @@ export default function App() {
             refresh={loadAll}
             say={setNotice}
             onStatusChange={updateProjectStatus}
+            onDelete={deleteItem}
             setPage={setPage}
           />
         )}
@@ -241,7 +267,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, refresh, say, onStatusChange, setPage }) {
+function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const title = labels[page]
@@ -253,6 +279,9 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, setPage
     else if (projectFilter === 'ON_GOING') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'ON_GOING')
     else displayRows = allProjects.filter(p => normalizeStatus(p.status) !== 'DONE')
   }
+
+  const columns = headersFor(page, displayRows)
+  const hasDeleteAction = ['vendors', 'materials'].includes(page)
 
   return (
     <>
@@ -310,37 +339,55 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, setPage
         <table>
           <thead>
             <tr>
-              {headersFor(page, displayRows).map(h => (
+              {columns.map(h => (
                 <th key={h}>{pretty(h)}</th>
               ))}
+              {hasDeleteAction && <th style={{ width: '90px', textAlign: 'center' }}>Aksi</th>}
             </tr>
           </thead>
           <tbody>
             {displayRows.length ? (
               displayRows.map((r, i) => (
                 <tr key={r.id || i}>
-                  {headersFor(page, displayRows).map(h => (
-                    <td key={h}>
-                      {['projects', 'past_projects'].includes(page) && h === 'status' ? (
-                        <select
-                          className={`status-select status-${normalizeStatus(r.status)}`}
-                          value={normalizeStatus(r.status)}
-                          onChange={e => onStatusChange(r, e.target.value)}
-                        >
-                          <option value="NOT_START">Not Start</option>
-                          <option value="ON_GOING">On Going</option>
-                          <option value="DONE">Done</option>
-                        </select>
-                      ) : (
-                        format(r[h])
-                      )}
+                  {columns.map(h => {
+                    const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
+                    return (
+                      <td key={h}>
+                        {['projects', 'past_projects'].includes(page) && h === 'status' ? (
+                          <select
+                            className={`status-select status-${normalizeStatus(r.status)}`}
+                            value={normalizeStatus(r.status)}
+                            onChange={e => onStatusChange(r, e.target.value)}
+                          >
+                            <option value="NOT_START">Not Start</option>
+                            <option value="ON_GOING">On Going</option>
+                            <option value="DONE">Done</option>
+                          </select>
+                        ) : (
+                          format(rawVal)
+                        )}
+                      </td>
+                    )
+                  })}
+                  {hasDeleteAction && (
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => onDelete(page, r)}
+                        title={`Hapus ${title}`}
+                      >
+                        Hapus
+                      </button>
                     </td>
-                  ))}
+                  )}
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="8" className="empty">Belum ada data.</td>
+                <td colSpan={columns.length + (hasDeleteAction ? 1 : 0)} className="empty">
+                  Belum ada data.
+                </td>
               </tr>
             )}
           </tbody>
@@ -354,12 +401,15 @@ function headersFor(page, rows) {
   const defaults = {
     projects: ['name', 'status', 'created_at'],
     past_projects: ['name', 'status', 'created_at'],
-    vendors: ['name', 'phone', 'email', 'created_at'],
-    materials: ['name', 'category', 'created_at'],
+    vendors: ['name', 'phone', 'contact', 'created_at'],
+    materials: ['kode', 'name', 'category', 'qty'],
     requests: ['request_no', 'title', 'status', 'priority', 'created_at'],
     approvals: ['status', 'step_number', 'decided_at'],
     receivings: ['status', 'received_date', 'invoice_no', 'created_at'],
     handovers: ['received_by', 'status', 'handover_date', 'created_at']
+  }
+  if (['materials', 'vendors', 'projects', 'past_projects'].includes(page)) {
+    return defaults[page]
   }
   return rows[0]
     ? Object.keys(rows[0]).filter(x => !['id', 'password'].includes(x)).slice(0, 6)
@@ -367,12 +417,20 @@ function headersFor(page, rows) {
 }
 
 function pretty(x) {
+  if (x === 'kode') return 'Kode'
+  if (x === 'name') return 'Nama'
+  if (x === 'category') return 'Category'
+  if (x === 'qty') return 'Qty'
+  if (x === 'contact') return 'Kontak'
   return String(x).replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function format(v) {
-  if (v === null || v === undefined) return '—'
-  if (typeof v === 'string' && v.includes('T')) return new Date(v).toLocaleDateString('id-ID')
+  if (v === null || v === undefined || v === '') return '—'
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+    const d = new Date(v)
+    if (!isNaN(d.getTime())) return d.toLocaleDateString('id-ID')
+  }
   return String(v)
 }
 
@@ -381,19 +439,23 @@ function Create({ page, close, refresh, say }) {
     name: '',
     status: 'ON_GOING',
     category: '',
+    kode: '',
+    qty: '0',
+    phone: '',
+    contact: '',
     title: '',
     priority: 'NORMAL'
   })
   const [saving, setSaving] = useState(false)
 
-  const field = (name, label, type = 'text') => (
+  const field = (name, label, type = 'text', required = false) => (
     <label>
       {label}
       <input
         type={type}
         value={form[name] || ''}
         onChange={e => setForm({ ...form, [name]: e.target.value })}
-        required={name === 'name' || name === 'title'}
+        required={required}
       />
     </label>
   )
@@ -407,11 +469,31 @@ function Create({ page, close, refresh, say }) {
       materials: 'materials',
       requests: 'purchase_requests'
     }[page]
-    let data = page === 'requests'
-      ? { title: form.title, priority: form.priority, status: 'DRAFT' }
-      : { name: form.name }
-    if (page === 'materials') data.category = form.category || null
-    if (page === 'projects') data.status = form.status
+
+    let data = {}
+    if (page === 'requests') {
+      data = { title: form.title, priority: form.priority, status: 'DRAFT' }
+    } else if (page === 'materials') {
+      data = {
+        name: form.name,
+        category: form.category || null,
+        kode: form.kode || null,
+        code: form.kode || null,
+        qty: form.qty || '0'
+      }
+    } else if (page === 'vendors') {
+      data = {
+        name: form.name,
+        phone: form.phone || null,
+        contact: form.contact || null
+      }
+    } else if (page === 'projects') {
+      data = {
+        name: form.name,
+        status: form.status
+      }
+    }
+
     const { error } = await supabase.from(table).insert(data)
     setSaving(false)
     if (error) {
@@ -430,9 +512,9 @@ function Create({ page, close, refresh, say }) {
           <h2>Tambah {labels[page]}</h2>
           <button type="button" className="icon" onClick={close}>×</button>
         </div>
-        {page === 'requests' ? (
+        {page === 'requests' && (
           <>
-            {field('title', 'Judul kebutuhan')}
+            {field('title', 'Judul kebutuhan', 'text', true)}
             <label>Prioritas
               <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                 <option>NORMAL</option>
@@ -440,19 +522,32 @@ function Create({ page, close, refresh, say }) {
               </select>
             </label>
           </>
-        ) : (
+        )}
+        {page === 'materials' && (
           <>
-            {field('name', 'Nama')}
-            {page === 'materials' && field('category', 'Kategori')}
-            {page === 'projects' && (
-              <label>Status
-                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-                  <option value="NOT_START">Not Start</option>
-                  <option value="ON_GOING">On Going</option>
-                  <option value="DONE">Done</option>
-                </select>
-              </label>
-            )}
+            {field('kode', 'Kode Material', 'text', false)}
+            {field('name', 'Nama Material', 'text', true)}
+            {field('category', 'Kategori', 'text', false)}
+            {field('qty', 'Qty', 'number', false)}
+          </>
+        )}
+        {page === 'vendors' && (
+          <>
+            {field('name', 'Nama Vendor', 'text', true)}
+            {field('phone', 'Nomor Telepon', 'text', false)}
+            {field('contact', 'Kontak / Email', 'text', false)}
+          </>
+        )}
+        {page === 'projects' && (
+          <>
+            {field('name', 'Nama Project', 'text', true)}
+            <label>Status
+              <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                <option value="NOT_START">Not Start</option>
+                <option value="ON_GOING">On Going</option>
+                <option value="DONE">Done</option>
+              </select>
+            </label>
           </>
         )}
         <div className="actions">
