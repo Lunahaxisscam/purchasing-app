@@ -14,8 +14,8 @@ export default async function handler(req, res) {
   const results = {}
 
   for (const table of tables) {
-    const { data, error } = await supabase.from(table).select('*').limit(1)
-    results[table] = { sample: data, error: error ? error.message : null }
+    const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true })
+    results[table] = { count: count || 0, error: error ? error.message : null }
   }
 
   return res.status(200).json(results)
