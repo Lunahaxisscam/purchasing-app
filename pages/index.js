@@ -53,24 +53,22 @@ const receivingStatusOptions = [
   { value: 'MASUK_GUDANG', label: '📦 Masuk ke Gudang (Stok WS)', group: 'Normal' },
   { value: 'OTW', label: 'OTW (Dalam Pengiriman)', group: 'Normal' },
   { value: 'PENDING', label: 'Pending (Belum Dikirim)', group: 'Normal' },
-  { value: 'KENDALA_KURANG', label: '⚠️ Kendala: Barang Kurang / Parsial', group: 'Pilihan Kendala' },
-  { value: 'KENDALA_RUSAK', label: '⚠️ Kendala: Barang Rusak / Cacat', group: 'Pilihan Kendala' },
-  { value: 'KENDALA_SALAH_SPEK', label: '⚠️ Kendala: Salah Spesifikasi', group: 'Pilihan Kendala' },
-  { value: 'KENDALA_RETUR', label: '⚠️ Kendala: Retur ke Vendor', group: 'Pilihan Kendala' },
-  { value: 'KENDALA_TERLAMBAT', label: '⚠️ Kendala: Pengiriman Terlambat', group: 'Pilihan Kendala' }
+  { value: 'RUSAK', label: '⚠️ Rusak (Barang Rusak)', group: 'Kendala' },
+  { value: 'RETUR', label: '⚠️ Retur (Retur ke Vendor)', group: 'Kendala' }
 ]
 
 function isReceivingKendala(s) {
   if (!s) return false
   const up = String(s).toUpperCase()
-  return up.startsWith('KENDALA') || ['PARTIALLY_RECEIVED', 'RETUR', 'RUSAK', 'KURANG'].includes(up)
+  return up === 'RUSAK' || up === 'RETUR' || up.startsWith('KENDALA')
 }
 
 function prettyReceivingStatus(s) {
+  const up = String(s || '').toUpperCase()
+  if (up === 'RUSAK' || up === 'KENDALA_RUSAK') return '⚠️ Rusak'
+  if (up === 'RETUR' || up === 'KENDALA_RETUR') return '⚠️ Retur ke Vendor'
   const match = receivingStatusOptions.find(o => o.value === s)
   if (match) return match.label
-  if (s === 'PARTIALLY_RECEIVED') return '⚠️ Kendala: Barang Kurang / Parsial'
-  if (s === 'RETUR') return '⚠️ Kendala: Retur ke Vendor'
   return s
 }
 
@@ -214,7 +212,7 @@ export default function App() {
   async function updateReceivingStatus(receiving, newStatus) {
     if (!supabase) return
     const isKendala = isReceivingKendala(newStatus)
-    const kendalaType = isKendala ? newStatus.replace('KENDALA_', '') : null
+    const kendalaType = isKendala ? (newStatus.includes('RUSAK') ? 'RUSAK' : 'RETUR') : null
     const isGudang = newStatus === 'MASUK_GUDANG'
 
     setRows(prev => ({
@@ -223,8 +221,8 @@ export default function App() {
         ...r,
         status: newStatus,
         kendala: kendalaType,
-        masuk_gudang: isGudang ? true : r.masuk_gudang,
-        alokasi: isGudang ? 'MASUK_GUDANG' : r.alokasi
+        masuk_gudang: isGudang ? true : (newStatus === 'SELESAI' ? false : r.masuk_gudang),
+        alokasi: isGudang ? 'MASUK_GUDANG' : (newStatus === 'SELESAI' ? 'LANGSUNG_LAPANGAN' : r.alokasi)
       } : r)
     }))
 
@@ -236,6 +234,9 @@ export default function App() {
       updatePayload.masuk_gudang = true
       updatePayload.alokasi = 'MASUK_GUDANG'
       updatePayload.gudang_at = new Date().toISOString()
+    } else if (newStatus === 'SELESAI') {
+      updatePayload.masuk_gudang = false
+      updatePayload.alokasi = 'LANGSUNG_LAPANGAN'
     }
 
     const { error } = await supabase.from('receivings').update(updatePayload).eq('id', receiving.id)
@@ -470,6 +471,8 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
     if (receivingFilter === 'SELESAI') displayRows = rows.filter(r => r.status === 'SELESAI' && !r.masuk_gudang)
     else if (receivingFilter === 'MASUK_GUDANG') displayRows = rows.filter(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang)
     else if (receivingFilter === 'OTW') displayRows = rows.filter(r => r.status === 'OTW')
+    else if (receivingFilter === 'RUSAK') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RUSAK'))
+    else if (receivingFilter === 'RETUR') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RETUR'))
     else if (receivingFilter === 'kendala') displayRows = rows.filter(r => isReceivingKendala(r.status))
   }
 
@@ -548,11 +551,19 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
               </button>
               <button
                 type="button"
-                className={`pill ${receivingFilter === 'kendala' ? 'active' : ''}`}
-                onClick={() => setReceivingFilter('kendala')}
-                style={rows.some(r => isReceivingKendala(r.status)) ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
+                className={`pill ${receivingFilter === 'RUSAK' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('RUSAK')}
+                style={rows.some(r => String(r.status).toUpperCase().includes('RUSAK')) ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
               >
-                ⚠️ Ada Kendala ({rows.filter(r => isReceivingKendala(r.status)).length})
+                ⚠️ Rusak ({rows.filter(r => String(r.status).toUpperCase().includes('RUSAK')).length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'RETUR' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('RETUR')}
+                style={rows.some(r => String(r.status).toUpperCase().includes('RETUR')) ? { borderColor: '#d97706', color: '#d97706', fontWeight: 'bold' } : {}}
+              >
+                ⚠️ Retur ({rows.filter(r => String(r.status).toUpperCase().includes('RETUR')).length})
               </button>
             </div>
           )}
@@ -613,7 +624,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                             <select
                               className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : (r.status === 'MASUK_GUDANG' || r.masuk_gudang ? 'status-gudang' : 'status-normal')}`}
-                              value={r.status || 'PENDING'}
+                              value={['KENDALA_RUSAK', 'RUSAK'].includes(r.status) ? 'RUSAK' : (['KENDALA_RETUR', 'RETUR'].includes(r.status) ? 'RETUR' : (r.status || 'PENDING'))}
                               onChange={e => onReceivingStatusChange(r, e.target.value)}
                             >
                               <optgroup label="Status Normal">
@@ -623,11 +634,8 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                                 <option value="PENDING">Pending (Belum Dikirim)</option>
                               </optgroup>
                               <optgroup label="Pilihan Kendala">
-                                <option value="KENDALA_KURANG">⚠️ Kendala: Barang Kurang / Parsial</option>
-                                <option value="KENDALA_RUSAK">⚠️ Kendala: Barang Rusak / Cacat</option>
-                                <option value="KENDALA_SALAH_SPEK">⚠️ Kendala: Salah Spesifikasi</option>
-                                <option value="KENDALA_RETUR">⚠️ Kendala: Retur ke Vendor</option>
-                                <option value="KENDALA_TERLAMBAT">⚠️ Kendala: Pengiriman Terlambat</option>
+                                <option value="RUSAK">⚠️ Rusak (Barang Rusak)</option>
+                                <option value="RETUR">⚠️ Retur (Retur ke Vendor)</option>
                               </optgroup>
                             </select>
                             {r.status === 'MASUK_GUDANG' || r.masuk_gudang ? (
@@ -1131,11 +1139,8 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                   <option value="PENDING">Pending (Belum Dikirim)</option>
                 </optgroup>
                 <optgroup label="Pilihan Kendala">
-                  <option value="KENDALA_KURANG">⚠️ Kendala: Barang Kurang / Parsial</option>
-                  <option value="KENDALA_RUSAK">⚠️ Kendala: Barang Rusak / Cacat</option>
-                  <option value="KENDALA_SALAH_SPEK">⚠️ Kendala: Salah Spesifikasi</option>
-                  <option value="KENDALA_RETUR">⚠️ Kendala: Retur ke Vendor</option>
-                  <option value="KENDALA_TERLAMBAT">⚠️ Kendala: Pengiriman Terlambat</option>
+                  <option value="RUSAK">⚠️ Rusak (Barang Rusak)</option>
+                  <option value="RETUR">⚠️ Retur (Retur ke Vendor)</option>
                 </optgroup>
               </select>
             </label>
