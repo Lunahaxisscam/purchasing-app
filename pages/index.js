@@ -108,7 +108,9 @@ export default function App() {
     ]
     const result = { ...rows }
     await Promise.all(specs.map(async ([name, table]) => {
-      const { data } = await supabase.from(table).select('*').order('created_at', { ascending: false })
+      const orderCol = table === 'materials' ? 'kode' : 'created_at'
+      const ascending = table === 'materials'
+      const { data } = await supabase.from(table).select('*').order(orderCol, { ascending })
       result[name] = data || []
     }))
     setRows(result)
