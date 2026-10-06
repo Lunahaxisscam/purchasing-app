@@ -107,11 +107,34 @@ export default function App() {
       ['handovers', 'handovers']
     ]
     const result = { ...rows }
+    const { data: attachments } = await supabase.from('attachments').select('*')
+    const attList = attachments || []
+
     await Promise.all(specs.map(async ([name, table]) => {
       const orderCol = table === 'materials' ? 'kode' : 'created_at'
       const ascending = table === 'materials'
       const { data } = await supabase.from(table).select('*').order(orderCol, { ascending })
-      result[name] = data || []
+      let items = data || []
+
+      items = items.map(item => {
+        let att = null
+        if (name === 'requests') {
+          att = attList.find(a => a.purchase_request_id === item.id)
+        } else if (name === 'approvals') {
+          att = attList.find(a => a.purchase_request_id === item.purchase_request_id)
+        } else if (name === 'receivings') {
+          att = attList.find(a => a.receiving_id === item.id || a.purchase_request_id === item.purchase_request_id)
+        } else if (name === 'handovers') {
+          att = attList.find(a => a.handover_id === item.id)
+        }
+        return {
+          ...item,
+          file_name: att?.file_name || null,
+          file_path: att?.file_path || null
+        }
+      })
+
+      result[name] = items
     }))
     setRows(result)
   }
@@ -266,7 +289,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
     ['projects', 'Project aktif', activeProjects.length],
     ['past_projects', 'Past Project', pastProjects.length],
     ['requests', 'Purchase Request', rows.requests?.length || 0],
-    ['approvals', 'Menunggu approval', rows.approvals?.length || 0],
+    ['approvals', 'Menunggu approval', rows.approvals?.filter(a => a.status === 'PENDING').length || 0],
     ['receivings', 'Receiving', rows.receivings?.length || 0]
   ]
   return (
@@ -374,7 +397,21 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
                     const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
                     return (
                       <td key={h}>
-                        {['projects', 'past_projects'].includes(page) && h === 'status' ? (
+                        {h === 'file_name' ? (
+                          r.file_path ? (
+                            <a
+                              href={r.file_path}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-file"
+                              title={`Unduh / Buka Dokumen: ${r.file_name}`}
+                            >
+                              📄 {r.file_name}
+                            </a>
+                          ) : (
+                            '—'
+                          )
+                        ) : ['projects', 'past_projects'].includes(page) && h === 'status' ? (
                           <select
                             className={`status-select status-${normalizeStatus(r.status)}`}
                             value={normalizeStatus(r.status)}
@@ -424,12 +461,12 @@ function headersFor(page, rows) {
     past_projects: ['name', 'status', 'created_at'],
     vendors: ['name', 'phone', 'contact', 'created_at'],
     materials: ['kode', 'name', 'category', 'qty'],
-    requests: ['request_no', 'title', 'status', 'priority', 'created_at'],
-    approvals: ['status', 'step_number', 'decided_at'],
-    receivings: ['status', 'received_date', 'invoice_no', 'created_at'],
-    handovers: ['received_by', 'status', 'handover_date', 'created_at']
+    requests: ['pr_number', 'priority', 'status', 'notes', 'file_name', 'created_at'],
+    approvals: ['step_number', 'status', 'note', 'decided_at', 'file_name'],
+    receivings: ['delivery_note', 'invoice_no', 'status', 'received_date', 'note', 'file_name'],
+    handovers: ['received_by', 'status', 'handover_date', 'note', 'file_name']
   }
-  if (['materials', 'vendors', 'projects', 'past_projects'].includes(page)) {
+  if (['materials', 'vendors', 'projects', 'past_projects', 'requests', 'approvals', 'receivings', 'handovers'].includes(page)) {
     return defaults[page]
   }
   return rows[0]
@@ -443,6 +480,18 @@ function pretty(x) {
   if (x === 'category') return 'Category'
   if (x === 'qty') return 'Qty'
   if (x === 'contact') return 'Kontak'
+  if (x === 'file_name') return 'Dokumen / File'
+  if (x === 'pr_number') return 'No. PR'
+  if (x === 'step_number') return 'Step'
+  if (x === 'delivery_note') return 'Surat Jalan / PO'
+  if (x === 'invoice_no') return 'No. Invoice'
+  if (x === 'received_date') return 'Tgl Terima'
+  if (x === 'handover_date') return 'Tgl Serah Terima'
+  if (x === 'received_by') return 'Diterima Oleh'
+  if (x === 'priority') return 'Prioritas'
+  if (x === 'status') return 'Status'
+  if (x === 'notes' || x === 'note') return 'Catatan'
+  if (x === 'decided_at') return 'Waktu Putusan'
   return String(x).replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 

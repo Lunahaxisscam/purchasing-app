@@ -90,3 +90,25 @@
   background: rgba(255, 255, 255, 0.12);
   margin: 10px 4px;
 }
+
+/* File download / view button */
+.btn-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0f7f4;
+  color: #1f3a34;
+  border: 1px solid #c2dbd1;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-file:hover {
+  background: #d8ece3;
+  border-color: #1f3a34;
+  color: #122420;
+}
