@@ -112,3 +112,29 @@
   border-color: #1f3a34;
   color: #122420;
 }
+
+/* Kendala status styling */
+.status-kendala {
+  background: #fdf2f2 !important;
+  color: #c93b2b !important;
+  border: 1px solid #f2c0bb !important;
+  font-weight: 600 !important;
+}
+.status-kendala:hover {
+  background: #fce8e8 !important;
+  border-color: #c93b2b !important;
+}
+.status-normal {
+  background: #f0f7f4;
+  color: #1f3a34;
+  border: 1px solid #c2dbd1;
+}
+
+/* Material Picker Box */
+.material-picker-box {
+  background: #f9fbfa;
+  border: 1px solid #dbe2df;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+}

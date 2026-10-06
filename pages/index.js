@@ -48,6 +48,31 @@ const statusOptions = [
   { value: 'DONE', label: 'Done' }
 ]
 
+const receivingStatusOptions = [
+  { value: 'SELESAI', label: 'Selesai (Lengkap)', group: 'Normal' },
+  { value: 'OTW', label: 'OTW (Dalam Pengiriman)', group: 'Normal' },
+  { value: 'PENDING', label: 'Pending (Belum Dikirim)', group: 'Normal' },
+  { value: 'KENDALA_KURANG', label: '⚠️ Kendala: Barang Kurang / Parsial', group: 'Pilihan Kendala' },
+  { value: 'KENDALA_RUSAK', label: '⚠️ Kendala: Barang Rusak / Cacat', group: 'Pilihan Kendala' },
+  { value: 'KENDALA_SALAH_SPEK', label: '⚠️ Kendala: Salah Spesifikasi', group: 'Pilihan Kendala' },
+  { value: 'KENDALA_RETUR', label: '⚠️ Kendala: Retur ke Vendor', group: 'Pilihan Kendala' },
+  { value: 'KENDALA_TERLAMBAT', label: '⚠️ Kendala: Pengiriman Terlambat', group: 'Pilihan Kendala' }
+]
+
+function isReceivingKendala(s) {
+  if (!s) return false
+  const up = String(s).toUpperCase()
+  return up.startsWith('KENDALA') || ['PARTIALLY_RECEIVED', 'RETUR', 'RUSAK', 'KURANG'].includes(up)
+}
+
+function prettyReceivingStatus(s) {
+  const match = receivingStatusOptions.find(o => o.value === s)
+  if (match) return match.label
+  if (s === 'PARTIALLY_RECEIVED') return '⚠️ Kendala: Barang Kurang / Parsial'
+  if (s === 'RETUR') return '⚠️ Kendala: Retur ke Vendor'
+  return s
+}
+
 function normalizeStatus(s) {
   if (!s) return 'NOT_START'
   const up = String(s).toUpperCase().trim().replace(/[\s-]+/g, '_')
@@ -158,17 +183,43 @@ export default function App() {
     }
   }
 
+  async function updateReceivingStatus(receiving, newStatus) {
+    if (!supabase) return
+    const isKendala = isReceivingKendala(newStatus)
+    const kendalaType = isKendala ? newStatus.replace('KENDALA_', '') : null
+
+    setRows(prev => ({
+      ...prev,
+      receivings: (prev.receivings || []).map(r => r.id === receiving.id ? { ...r, status: newStatus, kendala: kendalaType } : r)
+    }))
+
+    const { error } = await supabase.from('receivings').update({
+      status: newStatus,
+      kendala: kendalaType
+    }).eq('id', receiving.id)
+
+    if (error) {
+      setNotice(`Gagal update status receiving: ${error.message}`)
+      loadAll()
+    } else {
+      const label = prettyReceivingStatus(newStatus)
+      setNotice(`Status receiving "${receiving.delivery_note || 'Data'}" berhasil diubah ke "${label}".`)
+      loadAll()
+    }
+  }
+
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
-    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : 'Data'))
-    const itemName = item.pr_number || item.name || item.kode || item.code || 'Item'
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Receiving' : 'Data')))
+    const itemName = item.delivery_note || item.pr_number || item.name || item.kode || item.code || 'Item'
     const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
     if (!ok) return
 
     const table = {
       vendors: 'vendors',
       materials: 'materials',
-      requests: 'purchase_requests'
+      requests: 'purchase_requests',
+      receivings: 'receivings'
     }[pageTarget] || pageTarget
     
     // optimistic update
@@ -242,9 +293,11 @@ export default function App() {
             page={page}
             rows={currentRows}
             allProjects={rows.projects || []}
+            allMaterials={rows.materials || []}
             refresh={loadAll}
             say={setNotice}
             onStatusChange={updateProjectStatus}
+            onReceivingStatusChange={updateReceivingStatus}
             onDelete={deleteItem}
             setPage={setPage}
           />
@@ -305,9 +358,10 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
+  const [receivingFilter, setReceivingFilter] = useState('all')
   const title = labels[page]
 
   let displayRows = rows
@@ -316,10 +370,14 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
     else if (projectFilter === 'NOT_START') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'NOT_START')
     else if (projectFilter === 'ON_GOING') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'ON_GOING')
     else displayRows = allProjects.filter(p => normalizeStatus(p.status) !== 'DONE')
+  } else if (page === 'receivings') {
+    if (receivingFilter === 'SELESAI') displayRows = rows.filter(r => r.status === 'SELESAI')
+    else if (receivingFilter === 'OTW') displayRows = rows.filter(r => r.status === 'OTW')
+    else if (receivingFilter === 'kendala') displayRows = rows.filter(r => isReceivingKendala(r.status))
   }
 
   const columns = headersFor(page, displayRows)
-  const hasDeleteAction = ['vendors', 'materials', 'requests'].includes(page)
+  const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings'].includes(page)
 
   return (
     <>
@@ -360,6 +418,39 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
               </button>
             </div>
           )}
+          {page === 'receivings' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'SELESAI' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('SELESAI')}
+              >
+                Selesai ({rows.filter(r => r.status === 'SELESAI').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'OTW' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('OTW')}
+              >
+                OTW ({rows.filter(r => r.status === 'OTW').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'kendala' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('kendala')}
+                style={rows.some(r => isReceivingKendala(r.status)) ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
+              >
+                ⚠️ Ada Kendala ({rows.filter(r => isReceivingKendala(r.status)).length})
+              </button>
+            </div>
+          )}
         </div>
         <div className="toolbar-actions">
           {page === 'past_projects' && (
@@ -376,6 +467,7 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
         <Create
           page={page}
           allProjects={allProjects}
+          allMaterials={allMaterials}
           existingRequests={displayRows}
           close={() => setOpen(false)}
           refresh={refresh}
@@ -409,6 +501,25 @@ function Module({ page, rows, allProjects, refresh, say, onStatusChange, onDelet
                             <option value="NOT_START">Not Start</option>
                             <option value="ON_GOING">On Going</option>
                             <option value="DONE">Done</option>
+                          </select>
+                        ) : page === 'receivings' && h === 'status' ? (
+                          <select
+                            className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
+                            value={r.status || 'PENDING'}
+                            onChange={e => onReceivingStatusChange(r, e.target.value)}
+                          >
+                            <optgroup label="Status Normal">
+                              <option value="SELESAI">Selesai (Lengkap)</option>
+                              <option value="OTW">OTW (Dalam Pengiriman)</option>
+                              <option value="PENDING">Pending (Belum Dikirim)</option>
+                            </optgroup>
+                            <optgroup label="Pilihan Kendala">
+                              <option value="KENDALA_KURANG">⚠️ Kendala: Barang Kurang / Parsial</option>
+                              <option value="KENDALA_RUSAK">⚠️ Kendala: Barang Rusak / Cacat</option>
+                              <option value="KENDALA_SALAH_SPEK">⚠️ Kendala: Salah Spesifikasi</option>
+                              <option value="KENDALA_RETUR">⚠️ Kendala: Retur ke Vendor</option>
+                              <option value="KENDALA_TERLAMBAT">⚠️ Kendala: Pengiriman Terlambat</option>
+                            </optgroup>
                           </select>
                         ) : (
                           format(rawVal)
@@ -450,7 +561,7 @@ function headersFor(page, rows) {
     past_projects: ['name', 'status', 'created_at'],
     vendors: ['name', 'phone', 'contact', 'created_at'],
     materials: ['kode', 'name', 'category', 'qty'],
-    requests: ['pr_number', 'project_name', 'title', 'priority', 'status', 'notes', 'created_at'],
+    requests: ['pr_number', 'project_name', 'title', 'materials_summary', 'priority', 'status', 'notes', 'created_at'],
     approvals: ['step_number', 'status', 'note', 'decided_at'],
     receivings: ['delivery_note', 'invoice_no', 'status', 'received_date', 'note'],
     handovers: ['received_by', 'status', 'handover_date', 'note']
@@ -472,6 +583,7 @@ function pretty(x) {
   if (x === 'pr_number') return 'No. PR'
   if (x === 'project_name') return 'Project'
   if (x === 'title') return 'Judul Kebutuhan'
+  if (x === 'materials_summary') return 'Item Material'
   if (x === 'step_number') return 'Step'
   if (x === 'delivery_note') return 'Surat Jalan / PO'
   if (x === 'invoice_no') return 'No. Invoice'
@@ -494,7 +606,7 @@ function format(v) {
   return String(v)
 }
 
-function Create({ page, allProjects = [], existingRequests = [], close, refresh, say }) {
+function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], close, refresh, say }) {
   const nextPrNum = 'PR-' + String((existingRequests || []).length + 1).padStart(3, '0')
   const [form, setForm] = useState({
     name: '',
@@ -511,6 +623,37 @@ function Create({ page, allProjects = [], existingRequests = [], close, refresh,
     priority: 'NORMAL'
   })
   const [saving, setSaving] = useState(false)
+
+  // State untuk Tarik Item Material di PR
+  const [selectedMaterialId, setSelectedMaterialId] = useState(allMaterials[0]?.id || '')
+  const [itemQty, setItemQty] = useState('1')
+  const [prItemsList, setPrItemsList] = useState([])
+
+  function addItemToPR() {
+    if (!selectedMaterialId) return
+    const mat = allMaterials.find(m => m.id === selectedMaterialId)
+    if (!mat) return
+
+    const existingIdx = prItemsList.findIndex(it => it.material_id === mat.id)
+    if (existingIdx !== -1) {
+      const updated = [...prItemsList]
+      updated[existingIdx].qty = Number(updated[existingIdx].qty) + (Number(itemQty) || 1)
+      setPrItemsList(updated)
+    } else {
+      setPrItemsList([...prItemsList, {
+        material_id: mat.id,
+        kode: mat.kode || mat.code || '—',
+        name: mat.name,
+        category: mat.category || '—',
+        qty: Number(itemQty) || 1
+      }])
+    }
+    setItemQty('1')
+  }
+
+  function removeItemFromPR(idx) {
+    setPrItemsList(prItemsList.filter((_, i) => i !== idx))
+  }
 
   const field = (name, label, type = 'text', required = false) => (
     <label>
@@ -536,14 +679,43 @@ function Create({ page, allProjects = [], existingRequests = [], close, refresh,
 
     let data = {}
     if (page === 'requests') {
+      const summary = prItemsList.length
+        ? prItemsList.map(it => `${it.qty}x ${it.name}`).join(', ')
+        : (form.title || '—')
+
       data = {
         project_id: form.project_id || null,
         title: form.title,
         pr_number: form.pr_number || nextPrNum,
         priority: form.priority || 'NORMAL',
         status: 'DRAFT',
+        materials_summary: summary,
         notes: form.notes || form.title
       }
+
+      const { data: insertedPR, error: prErr } = await supabase.from('purchase_requests').insert(data).select().single()
+      if (prErr) {
+        setSaving(false)
+        say(prErr.message)
+        return
+      }
+
+      if (prItemsList.length && insertedPR) {
+        const itemRecords = prItemsList.map(it => ({
+          pr_id: insertedPR.id,
+          material_id: it.material_id,
+          item_name: it.name,
+          kode: it.kode,
+          quantity: it.qty
+        }))
+        await supabase.from('pr_items').insert(itemRecords)
+      }
+
+      setSaving(false)
+      say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item material ditarik).`)
+      close()
+      refresh()
+      return
     } else if (page === 'materials') {
       data = {
         name: form.name,
@@ -605,6 +777,83 @@ function Create({ page, allProjects = [], existingRequests = [], close, refresh,
                 <option value="URGENT">URGENT</option>
               </select>
             </label>
+
+            {/* TARIK ITEM MATERIAL */}
+            <div className="material-picker-box">
+              <label style={{ fontWeight: 600, color: '#1f3a34', marginBottom: '6px', display: 'block' }}>
+                📦 Tarik Item Material
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: '8px', alignItems: 'end' }}>
+                <label style={{ margin: 0, fontSize: '12px' }}>Pilih dari Master Material ({allMaterials.length})
+                  <select
+                    value={selectedMaterialId}
+                    onChange={e => setSelectedMaterialId(e.target.value)}
+                  >
+                    <option value="">-- Pilih Material --</option>
+                    {allMaterials.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.kode ? `[${m.kode}] ` : ''}{m.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ margin: 0, fontSize: '12px' }}>Qty
+                  <input
+                    type="number"
+                    min="1"
+                    value={itemQty}
+                    onChange={e => setItemQty(e.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="outline"
+                  style={{ height: '36px', whiteSpace: 'nowrap', padding: '0 12px', fontSize: '12px' }}
+                  onClick={addItemToPR}
+                >
+                  + Tarik Item
+                </button>
+              </div>
+
+              {prItemsList.length > 0 ? (
+                <div style={{ marginTop: '10px', maxHeight: '160px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
+                        <th style={{ padding: '4px 6px' }}>Kode</th>
+                        <th style={{ padding: '4px 6px' }}>Nama Material</th>
+                        <th style={{ padding: '4px 6px', width: '50px' }}>Qty</th>
+                        <th style={{ padding: '4px 6px', width: '40px', textAlign: 'center' }}>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prItemsList.map((it, idx) => (
+                        <tr key={it.material_id || idx} style={{ borderBottom: '1px solid #e1e7e4' }}>
+                          <td style={{ padding: '4px 6px' }}><b>{it.kode}</b></td>
+                          <td style={{ padding: '4px 6px' }}>{it.name}</td>
+                          <td style={{ padding: '4px 6px' }}><b>{it.qty}</b></td>
+                          <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn-delete"
+                              style={{ padding: '2px 5px', fontSize: '10px' }}
+                              onClick={() => removeItemFromPR(idx)}
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
+                  💡 Belum ada item material yang ditarik. Pilih material di atas lalu klik "+ Tarik Item".
+                </p>
+              )}
+            </div>
+
             {field('notes', 'Catatan Tambahan', 'text', false)}
           </>
         )}
