@@ -138,3 +138,49 @@
   padding: 12px;
   margin: 10px 0;
 }
+
+/* Modal & Dialog scroll fix */
+.modal {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(16, 43, 39, 0.65) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  padding: 30px 16px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  z-index: 1000 !important;
+}
+
+.dialog {
+  background: white !important;
+  border-radius: 14px !important;
+  padding: 24px !important;
+  width: min(600px, 100%) !important;
+  display: grid !important;
+  gap: 16px !important;
+  margin: auto !important;
+  max-height: calc(100vh - 60px) !important;
+  overflow-y: auto !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2) !important;
+}
+
+.dialoghead {
+  position: sticky;
+  top: -24px;
+  background: white;
+  padding: 8px 0;
+  z-index: 10;
+  border-bottom: 1px solid #f0f3f2;
+  margin-top: -8px;
+}
+
+.actions {
+  position: sticky;
+  bottom: -24px;
+  background: white;
+  padding: 12px 0 4px;
+  z-index: 10;
+  border-top: 1px solid #f0f3f2;
+}

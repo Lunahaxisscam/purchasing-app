@@ -140,11 +140,19 @@ export default function App() {
       return (a.kode || '').localeCompare(b.kode || '')
     })
 
+    const { data: allPRs } = await supabase.from('purchase_requests').select('*').order('pr_number', { ascending: true })
+    const prList = allPRs || []
+
     await Promise.all(specs.map(async ([name, table]) => {
-      const orderCol = table === 'materials' ? 'kode' : (table === 'purchase_requests' ? 'pr_number' : 'created_at')
-      const ascending = table === 'materials' || table === 'purchase_requests'
-      const { data } = await supabase.from(table).select('*').order(orderCol, { ascending })
-      let items = data || []
+      let items = []
+      if (name === 'requests') {
+        items = prList
+      } else {
+        const orderCol = table === 'materials' ? 'kode' : (table === 'approval_steps' ? 'step_number' : 'created_at')
+        const ascending = table === 'materials' || table === 'approval_steps'
+        const { data } = await supabase.from(table).select('*').order(orderCol, { ascending })
+        items = data || []
+      }
 
       if (name === 'projects') {
         items.sort((a, b) => {
@@ -156,11 +164,15 @@ export default function App() {
       }
 
       items = items.map(item => {
-        const proj = projList.find(p => p.id === item.project_id)
+        const linkedPR = item.purchase_request_id ? prList.find(p => p.id === item.purchase_request_id) : null
+        const effectiveProjectId = item.project_id || linkedPR?.project_id
+        const proj = projList.find(p => p.id === effectiveProjectId)
         const projLabel = proj ? (proj.kode ? `[${proj.kode}] ${proj.name}` : proj.name) : '—'
         return {
           ...item,
-          project_name: projLabel
+          project_name: projLabel,
+          pr_number: item.pr_number || linkedPR?.pr_number || '—',
+          title: item.title || linkedPR?.title || '—'
         }
       })
 
@@ -223,10 +235,37 @@ export default function App() {
     }
   }
 
+  async function decideApproval(approval, decision) {
+    if (!supabase) return
+    const now = new Date().toISOString()
+    const label = decision === 'APPROVED' ? 'DISETUJUI' : 'DITOLAK'
+    const ok = window.confirm(`Apakah Anda yakin ingin menandai pengajuan "${approval.pr_number || 'PR'}" sebagai ${label}?`)
+    if (!ok) return
+
+    const { error: appErr } = await supabase.from('approval_steps').update({
+      status: decision,
+      decided_at: now,
+      note: decision === 'APPROVED' ? 'Disetujui oleh Direksi / PM' : 'Ditolak'
+    }).eq('id', approval.id)
+
+    if (approval.purchase_request_id) {
+      await supabase.from('purchase_requests').update({
+        status: decision
+      }).eq('id', approval.purchase_request_id)
+    }
+
+    if (appErr) {
+      setNotice(`Gagal update approval: ${appErr.message}`)
+    } else {
+      setNotice(`Pengajuan ${approval.pr_number || 'PR'} berhasil ${label}.`)
+      loadAll()
+    }
+  }
+
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
-    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Receiving' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data'))))
-    const itemName = item.delivery_note || item.pr_number || item.name || item.kode || item.code || 'Item'
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Receiving' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
+    const itemName = item.delivery_note || item.pr_number || item.received_by || item.name || item.kode || item.code || 'Item'
     const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
     if (!ok) return
 
@@ -235,6 +274,8 @@ export default function App() {
       materials: 'materials',
       requests: 'purchase_requests',
       receivings: 'receivings',
+      handovers: 'handovers',
+      approvals: 'approval_steps',
       projects: 'projects',
       past_projects: 'projects'
     }[pageTarget] || pageTarget
@@ -315,6 +356,7 @@ export default function App() {
             say={setNotice}
             onStatusChange={updateProjectStatus}
             onReceivingStatusChange={updateReceivingStatus}
+            onDecideApproval={decideApproval}
             onDelete={deleteItem}
             setPage={setPage}
           />
@@ -375,7 +417,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onDecideApproval, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -394,7 +436,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
   }
 
   const columns = headersFor(page, displayRows)
-  const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'projects', 'past_projects'].includes(page)
+  const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'handovers', 'projects', 'past_projects'].includes(page)
 
   return (
     <>
@@ -475,7 +517,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
               ← Ke Project Aktif
             </button>
           )}
-          {['projects', 'vendors', 'materials', 'requests'].includes(page) && (
+          {['projects', 'vendors', 'materials', 'requests', 'receivings', 'handovers'].includes(page) && (
             <button onClick={() => setOpen(true)}>+ Tambah {title}</button>
           )}
         </div>
@@ -498,7 +540,9 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
               {columns.map(h => (
                 <th key={h}>{pretty(h)}</th>
               ))}
-              {hasDeleteAction && <th style={{ width: '90px', textAlign: 'center' }}>Aksi</th>}
+              {(hasDeleteAction || page === 'approvals') && (
+                <th style={{ width: page === 'approvals' ? '140px' : '90px', textAlign: 'center' }}>Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -544,6 +588,30 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                       </td>
                     )
                   })}
+                  {page === 'approvals' && (
+                    <td style={{ textAlign: 'center' }}>
+                      {r.status === 'PENDING' ? (
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => onDecideApproval(r, 'APPROVED')}
+                            style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✓ Setujui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDecideApproval(r, 'REJECTED')}
+                            style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✕ Tolak
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`badge status-${r.status}`}>{r.status}</span>
+                      )}
+                    </td>
+                  )}
                   {hasDeleteAction && (
                     <td style={{ textAlign: 'center' }}>
                       <button
@@ -560,7 +628,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length + (hasDeleteAction ? 1 : 0)} className="empty">
+                <td colSpan={columns.length + (hasDeleteAction || page === 'approvals' ? 1 : 0)} className="empty">
                   Belum ada data.
                 </td>
               </tr>
@@ -579,9 +647,9 @@ function headersFor(page, rows) {
     vendors: ['name', 'phone', 'contact', 'created_at'],
     materials: ['kode', 'name', 'category', 'qty', 'satuan'],
     requests: ['pr_number', 'project_name', 'title', 'materials_summary', 'priority', 'status', 'notes', 'created_at'],
-    approvals: ['step_number', 'status', 'note', 'decided_at'],
-    receivings: ['delivery_note', 'invoice_no', 'status', 'received_date', 'note'],
-    handovers: ['received_by', 'status', 'handover_date', 'note']
+    approvals: ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at'],
+    receivings: ['delivery_note', 'project_name', 'invoice_no', 'status', 'received_date', 'note'],
+    handovers: ['project_name', 'received_by', 'status', 'handover_date', 'note']
   }
   if (['materials', 'vendors', 'projects', 'past_projects', 'requests', 'approvals', 'receivings', 'handovers'].includes(page)) {
     return defaults[page]
