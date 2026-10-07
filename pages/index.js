@@ -632,6 +632,7 @@ export default function App() {
             allReceivingItems={rows.receiving_items || []}
             allRequests={rows.requests || []}
             allReceivings={rows.receivings || []}
+            allVendors={rows.vendors || []}
             refresh={loadAll}
             say={setNotice}
             onStatusChange={updateProjectStatus}
@@ -735,8 +736,8 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
               ['Projects', rows.projects || [], headersFor('projects', rows.projects || [])],
               ['Vendors', rows.vendors || [], headersFor('vendors', rows.vendors || [])],
               ['Materials', rows.materials || [], headersFor('materials', rows.materials || [])],
-              ['Purchase Request', rows.requests || [], headersFor('requests', rows.requests || [])],
-              ['PR Items', rows.pr_items || [], ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status']],
+              ['Purchase Request', rows.requests || [], ['priority', 'pr_number', 'project_name', 'title', 'materials_summary', 'status', 'notes', 'created_at']],
+              ['PR Items', rows.pr_items || [], ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status', 'supplier_category', 'vendor_id']],
               ['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']],
               ['Receiving', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note']],
               ['Receiving Items', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
@@ -751,7 +752,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -763,6 +764,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedApproval, setExpandedApproval] = useState(null)
   const [expandedReceiving, setExpandedReceiving] = useState(null)
+  const [openNoteId, setOpenNoteId] = useState(null)
   const [editRow, setEditRow] = useState(null)
   const [sortKey, setSortKey] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
@@ -783,6 +785,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
   // CATATAN: item dibaca dari prop terpisah (allPrItems/allReceivingItems) karena
   // `rows` pada komponen ini adalah array baris modul aktif, bukan objek semua tabel.
   const prItemsForPr = (prId) => (allPrItems || []).filter(it => it.pr_id === prId)
+  const vendorName = (vendorId) => ((allVendors || []).find(v => v.id === vendorId) || {}).name || ''
   const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
   const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
 
@@ -815,7 +818,14 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
     const items = prItemsForPr(pr.id)
     if (items.length) {
       return items
-        .map(it => `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim())
+        .map(it => {
+          const base = `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim()
+          const bits = []
+          if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
+          const v = vendorName(it.vendor_id)
+          if (v) bits.push(`Vendor: ${v}`)
+          return bits.length ? `${base} — ${bits.join(' · ')}` : base
+        })
         .filter(Boolean)
     }
     const s = String(pr.materials_summary || '').trim()
@@ -1199,6 +1209,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
           allReceivings={allReceivings}
           allProjects={allProjects}
           allMaterials={allMaterials}
+          allVendors={allVendors}
           existingRequests={displayRows}
           allRequestsFull={allRequests}
           close={() => { setOpen(false); setEditRow(null) }}
@@ -1296,6 +1307,23 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                                 • {line}
                               </span>
                             )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
+                          </div>
+                        ) : page === 'requests' && h === 'pr_number' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <b>{format(rawVal)}</b>
+                              <button
+                                type="button"
+                                className={`note-dot ${String(r.notes || '').trim() ? 'note-dot-on' : ''}`}
+                                title={String(r.notes || '').trim() || 'Tidak ada catatan'}
+                                aria-label="Catatan PR"
+                                onClick={() => setOpenNoteId(openNoteId === r.id ? null : r.id)}
+                              />
+                            </div>
+                            <small style={{ color: '#9aa8a4', fontSize: '10px', fontWeight: 500 }}>{format(r.created_at)}</small>
+                            {openNoteId === r.id && (
+                              <div className="note-pop">{String(r.notes || '').trim() || 'Tidak ada catatan.'}</div>
+                            )}
                           </div>
                         ) : page === 'requests' && h === 'priority' ? (
                           <span
@@ -1601,7 +1629,7 @@ function headersFor(page, rows) {
     past_projects: ['kode', 'name', 'status', 'created_at'],
     vendors: ['name', 'phone', 'store_link', 'supplier_category'],
     materials: ['kode', 'name', 'category', 'qty', 'satuan'],
-    requests: ['priority', 'pr_number', 'project_name', 'title', 'materials_summary', 'status', 'notes', 'created_at'],
+    requests: ['priority', 'pr_number', 'project_name', 'title', 'materials_summary', 'status'],
     approvals: ['pr_number', 'project_name', 'title', 'items', 'step_number', 'status', 'note', 'decided_at'],
     receivings: ['invoice_no', 'project_name', 'status', 'received_date', 'note'],
     handovers: ['project_name', 'received_by', 'status', 'handover_date', 'note']
@@ -1681,7 +1709,7 @@ function WaContact({ value }) {
   )
 }
 
-function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], close, refresh, say }) {
+function Create({ page, allProjects = [], allMaterials = [], allVendors = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], close, refresh, say }) {
   const isEdit = !!editRow
   // Nomor PR berikutnya dihitung dari SEMUA PR (bukan hasil filter), dan selalu
   // lebih besar dari nomor tertinggi yang sudah ada agar tidak pernah dobel
@@ -1756,7 +1784,9 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     name: it.item_name || '',
     category: '',
     satuan: it.unit || 'Pcs',
-    qty: it.quantity ?? 1
+    qty: it.quantity ?? 1,
+    supplier_category: it.supplier_category || '',
+    vendor_id: it.vendor_id || ''
   })))
 
   const filteredMaterials = useMemo(() => {
@@ -1785,7 +1815,9 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         name: mat.name,
         category: mat.category || '—',
         satuan: mat.satuan || mat.unit || 'Pcs',
-        qty: Number(itemQty) || 1
+        qty: Number(itemQty) || 1,
+        supplier_category: mat.category || '',
+        vendor_id: ''
       }])
     }
     setItemQty('1')
@@ -1800,6 +1832,29 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
   function updateItemQty(idx, val) {
     const q = Number(val)
     setPrItemsList(prItemsList.map((it, i) => i === idx ? { ...it, qty: isFinite(q) && q > 0 ? q : 1 } : it))
+  }
+
+  // Rencana beli per item: supplier (kategori) + vendor
+  function updateItemSupplier(idx, val) {
+    setPrItemsList(prItemsList.map((it, i) => i === idx ? { ...it, supplier_category: val } : it))
+  }
+  function updateItemVendor(idx, val) {
+    setPrItemsList(prItemsList.map((it, i) => i === idx ? { ...it, vendor_id: val } : it))
+  }
+  // Vendor yang cocok dengan kategori supplier diprioritaskan; jika tidak ada yang cocok, tampilkan semua.
+  function vendorsForItem(it) {
+    const all = allVendors || []
+    const cat = String(it.supplier_category || '').trim().toLowerCase()
+    let list = all
+    if (cat) {
+      const match = all.filter(v => String(v.supplier_category || '').trim().toLowerCase() === cat)
+      if (match.length) list = match
+    }
+    if (it.vendor_id && !list.some(v => v.id === it.vendor_id)) {
+      const cur = all.find(v => v.id === it.vendor_id)
+      if (cur) list = [...list, cur]
+    }
+    return list
   }
 
   const field = (name, label, type = 'text', required = false) => (
@@ -1857,7 +1912,12 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         }
         for (const it of prItemsList) {
           if (it.id) {
-            const { error } = await supabase.from('pr_items').update({ quantity: it.qty, unit: it.satuan }).eq('id', it.id)
+            const { error } = await supabase.from('pr_items').update({
+              quantity: it.qty,
+              unit: it.satuan,
+              supplier_category: it.supplier_category || null,
+              vendor_id: it.vendor_id || null
+            }).eq('id', it.id)
             if (error && !itemErrMsg) itemErrMsg = error.message
           } else {
             const { error } = await supabase.from('pr_items').insert({
@@ -1867,7 +1927,9 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
               kode: it.kode,
               unit: it.satuan,
               quantity: it.qty,
-              status: 'PENDING_APPROVAL'
+              status: 'PENDING_APPROVAL',
+              supplier_category: it.supplier_category || null,
+              vendor_id: it.vendor_id || null
             })
             if (error && !itemErrMsg) itemErrMsg = error.message
           }
@@ -1909,7 +1971,9 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
           kode: it.kode,
           unit: it.satuan,
           quantity: it.qty,
-          status: 'PENDING_APPROVAL'
+          status: 'PENDING_APPROVAL',
+          supplier_category: it.supplier_category || null,
+          vendor_id: it.vendor_id || null
         }))
         const { error: itemErr } = await supabase.from('pr_items').insert(itemRecords)
         if (itemErr) {
@@ -2007,7 +2071,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
 
   return (
     <div className="modal">
-      <form className="dialog" onSubmit={save}>
+      <form className={`dialog${page === 'requests' ? ' dialog-wide' : ''}`} onSubmit={save}>
         <div className="dialoghead">
           <h2>{isEdit ? 'Edit' : 'Tambah'} {labels[page]}</h2>
           <button type="button" className="icon" onClick={close}>×</button>
@@ -2099,7 +2163,8 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                     </thead>
                     <tbody>
                       {prItemsList.map((it, idx) => (
-                        <tr key={it.material_id || idx} style={{ borderBottom: '1px solid #e1e7e4' }}>
+                        <React.Fragment key={it.material_id || idx}>
+                        <tr style={{ borderBottom: '1px dashed #e1e7e4' }}>
                           <td style={{ padding: '4px 6px' }}><b>{it.kode}</b></td>
                           <td style={{ padding: '4px 6px' }}>{it.name}</td>
                           <td style={{ padding: '4px 6px' }}>
@@ -2123,6 +2188,36 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                             </button>
                           </td>
                         </tr>
+                        <tr style={{ borderBottom: '1px solid #e1e7e4' }}>
+                          <td colSpan={5} style={{ padding: '3px 6px 6px', background: '#fafcfb' }}>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 600 }}>🛒 Rencana beli:</span>
+                              <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
+                                Supplier
+                                <select
+                                  value={it.supplier_category || ''}
+                                  onChange={e => updateItemSupplier(idx, e.target.value)}
+                                  style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
+                                >
+                                  <option value="">-- Kategori --</option>
+                                  {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                              </label>
+                              <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
+                                Vendor
+                                <select
+                                  value={it.vendor_id || ''}
+                                  onChange={e => updateItemVendor(idx, e.target.value)}
+                                  style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
+                                >
+                                  <option value="">-- Pilih Vendor --</option>
+                                  {vendorsForItem(it).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                </select>
+                              </label>
+                            </div>
+                          </td>
+                        </tr>
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

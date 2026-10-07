@@ -300,14 +300,18 @@ table.materials-table td:nth-child(2) .cell-name{overflow:hidden;text-overflow:e
    6 Status | 7 Catatan | 8 Created At | 9 Aksi. */
 table.requests-table{table-layout:fixed;width:100%}
 table.requests-table th:nth-child(1),table.requests-table td:nth-child(1){width:4%;text-align:center;padding-left:8px;padding-right:6px}
-table.requests-table th:nth-child(2),table.requests-table td:nth-child(2){width:6%}
-table.requests-table th:nth-child(3),table.requests-table td:nth-child(3){width:11%}
-table.requests-table th:nth-child(4),table.requests-table td:nth-child(4){width:15%}
-table.requests-table th:nth-child(5),table.requests-table td:nth-child(5){width:20%}
-table.requests-table th:nth-child(6),table.requests-table td:nth-child(6){width:8%}
-table.requests-table th:nth-child(7),table.requests-table td:nth-child(7){width:10%}
-table.requests-table th:nth-child(8),table.requests-table td:nth-child(8){width:11%}
-table.requests-table th:nth-child(9),table.requests-table td:nth-child(9){width:15%;padding-left:8px;padding-right:8px}
+table.requests-table th:nth-child(2),table.requests-table td:nth-child(2){width:13%}
+table.requests-table th:nth-child(3),table.requests-table td:nth-child(3){width:12%}
+table.requests-table th:nth-child(4),table.requests-table td:nth-child(4){width:17%}
+table.requests-table th:nth-child(5),table.requests-table td:nth-child(5){width:33%}
+table.requests-table th:nth-child(6),table.requests-table td:nth-child(6){width:9%}
+table.requests-table th:nth-child(7),table.requests-table td:nth-child(7){width:12%;padding-left:8px;padding-right:8px}
+
+/* Bulatan catatan kecil di samping No. PR (klik untuk lihat isi) */
+.note-dot{width:9px;height:9px;min-width:9px;border-radius:50%;padding:0;background:#dfe6e3;border:1px solid #cbd8d4;box-shadow:none;flex:0 0 auto}
+.note-dot-on{background:radial-gradient(circle at 35% 30%,#ffd77a,#e8a020);border-color:#d99414;box-shadow:0 0 0 3px rgba(232,160,32,.15)}
+.dialog-wide{width:min(680px,100%)}
+.note-pop{margin-top:4px;background:#fffbe8;border:1px solid #f2d98c;border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.45;white-space:normal;overflow-wrap:break-word;max-width:230px;color:#5f4a10;font-weight:500}
 @media(max-width:800px){
   table.requests-table{min-width:940px}
 }
