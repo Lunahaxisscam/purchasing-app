@@ -285,6 +285,8 @@ table.materials-table td:nth-child(2) .cell-name{overflow:hidden;text-overflow:e
 .btn-edit{background:#fff;color:#173d36;border:1px solid #cbd6d2}
 .btn-edit:hover{background:#eef3f1;border-color:#173d36}
 .btn-delete.icon-btn{width:30px;height:30px;padding:0}
+.btn-finish{background:#16a34a;color:#fff;border:1px solid #16a34a;border-radius:6px;cursor:pointer;font-weight:600;line-height:1.2}
+.btn-finish:hover{background:#15803d;border-color:#15803d}
 
 /* ===== Dot prioritas (kolom paling kiri modul PR) ===== */
 .prio-dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle}
@@ -297,17 +299,17 @@ table.materials-table td:nth-child(2) .cell-name{overflow:hidden;text-overflow:e
    Kolom: 1 dot prioritas | 2 No. PR | 3 Project | 4 Judul | 5 Item Material |
    6 Status | 7 Catatan | 8 Created At | 9 Aksi. */
 table.requests-table{table-layout:fixed;width:100%}
-table.requests-table th:nth-child(1),table.requests-table td:nth-child(1){width:5%;text-align:center;padding-left:8px;padding-right:6px}
+table.requests-table th:nth-child(1),table.requests-table td:nth-child(1){width:4%;text-align:center;padding-left:8px;padding-right:6px}
 table.requests-table th:nth-child(2),table.requests-table td:nth-child(2){width:6%}
 table.requests-table th:nth-child(3),table.requests-table td:nth-child(3){width:11%}
-table.requests-table th:nth-child(4),table.requests-table td:nth-child(4){width:14%}
-table.requests-table th:nth-child(5),table.requests-table td:nth-child(5){width:19%}
+table.requests-table th:nth-child(4),table.requests-table td:nth-child(4){width:15%}
+table.requests-table th:nth-child(5),table.requests-table td:nth-child(5){width:20%}
 table.requests-table th:nth-child(6),table.requests-table td:nth-child(6){width:8%}
-table.requests-table th:nth-child(7),table.requests-table td:nth-child(7){width:16%}
-table.requests-table th:nth-child(8),table.requests-table td:nth-child(8){width:10%}
-table.requests-table th:nth-child(9),table.requests-table td:nth-child(9){width:11%;padding-left:8px;padding-right:8px}
+table.requests-table th:nth-child(7),table.requests-table td:nth-child(7){width:10%}
+table.requests-table th:nth-child(8),table.requests-table td:nth-child(8){width:11%}
+table.requests-table th:nth-child(9),table.requests-table td:nth-child(9){width:15%;padding-left:8px;padding-right:8px}
 @media(max-width:800px){
-  table.requests-table{min-width:860px}
+  table.requests-table{min-width:940px}
 }
 
 /* Textarea (dialog catatan approval) */

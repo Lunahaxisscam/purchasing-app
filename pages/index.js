@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { exportWorkbook, downloadPrImportTemplate, parsePrItemsFile } from '../lib/workflow'
+import { exportWorkbook } from '../lib/workflow'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -370,6 +370,51 @@ export default function App() {
     loadAll()
   }
 
+  // Tombol ✓ Selesai (modul PR): kirim PR ke modul Approval.
+  // Approval disiapkan DULU; status PR baru diubah setelahnya supaya PR tidak
+  // pernah nyangkut SUBMITTED tanpa baris approval (kasus yang pernah terjadi).
+  async function finishPr(pr) {
+    if (!supabase) return
+    const ok = window.confirm(`Tandai PR "${pr.pr_number || pr.title || ''}" selesai dan kirim ke modul Approval?`)
+    if (!ok) return
+
+    // 1. Siapkan approval step PENDING. approver_id WAJIB diisi (NOT NULL di DB):
+    //    pakai user yang sedang login; fallback ke profil pertama (mis. admin).
+    const { data: steps } = await supabase.from('approval_steps')
+      .select('id').eq('purchase_request_id', pr.id).order('step_number', { ascending: true })
+
+    if (steps && steps.length) {
+      // PR yang pernah direvisi: aktifkan kembali step lama.
+      const { error: stErr } = await supabase.from('approval_steps').update({
+        status: 'PENDING',
+        decided_at: null,
+        note: `Menunggu persetujuan Direksi / PM untuk ${pr.pr_number || 'PR'}`
+      }).eq('id', steps[0].id)
+      if (stErr) { setNotice(`Gagal mengaktifkan approval: ${stErr.message}`); return }
+    } else {
+      let approverId = session?.user?.id || null
+      if (!approverId) {
+        const { data: profs } = await supabase.from('profiles').select('id').limit(1)
+        approverId = (profs && profs[0] && profs[0].id) || null
+      }
+      const { error: stErr } = await supabase.from('approval_steps').insert({
+        purchase_request_id: pr.id,
+        approver_id: approverId,
+        step_number: 1,
+        status: 'PENDING',
+        note: `Menunggu persetujuan Direksi / PM untuk ${pr.pr_number || 'PR'}`
+      })
+      if (stErr) { setNotice(`Gagal membuat approval: ${stErr.message}`); return }
+    }
+
+    // 2. Baru ubah status PR -> SUBMITTED.
+    const { error: prErr } = await supabase.from('purchase_requests').update({ status: 'SUBMITTED' }).eq('id', pr.id)
+    if (prErr) { setNotice(`Approval siap, tapi gagal update status PR: ${prErr.message}`); loadAll(); return }
+
+    setNotice(`PR ${pr.pr_number || ''} selesai dan sudah masuk modul Approval (menunggu persetujuan).`)
+    loadAll()
+  }
+
   // Item PR di-approve -> tandai "sudah diorder" + pindahkan ke Receiving
   async function markPrItemOrdered(prItem) {
     if (!supabase) return
@@ -590,7 +635,6 @@ export default function App() {
             allReceivingItems={rows.receiving_items || []}
             allRequests={rows.requests || []}
             allReceivings={rows.receivings || []}
-            currentUserId={session?.user?.id || null}
             refresh={loadAll}
             say={setNotice}
             onStatusChange={updateProjectStatus}
@@ -599,6 +643,7 @@ export default function App() {
             onDecideApproval={decideApproval}
             onReviseApproval={reviseApproval}
             onApproveItem={approveItem}
+            onFinishPr={finishPr}
             onMarkPrItemOrdered={markPrItemOrdered}
             onMarkReceivingItemReceived={markReceivingItemReceived}
             onUpdateReceivingQty={updateReceivingQty}
@@ -709,7 +754,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], currentUserId = null, refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onApproveItem, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -1155,7 +1200,6 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
           page={page}
           editRow={editRow}
           editItems={editRow ? prItemsForPr(editRow.id) : []}
-          currentUserId={currentUserId}
           allReceivings={allReceivings}
           allProjects={allProjects}
           allMaterials={allMaterials}
@@ -1184,7 +1228,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                 </th>
               ))}
               {(hasDeleteAction || page === 'approvals') && (
-                <th style={{ width: page === 'approvals' ? '140px' : (page === 'requests' ? '110px' : '90px'), textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: page === 'approvals' ? '140px' : (page === 'requests' ? '150px' : '90px'), textAlign: 'center' }}>Aksi</th>
               )}
             </tr>
           </thead>
@@ -1349,7 +1393,18 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                   {hasDeleteAction && (
                     <td style={{ textAlign: 'center' }}>
                       {page === 'requests' ? (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
+                            <button
+                              type="button"
+                              className="btn-finish"
+                              onClick={() => onFinishPr(r)}
+                              title={`Selesai — kirim ${r.pr_number || title} ke modul Approval`}
+                              style={{ fontSize: '9px', padding: '3px 6px', whiteSpace: 'nowrap' }}
+                            >
+                              ✓ Selesai
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn-edit icon-btn"
@@ -1630,7 +1685,7 @@ function WaContact({ value }) {
   )
 }
 
-function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], currentUserId = null, allReceivings = [], close, refresh, say }) {
+function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], close, refresh, say }) {
   const isEdit = !!editRow
   // Nomor PR berikutnya dihitung dari SEMUA PR (bukan hasil filter), dan selalu
   // lebih besar dari nomor tertinggi yang sudah ada agar tidak pernah dobel
@@ -1681,9 +1736,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     handover_date: new Date().toISOString().slice(0, 10)
   })
   const [saving, setSaving] = useState(false)
-  const [importMsg, setImportMsg] = useState('')
   const [materialSearch, setMaterialSearch] = useState('')
-  const fileInputRef = useRef(null)
 
   // State untuk Item Material di PR (1 pengadaan bisa banyak item)
   const [selectedMaterialId, setSelectedMaterialId] = useState('')
@@ -1740,35 +1793,6 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
   function updateItemQty(idx, val) {
     const q = Number(val)
     setPrItemsList(prItemsList.map((it, i) => i === idx ? { ...it, qty: isFinite(q) && q > 0 ? q : 1 } : it))
-  }
-
-  async function handleImportFile(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImportMsg('')
-    try {
-      const buf = await file.arrayBuffer()
-      const { items, errors, warnings } = parsePrItemsFile(buf, file.name, allMaterials)
-      if (!items.length) {
-        setImportMsg(`❌ Tidak ada item yang bisa diimpor. ${errors.slice(0, 4).join(' | ')}`)
-      } else {
-        // gabungkan dengan item yang sudah ada
-        const merged = [...prItemsList]
-        for (const it of items) {
-          const idx = merged.findIndex(x => x.material_id === it.material_id)
-          if (idx !== -1) merged[idx].qty = Number(merged[idx].qty) + Number(it.qty)
-          else merged.push(it)
-        }
-        setPrItemsList(merged)
-        const errTxt = errors.length ? ` ⚠️ ${errors.length} baris dilewati.` : ''
-        setImportMsg(`✅ ${items.length} item berhasil diimpor dari "${file.name}".${errTxt}${errors.length ? ' Detail: ' + errors.slice(0, 3).join(' | ') : ''}`)
-      }
-      if (warnings.length && items.length) setImportMsg(m => `${m} ${warnings.slice(0, 2).join(' | ')}`)
-    } catch (err) {
-      setImportMsg(`❌ Gagal membaca file: ${err.message}`)
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
   }
 
   const field = (name, label, type = 'text', required = false) => (
@@ -1852,13 +1876,13 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         return
       }
 
-      // PR yang baru dibuat langsung SUBMITTED agar otomatis masuk modul Approval
+      // PR baru dibuat sebagai DRAFT; masuk modul Approval lewat tombol ✓ Selesai
       data = {
         project_id: form.project_id || null,
         title: form.title,
         pr_number: form.pr_number || nextPrNum,
         priority: form.priority || 'NORMAL',
-        status: 'SUBMITTED',
+        status: 'DRAFT',
         materials_summary: summary,
         notes: form.notes || form.title
       }
@@ -1889,32 +1913,8 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         }
       }
 
-      // Auto-buat 1 approval step PENDING (Step 1: Direksi / PM)
-      if (insertedPR) {
-        // approver_id WAJIB diisi (kolom NOT NULL di DB). Pakai user yang sedang
-        // login; fallback ke profil pertama (mis. admin) bila sesi tidak tersedia.
-        let approverId = currentUserId
-        if (!approverId) {
-          const { data: profs } = await supabase.from('profiles').select('id').limit(1)
-          approverId = (profs && profs[0] && profs[0].id) || null
-        }
-        const { error: appErr } = await supabase.from('approval_steps').insert({
-          purchase_request_id: insertedPR.id,
-          approver_id: approverId,
-          step_number: 1,
-          status: 'PENDING',
-          note: `Menunggu persetujuan Direksi / PM untuk ${data.pr_number}`
-        })
-        if (appErr) {
-          setSaving(false)
-          say(`PR ${data.pr_number} tersimpan, tapi gagal membuat approval otomatis: ${appErr.message}`)
-          close(); refresh()
-          return
-        }
-      }
-
       setSaving(false)
-      say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item) dan otomatis masuk Approval (menunggu persetujuan).`)
+      say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item). Klik "✓ Selesai" pada baris PR untuk mengirim ke modul Approval.`)
       close()
       refresh()
       return
@@ -2005,7 +2005,6 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
               </select>
             </label>
             {field('title', 'Judul Kebutuhan', 'text', true)}
-            {field('pr_number', 'Nomor PR', 'text', true)}
             <label>Prioritas
               <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                 <option value="NORMAL">Standard</option>
@@ -2061,40 +2060,6 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                   + Tambah Item
                 </button>
               </div>
-
-              {/* IMPORT DARI EXCEL */}
-              <div style={{ marginTop: '10px', padding: '8px 10px', background: '#f6f9f8', border: '1px dashed #b9cdc7', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="outline"
-                  style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}
-                  onClick={() => downloadPrImportTemplate(allMaterials)}
-                >
-                  ⬇ Template Excel
-                </button>
-                <button
-                  type="button"
-                  style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  📤 Import Excel
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  style={{ display: 'none' }}
-                  onChange={handleImportFile}
-                />
-                <small style={{ color: '#5b6b66', flex: 1, minWidth: '180px' }}>
-                  Import banyak item sekaligus. Kolom: Kode/Nama Material, Qty, Satuan.
-                </small>
-              </div>
-              {importMsg && (
-                <p style={{ fontSize: '11px', margin: '6px 0 0', padding: '6px 8px', background: '#f7faf9', borderRadius: '4px', border: '1px solid #e1e7e4' }}>
-                  {importMsg}
-                </p>
-              )}
 
               {prItemsList.length > 0 ? (
                 <div style={{ marginTop: '10px', maxHeight: '200px', overflowY: 'auto' }}>
