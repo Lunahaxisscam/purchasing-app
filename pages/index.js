@@ -326,22 +326,34 @@ export default function App() {
       note
     }).eq('id', approval.id)
 
+    let prErr = null
+    let itemErr = null
     if (approval.purchase_request_id) {
-      await supabase.from('purchase_requests').update({
+      const { error: e1 } = await supabase.from('purchase_requests').update({
         status: decision
       }).eq('id', approval.purchase_request_id)
+      prErr = e1
 
       // Logika: PR disetujui => semua material di dalamnya ikut disetujui
-      // (material yang sudah ORDERED tidak ditimpa).
+      // (material yang sudah ORDERED tidak ditimpa). Error dicek supaya status
+      // PR dan status material tidak pernah berbeda tanpa pemberitahuan.
       if (decision === 'APPROVED') {
-        await supabase.from('pr_items').update({ status: 'APPROVED' })
+        const { error: e2 } = await supabase.from('pr_items').update({ status: 'APPROVED' })
           .eq('pr_id', approval.purchase_request_id)
           .or('status.is.null,status.neq.ORDERED')
+        itemErr = e2
       }
     }
 
     if (appErr) {
       setNotice(`Gagal update approval: ${appErr.message}`)
+      loadAll()
+    } else if (prErr) {
+      setNotice(`Approval terupdate, tapi gagal update status PR: ${prErr.message}`)
+      loadAll()
+    } else if (itemErr) {
+      setNotice(`PR disetujui, tapi ada material yang gagal ikut disetujui: ${itemErr.message}`)
+      loadAll()
     } else {
       setNotice(`Pengajuan ${approval.pr_number || 'PR'} berhasil ${label}.`)
       loadAll()
@@ -394,9 +406,13 @@ export default function App() {
     } else {
       let approverId = session?.user?.id || null
       if (!approverId) {
-        const { data: profs } = await supabase.from('profiles').select('id').limit(1)
+        // Deterministik: profil paling awal (biasanya admin pertama).
+        const { data: profs, error: profErr } = await supabase.from('profiles')
+          .select('id').order('created_at', { ascending: true }).limit(1)
+        if (profErr) { setNotice(`Gagal membaca profil approver: ${profErr.message}`); return }
         approverId = (profs && profs[0] && profs[0].id) || null
       }
+      if (!approverId) { setNotice('Tidak ada profil approver — hubungi administrator.'); return }
       const { error: stErr } = await supabase.from('approval_steps').insert({
         purchase_request_id: pr.id,
         approver_id: approverId,
@@ -541,30 +557,11 @@ export default function App() {
       [pageTarget]: (prev[pageTarget] || []).filter(x => x.id !== item.id)
     }))
 
-    // Bersihkan relasi yang tidak memakai ON DELETE CASCADE agar penghapusan
-    // tidak ditolak database (mis. PR yang masih punya item material).
-    let preErr = null
-    if (pageTarget === 'requests') {
-      const { error } = await supabase.from('pr_items').delete().eq('pr_id', item.id)
-      if (error) preErr = error
-    } else if (pageTarget === 'materials') {
-      const { error } = await supabase.from('pr_items').update({ material_id: null }).eq('material_id', item.id)
-      if (error) preErr = error
-    } else if (pageTarget === 'vendors') {
-      const { error } = await supabase.from('pr_items').update({ vendor_id: null }).eq('vendor_id', item.id)
-      if (error) preErr = error
-    } else if (pageTarget === 'projects' || pageTarget === 'past_projects') {
-      const { error } = await supabase.from('purchase_requests').update({ project_id: null }).eq('project_id', item.id)
-      if (error) preErr = error
-      const { error: e2 } = await supabase.from('receivings').update({ project_id: null }).eq('project_id', item.id)
-      if (!preErr && e2) preErr = e2
-    }
-    if (preErr) {
-      setNotice(`Gagal menyiapkan penghapusan ${typeLabel.toLowerCase()}: ${preErr.message}`)
-      loadAll()
-      return
-    }
-
+    // Relasi FK sudah atomik di level database (ON DELETE CASCADE / SET NULL):
+    // - hapus PR   -> item materialnya ikut terhapus, approval/receiving cascade
+    // - hapus master -> tautan di item PR otomatis jadi NULL
+    // Jadi cukup satu operasi delete; tidak ada pembersihan manual yang bisa
+    // meninggalkan data setengah jalan bila delete utamanya gagal.
     const { error } = await supabase.from(table).delete().eq('id', item.id)
     if (error) {
       setNotice(`Gagal menghapus ${typeLabel.toLowerCase()}: ${error.message}`)
@@ -787,7 +784,6 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
   // `rows` pada komponen ini adalah array baris modul aktif, bukan objek semua tabel.
   const prItemsForPr = (prId) => (allPrItems || []).filter(it => it.pr_id === prId)
   const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
-  const approvalItemCount = (approval) => approvalItems(approval).length
   const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
 
   // Status persetujuan per material: ORDERED (sudah dipesan) > APPROVED (disetujui) > PENDING (menunggu)
