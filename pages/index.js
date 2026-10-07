@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { exportToExcel, exportToCsv, exportWorkbook, downloadPrImportTemplate, parsePrItemsFile } from '../lib/workflow'
+import { exportWorkbook, downloadPrImportTemplate, parsePrItemsFile } from '../lib/workflow'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -528,6 +528,9 @@ export default function App() {
             rows={currentRows}
             allProjects={rows.projects || []}
             allMaterials={rows.materials || []}
+            allPrItems={rows.pr_items || []}
+            allReceivingItems={rows.receiving_items || []}
+            allRequests={rows.requests || []}
             refresh={loadAll}
             say={setNotice}
             onStatusChange={updateProjectStatus}
@@ -618,7 +621,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -630,13 +633,42 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedApproval, setExpandedApproval] = useState(null)
   const [expandedReceiving, setExpandedReceiving] = useState(null)
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
   const title = labels[page]
 
+  // Reset urutan saat pindah modul (set kolom tiap modul berbeda)
+  useEffect(() => {
+    setSortKey(null)
+    setSortDir('asc')
+  }, [page])
+
+  function toggleSort(key) {
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
   // --- Helper alur item (dipakai modul Approval & Receiving) ---
-  const prItemsForPr = (prId) => (rows.pr_items || []).filter(it => it.pr_id === prId)
+  // CATATAN: item dibaca dari prop terpisah (allPrItems/allReceivingItems) karena
+  // `rows` pada komponen ini adalah array baris modul aktif, bukan objek semua tabel.
+  const prItemsForPr = (prId) => (allPrItems || []).filter(it => it.pr_id === prId)
   const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
   const approvalItemCount = (approval) => approvalItems(approval).length
-  const receivingItemsForReceiving = (recId) => (rows.receiving_items || []).filter(it => it.receiving_id === recId)
+  const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
+
+  // Daftar baris item material sebuah PR (dipakai modul Purchase Request):
+  // utamakan pr_items yang lengkap; fallback ke ringkasan teks bila item tidak ada.
+  const requestItemLines = (pr) => {
+    const items = prItemsForPr(pr.id)
+    if (items.length) {
+      return items
+        .map(it => `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+    }
+    const s = String(pr.materials_summary || '').trim()
+    if (!s) return ['—']
+    return s.split(',').map(x => x.trim()).filter(Boolean)
+  }
 
   let displayRows = rows
   if (page === 'projects') {
@@ -678,6 +710,24 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
     const q = searchQuery.toLowerCase().trim()
     displayRows = displayRows.filter(row => {
       return Object.values(row).some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q))
+    })
+  }
+
+  // Urutkan berdasar kolom yang diklik (klik ulang untuk balik arah)
+  if (sortKey) {
+    const dir = sortDir === 'desc' ? -1 : 1
+    const valOf = (row) => (sortKey === 'kode' ? (row.kode || row.code) : row[sortKey])
+    displayRows = [...displayRows].sort((a, b) => {
+      const va = valOf(a)
+      const vb = valOf(b)
+      if (va === null || va === undefined) return (vb === null || vb === undefined) ? 0 : 1
+      if (vb === null || vb === undefined) return -1
+      const sa = String(va).trim()
+      const sb = String(vb).trim()
+      const na = Number(sa)
+      const nb = Number(sb)
+      if (sa !== '' && sb !== '' && isFinite(na) && isFinite(nb)) return (na - nb) * dir
+      return sa.localeCompare(sb, 'id', { numeric: true, sensitivity: 'base' }) * dir
     })
   }
 
@@ -964,28 +1014,6 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
           )}
         </div>
         <div className="toolbar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {page !== 'dashboard' && (
-            <span style={{ display: 'inline-flex', gap: '6px' }}>
-              <button
-                type="button"
-                className="outline"
-                title="Unduh Excel (.xlsx)"
-                onClick={() => exportToExcel(displayRows, headersFor(page, displayRows), `Purchasing-${page}`)}
-                style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 12px' }}
-              >
-                📊 XLSX
-              </button>
-              <button
-                type="button"
-                className="outline"
-                title="Unduh CSV (.csv)"
-                onClick={() => exportToCsv(displayRows, headersFor(page, displayRows), `Purchasing-${page}`)}
-                style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 12px' }}
-              >
-                📄 CSV
-              </button>
-            </span>
-          )}
           <input
             type="search"
             placeholder="🔍 Cari..."
@@ -1016,7 +1044,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
           allProjects={allProjects}
           allMaterials={allMaterials}
           existingRequests={displayRows}
-          allRequestsFull={rows.requests || []}
+          allRequestsFull={allRequests}
           close={() => setOpen(false)}
           refresh={refresh}
           say={say}
@@ -1027,7 +1055,14 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
           <thead>
             <tr>
               {columns.map(h => (
-                <th key={h}>{pretty(h)}</th>
+                <th
+                  key={h}
+                  onClick={() => toggleSort(h)}
+                  style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  title="Klik untuk urutkan"
+                >
+                  {pretty(h)}{sortKey === h ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
               ))}
               {(hasDeleteAction || page === 'approvals') && (
                 <th style={{ width: page === 'approvals' ? '140px' : '90px', textAlign: 'center' }}>Aksi</th>
@@ -1095,6 +1130,21 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                                 📦 + Masukkan ke Gudang
                               </button>
                             ) : null}
+                          </div>
+                        ) : h === 'title' ? (
+                          <div
+                            style={{ maxWidth: '170px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            title={String(rawVal || '')}
+                          >
+                            {format(rawVal)}
+                          </div>
+                        ) : h === 'materials_summary' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '250px' }}>
+                            {requestItemLines(r).map((line, idx) => (
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.4, whiteSpace: 'normal' }}>
+                                • {line}
+                              </span>
+                            ))}
                           </div>
                         ) : (
                           format(rawVal)
@@ -1359,6 +1409,20 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     }, 0)
     return 'PR-' + String(maxNum + 1).padStart(3, '0')
   })()
+
+  // Data validation kategori: dropdown berisi kategori yang ada di master material
+  // (kategori utama tampil lebih dulu, sisanya urut alfabetis).
+  const materialCategories = useMemo(() => {
+    const known = ['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai']
+    const set = new Set((allMaterials || []).map(m => (m.category || '').trim()).filter(Boolean))
+    if (!set.size) {
+      const fallback = ['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai', 'Aluminium & Profil', 'Kelistrikan & Lampu', 'WPC & Panel']
+      fallback.forEach(c => set.add(c))
+    }
+    const rest = [...set].filter(c => !known.includes(c)).sort((a, b) => a.localeCompare(b, 'id'))
+    return [...known.filter(c => set.has(c)), ...rest]
+  }, [allMaterials])
+
   const [form, setForm] = useState({
     name: '',
     status: 'ON_GOING',
@@ -1779,7 +1843,12 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
           <>
             {field('kode', 'Kode Material', 'text', false)}
             {field('name', 'Nama Material', 'text', true)}
-            {field('category', 'Kategori', 'text', false)}
+            <label>Kategori
+              <select value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })}>
+                <option value="">-- Pilih Kategori --</option>
+                {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
             {field('qty', 'Qty', 'number', false)}
             <label>Satuan
               <select value={form.satuan || 'Lembar'} onChange={e => setForm({ ...form, satuan: e.target.value })}>
