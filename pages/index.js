@@ -382,27 +382,32 @@ export default function App() {
     const ok = window.confirm(`Tandai barang "${recItem.item_name}" sudah DITERIMA? Item akan masuk daftar Handover.`)
     if (!ok) return
     const now = new Date().toISOString()
-    const qty = Number(recItem.quantity_received || 0)
+    const qtyInput = Number(recItem.quantity_received || 0)
+    // Qty yang dipakai: isian user bila diisi, kalau kosong pakai qty yang dipesan di PR
+    const prItemForQty = (rows.pr_items || []).find(p => p.id === recItem.pr_item_id)
+    const qtyFinal = qtyInput > 0 ? qtyInput : Number(prItemForQty?.quantity || 0)
 
     const receiving = (rows.receivings || []).find(r => r.id === recItem.receiving_id)
     const prItem = (rows.pr_items || []).find(p => p.id === recItem.pr_item_id)
     const pr = prItem ? (rows.requests || []).find(p => p.id === prItem.pr_id) : null
     const projectId = receiving?.project_id || pr?.project_id || null
 
-    // 1. Tandai item sudah diterima (pakai status text pada receiving_items via 'note' + qty_received ditandai)
+    // 1. Tandai item sudah diterima (qty terima + penanda di kolom note)
     const { error: riErr } = await supabase.from('receiving_items')
-      .update({ quantity_received: qty > 0 ? qty : null, note: `DITERIMA ${now.slice(0, 10)}` })
+      .update({ quantity_received: qtyFinal, note: `DITERIMA ${now.slice(0, 10)}` })
       .eq('id', recItem.id)
     if (riErr) { setNotice(`Gagal update item: ${riErr.message}`); return }
 
     // 2. Buat handover utk item ini
+    // Catatan memuat nama item di depan agar selalu terbaca di tabel & ekspor,
+    // karena tabel handovers tidak punya kolom khusus nama barang.
     const { error: hoErr } = await supabase.from('handovers').insert({
       receiving_id: recItem.receiving_id,
       project_id: projectId,
       received_by: 'Belum ditentukan',
       handover_date: now.slice(0, 10),
       status: 'DRAFT',
-      note: `Item diterima: ${recItem.item_name} (${recItem.quantity_received || '?'} ${recItem.unit || ''}). Dari PR ${pr?.pr_number || '-'}.`
+      note: `Item: ${recItem.item_name} — diterima ${qtyFinal || '?'} ${recItem.unit || ''} (dari PR ${pr?.pr_number || '-'}).`
     })
     if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
 
@@ -633,6 +638,8 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
     if (prFilter === 'DRAFT') displayRows = rows.filter(r => r.status === 'DRAFT')
     else if (prFilter === 'SUBMITTED') displayRows = rows.filter(r => r.status === 'SUBMITTED')
     else if (prFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
+    else if (prFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')
+    else if (prFilter === 'REJECTED') displayRows = rows.filter(r => r.status === 'REJECTED')
     else if (prFilter === 'URGENT') displayRows = rows.filter(r => r.priority === 'URGENT')
   } else if (page === 'approvals') {
     if (approvalFilter === 'PENDING') displayRows = rows.filter(r => r.status === 'PENDING')
@@ -735,6 +742,20 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                 onClick={() => setPrFilter('APPROVED')}
               >
                 Approved ({rows.filter(r => r.status === 'APPROVED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'REVISI' ? 'active' : ''}`}
+                onClick={() => setPrFilter('REVISI')}
+              >
+                Revisi ({rows.filter(r => r.status === 'REVISI').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'REJECTED' ? 'active' : ''}`}
+                onClick={() => setPrFilter('REJECTED')}
+              >
+                Ditolak ({rows.filter(r => r.status === 'REJECTED').length})
               </button>
               <button
                 type="button"
@@ -985,6 +1006,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
           allProjects={allProjects}
           allMaterials={allMaterials}
           existingRequests={displayRows}
+          allRequestsFull={rows.requests || []}
           close={() => setOpen(false)}
           refresh={refresh}
           say={say}
@@ -1316,8 +1338,17 @@ function format(v) {
   return String(v)
 }
 
-function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], close, refresh, say }) {
-  const nextPrNum = 'PR-' + String((existingRequests || []).length + 1).padStart(3, '0')
+function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], close, refresh, say }) {
+  // Nomor PR berikutnya dihitung dari SEMUA PR (bukan hasil filter), dan selalu
+  // lebih besar dari nomor tertinggi yang sudah ada agar tidak pernah dobel
+  // walaupun ada PR yang dihapus.
+  const nextPrNum = (() => {
+    const maxNum = (allRequestsFull || []).reduce((max, p) => {
+      const n = parseInt(String(p.pr_number || '').replace(/^\D+/, ''), 10)
+      return isFinite(n) && n > max ? n : max
+    }, 0)
+    return 'PR-' + String(maxNum + 1).padStart(3, '0')
+  })()
   const [form, setForm] = useState({
     name: '',
     status: 'ON_GOING',
