@@ -117,6 +117,8 @@ export default function App() {
     receiving_items: []
   })
   const [notice, setNotice] = useState('')
+  const [noteModal, setNoteModal] = useState(null)
+  const [noteText, setNoteText] = useState('')
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return }
@@ -287,17 +289,40 @@ export default function App() {
     }
   }
 
-  async function decideApproval(approval, decision) {
+  // Tolak / Revisi membuka dialog catatan dulu; Setujui langsung konfirmasi.
+  function decideApproval(approval, decision) {
+    if (!supabase) return
+    if (decision === 'REJECTED') {
+      setNoteText('')
+      setNoteModal({ approval, decision })
+      return
+    }
+    const ok = window.confirm(`Apakah Anda yakin ingin menandai pengajuan "${approval.pr_number || 'PR'}" sebagai DISETUJUI?`)
+    if (!ok) return
+    executeDecision(approval, 'APPROVED', '')
+  }
+
+  function submitNote(e) {
+    e.preventDefault()
+    if (!noteModal) return
+    const { approval, decision } = noteModal
+    const userNote = noteText.trim()
+    setNoteModal(null)
+    setNoteText('')
+    executeDecision(approval, decision, userNote)
+  }
+
+  async function executeDecision(approval, decision, userNote) {
     if (!supabase) return
     const now = new Date().toISOString()
-    const label = decision === 'APPROVED' ? 'DISETUJUI' : 'DITOLAK'
-    const ok = window.confirm(`Apakah Anda yakin ingin menandai pengajuan "${approval.pr_number || 'PR'}" sebagai ${label}?`)
-    if (!ok) return
+    const label = decision === 'APPROVED' ? 'DISETUJUI' : (decision === 'REJECTED' ? 'DITOLAK' : 'DIMINTA REVISI')
+    const baseNote = decision === 'APPROVED' ? 'Disetujui oleh Direksi / PM' : (decision === 'REJECTED' ? 'Ditolak oleh Direksi / PM' : 'Diminta revisi oleh Direksi / PM')
+    const note = userNote ? `${baseNote} — ${userNote}` : baseNote
 
     const { error: appErr } = await supabase.from('approval_steps').update({
       status: decision,
       decided_at: now,
-      note: decision === 'APPROVED' ? 'Disetujui oleh Direksi / PM' : 'Ditolak'
+      note
     }).eq('id', approval.id)
 
     if (approval.purchase_request_id) {
@@ -319,21 +344,10 @@ export default function App() {
   // ============================================================
 
   // Approval "Revise" -> status REVISI pada approval + PR
-  async function reviseApproval(approval) {
+  function reviseApproval(approval) {
     if (!supabase) return
-    const ok = window.confirm(`Tandai pengajuan "${approval.pr_number || 'PR'}" sebagai REVISI (dikembalikan ke pengaju)?`)
-    if (!ok) return
-    const now = new Date().toISOString()
-    const { error: appErr } = await supabase.from('approval_steps').update({
-      status: 'REVISI',
-      decided_at: now,
-      note: 'Diminta revisi oleh Direksi / PM'
-    }).eq('id', approval.id)
-    if (approval.purchase_request_id) {
-      await supabase.from('purchase_requests').update({ status: 'REVISI' }).eq('id', approval.purchase_request_id)
-    }
-    if (appErr) setNotice(`Gagal: ${appErr.message}`)
-    else { setNotice(`Pengajuan ${approval.pr_number || 'PR'} ditandai REVISI.`); loadAll() }
+    setNoteText('')
+    setNoteModal({ approval, decision: 'REVISI' })
   }
 
   // Item PR di-approve -> tandai "sudah diorder" + pindahkan ke Receiving
@@ -546,6 +560,33 @@ export default function App() {
           />
         )}
       </section>
+      {noteModal && (
+        <div className="modal">
+          <form className="dialog" onSubmit={submitNote}>
+            <div className="dialoghead">
+              <h2>{noteModal.decision === 'REJECTED' ? 'Tolak' : 'Minta Revisi'} — {noteModal.approval.pr_number || 'PR'}</h2>
+              <button type="button" className="icon" onClick={() => setNoteModal(null)}>×</button>
+            </div>
+            <p className="muted" style={{ margin: 0, fontSize: '13px' }}>
+              {noteModal.decision === 'REJECTED'
+                ? 'Berikan alasan penolakan supaya pengaju tahu apa yang harus diperbaiki (boleh dikosongkan).'
+                : 'Tuliskan hal yang perlu direvisi supaya pengaju tahu apa yang harus diubah (boleh dikosongkan).'}
+            </p>
+            <label>Catatan
+              <textarea
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                rows={4}
+                placeholder={noteModal.decision === 'REJECTED' ? 'Contoh: harga dari vendor terlalu tinggi, cari vendor pembanding…' : 'Contoh: qty item 2 mohon dikurangi, sesuaikan dengan kebutuhan lapangan…'}
+              />
+            </label>
+            <div className="actions">
+              <button type="button" className="outline" onClick={() => setNoteModal(null)}>Batal</button>
+              <button>{noteModal.decision === 'REJECTED' ? '✕ Tolak' : '✎ Kirim Revisi'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </main>
   )
 }
@@ -607,7 +648,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
               ['Materials', rows.materials || [], headersFor('materials', rows.materials || [])],
               ['Purchase Request', rows.requests || [], headersFor('requests', rows.requests || [])],
               ['PR Items', rows.pr_items || [], ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status']],
-              ['Approval', rows.approvals || [], headersFor('approvals', rows.approvals || [])],
+              ['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']],
               ['Receiving', rows.receivings || [], headersFor('receivings', rows.receivings || [])],
               ['Receiving Items', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
               ['Handover', rows.handovers || [], headersFor('handovers', rows.handovers || [])]
@@ -1054,15 +1095,15 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
         />
       )}
       <div className="panel table">
-        <table className={page === 'materials' ? 'materials-table' : undefined}>
+        <table className={page === 'materials' ? 'materials-table' : (page === 'requests' ? 'requests-table' : (page === 'approvals' ? 'approvals-table' : undefined))}>
           <thead>
             <tr>
               {columns.map(h => (
                 <th
                   key={h}
-                  onClick={() => toggleSort(h)}
-                  style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                  title="Klik untuk urutkan"
+                  onClick={() => h !== 'items' && toggleSort(h)}
+                  style={{ cursor: h === 'items' ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  title={h === 'items' ? undefined : 'Klik untuk urutkan'}
                 >
                   {pretty(h)}{sortKey === h ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
@@ -1138,21 +1179,29 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                           <WaContact value={rawVal} />
                         ) : page === 'vendors' && h === 'store_link' ? (
                           <StoreLink value={rawVal} />
+                        ) : page === 'approvals' && h === 'items' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {approvalItems(r).length ? approvalItems(r).map((it, idx) => (
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, paddingLeft: '12px', textIndent: '-12px' }}>
+                                • {it.quantity ?? ''} {it.unit || ''} {it.item_name || it.kode || ''}
+                              </span>
+                            )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
+                          </div>
                         ) : page === 'requests' && h === 'priority' ? (
                           <span className={`badge ${String(r.priority || '').toUpperCase() === 'URGENT' ? 'badge-prioritas' : 'badge-standard'}`}>
                             {String(r.priority || '').toUpperCase() === 'URGENT' ? 'Prioritas' : 'Standard'}
                           </span>
-                        ) : page === 'requests' && h === 'project_name' ? (
-                          <div style={{ maxWidth: '130px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={String(rawVal || '')}>
+                        ) : ['requests', 'approvals'].includes(page) && h === 'project_name' ? (
+                          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={String(rawVal || '')}>
                             {format(rawVal)}
                           </div>
-                        ) : page === 'requests' && h === 'notes' ? (
-                          <div style={{ maxWidth: '220px', whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: 1.45 }}>
+                        ) : ['requests', 'approvals'].includes(page) && (h === 'notes' || h === 'note') ? (
+                          <div style={{ whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: 1.4, fontSize: '12px' }}>
                             {format(rawVal)}
                           </div>
                         ) : h === 'title' ? (
                           <div
-                            style={{ maxWidth: '170px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            style={{ maxWidth: ['requests', 'approvals'].includes(page) ? '100%' : '170px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                             title={String(rawVal || '')}
                           >
                             {format(rawVal)}
@@ -1160,7 +1209,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                         ) : page === 'materials' && h === 'name' ? (
                           <div className="cell-name" title={String(rawVal || '')}>{format(rawVal)}</div>
                         ) : h === 'materials_summary' ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '200px', maxWidth: '260px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                             {requestItemLines(r).map((line, idx) => (
                               <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, whiteSpace: 'normal', paddingLeft: '12px', textIndent: '-12px' }}>
                                 • {line}
@@ -1395,7 +1444,7 @@ function headersFor(page, rows) {
     vendors: ['name', 'phone', 'store_link', 'supplier_category'],
     materials: ['kode', 'name', 'category', 'qty', 'satuan'],
     requests: ['pr_number', 'project_name', 'title', 'materials_summary', 'priority', 'status', 'notes', 'created_at'],
-    approvals: ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at'],
+    approvals: ['pr_number', 'project_name', 'title', 'items', 'step_number', 'status', 'note', 'decided_at'],
     receivings: ['delivery_note', 'project_name', 'invoice_no', 'status', 'received_date', 'note'],
     handovers: ['project_name', 'received_by', 'status', 'handover_date', 'note']
   }
@@ -1420,7 +1469,7 @@ function pretty(x) {
   if (x === 'pr_number') return 'No. PR'
   if (x === 'project_name') return 'Project'
   if (x === 'title') return 'Judul Kebutuhan'
-  if (x === 'materials_summary') return 'Item Material'
+  if (x === 'materials_summary' || x === 'items') return 'Item Material'
   if (x === 'step_number') return 'Step'
   if (x === 'delivery_note') return 'Surat Jalan / PO'
   if (x === 'invoice_no') return 'No. Invoice'
