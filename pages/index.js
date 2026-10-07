@@ -1296,6 +1296,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                   {page === 'approvals' && (
                     <td style={{ textAlign: 'center' }}>
                       {r.status === 'PENDING' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
                           <button
                             type="button"
@@ -1318,6 +1319,16 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                           >
                             ✎ Revisi
                           </button>
+                        </div>
+                        {approvalItemLines(r).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
+                            style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
+                          >
+                            {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
+                          </button>
+                        )}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
