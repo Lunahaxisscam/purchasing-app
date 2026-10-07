@@ -266,3 +266,16 @@
   .filter-tabs{gap:6px}
   .pill{padding:5px 10px}
 }
+
+/* ===== Materials: kolom dirapatkan (Nama <-> Kategori) ===== */
+table.materials-table{table-layout:fixed;min-width:760px}
+table.materials-table th:nth-child(1),table.materials-table td:nth-child(1){width:10%}
+table.materials-table th:nth-child(2),table.materials-table td:nth-child(2){width:28%}
+table.materials-table th:nth-child(3),table.materials-table td:nth-child(3){width:16%}
+table.materials-table th:nth-child(4),table.materials-table td:nth-child(4){width:10%}
+table.materials-table th:nth-child(5),table.materials-table td:nth-child(5){width:16%}
+table.materials-table th:nth-child(6),table.materials-table td:nth-child(6){width:20%}
+table.materials-table td:nth-child(2) .cell-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:800px){
+  table.materials-table td:nth-child(2) .cell-name{white-space:normal}
+}

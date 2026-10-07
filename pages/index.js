@@ -1051,7 +1051,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
         />
       )}
       <div className="panel table">
-        <table>
+        <table className={page === 'materials' ? 'materials-table' : undefined}>
           <thead>
             <tr>
               {columns.map(h => (
@@ -1131,6 +1131,10 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                               </button>
                             ) : null}
                           </div>
+                        ) : page === 'vendors' && h === 'phone' ? (
+                          <WaContact value={rawVal} />
+                        ) : page === 'vendors' && h === 'store_link' ? (
+                          <StoreLink value={rawVal} />
                         ) : h === 'title' ? (
                           <div
                             style={{ maxWidth: '170px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
@@ -1138,10 +1142,12 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                           >
                             {format(rawVal)}
                           </div>
+                        ) : page === 'materials' && h === 'name' ? (
+                          <div className="cell-name" title={String(rawVal || '')}>{format(rawVal)}</div>
                         ) : h === 'materials_summary' ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '250px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '200px', maxWidth: '260px' }}>
                             {requestItemLines(r).map((line, idx) => (
-                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.4, whiteSpace: 'normal' }}>
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, whiteSpace: 'normal', paddingLeft: '12px', textIndent: '-12px' }}>
                                 • {line}
                               </span>
                             ))}
@@ -1350,7 +1356,7 @@ function headersFor(page, rows) {
   const defaults = {
     projects: ['kode', 'name', 'status', 'created_at'],
     past_projects: ['kode', 'name', 'status', 'created_at'],
-    vendors: ['name', 'phone', 'contact', 'created_at'],
+    vendors: ['name', 'phone', 'store_link', 'supplier_category'],
     materials: ['kode', 'name', 'category', 'qty', 'satuan'],
     requests: ['pr_number', 'project_name', 'title', 'materials_summary', 'priority', 'status', 'notes', 'created_at'],
     approvals: ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at'],
@@ -1368,10 +1374,13 @@ function headersFor(page, rows) {
 function pretty(x) {
   if (x === 'kode') return 'Kode'
   if (x === 'name') return 'Nama'
-  if (x === 'category') return 'Category'
+  if (x === 'category') return 'Kategori'
   if (x === 'qty') return 'Qty'
   if (x === 'satuan' || x === 'unit') return 'Satuan'
   if (x === 'contact') return 'Kontak'
+  if (x === 'phone') return 'Kontak WA'
+  if (x === 'store_link') return 'Link Toko'
+  if (x === 'supplier_category') return 'Supplier'
   if (x === 'pr_number') return 'No. PR'
   if (x === 'project_name') return 'Project'
   if (x === 'title') return 'Judul Kebutuhan'
@@ -1396,6 +1405,37 @@ function format(v) {
     if (!isNaN(d.getTime())) return d.toLocaleDateString('id-ID')
   }
   return String(v)
+}
+
+// Link toko vendor: bisa dibuka langsung di tab baru; tanpa http(s):// otomatis ditambah.
+function StoreLink({ value }) {
+  const v = String(value || '').trim()
+  if (!v) return <>{format(value)}</>
+  const href = /^https?:\/\//i.test(v) ? v : `https://${v}`
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={v}
+      style={{ color: '#1a73e8', textDecoration: 'underline', display: 'inline-block', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
+    >
+      {v.replace(/^https?:\/\//i, '')}
+    </a>
+  )
+}
+
+// Kontak WA: nomor valid (>= 8 digit) dibuka ke wa.me; selain itu tampil teks biasa.
+function WaContact({ value }) {
+  const v = String(value || '').trim()
+  if (!v) return <>{format(value)}</>
+  const digits = v.replace(/\D/g, '')
+  if (digits.length < 8) return <>{format(value)}</>
+  return (
+    <a href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer" style={{ color: '#1a73e8', textDecoration: 'underline' }}>
+      {v}
+    </a>
+  )
 }
 
 function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], close, refresh, say }) {
@@ -1627,6 +1667,8 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       data = {
         name: form.name,
         phone: form.phone || null,
+        store_link: form.store_link || null,
+        supplier_category: form.supplier_category || null,
         contact: form.contact || null
       }
     } else if (page === 'projects') {
@@ -1874,8 +1916,15 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         {page === 'vendors' && (
           <>
             {field('name', 'Nama Vendor', 'text', true)}
-            {field('phone', 'Nomor Telepon', 'text', false)}
-            {field('contact', 'Kontak / Email', 'text', false)}
+            {field('phone', 'Kontak WA (No. WhatsApp)', 'text', false)}
+            {field('store_link', 'Link Toko (URL)', 'text', false)}
+            <label>Supplier — Kategori Material
+              <select value={form.supplier_category || ''} onChange={e => setForm({ ...form, supplier_category: e.target.value })}>
+                <option value="">-- Pilih Kategori --</option>
+                {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            {field('contact', 'Kontak / Email (opsional)', 'text', false)}
           </>
         )}
         {page === 'projects' && (
