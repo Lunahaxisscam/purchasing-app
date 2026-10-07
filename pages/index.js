@@ -50,25 +50,28 @@ const statusOptions = [
 ]
 
 const receivingStatusOptions = [
-  { value: 'SELESAI', label: '✓ Diterima', group: 'Normal' },
-  { value: 'MASUK_GUDANG', label: '📦 Masuk Gudang', group: 'Normal' },
-  { value: 'MENUNGGU_BARANG', label: '⏳ Menunggu Barang', group: 'Lama' },
-  { value: 'OTW', label: 'OTW (Dalam Pengiriman)', group: 'Lama' },
-  { value: 'PENDING', label: 'Pending (Belum Dikirim)', group: 'Lama' },
-  { value: 'RUSAK', label: '⚠️ Rusak', group: 'Lama' },
-  { value: 'RETUR', label: '⚠️ Retur ke Vendor', group: 'Lama' }
+  { value: 'NORMAL', label: '✓ Normal' },
+  { value: 'RETUR', label: '⚠️ Retur' },
+  { value: 'REFUND', label: '⚠️ Refund' }
 ]
 
 function isReceivingKendala(s) {
   if (!s) return false
   const up = String(s).toUpperCase()
-  return up === 'RUSAK' || up === 'RETUR' || up.startsWith('KENDALA')
+  return up === 'RETUR' || up === 'REFUND' || up === 'RUSAK' || up.startsWith('KENDALA')
 }
 
 function prettyReceivingStatus(s) {
   const up = String(s || '').toUpperCase()
+  if (up === 'NORMAL') return '✓ Normal'
+  if (up === 'RETUR' || up === 'KENDALA_RETUR') return '⚠️ Retur'
+  if (up === 'REFUND') return '⚠️ Refund'
   if (up === 'RUSAK' || up === 'KENDALA_RUSAK') return '⚠️ Rusak'
-  if (up === 'RETUR' || up === 'KENDALA_RETUR') return '⚠️ Retur ke Vendor'
+  if (up === 'SELESAI') return '✓ Diterima (status lama)'
+  if (up === 'MASUK_GUDANG') return '📦 Masuk Gudang (status lama)'
+  if (up === 'OTW') return 'OTW (status lama)'
+  if (up === 'MENUNGGU_BARANG') return '⏳ Menunggu Barang (status lama)'
+  if (up === 'PENDING') return 'Pending (status lama)'
   const match = receivingStatusOptions.find(o => o.value === s)
   if (match) return match.label
   return s
@@ -229,65 +232,115 @@ export default function App() {
 
   async function updateReceivingStatus(receiving, newStatus) {
     if (!supabase) return
-    const isKendala = isReceivingKendala(newStatus)
-    const kendalaType = isKendala ? (newStatus.includes('RUSAK') ? 'RUSAK' : 'RETUR') : null
-    const isGudang = newStatus === 'MASUK_GUDANG'
+    const up = String(newStatus || '').toUpperCase()
+    const kendala = up === 'RETUR' ? 'RETUR' : (up === 'REFUND' ? 'REFUND' : null)
 
     setRows(prev => ({
       ...prev,
       receivings: (prev.receivings || []).map(r => r.id === receiving.id ? {
         ...r,
-        status: newStatus,
-        kendala: kendalaType,
-        masuk_gudang: isGudang ? true : (newStatus === 'SELESAI' ? false : r.masuk_gudang),
-        alokasi: isGudang ? 'MASUK_GUDANG' : (newStatus === 'SELESAI' ? 'LANGSUNG_LAPANGAN' : r.alokasi)
+        status: up,
+        kendala
       } : r)
     }))
 
-    const updatePayload = {
-      status: newStatus,
-      kendala: kendalaType
-    }
-    if (isGudang) {
-      updatePayload.masuk_gudang = true
-      updatePayload.alokasi = 'MASUK_GUDANG'
-      updatePayload.gudang_at = new Date().toISOString()
-    } else if (newStatus === 'SELESAI') {
-      updatePayload.masuk_gudang = false
-      updatePayload.alokasi = 'LANGSUNG_LAPANGAN'
-    }
-
-    const { error } = await supabase.from('receivings').update(updatePayload).eq('id', receiving.id)
+    const { error } = await supabase.from('receivings').update({ status: up, kendala }).eq('id', receiving.id)
 
     if (error) {
       setNotice(`Gagal update status receiving: ${error.message}`)
       loadAll()
     } else {
-      const label = prettyReceivingStatus(newStatus)
+      const label = prettyReceivingStatus(up)
       setNotice(`Status receiving "${receiving.invoice_no || receiving.delivery_note || 'Data'}" berhasil diubah ke "${label}".`)
       loadAll()
     }
   }
 
+  // "→ Ke Gudang": menambah stok barang ke modul Materials, lalu tandai penerimaan masuk gudang.
   async function moveToWarehouse(receiving) {
     if (!supabase) return
-    const ok = window.confirm(`Apakah Anda yakin ingin memasukkan barang dari "${receiving.invoice_no || receiving.delivery_note || 'Penerimaan'}" ke Stok Gudang Workshop?`)
+    const label = receiving.invoice_no || receiving.delivery_note || 'Penerimaan'
+    if (receiving.masuk_gudang) { setNotice('Barang penerimaan ini sudah masuk Stok Gudang.'); return }
+
+    const items = (rows.receiving_items || []).filter(it => it.receiving_id === receiving.id)
+    if (!items.length) {
+      setNotice('Penerimaan ini belum punya item — tandai item "Sudah Diterima" dulu sebelum masuk gudang.')
+      return
+    }
+
+    const ok = window.confirm(`Masukkan barang dari "${label}" ke Stok Gudang Workshop? Stok material terkait akan bertambah otomatis.`)
     if (!ok) return
+
+    let added = 0
+    const failed = []
+    for (const it of items) {
+      const prItem = (rows.pr_items || []).find(p => p.id === it.pr_item_id)
+      const materialId = prItem?.material_id
+      if (!materialId) continue
+      const qtyAdd = Number(it.quantity_received) > 0 ? Number(it.quantity_received) : Number(prItem?.quantity || 0)
+      if (!isFinite(qtyAdd) || qtyAdd <= 0) continue
+      const mat = (rows.materials || []).find(m => m.id === materialId)
+      if (!mat) continue
+      const cur = Number(String(mat.qty ?? '0').replace(',', '.')) || 0
+      const { error: stockErr } = await supabase.from('materials').update({ qty: String(cur + qtyAdd) }).eq('id', materialId)
+      if (stockErr) failed.push(`${mat.name || mat.kode}: ${stockErr.message}`)
+      else added++
+    }
 
     const now = new Date().toISOString()
     const { error } = await supabase.from('receivings').update({
-      status: 'MASUK_GUDANG',
       alokasi: 'MASUK_GUDANG',
       masuk_gudang: true,
       gudang_at: now
     }).eq('id', receiving.id)
 
     if (error) {
-      setNotice(`Gagal memasukkan ke gudang: ${error.message}`)
-    } else {
-      setNotice(`Barang "${receiving.invoice_no || receiving.delivery_note || 'Data'}" berhasil dimasukkan ke Stok Gudang Workshop.`)
+      setNotice(`Gagal menandai masuk gudang: ${error.message}`)
       loadAll()
+      return
     }
+    setNotice(`Barang "${label}" masuk Stok Gudang. ${added} material bertambah.${failed.length ? ` Gagal: ${failed.join('; ')}` : ''}`)
+    loadAll()
+  }
+
+  // "→ Ke Tukang": kirim barang langsung ke tukang -> membuat entri di modul Handover.
+  async function sendToTukang(receiving) {
+    if (!supabase) return
+    const label = receiving.invoice_no || receiving.delivery_note || 'Penerimaan'
+    if (receiving.alokasi === 'KE_TUKANG' || receiving.tukang_at) { setNotice('Barang penerimaan ini sudah dikirim ke tukang.'); return }
+    const ok = window.confirm(`Kirim barang dari "${label}" langsung ke tukang? Data akan masuk ke modul Handover.`)
+    if (!ok) return
+
+    const now = new Date().toISOString()
+    const { error: hoErr } = await supabase.from('handovers').insert({
+      receiving_id: receiving.id,
+      project_id: receiving.project_id || null,
+      received_by: 'Belum ditentukan',
+      handover_date: now.slice(0, 10),
+      status: 'DRAFT',
+      note: `Barang dari penerimaan ${label} dikirim langsung ke tukang.`
+    })
+    if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
+
+    const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
+    if (error) { setNotice(`Handover dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
+    setNotice(`Barang "${label}" dikirim ke tukang dan masuk ke modul Handover.`)
+    loadAll()
+  }
+
+  // Handover: tandai "sudah diserahkan". Waktu diserahkan (diserahkan_at) disimpan
+  // untuk report total cost aktual per project — belum ditampilkan di UI.
+  async function markHandoverDelivered(handover) {
+    if (!supabase) return
+    const ok = window.confirm('Tandai serah terima ini sebagai SUDAH DISERAHKAN?')
+    if (!ok) return
+    const { error } = await supabase.from('handovers').update({
+      status: 'CONFIRMED',
+      diserahkan_at: new Date().toISOString()
+    }).eq('id', handover.id)
+    if (error) { setNotice(`Gagal menandai sudah diserahkan: ${error.message}`); return }
+    setNotice('Serah terima ditandai sudah diserahkan.')
+    loadAll()
   }
 
   // Tolak / Revisi membuka dialog catatan dulu; Setujui langsung konfirmasi.
@@ -458,7 +511,7 @@ export default function App() {
       const { data: newRec, error: recErr } = await supabase.from('receivings').insert({
         purchase_request_id: prId,
         project_id: pr.project_id || null,
-        status: 'MENUNGGU_BARANG',
+        status: 'NORMAL',
         delivery_note: `PO ${pr.pr_number || ''} - ${pr.title || ''}`.trim(),
         note: `Dibuat otomatis dari PR ${pr.pr_number || ''} (item diorder di supplier).`
       }).select().single()
@@ -638,6 +691,8 @@ export default function App() {
             onStatusChange={updateProjectStatus}
             onReceivingStatusChange={updateReceivingStatus}
             onMoveToWarehouse={moveToWarehouse}
+            onSendToTukang={sendToTukang}
+            onMarkHandoverDelivered={markHandoverDelivered}
             onDecideApproval={decideApproval}
             onReviseApproval={reviseApproval}
             onApproveItem={approveItem}
@@ -739,9 +794,9 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
               ['Purchase Request', rows.requests || [], ['priority', 'pr_number', 'project_name', 'title', 'materials_summary', 'status', 'notes', 'created_at']],
               ['PR Items', rows.pr_items || [], ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status', 'supplier_category', 'vendor_id']],
               ['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']],
-              ['Receiving', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note']],
+              ['Receiving', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note', 'alokasi', 'masuk_gudang', 'tukang_at']],
               ['Receiving Items', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
-              ['Handover', rows.handovers || [], headersFor('handovers', rows.handovers || [])]
+              ['Handover', rows.handovers || [], ['project_name', 'received_by', 'status', 'handover_date', 'note', 'diserahkan_at']]
             ], 'Purchasing-Seluruh-Data')}
           >
             📦 Export Semua Data (Excel)
@@ -752,7 +807,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -852,12 +907,9 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
     else if (approvalFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')
     else if (approvalFilter === 'REJECTED') displayRows = rows.filter(r => r.status === 'REJECTED')
   } else if (page === 'receivings') {
-    if (receivingFilter === 'SELESAI') displayRows = rows.filter(r => r.status === 'SELESAI' && !r.masuk_gudang)
-    else if (receivingFilter === 'MASUK_GUDANG') displayRows = rows.filter(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang)
-    else if (receivingFilter === 'OTW') displayRows = rows.filter(r => r.status === 'OTW')
-    else if (receivingFilter === 'RUSAK') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RUSAK'))
+    if (receivingFilter === 'NORMAL') displayRows = rows.filter(r => !isReceivingKendala(r.status))
     else if (receivingFilter === 'RETUR') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RETUR'))
-    else if (receivingFilter === 'kendala') displayRows = rows.filter(r => isReceivingKendala(r.status))
+    else if (receivingFilter === 'REFUND') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('REFUND'))
   } else if (page === 'materials') {
     if (materialFilter === 'Lainnya') displayRows = rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category))
     else if (materialFilter !== 'all') displayRows = rows.filter(r => r.category === materialFilter)
@@ -1041,33 +1093,10 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
               </button>
               <button
                 type="button"
-                className={`pill ${receivingFilter === 'SELESAI' ? 'active' : ''}`}
-                onClick={() => setReceivingFilter('SELESAI')}
+                className={`pill ${receivingFilter === 'NORMAL' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('NORMAL')}
               >
-                ✓ Diterima ({rows.filter(r => r.status === 'SELESAI' && !r.masuk_gudang).length})
-              </button>
-              <button
-                type="button"
-                className={`pill ${receivingFilter === 'MASUK_GUDANG' ? 'active' : ''}`}
-                onClick={() => setReceivingFilter('MASUK_GUDANG')}
-                style={rows.some(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang) ? { borderColor: '#137333', color: '#137333', fontWeight: 'bold' } : {}}
-              >
-                📦 Di Gudang ({rows.filter(r => r.status === 'MASUK_GUDANG' || r.masuk_gudang).length})
-              </button>
-              <button
-                type="button"
-                className={`pill ${receivingFilter === 'OTW' ? 'active' : ''}`}
-                onClick={() => setReceivingFilter('OTW')}
-              >
-                OTW ({rows.filter(r => r.status === 'OTW').length})
-              </button>
-              <button
-                type="button"
-                className={`pill ${receivingFilter === 'RUSAK' ? 'active' : ''}`}
-                onClick={() => setReceivingFilter('RUSAK')}
-                style={rows.some(r => String(r.status).toUpperCase().includes('RUSAK')) ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
-              >
-                ⚠️ Rusak ({rows.filter(r => String(r.status).toUpperCase().includes('RUSAK')).length})
+                ✓ Normal ({rows.filter(r => !isReceivingKendala(r.status)).length})
               </button>
               <button
                 type="button"
@@ -1076,6 +1105,14 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                 style={rows.some(r => String(r.status).toUpperCase().includes('RETUR')) ? { borderColor: '#d97706', color: '#d97706', fontWeight: 'bold' } : {}}
               >
                 ⚠️ Retur ({rows.filter(r => String(r.status).toUpperCase().includes('RETUR')).length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'REFUND' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('REFUND')}
+                style={rows.some(r => String(r.status).toUpperCase().includes('REFUND')) ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
+              >
+                ⚠️ Refund ({rows.filter(r => String(r.status).toUpperCase().includes('REFUND')).length})
               </button>
             </div>
           )}
@@ -1164,14 +1201,14 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                 className={`pill ${handoverFilter === 'CONFIRMED' ? 'active' : ''}`}
                 onClick={() => setHandoverFilter('CONFIRMED')}
               >
-                ✓ Confirmed ({rows.filter(r => r.status === 'CONFIRMED' || r.status === 'SELESAI').length})
+                ✓ Sudah Diserahkan ({rows.filter(r => r.status === 'CONFIRMED' || r.status === 'SELESAI').length})
               </button>
               <button
                 type="button"
                 className={`pill ${handoverFilter === 'DRAFT' ? 'active' : ''}`}
                 onClick={() => setHandoverFilter('DRAFT')}
               >
-                Draft ({rows.filter(r => r.status !== 'CONFIRMED' && r.status !== 'SELESAI').length})
+                Belum Diserahkan ({rows.filter(r => r.status !== 'CONFIRMED' && r.status !== 'SELESAI').length})
               </button>
             </div>
           )}
@@ -1261,40 +1298,65 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                         ) : page === 'receivings' && h === 'status' ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                             <select
-                              className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : (r.status === 'MASUK_GUDANG' || r.masuk_gudang ? 'status-gudang' : 'status-normal')}`}
-                              value={r.status === 'MASUK_GUDANG' || r.masuk_gudang ? 'MASUK_GUDANG' : (r.status === 'SELESAI' ? 'SELESAI' : (r.status || 'SELESAI'))}
+                              className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
+                              value={['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? String(r.status).toUpperCase() : (r.status || 'NORMAL')}
                               onChange={e => onReceivingStatusChange(r, e.target.value)}
                             >
-                              {r.status && !['SELESAI', 'MASUK_GUDANG'].includes(r.status) && (
+                              {r.status && !['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status).toUpperCase()) && (
                                 <option value={r.status} disabled>{prettyReceivingStatus(r.status)} (status lama)</option>
                               )}
-                              <option value="SELESAI">✓ Diterima</option>
-                              <option value="MASUK_GUDANG">📦 Masuk Gudang</option>
+                              <option value="NORMAL">✓ Normal</option>
+                              <option value="RETUR">⚠️ Retur</option>
+                              <option value="REFUND">⚠️ Refund</option>
                             </select>
-                            {r.status === 'MASUK_GUDANG' || r.masuk_gudang ? (
+                            {r.masuk_gudang ? (
                               <span style={{ fontSize: '11px', color: '#137333', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                ✓ Tersimpan di Gudang
+                                ✓ Di Stok Gudang
                               </span>
-                            ) : r.status === 'SELESAI' ? (
-                              <button
-                                type="button"
-                                onClick={() => onMoveToWarehouse(r)}
-                                style={{
-                                  background: '#e6f4ea',
-                                  color: '#137333',
-                                  border: '1px solid #ceead6',
-                                  borderRadius: '4px',
-                                  padding: '3px 6px',
-                                  fontSize: '10px',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  width: 'fit-content'
-                                }}
-                                title="Simpan barang ke stok gudang workshop"
-                              >
-                                📦 + Masukkan ke Gudang
-                              </button>
-                            ) : null}
+                            ) : r.tukang_at || r.alokasi === 'KE_TUKANG' ? (
+                              <span style={{ fontSize: '11px', color: '#1a73e8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                👷 Ke Tukang (Handover)
+                              </span>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => onMoveToWarehouse(r)}
+                                  style={{
+                                    background: '#e6f4ea',
+                                    color: '#137333',
+                                    border: '1px solid #ceead6',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    width: 'fit-content'
+                                  }}
+                                  title="Tambah stok barang ke modul Materials"
+                                >
+                                  📦 Ke Gudang
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onSendToTukang(r)}
+                                  style={{
+                                    background: '#e8f0fe',
+                                    color: '#1a73e8',
+                                    border: '1px solid #d2e3fc',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    width: 'fit-content'
+                                  }}
+                                  title="Kirim langsung ke tukang — masuk modul Handover"
+                                >
+                                  👷 Ke Tukang
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ) : page === 'vendors' && h === 'phone' ? (
                           <WaContact value={rawVal} />
@@ -1442,6 +1504,29 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                             className="btn-delete icon-btn"
                             onClick={() => onDelete(page, r)}
                             title={`Hapus ${r.pr_number || title}`}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ) : page === 'handovers' ? (
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {['CONFIRMED', 'SELESAI'].includes(String(r.status || '').toUpperCase()) ? (
+                            <span style={{ fontSize: '10px', color: '#137333', fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Sudah diserahkan</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onMarkHandoverDelivered(r)}
+                              style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                              title="Tandai serah terima sudah diserahkan"
+                            >
+                              ✓ Sudah Diserahkan
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-delete icon-btn"
+                            onClick={() => onDelete(page, r)}
+                            title={`Hapus ${title}`}
                           >
                             🗑️
                           </button>
@@ -1764,7 +1849,7 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
     invoice_no: '',
     pr_id: '',
     receiving_id: '',
-    receiving_status: 'SELESAI',
+    receiving_status: 'NORMAL',
     received_date: new Date().toISOString().slice(0, 10),
     received_by: '',
     handover_status: 'CONFIRMED',
@@ -2032,18 +2117,14 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
         status: form.status
       }
     } else if (page === 'receivings') {
-      const isKendala = isReceivingKendala(form.receiving_status || 'SELESAI')
-      const isGudang = form.receiving_status === 'MASUK_GUDANG'
+      const st = String(form.receiving_status || 'NORMAL').toUpperCase()
       data = {
         purchase_request_id: form.pr_id || null,
         project_id: form.project_id || null,
         delivery_note: form.delivery_note,
         invoice_no: form.invoice_no || null,
-        status: form.receiving_status || 'SELESAI',
-        kendala: isKendala ? (form.receiving_status || '').replace('KENDALA_', '') : null,
-        alokasi: isGudang ? 'MASUK_GUDANG' : 'LANGSUNG_LAPANGAN',
-        masuk_gudang: isGudang,
-        gudang_at: isGudang ? new Date().toISOString() : null,
+        status: st,
+        kendala: st === 'RETUR' ? 'RETUR' : (st === 'REFUND' ? 'REFUND' : null),
         received_date: form.received_date || new Date().toISOString().slice(0, 10),
         note: form.notes || null
       }
@@ -2335,9 +2416,10 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
             {field('invoice_no', 'No. Invoice', 'text', true)}
             {field('delivery_note', 'Surat Jalan / No. PO (opsional)', 'text', false)}
             <label>Status Penerimaan
-              <select value={form.receiving_status || 'SELESAI'} onChange={e => setForm({ ...form, receiving_status: e.target.value })}>
-                <option value="SELESAI">✓ Diterima (Langsung ke Proyek)</option>
-                <option value="MASUK_GUDANG">📦 Masuk Gudang (Stok WS)</option>
+              <select value={form.receiving_status || 'NORMAL'} onChange={e => setForm({ ...form, receiving_status: e.target.value })}>
+                <option value="NORMAL">✓ Normal</option>
+                <option value="RETUR">⚠️ Retur</option>
+                <option value="REFUND">⚠️ Refund</option>
               </select>
             </label>
             {field('received_date', 'Tanggal Diterima', 'date', false)}
