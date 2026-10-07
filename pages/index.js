@@ -633,6 +633,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedApproval, setExpandedApproval] = useState(null)
   const [expandedReceiving, setExpandedReceiving] = useState(null)
+  const [editRow, setEditRow] = useState(null)
   const [sortKey, setSortKey] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
   const title = labels[page]
@@ -823,7 +824,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                 onClick={() => setPrFilter('URGENT')}
                 style={rows.some(r => r.priority === 'URGENT') ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
               >
-                🚨 Urgent ({rows.filter(r => r.priority === 'URGENT').length})
+                🚨 Prioritas ({rows.filter(r => r.priority === 'URGENT').length})
               </button>
             </div>
           )}
@@ -1038,14 +1039,16 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
           )}
         </div>
       </div>
-      {open && (
+      {(open || editRow) && (
         <Create
           page={page}
+          editRow={editRow}
+          editItems={editRow ? prItemsForPr(editRow.id) : []}
           allProjects={allProjects}
           allMaterials={allMaterials}
           existingRequests={displayRows}
           allRequestsFull={allRequests}
-          close={() => setOpen(false)}
+          close={() => { setOpen(false); setEditRow(null) }}
           refresh={refresh}
           say={say}
         />
@@ -1065,7 +1068,7 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                 </th>
               ))}
               {(hasDeleteAction || page === 'approvals') && (
-                <th style={{ width: page === 'approvals' ? '140px' : '90px', textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: page === 'approvals' ? '140px' : (page === 'requests' ? '110px' : '90px'), textAlign: 'center' }}>Aksi</th>
               )}
             </tr>
           </thead>
@@ -1135,6 +1138,18 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                           <WaContact value={rawVal} />
                         ) : page === 'vendors' && h === 'store_link' ? (
                           <StoreLink value={rawVal} />
+                        ) : page === 'requests' && h === 'priority' ? (
+                          <span className={`badge ${String(r.priority || '').toUpperCase() === 'URGENT' ? 'badge-prioritas' : 'badge-standard'}`}>
+                            {String(r.priority || '').toUpperCase() === 'URGENT' ? 'Prioritas' : 'Standard'}
+                          </span>
+                        ) : page === 'requests' && h === 'project_name' ? (
+                          <div style={{ maxWidth: '130px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={String(rawVal || '')}>
+                            {format(rawVal)}
+                          </div>
+                        ) : page === 'requests' && h === 'notes' ? (
+                          <div style={{ maxWidth: '220px', whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: 1.45 }}>
+                            {format(rawVal)}
+                          </div>
                         ) : h === 'title' ? (
                           <div
                             style={{ maxWidth: '170px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
@@ -1202,14 +1217,35 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                   )}
                   {hasDeleteAction && (
                     <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        className="btn-delete"
-                        onClick={() => onDelete(page, r)}
-                        title={`Hapus ${title}`}
-                      >
-                        Hapus
-                      </button>
+                      {page === 'requests' ? (
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-edit icon-btn"
+                            onClick={() => setEditRow(r)}
+                            title={`Edit ${r.pr_number || title}`}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-delete icon-btn"
+                            onClick={() => onDelete(page, r)}
+                            title={`Hapus ${r.pr_number || title}`}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-delete"
+                          onClick={() => onDelete(page, r)}
+                          title={`Hapus ${title}`}
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -1438,7 +1474,8 @@ function WaContact({ value }) {
   )
 }
 
-function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], close, refresh, say }) {
+function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], close, refresh, say }) {
+  const isEdit = !!editRow
   // Nomor PR berikutnya dihitung dari SEMUA PR (bukan hasil filter), dan selalu
   // lebih besar dari nomor tertinggi yang sudah ada agar tidak pernah dobel
   // walaupun ada PR yang dihapus.
@@ -1464,19 +1501,19 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
   }, [allMaterials])
 
   const [form, setForm] = useState({
-    name: '',
-    status: 'ON_GOING',
+    name: editRow?.name || '',
+    status: editRow?.status || 'ON_GOING',
     category: '',
     kode: '',
     qty: '0',
     satuan: 'Lembar',
     phone: '',
     contact: '',
-    title: '',
-    pr_number: nextPrNum,
-    project_id: allProjects.find(p => normalizeStatus(p.status) !== 'DONE')?.id || allProjects[0]?.id || '',
-    notes: '',
-    priority: 'NORMAL',
+    title: editRow?.title || '',
+    pr_number: editRow?.pr_number || nextPrNum,
+    project_id: editRow?.project_id || (allProjects.find(p => normalizeStatus(p.status) !== 'DONE')?.id || allProjects[0]?.id || ''),
+    notes: editRow?.notes || '',
+    priority: editRow?.priority || 'NORMAL',
     delivery_note: '',
     invoice_no: '',
     receiving_status: 'SELESAI',
@@ -1493,7 +1530,16 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
   // State untuk Item Material di PR (1 pengadaan bisa banyak item)
   const [selectedMaterialId, setSelectedMaterialId] = useState('')
   const [itemQty, setItemQty] = useState('1')
-  const [prItemsList, setPrItemsList] = useState([])
+  // Mode edit: item lama PR dimuat ke daftar supaya bisa diubah qty / ditambah / dihapus.
+  const [prItemsList, setPrItemsList] = useState(() => (editItems || []).map(it => ({
+    id: it.id,
+    material_id: it.material_id,
+    kode: it.kode || '',
+    name: it.item_name || '',
+    category: '',
+    satuan: it.unit || 'Pcs',
+    qty: it.quantity ?? 1
+  })))
 
   const filteredMaterials = useMemo(() => {
     if (!materialSearch.trim()) return allMaterials.slice(0, 100)
@@ -1594,6 +1640,57 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       const summary = prItemsList.length
         ? prItemsList.map(it => `${it.qty} ${it.satuan || ''} ${it.name}`).join(', ')
         : (form.title || '—')
+
+      // Mode EDIT: perbarui PR yang ada + sinkronkan item (tanpa membuat approval baru)
+      if (isEdit) {
+        const { error: upErr } = await supabase.from('purchase_requests').update({
+          project_id: form.project_id || null,
+          title: form.title,
+          pr_number: form.pr_number,
+          priority: form.priority || 'NORMAL',
+          materials_summary: summary,
+          notes: form.notes || form.title
+        }).eq('id', editRow.id)
+        if (upErr) { setSaving(false); say(upErr.message); return }
+
+        // Sinkronkan pr_items: hapus yang dibuang (kecuali sudah diorder),
+        // update item lama, dan insert item baru.
+        const keptIds = prItemsList.filter(it => it.id).map(it => it.id)
+        const removed = (editItems || []).filter(oi => !keptIds.includes(oi.id))
+        let skipped = 0
+        let itemErrMsg = ''
+        for (const oi of removed) {
+          if (String(oi.status || '').toUpperCase() === 'ORDERED') { skipped++; continue }
+          const { error } = await supabase.from('pr_items').delete().eq('id', oi.id)
+          if (error && !itemErrMsg) itemErrMsg = error.message
+        }
+        for (const it of prItemsList) {
+          if (it.id) {
+            const { error } = await supabase.from('pr_items').update({ quantity: it.qty, unit: it.satuan }).eq('id', it.id)
+            if (error && !itemErrMsg) itemErrMsg = error.message
+          } else {
+            const { error } = await supabase.from('pr_items').insert({
+              pr_id: editRow.id,
+              material_id: it.material_id,
+              item_name: it.name,
+              kode: it.kode,
+              unit: it.satuan,
+              quantity: it.qty,
+              status: 'PENDING_APPROVAL'
+            })
+            if (error && !itemErrMsg) itemErrMsg = error.message
+          }
+        }
+
+        setSaving(false)
+        if (itemErrMsg) {
+          say(`PR ${form.pr_number} diperbarui, tapi ada masalah pada item: ${itemErrMsg}`)
+        } else {
+          say(`Purchase Request ${form.pr_number} berhasil diperbarui (${prItemsList.length} item).${skipped ? ` ${skipped} item sudah diorder tidak ikut dihapus.` : ''}`)
+        }
+        close(); refresh()
+        return
+      }
 
       // PR yang baru dibuat langsung SUBMITTED agar otomatis masuk modul Approval
       data = {
@@ -1718,7 +1815,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     <div className="modal">
       <form className="dialog" onSubmit={save}>
         <div className="dialoghead">
-          <h2>Tambah {labels[page]}</h2>
+          <h2>{isEdit ? 'Edit' : 'Tambah'} {labels[page]}</h2>
           <button type="button" className="icon" onClick={close}>×</button>
         </div>
         {page === 'requests' && (
@@ -1741,8 +1838,8 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
             {field('pr_number', 'Nomor PR', 'text', true)}
             <label>Prioritas
               <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
-                <option value="NORMAL">NORMAL</option>
-                <option value="URGENT">URGENT</option>
+                <option value="NORMAL">Standard</option>
+                <option value="URGENT">Prioritas</option>
               </select>
             </label>
 
