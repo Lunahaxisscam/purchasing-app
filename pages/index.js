@@ -650,7 +650,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
               ['Purchase Request', rows.requests || [], headersFor('requests', rows.requests || [])],
               ['PR Items', rows.pr_items || [], ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status']],
               ['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']],
-              ['Receiving', rows.receivings || [], headersFor('receivings', rows.receivings || [])],
+              ['Receiving', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note']],
               ['Receiving Items', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
               ['Handover', rows.handovers || [], headersFor('handovers', rows.handovers || [])]
             ], 'Purchasing-Seluruh-Data')}
@@ -698,6 +698,21 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
   const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
   const approvalItemCount = (approval) => approvalItems(approval).length
   const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
+
+  // Baris item utk modul Approval: pakai pr_items; jika kosong (data lama),
+  // fallback ke ringkasan material PR supaya barang yang perlu di-approve tetap terlihat.
+  const approvalItemLines = (approval) => {
+    const items = approvalItems(approval)
+    if (items.length) {
+      return items
+        .map(it => `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+    }
+    const pr = (allRequests || []).find(p => p.id === approval.purchase_request_id)
+    const s = String(pr?.materials_summary || '').trim()
+    if (!s) return []
+    return s.split(',').map(x => x.trim()).filter(Boolean)
+  }
 
   // Daftar baris item material sebuah PR (dipakai modul Purchase Request):
   // utamakan pr_items yang lengkap; fallback ke ringkasan teks bila item tidak ada.
@@ -1177,9 +1192,9 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                           <StoreLink value={rawVal} />
                         ) : page === 'approvals' && h === 'items' ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            {approvalItems(r).length ? approvalItems(r).map((it, idx) => (
+                            {approvalItemLines(r).length ? approvalItemLines(r).map((line, idx) => (
                               <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, paddingLeft: '12px', textIndent: '-12px' }}>
-                                • {it.quantity ?? ''} {it.unit || ''} {it.item_name || it.kode || ''}
+                                • {line}
                               </span>
                             )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
                           </div>
