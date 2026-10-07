@@ -1694,6 +1694,17 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     return 'PR-' + String(maxNum + 1).padStart(3, '0')
   })()
 
+  // Kode material berikutnya (hanya untuk tampilan di form). Kode final dihitung
+  // ulang saat simpan agar tidak dobel bila ada penambahan dari sesi lain.
+  const nextMatNum = (() => {
+    const maxNum = (allMaterials || []).reduce((max, m) => {
+      const match = String(m.kode || m.code || '').match(/^MAT-(\d+)$/)
+      const n = match ? parseInt(match[1], 10) : NaN
+      return isFinite(n) && n > max ? n : max
+    }, 0)
+    return 'MAT-' + String(maxNum + 1).padStart(4, '0')
+  })()
+
   // Data validation kategori: dropdown berisi kategori yang ada di master material
   // (kategori utama tampil lebih dulu, sisanya urut alfabetis).
   const materialCategories = useMemo(() => {
@@ -1915,11 +1926,28 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       refresh()
       return
     } else if (page === 'materials') {
+      // Kode material otomatis (MAT-XXXX): dihitung saat simpan dari nomor
+      // tertinggi di database supaya tidak pernah dobel.
+      let newKode = (isEdit && (editRow?.kode || editRow?.code)) || ''
+      if (!newKode) {
+        const { data: allMats, error: kodeErr } = await supabase.from('materials').select('kode')
+        if (kodeErr) {
+          setSaving(false)
+          say(`Gagal membuat kode material: ${kodeErr.message}`)
+          return
+        }
+        const maxNum = (allMats || []).reduce((max, m) => {
+          const match = String(m.kode || '').match(/^MAT-(\d+)$/)
+          const n = match ? parseInt(match[1], 10) : NaN
+          return isFinite(n) && n > max ? n : max
+        }, 0)
+        newKode = 'MAT-' + String(maxNum + 1).padStart(4, '0')
+      }
       data = {
         name: form.name,
         category: form.category || null,
-        kode: form.kode || null,
-        code: form.kode || null,
+        kode: newKode,
+        code: newKode,
         qty: form.qty || '0',
         satuan: form.satuan || 'Lembar',
         unit: form.satuan || 'Lembar'
@@ -2111,7 +2139,15 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         )}
         {page === 'materials' && (
           <>
-            {field('kode', 'Kode Material', 'text', false)}
+            <label>Kode Material (otomatis)
+              <input
+                type="text"
+                value={isEdit ? (editRow?.kode || editRow?.code || '') : nextMatNum}
+                readOnly
+                disabled
+                style={{ background: '#f1f5f3', color: '#5b6b66', fontWeight: 600, cursor: 'not-allowed' }}
+              />
+            </label>
             {field('name', 'Nama Material', 'text', true)}
             <label>Kategori
               <select value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })}>
