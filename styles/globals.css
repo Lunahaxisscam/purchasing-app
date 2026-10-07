@@ -286,21 +286,26 @@ table.materials-table td:nth-child(2) .cell-name{overflow:hidden;text-overflow:e
 .btn-edit:hover{background:#eef3f1;border-color:#173d36}
 .btn-delete.icon-btn{width:30px;height:30px;padding:0}
 
-/* ===== Badge prioritas PR (biru=standard, merah=prioritas) ===== */
-.badge-standard{background:#e8f0fe;color:#1a73e8;border-color:#d2e3fc}
-.badge-prioritas{background:#fdecec;color:#b91c1c;border-color:#f8cfcf}
+/* ===== Dot prioritas (kolom paling kiri modul PR) ===== */
+.prio-dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle}
+.prio-normal{background:radial-gradient(circle at 35% 30%,#8ab8f7,#2f6fe4);box-shadow:0 0 0 3px rgba(47,111,228,.14)}
+.prio-urgent{background:radial-gradient(circle at 35% 30%,#fb9a9a,#e23b3b);box-shadow:0 0 0 3px rgba(226,59,59,.16)}
+.prio-header{width:10px;height:10px;background:#c9d4d0;box-shadow:none}
+.badge.badge-item-approved{background:#e8f0fe;color:#1a73e8;border-color:#d2e3fc}
 
-/* ===== PR: tabel muat layar (tanpa scroll horizontal di desktop) ===== */
+/* ===== PR: tabel muat layar (tanpa scroll horizontal di desktop) =====
+   Kolom: 1 dot prioritas | 2 No. PR | 3 Project | 4 Judul | 5 Item Material |
+   6 Status | 7 Catatan | 8 Created At | 9 Aksi. */
 table.requests-table{table-layout:fixed;width:100%}
-table.requests-table th:nth-child(1),table.requests-table td:nth-child(1){width:6.5%}
-table.requests-table th:nth-child(2),table.requests-table td:nth-child(2){width:11%}
-table.requests-table th:nth-child(3),table.requests-table td:nth-child(3){width:14%}
-table.requests-table th:nth-child(4),table.requests-table td:nth-child(4){width:19%}
-table.requests-table th:nth-child(5),table.requests-table td:nth-child(5){width:8%}
-table.requests-table th:nth-child(6),table.requests-table td:nth-child(6){width:9%}
-table.requests-table th:nth-child(7),table.requests-table td:nth-child(7){width:15%}
-table.requests-table th:nth-child(8),table.requests-table td:nth-child(8){width:9%}
-table.requests-table th:nth-child(9),table.requests-table td:nth-child(9){width:8.5%}
+table.requests-table th:nth-child(1),table.requests-table td:nth-child(1){width:5%;text-align:center;padding-left:8px;padding-right:6px}
+table.requests-table th:nth-child(2),table.requests-table td:nth-child(2){width:6%}
+table.requests-table th:nth-child(3),table.requests-table td:nth-child(3){width:11%}
+table.requests-table th:nth-child(4),table.requests-table td:nth-child(4){width:14%}
+table.requests-table th:nth-child(5),table.requests-table td:nth-child(5){width:19%}
+table.requests-table th:nth-child(6),table.requests-table td:nth-child(6){width:8%}
+table.requests-table th:nth-child(7),table.requests-table td:nth-child(7){width:16%}
+table.requests-table th:nth-child(8),table.requests-table td:nth-child(8){width:10%}
+table.requests-table th:nth-child(9),table.requests-table td:nth-child(9){width:11%;padding-left:8px;padding-right:8px}
 @media(max-width:800px){
   table.requests-table{min-width:860px}
 }

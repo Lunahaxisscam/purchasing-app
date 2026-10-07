@@ -330,6 +330,14 @@ export default function App() {
       await supabase.from('purchase_requests').update({
         status: decision
       }).eq('id', approval.purchase_request_id)
+
+      // Logika: PR disetujui => semua material di dalamnya ikut disetujui
+      // (material yang sudah ORDERED tidak ditimpa).
+      if (decision === 'APPROVED') {
+        await supabase.from('pr_items').update({ status: 'APPROVED' })
+          .eq('pr_id', approval.purchase_request_id)
+          .or('status.is.null,status.neq.ORDERED')
+      }
     }
 
     if (appErr) {
@@ -349,6 +357,17 @@ export default function App() {
     if (!supabase) return
     setNoteText('')
     setNoteModal({ approval, decision: 'REVISI' })
+  }
+
+  // Setujui material satu per satu (dipakai di modul Approval, panel Material)
+  async function approveItem(prItem) {
+    if (!supabase) return
+    const ok = window.confirm(`Setujui material "${prItem.item_name || prItem.kode}"?`)
+    if (!ok) return
+    const { error } = await supabase.from('pr_items').update({ status: 'APPROVED' }).eq('id', prItem.id)
+    if (error) { setNotice(`Gagal menyetujui material: ${error.message}`); return }
+    setNotice(`Material "${prItem.item_name || prItem.kode}" disetujui.`)
+    loadAll()
   }
 
   // Item PR di-approve -> tandai "sudah diorder" + pindahkan ke Receiving
@@ -477,6 +496,30 @@ export default function App() {
       [pageTarget]: (prev[pageTarget] || []).filter(x => x.id !== item.id)
     }))
 
+    // Bersihkan relasi yang tidak memakai ON DELETE CASCADE agar penghapusan
+    // tidak ditolak database (mis. PR yang masih punya item material).
+    let preErr = null
+    if (pageTarget === 'requests') {
+      const { error } = await supabase.from('pr_items').delete().eq('pr_id', item.id)
+      if (error) preErr = error
+    } else if (pageTarget === 'materials') {
+      const { error } = await supabase.from('pr_items').update({ material_id: null }).eq('material_id', item.id)
+      if (error) preErr = error
+    } else if (pageTarget === 'vendors') {
+      const { error } = await supabase.from('pr_items').update({ vendor_id: null }).eq('vendor_id', item.id)
+      if (error) preErr = error
+    } else if (pageTarget === 'projects' || pageTarget === 'past_projects') {
+      const { error } = await supabase.from('purchase_requests').update({ project_id: null }).eq('project_id', item.id)
+      if (error) preErr = error
+      const { error: e2 } = await supabase.from('receivings').update({ project_id: null }).eq('project_id', item.id)
+      if (!preErr && e2) preErr = e2
+    }
+    if (preErr) {
+      setNotice(`Gagal menyiapkan penghapusan ${typeLabel.toLowerCase()}: ${preErr.message}`)
+      loadAll()
+      return
+    }
+
     const { error } = await supabase.from(table).delete().eq('id', item.id)
     if (error) {
       setNotice(`Gagal menghapus ${typeLabel.toLowerCase()}: ${error.message}`)
@@ -546,6 +589,8 @@ export default function App() {
             allPrItems={rows.pr_items || []}
             allReceivingItems={rows.receiving_items || []}
             allRequests={rows.requests || []}
+            allReceivings={rows.receivings || []}
+            currentUserId={session?.user?.id || null}
             refresh={loadAll}
             say={setNotice}
             onStatusChange={updateProjectStatus}
@@ -553,6 +598,7 @@ export default function App() {
             onMoveToWarehouse={moveToWarehouse}
             onDecideApproval={decideApproval}
             onReviseApproval={reviseApproval}
+            onApproveItem={approveItem}
             onMarkPrItemOrdered={markPrItemOrdered}
             onMarkReceivingItemReceived={markReceivingItemReceived}
             onUpdateReceivingQty={updateReceivingQty}
@@ -663,7 +709,7 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], currentUserId = null, refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onApproveItem, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -698,6 +744,14 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
   const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
   const approvalItemCount = (approval) => approvalItems(approval).length
   const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
+
+  // Status persetujuan per material: ORDERED (sudah dipesan) > APPROVED (disetujui) > PENDING (menunggu)
+  const itemState = (it) => {
+    const s = String(it?.status || '').toUpperCase()
+    if (s === 'ORDERED') return 'ORDERED'
+    if (s === 'APPROVED') return 'APPROVED'
+    return 'PENDING'
+  }
 
   // Baris item utk modul Approval: pakai pr_items; jika kosong (data lama),
   // fallback ke ringkasan material PR supaya barang yang perlu di-approve tetap terlihat.
@@ -1101,6 +1155,8 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
           page={page}
           editRow={editRow}
           editItems={editRow ? prItemsForPr(editRow.id) : []}
+          currentUserId={currentUserId}
+          allReceivings={allReceivings}
           allProjects={allProjects}
           allMaterials={allMaterials}
           existingRequests={displayRows}
@@ -1121,7 +1177,10 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                   style={{ cursor: h === 'items' ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
                   title={h === 'items' ? undefined : 'Klik untuk urutkan'}
                 >
-                  {pretty(h)}{sortKey === h ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                  {page === 'requests' && h === 'priority' ? (
+                    <span className="prio-dot prio-header" title="Prioritas — klik untuk urutkan" />
+                  ) : pretty(h)}
+                  {sortKey === h ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
               ))}
               {(hasDeleteAction || page === 'approvals') && (
@@ -1199,9 +1258,10 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                             )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
                           </div>
                         ) : page === 'requests' && h === 'priority' ? (
-                          <span className={`badge ${String(r.priority || '').toUpperCase() === 'URGENT' ? 'badge-prioritas' : 'badge-standard'}`}>
-                            {String(r.priority || '').toUpperCase() === 'URGENT' ? 'Prioritas' : 'Standard'}
-                          </span>
+                          <span
+                            className={`prio-dot ${String(r.priority || '').toUpperCase() === 'URGENT' ? 'prio-urgent' : 'prio-normal'}`}
+                            title={String(r.priority || '').toUpperCase() === 'URGENT' ? 'Prioritas' : 'Standard'}
+                          />
                         ) : ['requests', 'approvals'].includes(page) && h === 'project_name' ? (
                           <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={String(rawVal || '')}>
                             {format(rawVal)}
@@ -1262,13 +1322,13 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
                           <span className={`badge status-${r.status}`}>{r.status}</span>
-                          {r.status === 'APPROVED' && approvalItemCount(r) > 0 && (
+                          {approvalItemLines(r).length > 0 && (
                             <button
                               type="button"
                               onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
                               style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
                             >
-                              {expandedApproval === r.id ? '▲ Tutup item' : `▼ Item & Order (${approvalItemCount(r)})`}
+                              {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
                             </button>
                           )}
                         </div>
@@ -1376,14 +1436,25 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                     </td>
                   </tr>
                 )}
-                {page === 'approvals' && expandedApproval === r.id && r.status === 'APPROVED' && (
+                {page === 'approvals' && expandedApproval === r.id && (
                   <tr>
                     <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
                       <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: '#1f3a34' }}>
-                        📋 Item disetujui — tandai yang sudah dipesan ke supplier
+                        📋 Material — setujui per barang{r.status === 'APPROVED' ? ', lalu tandai yang sudah dipesan ke supplier' : ''}
                       </div>
                       {approvalItems(r).length === 0 ? (
-                        <p className="muted" style={{ fontSize: '11px' }}>Tidak ada item pada PR ini.</p>
+                        <div>
+                          {approvalItemLines(r).length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '6px' }}>
+                              {approvalItemLines(r).map((line, i) => (
+                                <span key={i} style={{ fontSize: '11px', lineHeight: 1.45, paddingLeft: '12px', textIndent: '-12px' }}>• {line}</span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="muted" style={{ fontSize: '11px', margin: 0 }}>
+                            Rincian per barang belum tersimpan untuk PR lama ini — gunakan tombol ✓ Setujui untuk menyetujui seluruh PR.
+                          </p>
+                        </div>
                       ) : (
                         <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                           <thead>
@@ -1392,13 +1463,15 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                               <th style={{ padding: '4px 6px' }}>Nama Item</th>
                               <th style={{ padding: '4px 6px', width: '70px' }}>Qty</th>
                               <th style={{ padding: '4px 6px', width: '70px' }}>Satuan</th>
-                              <th style={{ padding: '4px 6px', width: '100px' }}>Status</th>
-                              <th style={{ padding: '4px 6px', width: '110px', textAlign: 'center' }}>Aksi</th>
+                              <th style={{ padding: '4px 6px', width: '110px' }}>Status</th>
+                              <th style={{ padding: '4px 6px', width: '150px', textAlign: 'center' }}>Aksi</th>
                             </tr>
                           </thead>
                           <tbody>
                             {approvalItems(r).map(it => {
-                              const isOrdered = String(it.status || '').toUpperCase() === 'ORDERED'
+                              const st = itemState(it)
+                              const canApprove = st === 'PENDING' && (r.status === 'PENDING' || r.status === 'APPROVED')
+                              const canOrder = st === 'APPROVED' && r.status === 'APPROVED'
                               return (
                                 <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
                                   <td style={{ padding: '4px 6px' }}><b>{it.kode || '—'}</b></td>
@@ -1406,14 +1479,14 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                                   <td style={{ padding: '4px 6px' }}>{it.quantity}</td>
                                   <td style={{ padding: '4px 6px' }}>{it.unit || '—'}</td>
                                   <td style={{ padding: '4px 6px' }}>
-                                    <span className={`badge ${isOrdered ? 'status-APPROVED' : 'status-DRAFT'}`} style={{ fontSize: '10px' }}>
-                                      {isOrdered ? '✓ Sudah Order' : 'Belum Diorder'}
+                                    <span className={`badge ${st === 'ORDERED' ? 'status-APPROVED' : (st === 'APPROVED' ? 'badge-item-approved' : 'status-PENDING')}`} style={{ fontSize: '10px' }}>
+                                      {st === 'ORDERED' ? '✓ Sudah Order' : (st === 'APPROVED' ? '✓ Disetujui' : '⏳ Menunggu')}
                                     </span>
                                   </td>
                                   <td style={{ padding: '4px 6px', textAlign: 'center' }}>
-                                    {isOrdered ? (
+                                    {st === 'ORDERED' ? (
                                       <span style={{ fontSize: '10px', color: '#137333' }}>→ ke Receiving</span>
-                                    ) : (
+                                    ) : canOrder ? (
                                       <button
                                         type="button"
                                         onClick={() => onMarkPrItemOrdered(it)}
@@ -1421,6 +1494,18 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                                       >
                                         🛒 Sudah Order
                                       </button>
+                                    ) : canApprove ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => onApproveItem(it)}
+                                        style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                                      >
+                                        ✓ Setujui
+                                      </button>
+                                    ) : st === 'APPROVED' ? (
+                                      <span style={{ fontSize: '10px', color: '#b45309', whiteSpace: 'nowrap' }}>⏳ Menunggu PR disetujui</span>
+                                    ) : (
+                                      <span style={{ fontSize: '10px', color: '#71817d' }}>—</span>
                                     )}
                                   </td>
                                 </tr>
@@ -1454,7 +1539,7 @@ function headersFor(page, rows) {
     past_projects: ['kode', 'name', 'status', 'created_at'],
     vendors: ['name', 'phone', 'store_link', 'supplier_category'],
     materials: ['kode', 'name', 'category', 'qty', 'satuan'],
-    requests: ['pr_number', 'project_name', 'title', 'materials_summary', 'priority', 'status', 'notes', 'created_at'],
+    requests: ['priority', 'pr_number', 'project_name', 'title', 'materials_summary', 'status', 'notes', 'created_at'],
     approvals: ['pr_number', 'project_name', 'title', 'items', 'step_number', 'status', 'note', 'decided_at'],
     receivings: ['invoice_no', 'project_name', 'status', 'received_date', 'note'],
     handovers: ['project_name', 'received_by', 'status', 'handover_date', 'note']
@@ -1534,7 +1619,7 @@ function WaContact({ value }) {
   )
 }
 
-function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], close, refresh, say }) {
+function Create({ page, allProjects = [], allMaterials = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], currentUserId = null, allReceivings = [], close, refresh, say }) {
   const isEdit = !!editRow
   // Nomor PR berikutnya dihitung dari SEMUA PR (bukan hasil filter), dan selalu
   // lebih besar dari nomor tertinggi yang sudah ada agar tidak pernah dobel
@@ -1576,6 +1661,8 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     priority: editRow?.priority || 'NORMAL',
     delivery_note: '',
     invoice_no: '',
+    pr_id: '',
+    receiving_id: '',
     receiving_status: 'SELESAI',
     received_date: new Date().toISOString().slice(0, 10),
     received_by: '',
@@ -1692,7 +1779,9 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       projects: 'projects',
       vendors: 'vendors',
       materials: 'materials',
-      requests: 'purchase_requests'
+      requests: 'purchase_requests',
+      receivings: 'receivings',
+      handovers: 'handovers'
     }[page]
 
     let data = {}
@@ -1791,11 +1880,19 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
 
       // Auto-buat 1 approval step PENDING (Step 1: Direksi / PM)
       if (insertedPR) {
+        // approver_id WAJIB diisi (kolom NOT NULL di DB). Pakai user yang sedang
+        // login; fallback ke profil pertama (mis. admin) bila sesi tidak tersedia.
+        let approverId = currentUserId
+        if (!approverId) {
+          const { data: profs } = await supabase.from('profiles').select('id').limit(1)
+          approverId = (profs && profs[0] && profs[0].id) || null
+        }
         const { error: appErr } = await supabase.from('approval_steps').insert({
           purchase_request_id: insertedPR.id,
+          approver_id: approverId,
           step_number: 1,
           status: 'PENDING',
-          note: `Menunggu persetujuan Direksi / PM untuk PR ${data.pr_number}`
+          note: `Menunggu persetujuan Direksi / PM untuk ${data.pr_number}`
         })
         if (appErr) {
           setSaving(false)
@@ -1839,6 +1936,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       const isKendala = isReceivingKendala(form.receiving_status || 'SELESAI')
       const isGudang = form.receiving_status === 'MASUK_GUDANG'
       data = {
+        purchase_request_id: form.pr_id || null,
         project_id: form.project_id || null,
         delivery_note: form.delivery_note,
         invoice_no: form.invoice_no || null,
@@ -1852,6 +1950,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       }
     } else if (page === 'handovers') {
       data = {
+        receiving_id: form.receiving_id || null,
         project_id: form.project_id || null,
         received_by: form.received_by,
         status: form.handover_status || 'CONFIRMED',
@@ -2099,7 +2198,24 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         )}
         {page === 'receivings' && (
           <>
-            <label>Project
+            <label>Purchase Request (PR)
+              <select
+                value={form.pr_id || ''}
+                onChange={e => {
+                  const pr = (allRequestsFull || []).find(p => p.id === e.target.value)
+                  setForm({ ...form, pr_id: e.target.value, project_id: pr?.project_id || form.project_id })
+                }}
+                required
+              >
+                <option value="">-- Pilih PR --</option>
+                {(allRequestsFull || []).map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.pr_number} — {p.title || ''} {p.status ? `(${p.status})` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>Project (otomatis dari PR, bisa diubah)
               <select
                 value={form.project_id}
                 onChange={e => setForm({ ...form, project_id: e.target.value })}
@@ -2127,7 +2243,24 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         )}
         {page === 'handovers' && (
           <>
-            <label>Project
+            <label>Penerimaan (Receiving)
+              <select
+                value={form.receiving_id || ''}
+                onChange={e => {
+                  const rec = (allReceivings || []).find(r => r.id === e.target.value)
+                  setForm({ ...form, receiving_id: e.target.value, project_id: rec?.project_id || form.project_id })
+                }}
+                required
+              >
+                <option value="">-- Pilih Penerimaan --</option>
+                {(allReceivings || []).map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.invoice_no || r.delivery_note || 'Penerimaan'} — {r.project_name || ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>Project (otomatis dari penerimaan, bisa diubah)
               <select
                 value={form.project_id}
                 onChange={e => setForm({ ...form, project_id: e.target.value })}
