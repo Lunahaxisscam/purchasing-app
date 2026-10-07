@@ -825,10 +825,11 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
   const [sortDir, setSortDir] = useState('asc')
   const title = labels[page]
 
-  // Reset urutan saat pindah modul (set kolom tiap modul berbeda)
+  // Reset urutan & popup catatan saat pindah modul (set kolom tiap modul berbeda)
   useEffect(() => {
     setSortKey(null)
     setSortDir('asc')
+    setOpenNoteId(null)
   }, [page])
 
   function toggleSort(key) {
@@ -858,7 +859,14 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
     const items = approvalItems(approval)
     if (items.length) {
       return items
-        .map(it => `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim())
+        .map(it => {
+          const base = `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim()
+          const bits = []
+          if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
+          const v = vendorName(it.vendor_id)
+          if (v) bits.push(`Vendor: ${v}`)
+          return bits.length ? `${base} — ${bits.join(' · ')}` : base
+        })
         .filter(Boolean)
     }
     const pr = (allRequests || []).find(p => p.id === approval.purchase_request_id)

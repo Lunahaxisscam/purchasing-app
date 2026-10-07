@@ -310,7 +310,7 @@ table.requests-table th:nth-child(7),table.requests-table td:nth-child(7){width:
 /* Bulatan catatan kecil di samping No. PR (klik untuk lihat isi) */
 .note-dot{width:9px;height:9px;min-width:9px;border-radius:50%;padding:0;background:#dfe6e3;border:1px solid #cbd8d4;box-shadow:none;flex:0 0 auto}
 .note-dot-on{background:radial-gradient(circle at 35% 30%,#ffd77a,#e8a020);border-color:#d99414;box-shadow:0 0 0 3px rgba(232,160,32,.15)}
-.dialog-wide{width:min(680px,100%)}
+.dialog-wide{width:min(680px,100%) !important}
 .note-pop{margin-top:4px;background:#fffbe8;border:1px solid #f2d98c;border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.45;white-space:normal;overflow-wrap:break-word;max-width:230px;color:#5f4a10;font-weight:500}
 @media(max-width:800px){
   table.requests-table{min-width:940px}
