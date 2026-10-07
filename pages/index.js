@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { exportToExcel, exportToCsv, exportWorkbook, downloadPrImportTemplate, parsePrItemsFile } from '../lib/workflow'
 
@@ -88,6 +88,16 @@ function prettyStatus(s) {
   return found ? found.label : s
 }
 
+// Kolom urutan baca per tabel — harus ada di schema live.
+// pr_items TIDAK punya kolom created_at (schema live), jadi dibaca tanpa ORDER BY;
+// jangan mengarang kronologi dari UUID. Tabel lain tetap seperti semula.
+function orderSpecFor(table) {
+  if (table === 'materials') return { column: 'kode', ascending: true }
+  if (table === 'approval_steps') return { column: 'step_number', ascending: true }
+  if (table === 'pr_items') return null
+  return { column: 'created_at', ascending: false }
+}
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [page, setPage] = useState('dashboard')
@@ -152,9 +162,9 @@ export default function App() {
       if (name === 'requests') {
         items = prList
       } else {
-        const orderCol = table === 'materials' ? 'kode' : (table === 'approval_steps' ? 'step_number' : 'created_at')
-        const ascending = table === 'materials' || table === 'approval_steps'
-        const { data } = await supabase.from(table).select('*').order(orderCol, { ascending })
+        const spec = orderSpecFor(table)
+        const base = supabase.from(table).select('*')
+        const { data } = spec ? await base.order(spec.column, { ascending: spec.ascending }) : await base
         items = data || []
       }
 
