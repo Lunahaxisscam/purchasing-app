@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { exportToExcel, exportToCsv, exportWorkbook, downloadPrImportTemplate, parsePrItemsFile } from '../lib/workflow'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -101,7 +102,9 @@ export default function App() {
     requests: [],
     approvals: [],
     receivings: [],
-    handovers: []
+    handovers: [],
+    pr_items: [],
+    receiving_items: []
   })
   const [notice, setNotice] = useState('')
 
@@ -128,7 +131,9 @@ export default function App() {
       ['requests', 'purchase_requests'],
       ['approvals', 'approval_steps'],
       ['receivings', 'receivings'],
-      ['handovers', 'handovers']
+      ['handovers', 'handovers'],
+      ['pr_items', 'pr_items'],
+      ['receiving_items', 'receiving_items']
     ]
     const result = { ...rows }
     const { data: allProj } = await supabase.from('projects').select('*')
@@ -299,6 +304,125 @@ export default function App() {
     }
   }
 
+  // ============================================================
+  // ALUR PENGADAAN: order -> receiving -> handover
+  // ============================================================
+
+  // Approval "Revise" -> status REVISI pada approval + PR
+  async function reviseApproval(approval) {
+    if (!supabase) return
+    const ok = window.confirm(`Tandai pengajuan "${approval.pr_number || 'PR'}" sebagai REVISI (dikembalikan ke pengaju)?`)
+    if (!ok) return
+    const now = new Date().toISOString()
+    const { error: appErr } = await supabase.from('approval_steps').update({
+      status: 'REVISI',
+      decided_at: now,
+      note: 'Diminta revisi oleh Direksi / PM'
+    }).eq('id', approval.id)
+    if (approval.purchase_request_id) {
+      await supabase.from('purchase_requests').update({ status: 'REVISI' }).eq('id', approval.purchase_request_id)
+    }
+    if (appErr) setNotice(`Gagal: ${appErr.message}`)
+    else { setNotice(`Pengajuan ${approval.pr_number || 'PR'} ditandai REVISI.`); loadAll() }
+  }
+
+  // Item PR di-approve -> tandai "sudah diorder" + pindahkan ke Receiving
+  async function markPrItemOrdered(prItem) {
+    if (!supabase) return
+    const ok = window.confirm(`Tandai item "${prItem.item_name || prItem.kode}" sebagai SUDAH DIORDER? Item akan masuk ke modul Receiving.`)
+    if (!ok) return
+    const now = new Date().toISOString()
+
+    const prId = prItem.pr_id
+    const pr = (rows.requests || []).find(p => p.id === prId)
+    if (!pr) { setNotice('PR item tidak terhubung ke PR manapun.'); return }
+
+    // 1. Update status item jadi ORDERED
+    const { error: itemErr } = await supabase.from('pr_items')
+      .update({ status: 'ORDERED' })
+      .eq('id', prItem.id)
+    if (itemErr) { setNotice(`Gagal update item: ${itemErr.message}`); return }
+
+    // 2. Cari/buat receivings utk PR ini (satu header per PR)
+    let recId = null
+    const { data: existingRecs } = await supabase.from('receivings')
+      .select('*').eq('purchase_request_id', prId).order('created_at', { ascending: true })
+    if (existingRecs && existingRecs.length) {
+      recId = existingRecs[0].id
+    } else {
+      const { data: newRec, error: recErr } = await supabase.from('receivings').insert({
+        purchase_request_id: prId,
+        project_id: pr.project_id || null,
+        status: 'MENUNGGU_BARANG',
+        delivery_note: `PO ${pr.pr_number || ''} - ${pr.title || ''}`.trim(),
+        note: `Dibuat otomatis dari PR ${pr.pr_number || ''} (item diorder di supplier).`
+      }).select().single()
+      if (recErr) { setNotice(`Gagal membuat receiving: ${recErr.message}`); return }
+      recId = newRec.id
+    }
+
+    // 3. Tambahkan item ini ke receiving_items
+    const { error: riErr } = await supabase.from('receiving_items').insert({
+      receiving_id: recId,
+      pr_item_id: prItem.id,
+      item_name: prItem.item_name || 'Item',
+      quantity_received: 0,
+      unit: prItem.unit || 'Pcs'
+    })
+    if (riErr) { setNotice(`Gagal menambah item receiving: ${riErr.message}`); return }
+
+    // 4. Titip status ordered di kolom status item juga pada purchase_requests summary (best-effort, no schema change)
+    setNotice(`Item "${prItem.item_name || prItem.kode}" sudah diorder dan masuk ke modul Receiving.`)
+    loadAll()
+  }
+
+  // Item di receiving -> tandai "sudah diterima", lalu pindah ke Handover
+  async function markReceivingItemReceived(recItem) {
+    if (!supabase) return
+    const ok = window.confirm(`Tandai barang "${recItem.item_name}" sudah DITERIMA? Item akan masuk daftar Handover.`)
+    if (!ok) return
+    const now = new Date().toISOString()
+    const qty = Number(recItem.quantity_received || 0)
+
+    const receiving = (rows.receivings || []).find(r => r.id === recItem.receiving_id)
+    const prItem = (rows.pr_items || []).find(p => p.id === recItem.pr_item_id)
+    const pr = prItem ? (rows.requests || []).find(p => p.id === prItem.pr_id) : null
+    const projectId = receiving?.project_id || pr?.project_id || null
+
+    // 1. Tandai item sudah diterima (pakai status text pada receiving_items via 'note' + qty_received ditandai)
+    const { error: riErr } = await supabase.from('receiving_items')
+      .update({ quantity_received: qty > 0 ? qty : null, note: `DITERIMA ${now.slice(0, 10)}` })
+      .eq('id', recItem.id)
+    if (riErr) { setNotice(`Gagal update item: ${riErr.message}`); return }
+
+    // 2. Buat handover utk item ini
+    const { error: hoErr } = await supabase.from('handovers').insert({
+      receiving_id: recItem.receiving_id,
+      project_id: projectId,
+      received_by: 'Belum ditentukan',
+      handover_date: now.slice(0, 10),
+      status: 'DRAFT',
+      note: `Item diterima: ${recItem.item_name} (${recItem.quantity_received || '?'} ${recItem.unit || ''}). Dari PR ${pr?.pr_number || '-'}.`
+    })
+    if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
+
+    setNotice(`Barang "${recItem.item_name}" sudah diterima dan masuk ke daftar Handover.`)
+    loadAll()
+  }
+
+  // Update qty terima (dipakai di modul Receiving saat user isi qty)
+  async function updateReceivingQty(recItem, newQty) {
+    if (!supabase) return
+    const qty = Number(newQty)
+    if (!isFinite(qty) || qty < 0) return
+    setRows(prev => ({
+      ...prev,
+      receiving_items: (prev.receiving_items || []).map(x => x.id === recItem.id ? { ...x, quantity_received: qty } : x)
+    }))
+    const { error } = await supabase.from('receiving_items').update({ quantity_received: qty }).eq('id', recItem.id)
+    if (error) { setNotice(`Gagal update qty: ${error.message}`); loadAll() }
+  }
+
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
     const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Receiving' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
@@ -395,6 +519,10 @@ export default function App() {
             onReceivingStatusChange={updateReceivingStatus}
             onMoveToWarehouse={moveToWarehouse}
             onDecideApproval={decideApproval}
+            onReviseApproval={reviseApproval}
+            onMarkPrItemOrdered={markPrItemOrdered}
+            onMarkReceivingItemReceived={markReceivingItemReceived}
+            onUpdateReceivingQty={updateReceivingQty}
             onDelete={deleteItem}
             setPage={setPage}
           />
@@ -450,12 +578,32 @@ function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
       <div className="panel">
         <h2>Aktivitas terbaru</h2>
         <p className="muted">Data terbaru akan tampil di masing-masing menu. Gunakan Purchase Request untuk memulai pengadaan.</p>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+          <button
+            type="button"
+            className="outline"
+            style={{ fontSize: '12px', padding: '8px 12px' }}
+            onClick={() => exportWorkbook([
+              ['Projects', rows.projects || [], headersFor('projects', rows.projects || [])],
+              ['Vendors', rows.vendors || [], headersFor('vendors', rows.vendors || [])],
+              ['Materials', rows.materials || [], headersFor('materials', rows.materials || [])],
+              ['Purchase Request', rows.requests || [], headersFor('requests', rows.requests || [])],
+              ['PR Items', rows.pr_items || [], ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status']],
+              ['Approval', rows.approvals || [], headersFor('approvals', rows.approvals || [])],
+              ['Receiving', rows.receivings || [], headersFor('receivings', rows.receivings || [])],
+              ['Receiving Items', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
+              ['Handover', rows.handovers || [], headersFor('handovers', rows.handovers || [])]
+            ], 'Purchasing-Seluruh-Data')}
+          >
+            📦 Export Semua Data (Excel)
+          </button>
+        </div>
       </div>
     </>
   )
 }
 
-function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onDelete, setPage }) {
+function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onDecideApproval, onReviseApproval, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -465,7 +613,15 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
   const [vendorFilter, setVendorFilter] = useState('all')
   const [handoverFilter, setHandoverFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [expandedApproval, setExpandedApproval] = useState(null)
+  const [expandedReceiving, setExpandedReceiving] = useState(null)
   const title = labels[page]
+
+  // --- Helper alur item (dipakai modul Approval & Receiving) ---
+  const prItemsForPr = (prId) => (rows.pr_items || []).filter(it => it.pr_id === prId)
+  const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
+  const approvalItemCount = (approval) => approvalItems(approval).length
+  const receivingItemsForReceiving = (recId) => (rows.receiving_items || []).filter(it => it.receiving_id === recId)
 
   let displayRows = rows
   if (page === 'projects') {
@@ -777,6 +933,28 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
           )}
         </div>
         <div className="toolbar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {page !== 'dashboard' && (
+            <span style={{ display: 'inline-flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="outline"
+                title="Unduh Excel (.xlsx)"
+                onClick={() => exportToExcel(displayRows, headersFor(page, displayRows), `Purchasing-${page}`)}
+                style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 12px' }}
+              >
+                📊 XLSX
+              </button>
+              <button
+                type="button"
+                className="outline"
+                title="Unduh CSV (.csv)"
+                onClick={() => exportToCsv(displayRows, headersFor(page, displayRows), `Purchasing-${page}`)}
+                style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '8px 12px' }}
+              >
+                📄 CSV
+              </button>
+            </span>
+          )}
           <input
             type="search"
             placeholder="🔍 Cari..."
@@ -827,7 +1005,8 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
           <tbody>
             {displayRows.length ? (
               displayRows.map((r, i) => (
-                <tr key={r.id || i}>
+                <React.Fragment key={r.id || i}>
+                <tr>
                   {columns.map(h => {
                     const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
                     return (
@@ -894,7 +1073,7 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                   {page === 'approvals' && (
                     <td style={{ textAlign: 'center' }}>
                       {r.status === 'PENDING' ? (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
                           <button
                             type="button"
                             onClick={() => onDecideApproval(r, 'APPROVED')}
@@ -909,9 +1088,27 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                           >
                             ✕ Tolak
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => onReviseApproval(r)}
+                            style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✎ Revisi
+                          </button>
                         </div>
                       ) : (
-                        <span className={`badge status-${r.status}`}>{r.status}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                          <span className={`badge status-${r.status}`}>{r.status}</span>
+                          {r.status === 'APPROVED' && approvalItemCount(r) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
+                              style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
+                            >
+                              {expandedApproval === r.id ? '▲ Tutup item' : `▼ Item & Order (${approvalItemCount(r)})`}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   )}
@@ -928,6 +1125,130 @@ function Module({ page, rows, allProjects, allMaterials = [], refresh, say, onSt
                     </td>
                   )}
                 </tr>
+                {page === 'receivings' && receivingItemsForReceiving(r.id).length > 0 && (
+                  <tr>
+                    <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#1f3a34' }}>
+                          📦 Item yang diorder — isi qty terima lalu tandai "Sudah Diterima"
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedReceiving(expandedReceiving === r.id ? null : r.id)}
+                          style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
+                        >
+                          {expandedReceiving === r.id ? '▲ Tutup item' : `▼ Lihat ${receivingItemsForReceiving(r.id).length} item`}
+                        </button>
+                      </div>
+                      {expandedReceiving === r.id && (
+                        <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
+                              <th style={{ padding: '4px 6px', width: '60px' }}>No</th>
+                              <th style={{ padding: '4px 6px' }}>Nama Item</th>
+                              <th style={{ padding: '4px 6px', width: '120px' }}>Qty Diterima</th>
+                              <th style={{ padding: '4px 6px', width: '70px' }}>Satuan</th>
+                              <th style={{ padding: '4px 6px', width: '130px', textAlign: 'center' }}>Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {receivingItemsForReceiving(r.id).map((it, i) => {
+                              const isReceived = String(it.note || '').toUpperCase().startsWith('DITERIMA')
+                              return (
+                                <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
+                                  <td style={{ padding: '4px 6px' }}>{i + 1}</td>
+                                  <td style={{ padding: '4px 6px' }}>{it.item_name}</td>
+                                  <td style={{ padding: '4px 6px' }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={it.quantity_received ?? ''}
+                                      placeholder="0"
+                                      disabled={isReceived}
+                                      onChange={e => onUpdateReceivingQty(it, e.target.value)}
+                                      style={{ width: '70px', padding: '2px 4px', fontSize: '11px' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '4px 6px' }}>{it.unit || '—'}</td>
+                                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                                    {isReceived ? (
+                                      <span style={{ fontSize: '10px', color: '#137333', fontWeight: 600 }}>✓ Sudah diterima → Handover</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => onMarkReceivingItemReceived(it)}
+                                        style={{ background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                                      >
+                                        ✓ Sudah Diterima
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                {page === 'approvals' && expandedApproval === r.id && r.status === 'APPROVED' && (
+                  <tr>
+                    <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: '#1f3a34' }}>
+                        📋 Item disetujui — tandai yang sudah dipesan ke supplier
+                      </div>
+                      {approvalItems(r).length === 0 ? (
+                        <p className="muted" style={{ fontSize: '11px' }}>Tidak ada item pada PR ini.</p>
+                      ) : (
+                        <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
+                              <th style={{ padding: '4px 6px', width: '90px' }}>Kode</th>
+                              <th style={{ padding: '4px 6px' }}>Nama Item</th>
+                              <th style={{ padding: '4px 6px', width: '70px' }}>Qty</th>
+                              <th style={{ padding: '4px 6px', width: '70px' }}>Satuan</th>
+                              <th style={{ padding: '4px 6px', width: '100px' }}>Status</th>
+                              <th style={{ padding: '4px 6px', width: '110px', textAlign: 'center' }}>Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {approvalItems(r).map(it => {
+                              const isOrdered = String(it.status || '').toUpperCase() === 'ORDERED'
+                              return (
+                                <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
+                                  <td style={{ padding: '4px 6px' }}><b>{it.kode || '—'}</b></td>
+                                  <td style={{ padding: '4px 6px' }}>{it.item_name}</td>
+                                  <td style={{ padding: '4px 6px' }}>{it.quantity}</td>
+                                  <td style={{ padding: '4px 6px' }}>{it.unit || '—'}</td>
+                                  <td style={{ padding: '4px 6px' }}>
+                                    <span className={`badge ${isOrdered ? 'status-APPROVED' : 'status-DRAFT'}`} style={{ fontSize: '10px' }}>
+                                      {isOrdered ? '✓ Sudah Order' : 'Belum Diorder'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                                    {isOrdered ? (
+                                      <span style={{ fontSize: '10px', color: '#137333' }}>→ ke Receiving</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => onMarkPrItemOrdered(it)}
+                                        style={{ background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                                      >
+                                        🛒 Sudah Order
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))
             ) : (
               <tr>
@@ -1020,11 +1341,23 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
     handover_date: new Date().toISOString().slice(0, 10)
   })
   const [saving, setSaving] = useState(false)
+  const [importMsg, setImportMsg] = useState('')
+  const [materialSearch, setMaterialSearch] = useState('')
+  const fileInputRef = useRef(null)
 
-  // State untuk Tarik Item Material di PR
-  const [selectedMaterialId, setSelectedMaterialId] = useState(allMaterials[0]?.id || '')
+  // State untuk Item Material di PR (1 pengadaan bisa banyak item)
+  const [selectedMaterialId, setSelectedMaterialId] = useState('')
   const [itemQty, setItemQty] = useState('1')
   const [prItemsList, setPrItemsList] = useState([])
+
+  const filteredMaterials = useMemo(() => {
+    if (!materialSearch.trim()) return allMaterials.slice(0, 100)
+    const q = materialSearch.toLowerCase().trim()
+    return allMaterials.filter(m =>
+      String(m.name || '').toLowerCase().includes(q) ||
+      String(m.kode || m.code || '').toLowerCase().includes(q)
+    ).slice(0, 200)
+  }, [allMaterials, materialSearch])
 
   function addItemToPR() {
     if (!selectedMaterialId) return
@@ -1047,10 +1380,46 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
       }])
     }
     setItemQty('1')
+    setSelectedMaterialId('')
+    setMaterialSearch('')
   }
 
   function removeItemFromPR(idx) {
     setPrItemsList(prItemsList.filter((_, i) => i !== idx))
+  }
+
+  function updateItemQty(idx, val) {
+    const q = Number(val)
+    setPrItemsList(prItemsList.map((it, i) => i === idx ? { ...it, qty: isFinite(q) && q > 0 ? q : 1 } : it))
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportMsg('')
+    try {
+      const buf = await file.arrayBuffer()
+      const { items, errors, warnings } = parsePrItemsFile(buf, file.name, allMaterials)
+      if (!items.length) {
+        setImportMsg(`❌ Tidak ada item yang bisa diimpor. ${errors.slice(0, 4).join(' | ')}`)
+      } else {
+        // gabungkan dengan item yang sudah ada
+        const merged = [...prItemsList]
+        for (const it of items) {
+          const idx = merged.findIndex(x => x.material_id === it.material_id)
+          if (idx !== -1) merged[idx].qty = Number(merged[idx].qty) + Number(it.qty)
+          else merged.push(it)
+        }
+        setPrItemsList(merged)
+        const errTxt = errors.length ? ` ⚠️ ${errors.length} baris dilewati.` : ''
+        setImportMsg(`✅ ${items.length} item berhasil diimpor dari "${file.name}".${errTxt}${errors.length ? ' Detail: ' + errors.slice(0, 3).join(' | ') : ''}`)
+      }
+      if (warnings.length && items.length) setImportMsg(m => `${m} ${warnings.slice(0, 2).join(' | ')}`)
+    } catch (err) {
+      setImportMsg(`❌ Gagal membaca file: ${err.message}`)
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const field = (name, label, type = 'text', required = false) => (
@@ -1081,12 +1450,13 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
         ? prItemsList.map(it => `${it.qty} ${it.satuan || ''} ${it.name}`).join(', ')
         : (form.title || '—')
 
+      // PR yang baru dibuat langsung SUBMITTED agar otomatis masuk modul Approval
       data = {
         project_id: form.project_id || null,
         title: form.title,
         pr_number: form.pr_number || nextPrNum,
         priority: form.priority || 'NORMAL',
-        status: 'DRAFT',
+        status: 'SUBMITTED',
         materials_summary: summary,
         notes: form.notes || form.title
       }
@@ -1105,13 +1475,36 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
           item_name: it.name,
           kode: it.kode,
           unit: it.satuan,
-          quantity: it.qty
+          quantity: it.qty,
+          status: 'PENDING_APPROVAL'
         }))
-        await supabase.from('pr_items').insert(itemRecords)
+        const { error: itemErr } = await supabase.from('pr_items').insert(itemRecords)
+        if (itemErr) {
+          setSaving(false)
+          say(`PR tersimpan, tapi gagal simpan item: ${itemErr.message}`)
+          close(); refresh()
+          return
+        }
+      }
+
+      // Auto-buat 1 approval step PENDING (Step 1: Direksi / PM)
+      if (insertedPR) {
+        const { error: appErr } = await supabase.from('approval_steps').insert({
+          purchase_request_id: insertedPR.id,
+          step_number: 1,
+          status: 'PENDING',
+          note: `Menunggu persetujuan Direksi / PM untuk PR ${data.pr_number}`
+        })
+        if (appErr) {
+          setSaving(false)
+          say(`PR ${data.pr_number} tersimpan, tapi gagal membuat approval otomatis: ${appErr.message}`)
+          close(); refresh()
+          return
+        }
       }
 
       setSaving(false)
-      say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item material ditarik).`)
+      say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item) dan otomatis masuk Approval (menunggu persetujuan).`)
       close()
       refresh()
       return
@@ -1206,24 +1599,35 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
               </select>
             </label>
 
-            {/* TARIK ITEM MATERIAL */}
+            {/* ITEM MATERIAL — 1 pengadaan bisa banyak item */}
             <div className="material-picker-box">
               <label style={{ fontWeight: 600, color: '#1f3a34', marginBottom: '6px', display: 'block' }}>
-                📦 Tarik Item Material
+                📦 Item Material ({prItemsList.length} item)
               </label>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: '8px', alignItems: 'end' }}>
                 <label style={{ margin: 0, fontSize: '12px' }}>Pilih dari Master Material ({allMaterials.length})
+                  <input
+                    type="text"
+                    placeholder="🔍 Cari nama / kode material…"
+                    value={materialSearch}
+                    onChange={e => setMaterialSearch(e.target.value)}
+                    style={{ marginBottom: '4px' }}
+                  />
                   <select
                     value={selectedMaterialId}
                     onChange={e => setSelectedMaterialId(e.target.value)}
                   >
                     <option value="">-- Pilih Material --</option>
-                    {allMaterials.map(m => (
+                    {filteredMaterials.map(m => (
                       <option key={m.id} value={m.id}>
                         {m.kode ? `[${m.kode}] ` : ''}{m.name} ({m.satuan || 'Pcs'})
                       </option>
                     ))}
                   </select>
+                  {materialSearch && (
+                    <small style={{ color: '#5b6b66' }}>{filteredMaterials.length} hasil{filteredMaterials.length >= 200 ? ' (maks 200, perbanyak kata kunci)' : ''}</small>
+                  )}
                 </label>
                 <label style={{ margin: 0, fontSize: '12px' }}>Qty
                   <input
@@ -1238,19 +1642,54 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                   className="outline"
                   style={{ height: '36px', whiteSpace: 'nowrap', padding: '0 12px', fontSize: '12px' }}
                   onClick={addItemToPR}
+                  disabled={!selectedMaterialId}
                 >
-                  + Tarik Item
+                  + Tambah Item
                 </button>
               </div>
 
+              {/* IMPORT DARI EXCEL */}
+              <div style={{ marginTop: '10px', padding: '8px 10px', background: '#f6f9f8', border: '1px dashed #b9cdc7', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="outline"
+                  style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}
+                  onClick={() => downloadPrImportTemplate(allMaterials)}
+                >
+                  ⬇ Template Excel
+                </button>
+                <button
+                  type="button"
+                  style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  📤 Import Excel
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  style={{ display: 'none' }}
+                  onChange={handleImportFile}
+                />
+                <small style={{ color: '#5b6b66', flex: 1, minWidth: '180px' }}>
+                  Import banyak item sekaligus. Kolom: Kode/Nama Material, Qty, Satuan.
+                </small>
+              </div>
+              {importMsg && (
+                <p style={{ fontSize: '11px', margin: '6px 0 0', padding: '6px 8px', background: '#f7faf9', borderRadius: '4px', border: '1px solid #e1e7e4' }}>
+                  {importMsg}
+                </p>
+              )}
+
               {prItemsList.length > 0 ? (
-                <div style={{ marginTop: '10px', maxHeight: '160px', overflowY: 'auto' }}>
+                <div style={{ marginTop: '10px', maxHeight: '200px', overflowY: 'auto' }}>
                   <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
                         <th style={{ padding: '4px 6px' }}>Kode</th>
                         <th style={{ padding: '4px 6px' }}>Nama Material</th>
-                        <th style={{ padding: '4px 6px', width: '50px' }}>Qty</th>
+                        <th style={{ padding: '4px 6px', width: '60px' }}>Qty</th>
                         <th style={{ padding: '4px 6px', width: '60px' }}>Satuan</th>
                         <th style={{ padding: '4px 6px', width: '40px', textAlign: 'center' }}>Aksi</th>
                       </tr>
@@ -1260,7 +1699,15 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                         <tr key={it.material_id || idx} style={{ borderBottom: '1px solid #e1e7e4' }}>
                           <td style={{ padding: '4px 6px' }}><b>{it.kode}</b></td>
                           <td style={{ padding: '4px 6px' }}>{it.name}</td>
-                          <td style={{ padding: '4px 6px' }}><b>{it.qty}</b></td>
+                          <td style={{ padding: '4px 6px' }}>
+                            <input
+                              type="number"
+                              min="1"
+                              value={it.qty}
+                              onChange={e => updateItemQty(idx, e.target.value)}
+                              style={{ width: '52px', padding: '2px 4px', fontSize: '11px' }}
+                            />
+                          </td>
                           <td style={{ padding: '4px 6px' }}>{it.satuan || '—'}</td>
                           <td style={{ padding: '4px 6px', textAlign: 'center' }}>
                             <button
@@ -1279,7 +1726,7 @@ function Create({ page, allProjects = [], allMaterials = [], existingRequests = 
                 </div>
               ) : (
                 <p className="muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
-                  💡 Belum ada item material yang ditarik. Pilih material di atas lalu klik "+ Tarik Item".
+                  💡 Belum ada item. Pilih material di atas lalu "+ Tambah Item", atau import dari Excel.
                 </p>
               )}
             </div>
