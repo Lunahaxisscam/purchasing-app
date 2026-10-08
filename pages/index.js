@@ -209,6 +209,12 @@ export default function App() {
     if (receiverInput === null) return
     const receivedBy = receiverInput.trim() || 'Tukang'
 
+    const items = (rows.receiving_items || []).filter(it => it.receiving_id === receiving.id)
+    const itemDesc = items
+      .filter(it => Number(it.quantity_received || 0) > 0)
+      .map(it => `${it.item_name} ${Number(it.quantity_received || 0)} ${it.unit || ''}`.replace(/\s+/g, ' ').trim())
+      .join('; ')
+
     setActionBusy(true)
     try {
       let handledByRpc = false
@@ -231,7 +237,7 @@ export default function App() {
           received_by: receivedBy,
           handover_date: now.slice(0, 10),
           status: 'DRAFT',
-          note: `Barang dari penerimaan ${label} dikirim langsung ke tukang.`
+          note: `Barang dari penerimaan ${label} dikirim langsung ke tukang.${itemDesc ? ` Item: ${itemDesc}.` : ''}`
         })
         if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
 
@@ -462,45 +468,39 @@ export default function App() {
     }
   }
 
-  // Item di receiving -> tandai "sudah diterima", lalu pindah ke Handover
+  // ============================================================
+  // LANGKAH 1 — CEK FISIK item receiving (qty terima + catatan).
+  // Fungsi ini TIDAK membuat tiket handover: alokasi akhir (Gudang/Tukang)
+  // dilakukan terpisah di Langkah 2 pada level penerimaan (moveToWarehouse /
+  // sendToTukang). Barang yang dicek bisa saja dialokasikan ke Gudang,
+  // jadi jangan pernah auto-insert ke tabel handovers di sini.
+  // ============================================================
   async function markReceivingItemReceived(recItem) {
     if (!supabase) return
-    const receiverInput = window.prompt(`Barang "${recItem.item_name}" sudah diterima.\nMasukkan nama tukang / penerima barang:`, 'Tukang')
-    if (receiverInput === null) return
-    const receivedBy = receiverInput.trim() || 'Tukang'
-
     const now = new Date().toISOString()
     const qtyInput = Number(recItem.quantity_received || 0)
     // Qty yang dipakai: isian user bila diisi, kalau kosong pakai qty yang dipesan di PR
     const prItemForQty = (rows.pr_items || []).find(p => p.id === recItem.pr_item_id)
-    const qtyFinal = qtyInput > 0 ? qtyInput : Number(prItemForQty?.quantity || 0)
+    const orderedQty = Number(prItemForQty?.quantity || 0)
+    const qtyFinal = qtyInput > 0 ? qtyInput : orderedQty
 
-    const receiving = (rows.receivings || []).find(r => r.id === recItem.receiving_id)
-    const prItem = (rows.pr_items || []).find(p => p.id === recItem.pr_item_id)
-    const pr = prItem ? (rows.requests || []).find(p => p.id === prItem.pr_id) : null
-    const projectId = receiving?.project_id || pr?.project_id || null
+    if (!(qtyFinal > 0)) {
+      setNotice(`Isi dulu jumlah barang yang benar-benar diterima untuk "${recItem.item_name}" sebelum cek fisik.`)
+      return
+    }
 
     try {
-      // 1. Tandai item sudah diterima (qty terima + penanda di kolom note)
       const { error: riErr } = await supabase.from('receiving_items')
         .update({ quantity_received: qtyFinal, note: `DITERIMA ${now.slice(0, 10)}` })
         .eq('id', recItem.id)
       if (riErr) { setNotice(`Gagal update item: ${riErr.message}`); return }
 
-      // 2. Buat handover utk item ini
-      // Catatan memuat nama item di depan agar selalu terbaca di tabel & ekspor,
-      // karena tabel handovers tidak punya kolom khusus nama barang.
-      const { error: hoErr } = await supabase.from('handovers').insert({
-        receiving_id: recItem.receiving_id,
-        project_id: projectId,
-        received_by: receivedBy,
-        handover_date: now.slice(0, 10),
-        status: 'DRAFT',
-        note: `Item: ${recItem.item_name} — diterima ${qtyFinal || '?'} ${recItem.unit || ''} (dari PR ${pr?.pr_number || '-'}).`
-      })
-      if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
-
-      setNotice(`Barang "${recItem.item_name}" sudah diterima oleh ${receivedBy} dan masuk ke daftar Handover.`)
+      const unit = recItem.unit || ''
+      if (orderedQty > 0 && qtyFinal < orderedQty) {
+        setNotice(`Cek fisik "${recItem.item_name}": PARSIAL — diterima ${qtyFinal} ${unit} dari ${orderedQty} dipesan (sisa ${orderedQty - qtyFinal}). Alokasi akhir dilakukan di Langkah 2 pada baris penerimaan.`)
+      } else {
+        setNotice(`Cek fisik "${recItem.item_name}": LENGKAP — diterima ${qtyFinal} ${unit}${orderedQty > 0 ? ` dari ${orderedQty} dipesan` : ''}. Lanjutkan alokasi akhir (Ke Gudang / Ke Tukang) di Langkah 2.`)
+      }
       loadAll()
     } catch (err) {
       setNotice(`Terjadi kesalahan saat memproses penerimaan item: ${err.message}`)

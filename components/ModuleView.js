@@ -11,7 +11,10 @@ import {
   prettyReceivingStatus,
   isReceivingKendala,
   statusOptions,
-  labels
+  labels,
+  parseReceivingNote,
+  notaHref,
+  rupiah
 } from '../lib/constants'
 
 export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
@@ -51,6 +54,41 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const vendorName = (vendorId) => ((allVendors || []).find(v => v.id === vendorId) || {}).name || ''
   const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
   const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
+
+  // --- Poin 2: progres penerimaan (parsial vs lengkap) ---
+  const orderedQtyFor = (it) => {
+    const prItem = (allPrItems || []).find(p => p.id === it.pr_item_id)
+    const n = Number(prItem?.quantity)
+    return isFinite(n) && n > 0 ? n : null
+  }
+
+  const itemReceiveStatus = (it) => {
+    const rec = Number(it.quantity_received || 0)
+    const ordered = orderedQtyFor(it)
+    if (!(rec > 0)) return { key: 'BELUM', rec, ordered, text: `Belum Diterima (0 / ${ordered || 0})` }
+    if (ordered === null || rec >= ordered) return { key: 'LENGKAP', rec, ordered: ordered === null ? rec : ordered, text: `✓ Lengkap (${rec} / ${ordered === null ? rec : ordered})` }
+    return { key: 'PARSIAL', rec, ordered, text: `⏳ Parsial (${rec} / ${ordered} — Sisa ${ordered - rec})` }
+  }
+
+  const itemBadgeStyle = (key) => key === 'LENGKAP'
+    ? { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
+    : key === 'PARSIAL'
+      ? { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' }
+      : { background: '#f3f5f6', color: '#556260', border: '1px solid #d6dcde' }
+
+  const receivingProgress = (recId) => {
+    const items = receivingItemsForReceiving(recId)
+    if (!items.length) return null
+    const statuses = items.map(itemReceiveStatus)
+    const doneCount = statuses.filter(s => s.key === 'LENGKAP').length
+    return {
+      statuses,
+      doneCount,
+      total: statuses.length,
+      allDone: doneCount === statuses.length,
+      anyReceived: statuses.some(s => s.rec > 0)
+    }
+  }
 
   // Status persetujuan per material: ORDERED (sudah dipesan) > APPROVED (disetujui) > PENDING (menunggu)
   const itemState = (it) => {
@@ -508,74 +546,95 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                             <option value="ON_GOING">On Going</option>
                             <option value="DONE">Done</option>
                           </select>
-                        ) : page === 'receivings' && h === 'status' ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                            <select
-                              className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
-                              value={['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? String(r.status).toUpperCase() : (r.status || 'NORMAL')}
-                              onChange={e => onReceivingStatusChange(r, e.target.value)}
-                            >
-                              {r.status && !['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status).toUpperCase()) && (
-                                <option value={r.status} disabled>{prettyReceivingStatus(r.status)} (status lama)</option>
+                        ) : page === 'receivings' && h === 'status' ? (() => {
+                          const prog = receivingProgress(r.id)
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                              <select
+                                className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
+                                value={['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? String(r.status).toUpperCase() : (r.status || 'NORMAL')}
+                                onChange={e => onReceivingStatusChange(r, e.target.value)}
+                              >
+                                {r.status && !['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status).toUpperCase()) && (
+                                  <option value={r.status} disabled>{prettyReceivingStatus(r.status)} (status lama)</option>
+                                )}
+                                <option value="NORMAL">✓ Normal</option>
+                                <option value="RETUR">⚠️ Retur</option>
+                                <option value="REFUND">⚠️ Refund</option>
+                              </select>
+                              {prog && (
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: '2px 7px',
+                                  borderRadius: '10px',
+                                  width: 'fit-content',
+                                  whiteSpace: 'nowrap',
+                                  ...(prog.allDone
+                                    ? { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
+                                    : { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' })
+                                }}>
+                                  {prog.allDone ? `✓ LENGKAP (${prog.doneCount}/${prog.total})` : `⏳ PARSIAL (${prog.doneCount}/${prog.total})`}
+                                </span>
                               )}
-                              <option value="NORMAL">✓ Normal</option>
-                              <option value="RETUR">⚠️ Retur</option>
-                              <option value="REFUND">⚠️ Refund</option>
-                            </select>
-                            {r.masuk_gudang ? (
-                              <span style={{ fontSize: '11px', color: '#137333', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                ✓ Di Stok Gudang
-                              </span>
-                            ) : r.tukang_at || r.alokasi === 'KE_TUKANG' ? (
-                              <span style={{ fontSize: '11px', color: '#1a73e8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                👷 Ke Tukang (Handover)
-                              </span>
-                            ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
-                              <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                ⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah
-                              </span>
-                            ) : (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => onMoveToWarehouse(r)}
-                                  style={{
-                                    background: '#e6f4ea',
-                                    color: '#137333',
-                                    border: '1px solid #ceead6',
-                                    borderRadius: '4px',
-                                    padding: '3px 6px',
-                                    fontSize: '10px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    width: 'fit-content'
-                                  }}
-                                  title="Tambah stok barang ke modul Materials"
-                                >
-                                  📦 Ke Gudang
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onSendToTukang(r)}
-                                  style={{
-                                    background: '#e8f0fe',
-                                    color: '#1a73e8',
-                                    border: '1px solid #d2e3fc',
-                                    borderRadius: '4px',
-                                    padding: '3px 6px',
-                                    fontSize: '10px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    width: 'fit-content'
-                                  }}
-                                  title="Kirim langsung ke tukang — masuk modul Handover"
-                                >
-                                  👷 Ke Tukang
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : page === 'vendors' && h === 'phone' ? (
+                              {r.masuk_gudang ? (
+                                <span style={{ fontSize: '11px', color: '#137333', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  ✓ Di Stok Gudang
+                                </span>
+                              ) : r.tukang_at || r.alokasi === 'KE_TUKANG' ? (
+                                <span style={{ fontSize: '11px', color: '#1a73e8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  👷 Ke Tukang (Handover)
+                                </span>
+                              ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
+                                <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                  ⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah
+                                </span>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '9px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>LANGKAH 2 — ALOKASI</span>
+                                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => onMoveToWarehouse(r)}
+                                      style={{
+                                        background: '#e6f4ea',
+                                        color: '#137333',
+                                        border: '1px solid #ceead6',
+                                        borderRadius: '4px',
+                                        padding: '4px 7px',
+                                        fontSize: '10px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        width: 'fit-content'
+                                      }}
+                                      title="Tambah stok barang ke modul Materials"
+                                    >
+                                      📦 Masuk Stok Gudang
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onSendToTukang(r)}
+                                      style={{
+                                        background: '#e8f0fe',
+                                        color: '#1a73e8',
+                                        border: '1px solid #d2e3fc',
+                                        borderRadius: '4px',
+                                        padding: '4px 7px',
+                                        fontSize: '10px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        width: 'fit-content'
+                                      }}
+                                      title="Serah terima langsung ke tukang — masuk modul Handover"
+                                    >
+                                      👷 Serah Terima ke Tukang
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })() : page === 'vendors' && h === 'phone' ? (
                           <WaContact value={rawVal} />
                         ) : page === 'vendors' && h === 'store_link' ? (
                           <StoreLink value={rawVal} />
@@ -613,7 +672,29 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                           <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={String(rawVal || '')}>
                             {format(rawVal)}
                           </div>
-                        ) : ['requests', 'approvals'].includes(page) && (h === 'notes' || h === 'note') ? (
+                        ) : page === 'receivings' && h === 'note' ? (() => {
+                          const pn = parseReceivingNote(rawVal)
+                          const href = notaHref(pn.notaUrl)
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '240px', whiteSpace: 'normal', lineHeight: 1.4, fontSize: '12px' }}>
+                              {pn.nominal !== null && (
+                                <b style={{ color: '#137333' }}>💰 {rupiah(pn.nominal)}</b>
+                              )}
+                              {pn.notaUrl && (
+                                href ? (
+                                  <a href={href} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', width: 'fit-content', background: '#e8f0fe', color: '#1a73e8', border: '1px solid #d2e3fc', borderRadius: '4px', padding: '2px 7px', fontSize: '10px', fontWeight: 700, textDecoration: 'none' }}>
+                                    📄 Nota / Resi
+                                  </a>
+                                ) : (
+                                  <span style={{ width: 'fit-content', background: '#eef3f1', color: '#1f3a34', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '2px 7px', fontSize: '10px', fontWeight: 600 }}>
+                                    📄 {pn.notaUrl}
+                                  </span>
+                                )
+                              )}
+                              {pn.extra ? <span>{pn.extra}</span> : (pn.nominal === null && !pn.notaUrl ? format(rawVal) : null)}
+                            </div>
+                          )
+                        })() : ['requests', 'approvals'].includes(page) && (h === 'notes' || h === 'note') ? (
                           <div style={{ whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: 1.4, fontSize: '12px' }}>
                             {format(rawVal)}
                           </div>
@@ -766,7 +847,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 600, color: '#1f3a34' }}>
-                          📦 Item yang diorder — isi qty terima lalu tandai "Sudah Diterima"
+                          📦 Langkah 1 — Cek Fisik Item (isi qty diterima, status Parsial/Lengkap dihitung otomatis)
                         </div>
                         <button
                           type="button"
@@ -780,44 +861,48 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                         <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
                           <thead>
                             <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
-                              <th style={{ padding: '4px 6px', width: '60px' }}>No</th>
-                              <th style={{ padding: '4px 6px' }}>Nama Item</th>
-                              <th style={{ padding: '4px 6px', width: '120px' }}>Qty Diterima</th>
-                              <th style={{ padding: '4px 6px', width: '70px' }}>Satuan</th>
-                              <th style={{ padding: '4px 6px', width: '130px', textAlign: 'center' }}>Aksi</th>
+                              <th style={{ padding: '6px 8px', width: '40px' }}>No</th>
+                              <th style={{ padding: '6px 8px' }}>Nama Item</th>
+                              <th style={{ padding: '6px 8px', width: '110px' }}>Qty Dipesan (PR)</th>
+                              <th style={{ padding: '6px 8px', width: '110px' }}>Qty Diterima</th>
+                              <th style={{ padding: '6px 8px', width: '70px' }}>Satuan</th>
+                              <th style={{ padding: '6px 8px', width: '170px' }}>Status Fisik</th>
+                              <th style={{ padding: '6px 8px', width: '110px', textAlign: 'center' }}>Aksi</th>
                             </tr>
                           </thead>
                           <tbody>
                             {receivingItemsForReceiving(r.id).map((it, i) => {
-                              const isReceived = String(it.note || '').toUpperCase().startsWith('DITERIMA')
+                              const st = itemReceiveStatus(it)
                               return (
                                 <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
-                                  <td style={{ padding: '4px 6px' }}>{i + 1}</td>
-                                  <td style={{ padding: '4px 6px' }}>{it.item_name}</td>
-                                  <td style={{ padding: '4px 6px' }}>
+                                  <td style={{ padding: '6px 8px' }}>{i + 1}</td>
+                                  <td style={{ padding: '6px 8px', fontWeight: 600 }}>{it.item_name}</td>
+                                  <td style={{ padding: '6px 8px' }}>{st.ordered !== null ? `${st.ordered} ${it.unit || ''}` : '—'}</td>
+                                  <td style={{ padding: '6px 8px' }}>
                                     <input
                                       type="number"
                                       min="0"
                                       value={it.quantity_received ?? ''}
                                       placeholder="0"
-                                      disabled={isReceived}
                                       onChange={e => onUpdateReceivingQty(it, e.target.value)}
-                                      style={{ width: '70px', padding: '2px 4px', fontSize: '11px' }}
+                                      style={{ width: '70px', padding: '3px 6px', fontSize: '11px', borderRadius: '4px', border: '1px solid #cbd8d4' }}
                                     />
                                   </td>
-                                  <td style={{ padding: '4px 6px' }}>{it.unit || '—'}</td>
-                                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
-                                    {isReceived ? (
-                                      <span style={{ fontSize: '10px', color: '#137333', fontWeight: 600 }}>✓ Sudah diterima → Handover</span>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => onMarkReceivingItemReceived(it)}
-                                        style={{ background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
-                                      >
-                                        ✓ Sudah Diterima
-                                      </button>
-                                    )}
+                                  <td style={{ padding: '6px 8px' }}>{it.unit || '—'}</td>
+                                  <td style={{ padding: '6px 8px' }}>
+                                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', whiteSpace: 'nowrap', ...itemBadgeStyle(st.key) }}>
+                                      {st.text}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => onMarkReceivingItemReceived(it)}
+                                      style={{ background: st.key === 'PARSIAL' ? '#b45309' : '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                                      title="Simpan qty & konfirmasi penerimaan fisik"
+                                    >
+                                      {st.key === 'PARSIAL' ? '✓ Update Terima' : '✓ Cek Fisik'}
+                                    </button>
                                   </td>
                                 </tr>
                               )
@@ -1142,7 +1227,145 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     </button>
                   </div>
                 </>
-              ) : (
+              ) : page === 'receivings' ? (() => {
+                const prog = receivingProgress(r.id)
+                const pn = parseReceivingNote(r.note)
+                const href = notaHref(pn.notaUrl)
+                return (
+                  <>
+                    <div className="mobile-card-header">
+                      <div>
+                        <b className="mobile-card-title">{r.invoice_no || r.delivery_note || 'Penerimaan'}</b>
+                        <div className="mobile-card-sub">{r.project_name || 'Tanpa Project'}</div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                        <span className={`badge ${isReceivingKendala(r.status) ? 'status-REJECTED' : 'status-APPROVED'}`} style={{ fontSize: '10px' }}>
+                          {prettyReceivingStatus(r.status)}
+                        </span>
+                        {prog && (
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '8px',
+                            whiteSpace: 'nowrap',
+                            ...(prog.allDone
+                              ? { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
+                              : { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' })
+                          }}>
+                            {prog.allDone ? `✓ LENGKAP (${prog.doneCount}/${prog.total})` : `⏳ PARSIAL (${prog.doneCount}/${prog.total})`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mobile-card-body">
+                      {r.delivery_note && (
+                        <div className="mobile-card-row">
+                          <span className="mobile-label">Surat Jalan:</span>
+                          <span className="mobile-val">{r.delivery_note}</span>
+                        </div>
+                      )}
+                      <div className="mobile-card-row">
+                        <span className="mobile-label">Tgl Terima:</span>
+                        <span className="mobile-val">{format(r.received_date)}</span>
+                      </div>
+                      {pn.nominal !== null && (
+                        <div className="mobile-card-row">
+                          <span className="mobile-label">Nominal Riil:</span>
+                          <span className="mobile-val" style={{ color: '#137333', fontWeight: 700 }}>{rupiah(pn.nominal)}</span>
+                        </div>
+                      )}
+                      {pn.notaUrl && (
+                        <div className="mobile-card-row">
+                          <span className="mobile-label">Nota / Resi:</span>
+                          <span className="mobile-val">
+                            {href ? (
+                              <a href={href} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#e8f0fe', color: '#1a73e8', border: '1px solid #d2e3fc', borderRadius: '4px', padding: '2px 7px', fontSize: '10px', fontWeight: 700, textDecoration: 'none' }}>
+                                📄 Buka Nota
+                              </a>
+                            ) : (
+                              `📄 ${pn.notaUrl}`
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      {pn.extra && (
+                        <div className="mobile-card-note">
+                          <b>Catatan:</b> {pn.extra}
+                        </div>
+                      )}
+                      {receivingItemsForReceiving(r.id).length > 0 && (
+                        <div className="mobile-card-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                          <span className="mobile-label">Item (Langkah 1 — Cek Fisik):</span>
+                          <div className="mobile-items-box" style={{ width: '100%' }}>
+                            {receivingItemsForReceiving(r.id).map(it => {
+                              const st = itemReceiveStatus(it)
+                              return (
+                                <div key={it.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '8px', marginBottom: '8px', borderBottom: '1px dashed #d5e0dc' }}>
+                                  <span style={{ fontWeight: 600 }}>• {it.item_name}</span>
+                                  <span style={{ fontSize: '11px', color: '#556b65' }}>Dipesan: {st.ordered ?? '—'} {it.unit || ''} · Diterima: {st.rec} {it.unit || ''}</span>
+                                  <span style={{ width: 'fit-content', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', ...itemBadgeStyle(st.key) }}>
+                                    {st.text}
+                                  </span>
+                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '3px' }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={it.quantity_received ?? ''}
+                                      placeholder="0"
+                                      onChange={e => onUpdateReceivingQty(it, e.target.value)}
+                                      style={{ width: '65px', padding: '3px 6px', fontSize: '11px', borderRadius: '4px', border: '1px solid #cbd8d4' }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => onMarkReceivingItemReceived(it)}
+                                      style={{ background: st.key === 'PARSIAL' ? '#b45309' : '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', fontWeight: 600 }}
+                                    >
+                                      {st.key === 'PARSIAL' ? '✓ Update' : '✓ Cek Fisik'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mobile-card-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {r.masuk_gudang ? (
+                        <span style={{ fontSize: '12px', color: '#137333', fontWeight: 700 }}>✓ Di Stok Gudang</span>
+                      ) : r.tukang_at || r.alokasi === 'KE_TUKANG' ? (
+                        <span style={{ fontSize: '12px', color: '#1a73e8', fontWeight: 700 }}>👷 Ke Tukang (Handover)</span>
+                      ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
+                        <span style={{ fontSize: '11px', color: '#b45309', fontWeight: 600 }}>⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah</span>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>LANGKAH 2 — ALOKASI AKHIR</span>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => onMoveToWarehouse(r)}
+                              style={{ flex: 1, background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6', borderRadius: '6px', padding: '8px', fontSize: '11px', fontWeight: 700 }}
+                            >
+                              📦 Masuk Stok Gudang
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onSendToTukang(r)}
+                              style={{ flex: 1, background: '#e8f0fe', color: '#1a73e8', border: '1px solid #d2e3fc', borderRadius: '6px', padding: '8px', fontSize: '11px', fontWeight: 700 }}
+                            >
+                              👷 Serah ke Tukang
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      <button type="button" className="btn-delete" onClick={() => onDelete(page, r)} style={{ width: '100%' }}>
+                        Hapus Penerimaan
+                      </button>
+                    </div>
+                  </>
+                )
+              })() : (
                 /* Generic Card Fallback */
                 <>
                   <div className="mobile-card-header">

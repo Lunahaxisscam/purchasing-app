@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { labels, statusOptions, receivingStatusOptions, normalizeStatus } from '../lib/constants'
+import { labels, statusOptions, receivingStatusOptions, normalizeStatus, buildReceivingNote, formatNominalInput, parseReceivingNote } from '../lib/constants'
 
 export default function Create({ page, allProjects = [], allMaterials = [], allVendors = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], close, refresh, say }) {
   const isEdit = !!editRow
@@ -59,6 +59,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     receiving_id: '',
     receiving_status: 'NORMAL',
     received_date: new Date().toISOString().slice(0, 10),
+    nominal: '',
+    nota_link: '',
     received_by: '',
     handover_status: 'CONFIRMED',
     handover_date: new Date().toISOString().slice(0, 10)
@@ -357,7 +359,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         status: st,
         kendala: st === 'RETUR' ? 'RETUR' : (st === 'REFUND' ? 'REFUND' : null),
         received_date: form.received_date || new Date().toISOString().slice(0, 10),
-        note: form.notes || null
+        note: buildReceivingNote({ nominal: form.nominal, nota: form.nota_link, extra: form.notes })
       }
     } else if (page === 'handovers') {
       data = {
@@ -666,6 +668,23 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
             </label>
             {field('invoice_no', 'No. Invoice', 'text', true)}
             {field('delivery_note', 'Surat Jalan / No. PO (opsional)', 'text', false)}
+            <label>Total Nominal Riil (Rp)
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Contoh: 450.000"
+                value={form.nominal || ''}
+                onChange={e => setForm({ ...form, nominal: formatNominalInput(e.target.value) })}
+              />
+            </label>
+            <label>Foto / Link Nota Toko (URL Google Drive, link WA, foto, atau no. resi)
+              <input
+                type="text"
+                placeholder="https://drive.google.com/… atau no. resi"
+                value={form.nota_link || ''}
+                onChange={e => setForm({ ...form, nota_link: e.target.value })}
+              />
+            </label>
             <label>Status Penerimaan
               <select value={form.receiving_status || 'NORMAL'} onChange={e => setForm({ ...form, receiving_status: e.target.value })}>
                 <option value="NORMAL">✓ Normal</option>
