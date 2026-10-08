@@ -428,28 +428,23 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
             </div>
           )}
         </div>
-        <div className="toolbar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="toolbar-actions">
           <input
             type="search"
+            className="search-input"
             placeholder="🔍 Cari..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              fontSize: '12px',
-              borderRadius: '8px',
-              border: '1px solid #d5dedb',
-              width: '160px',
-              background: '#ffffff'
-            }}
           />
           {page === 'past_projects' && (
-            <button type="button" className="outline" onClick={() => setPage('projects')}>
+            <button type="button" className="outline btn-back-active" onClick={() => setPage('projects')}>
               ← Ke Project Aktif
             </button>
           )}
           {['projects', 'vendors', 'materials', 'requests', 'receivings', 'handovers'].includes(page) && (
-            <button onClick={() => setOpen(true)}>+ Tambah {title}</button>
+            <button type="button" className="btn-create-module" onClick={() => setOpen(true)}>
+              + Tambah {title}
+            </button>
           )}
         </div>
       </div>
