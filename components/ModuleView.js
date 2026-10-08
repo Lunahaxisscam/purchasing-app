@@ -472,7 +472,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
       <div className="table-scroll-hint">
         <span>⇄</span> Geser ke kanan untuk melihat kolom lengkap & tombol aksi
       </div>
-      <div className="panel table">
+      <div className="panel table desktop-table-view">
         <table className={page === 'materials' ? 'materials-table' : (page === 'requests' ? 'requests-table' : (page === 'approvals' ? 'approvals-table' : undefined))}>
           <thead>
             <tr>
@@ -926,6 +926,263 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           </tbody>
         </table>
       </div>
+      {/* ===== MOBILE CARDS VIEW (Khusus Layar HP <= 900px) ===== */}
+      <div className="mobile-cards-view">
+        {displayRows.length ? (
+          displayRows.map((r, i) => (
+            <div className="mobile-card" key={r.id || i}>
+              {page === 'approvals' ? (
+                <>
+                  <div className="mobile-card-header">
+                    <div>
+                      <b className="mobile-card-title">{r.pr_number || 'PR'}</b>
+                      <div className="mobile-card-sub">{r.project_name || 'Tanpa Project'}</div>
+                    </div>
+                    <span className={`badge status-${r.status}`}>{r.status}</span>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Judul:</span>
+                      <span className="mobile-val">{r.title || '—'}</span>
+                    </div>
+                    <div className="mobile-card-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                      <span className="mobile-label">Item Material ({approvalItemLines(r).length}):</span>
+                      <div className="mobile-items-box">
+                        {approvalItemLines(r).length ? approvalItemLines(r).map((line, idx) => (
+                          <div key={idx} className="mobile-item-line">• {line}</div>
+                        )) : <span className="muted">—</span>}
+                      </div>
+                    </div>
+                    {r.note && (
+                      <div className="mobile-card-note">
+                        <b>Catatan:</b> {r.note}
+                      </div>
+                    )}
+                    {r.decided_at && (
+                      <div className="mobile-card-row">
+                        <span className="mobile-label">Diputuskan:</span>
+                        <span className="mobile-val">{format(r.decided_at)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mobile-card-actions">
+                    {r.status === 'PENDING' ? (
+                      <div className="mobile-action-grid-3">
+                        <button
+                          type="button"
+                          className="btn-mobile-approve"
+                          onClick={() => onDecideApproval(r, 'APPROVED')}
+                        >
+                          ✓ Setujui
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-mobile-reject"
+                          onClick={() => onDecideApproval(r, 'REJECTED')}
+                        >
+                          ✕ Tolak
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-mobile-revise"
+                          onClick={() => onReviseApproval(r)}
+                        >
+                          ✎ Revisi
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', fontSize: '12px', color: '#556b65', padding: '6px' }}>
+                        Sudah diproses ({r.status})
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : page === 'requests' ? (
+                <>
+                  <div className="mobile-card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span
+                        className={`prio-dot ${String(r.priority || '').toUpperCase() === 'URGENT' ? 'prio-urgent' : 'prio-normal'}`}
+                        title={String(r.priority || '').toUpperCase() === 'URGENT' ? 'Prioritas' : 'Standard'}
+                      />
+                      <div>
+                        <b className="mobile-card-title">{r.pr_number || 'PR'}</b>
+                        <div className="mobile-card-sub">{format(r.created_at)}</div>
+                      </div>
+                    </div>
+                    <span className={`badge status-${r.status}`}>{r.status}</span>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Project:</span>
+                      <span className="mobile-val">{r.project_name || '—'}</span>
+                    </div>
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Judul:</span>
+                      <span className="mobile-val">{r.title || '—'}</span>
+                    </div>
+                    <div className="mobile-card-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                      <span className="mobile-label">Item Material:</span>
+                      <div className="mobile-items-box">
+                        {requestItemLines(r).map((line, idx) => (
+                          <div key={idx} className="mobile-item-line">• {line}</div>
+                        ))}
+                      </div>
+                    </div>
+                    {String(r.notes || '').trim() && (
+                      <div className="mobile-card-note">
+                        <b>Catatan PR:</b> {r.notes}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mobile-card-actions">
+                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                      {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
+                        <button
+                          type="button"
+                          className="btn-finish"
+                          onClick={() => onFinishPr(r)}
+                          style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                        >
+                          ✓ Selesai
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={() => setEditRow(r)}
+                        style={{ padding: '8px 14px', fontSize: '12px' }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => onDelete(page, r)}
+                        style={{ padding: '8px 14px', fontSize: '12px' }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : ['projects', 'past_projects'].includes(page) ? (
+                <>
+                  <div className="mobile-card-header">
+                    <div>
+                      <b className="mobile-card-title">{r.kode || r.code || '—'}</b>
+                      <div className="mobile-card-sub">{r.name}</div>
+                    </div>
+                    <select
+                      className={`status-select status-${normalizeStatus(r.status)}`}
+                      value={normalizeStatus(r.status)}
+                      onChange={e => onStatusChange(r, e.target.value)}
+                    >
+                      <option value="NOT_START">Not Start</option>
+                      <option value="ON_GOING">On Going</option>
+                      <option value="DONE">Done</option>
+                    </select>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Tanggal:</span>
+                      <span className="mobile-val">{format(r.created_at)}</span>
+                    </div>
+                  </div>
+                </>
+              ) : page === 'vendors' ? (
+                <>
+                  <div className="mobile-card-header">
+                    <div>
+                      <b className="mobile-card-title">{r.name}</b>
+                      <div className="mobile-card-sub">{r.supplier_category || 'Vendor'}</div>
+                    </div>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Kontak WA:</span>
+                      <span className="mobile-val"><WaContact value={r.phone} /></span>
+                    </div>
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Link Toko:</span>
+                      <span className="mobile-val"><StoreLink value={r.store_link} /></span>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button
+                      type="button"
+                      className="btn-delete"
+                      onClick={() => onDelete(page, r)}
+                      style={{ width: '100%' }}
+                    >
+                      Hapus Vendor
+                    </button>
+                  </div>
+                </>
+              ) : page === 'materials' ? (
+                <>
+                  <div className="mobile-card-header">
+                    <div>
+                      <b className="mobile-card-title">{r.kode || '—'}</b>
+                      <div className="mobile-card-sub">{r.name}</div>
+                    </div>
+                    <span className="badge status-APPROVED" style={{ fontSize: '11px' }}>
+                      {r.qty ?? 0} {r.satuan || ''}
+                    </span>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Kategori:</span>
+                      <span className="mobile-val">{r.category || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button
+                      type="button"
+                      className="btn-delete"
+                      onClick={() => onDelete(page, r)}
+                      style={{ width: '100%' }}
+                    >
+                      Hapus Material
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Generic Card Fallback */
+                <>
+                  <div className="mobile-card-header">
+                    <b className="mobile-card-title">{r.name || r.title || r.kode || 'Item'}</b>
+                    {r.status && <span className={`badge status-${r.status}`}>{r.status}</span>}
+                  </div>
+                  <div className="mobile-card-body">
+                    {columns.filter(h => !['id', 'name', 'title', 'kode', 'status'].includes(h)).map(h => (
+                      <div className="mobile-card-row" key={h}>
+                        <span className="mobile-label">{pretty(h)}:</span>
+                        <span className="mobile-val">{format(r[h])}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {hasDeleteAction && (
+                    <div className="mobile-card-actions">
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => onDelete(page, r)}
+                        style={{ width: '100%' }}
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="panel empty">Belum ada data.</div>
+        )}
+      </div>
+
     </>
   )
 }
