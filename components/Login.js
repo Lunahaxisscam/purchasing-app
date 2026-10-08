@@ -7,7 +7,7 @@ export default function Login(p) {
         <div className="logo">NL</div>
         <p className="eyebrow">NOIR LIVING</p>
         <h1>Purchasing</h1>
-        <p className="muted">Masuk untuk mengelola purchase request, approval, receiving, dan handover.</p>
+        <p className="muted">Masuk untuk mengelola purchase request, approval, purchase, dan handover.</p>
         <form onSubmit={p.login}>
           <label>Email
             <input type="email" value={p.email} onChange={e => p.setEmail(e.target.value)} required placeholder="nama@perusahaan.com" />

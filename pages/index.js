@@ -294,7 +294,7 @@ export default function App() {
   }
 
   async function executeDecision(approval, decision, userNote) {
-    if (!supabase) return
+    if (!supabase || actionBusy) return
     const now = new Date().toISOString()
     const label = decision === 'APPROVED' ? 'DISETUJUI' : (decision === 'REJECTED' ? 'DITOLAK' : 'DIMINTA REVISI')
     const baseNote = decision === 'APPROVED' ? 'Disetujui oleh Direksi / PM' : (decision === 'REJECTED' ? 'Ditolak oleh Direksi / PM' : 'Diminta revisi oleh Direksi / PM')
@@ -306,8 +306,17 @@ export default function App() {
       note
     }).eq('id', approval.id)
 
+    // GATE UTAMA: kalau update approval gagal, JANGAN lanjut mengubah PR/items
+    // (sebelumnya bisa divergen: approval PENDING tapi PR APPROVED + masuk Purchase).
+    if (appErr) {
+      setNotice(`Gagal update approval: ${appErr.message}`)
+      loadAll()
+      return
+    }
+
     let prErr = null
     let itemErr = null
+    let syncErr = null
     if (approval.purchase_request_id) {
       const { error: e1 } = await supabase.from('purchase_requests').update({
         status: decision
@@ -324,39 +333,48 @@ export default function App() {
         itemErr = e2
 
         // Semua barang yang disetujui otomatis masuk modul Purchase
-        // (idempotent — item yang sudah ada tidak diduplikasi).
+        // (RPC atomic — anti dobel walau approve bersamaan).
         if (!itemErr) {
           const { data: prItems, error: fetchItemsErr } = await supabase.from('pr_items')
             .select('*').eq('pr_id', approval.purchase_request_id)
           if (fetchItemsErr) {
-            itemErr = fetchItemsErr
+            syncErr = fetchItemsErr.message
           } else {
             const syncErrors = []
             for (const it of (prItems || [])) {
               const sync = await ensureItemInPurchase(it)
               if (!sync.ok) syncErrors.push(sync.error)
             }
-            if (syncErrors.length) {
-              itemErr = { message: syncErrors[0] }
-            }
+            if (syncErrors.length) syncErr = syncErrors.join('; ')
           }
+        }
+      }
+
+      // PR ditolak / minta revisi => bersihkan baris Purchase yang BELUM diproses
+      // (belum diterima, belum masuk gudang, belum ke tukang) supaya barang yang
+      // tidak jadi tidak bisa lanjut ke stok. Yang sudah diproses tidak disentuh.
+      if (decision === 'REJECTED' || decision === 'REVISI') {
+        const { error: clErr } = await supabase.rpc('cleanup_unreceived_purchase', {
+          p_pr_id: approval.purchase_request_id
+        })
+        if (clErr) {
+          setNotice(`${label}: ${approval.pr_number || 'PR'} — peringatan, gagal membersihkan baris Purchase: ${clErr.message}`)
+          loadAll()
+          return
         }
       }
     }
 
-    if (appErr) {
-      setNotice(`Gagal update approval: ${appErr.message}`)
-      loadAll()
-    } else if (prErr) {
+    if (prErr) {
       setNotice(`Approval terupdate, tapi gagal update status PR: ${prErr.message}`)
-      loadAll()
     } else if (itemErr) {
-      setNotice(`PR disetujui, tapi ada material yang gagal ikut disetujui: ${itemErr.message}`)
-      loadAll()
+      setNotice(`PR ${label.toLowerCase()}, tapi ada material yang gagal ikut diupdate: ${itemErr.message}`)
+    } else if (syncErr) {
+      setNotice(`PR ${label.toLowerCase()}, tapi ada barang yang gagal masuk modul Purchase: ${syncErr}`)
     } else {
       setNotice(`Pengajuan ${approval.pr_number || 'PR'} berhasil ${label}.`)
-      loadAll()
     }
+    loadAll()
   }
 
   // ============================================================
@@ -371,21 +389,29 @@ export default function App() {
   }
 
   // Setujui material satu per satu (dipakai di modul Approval, panel Material).
-  // Barang yang disetujui otomatis masuk ke modul Purchase (idempotent).
+  // Barang yang disetujui otomatis masuk ke modul Purchase (RPC atomic).
+  // Guard actionBusy mencegah dobel-klik; guard sebenarnya tetap di DB (advisory lock).
   async function approveItem(prItem) {
-    if (!supabase) return
+    if (!supabase || actionBusy) return
     const ok = window.confirm(`Setujui material "${prItem.item_name || prItem.kode}"? Barang akan otomatis masuk ke modul Purchase.`)
     if (!ok) return
-    const { error } = await supabase.from('pr_items').update({ status: 'APPROVED' }).eq('id', prItem.id)
-    if (error) { setNotice(`Gagal menyetujui material: ${error.message}`); return }
-
-    const sync = await ensureItemInPurchase(prItem)
-    if (!sync.ok) {
-      setNotice(`Material "${prItem.item_name || prItem.kode}" disetujui, tapi gagal masuk modul Purchase: ${sync.error}`)
-    } else {
+    setActionBusy(true)
+    try {
+      // Sync ke Purchase DULU (idempotent): kalau sync gagal, status item
+      // tidak berubah — tidak ada state "APPROVED tapi tidak ada di Purchase".
+      const sync = await ensureItemInPurchase(prItem)
+      if (!sync.ok) {
+        setNotice(`Gagal menambah material ke modul Purchase: ${sync.error}`)
+        loadAll()
+        return
+      }
+      const { error } = await supabase.from('pr_items').update({ status: 'APPROVED' }).eq('id', prItem.id)
+      if (error) { setNotice(`Gagal menyetujui material: ${error.message}`); loadAll(); return }
       setNotice(`Material "${prItem.item_name || prItem.kode}" disetujui dan masuk modul Purchase.`)
+      loadAll()
+    } finally {
+      setActionBusy(false)
     }
-    loadAll()
   }
 
   // Tombol ✓ Selesai (modul PR): kirim PR ke modul Approval.
@@ -438,8 +464,9 @@ export default function App() {
   }
 
   // Pastikan item PR punya baris di modul Purchase (receiving + receiving_items).
-  // Idempotent: dipanggil saat approve per barang, approve semua (cascade), dan
-  // tombol "Sudah Order" — item yang sudah ada TIDAK pernah diduplikasi.
+  // Idempotent DIJAMIN DB: RPC ensure_item_in_purchase memakai advisory lock per PR
+  // + unique index receiving_items(receiving_id, pr_item_id). Dua user / dua klik
+  // bersamaan tidak bisa membuat header atau item dobel.
   async function ensureItemInPurchase(prItem) {
     if (!supabase) return { ok: false, error: 'Supabase tidak tersedia' }
     try {
@@ -447,42 +474,17 @@ export default function App() {
       const pr = (rows.requests || []).find(p => p.id === prId)
       if (!pr) return { ok: false, error: 'PR item tidak terhubung ke PR manapun.' }
 
-      // 1. Cari/buat header receiving utk PR ini (satu header per PR)
-      let recId = null
-      const { data: existingRecs, error: fetchRecErr } = await supabase.from('receivings')
-        .select('*').eq('purchase_request_id', prId).order('created_at', { ascending: true })
-      if (fetchRecErr) return { ok: false, error: fetchRecErr.message }
-
-      if (existingRecs && existingRecs.length) {
-        recId = existingRecs[0].id
-      } else {
-        const { data: newRec, error: recErr } = await supabase.from('receivings').insert({
-          purchase_request_id: prId,
-          project_id: pr.project_id || null,
-          status: 'NORMAL',
-          delivery_note: `PO ${pr.pr_number || ''} - ${pr.title || ''}`.trim(),
-          note: `Dibuat otomatis dari PR ${pr.pr_number || ''} (barang disetujui).`
-        }).select().single()
-        if (recErr) return { ok: false, error: recErr.message }
-        recId = newRec.id
-      }
-
-      // 2. Dedup: jangan tambah baris kalau item ini sudah ada di receiving_items
-      const { data: existingItems, error: eiErr } = await supabase.from('receiving_items')
-        .select('id').eq('receiving_id', recId).eq('pr_item_id', prItem.id)
-      if (eiErr) return { ok: false, error: eiErr.message }
-      if (existingItems && existingItems.length) return { ok: true, recId, already: true }
-
-      // 3. Tambahkan item ke receiving_items
-      const { error: riErr } = await supabase.from('receiving_items').insert({
-        receiving_id: recId,
-        pr_item_id: prItem.id,
-        item_name: prItem.item_name || 'Item',
-        quantity_received: 0,
-        unit: prItem.unit || 'Pcs'
+      const { data, error } = await supabase.rpc('ensure_item_in_purchase', {
+        p_pr_id: prId,
+        p_pr_item_id: prItem.id,
+        p_item_name: prItem.item_name || 'Item',
+        p_unit: prItem.unit || 'Pcs',
+        p_project_id: pr.project_id || null,
+        p_delivery_note: `PO ${pr.pr_number || ''} - ${pr.title || ''}`.trim()
       })
-      if (riErr) return { ok: false, error: riErr.message }
-      return { ok: true, recId, already: false }
+      if (error) return { ok: false, error: error.message }
+      if (!data || data.ok === false) return { ok: false, error: 'RPC gagal' }
+      return { ok: true, recId: data.receiving_id, already: !!data.already }
     } catch (err) {
       return { ok: false, error: err.message }
     }
@@ -492,24 +494,29 @@ export default function App() {
   // modul Purchase sejak disetujui (ensureItemInPurchase), jadi di sini hanya
   // memastikan keberadaannya (dedup) lalu update status.
   async function markPrItemOrdered(prItem) {
-    if (!supabase) return
+    if (!supabase || actionBusy) return
     const ok = window.confirm(`Tandai item "${prItem.item_name || prItem.kode}" sebagai SUDAH DIORDER? Item tetap terpantau di modul Purchase.`)
     if (!ok) return
 
+    setActionBusy(true)
     try {
+      // Sync DULU (idempotent), baru ubah status: kalau sync gagal, item tetap
+      // APPROVED dan bisa dicoba lagi (tidak nyangkut ORDERED tanpa baris Purchase).
+      const sync = await ensureItemInPurchase(prItem)
+      if (!sync.ok) { setNotice(`Gagal menambah item ke modul Purchase: ${sync.error}`); loadAll(); return }
+
       const { error: itemErr } = await supabase.from('pr_items')
         .update({ status: 'ORDERED' })
         .eq('id', prItem.id)
-      if (itemErr) { setNotice(`Gagal update item: ${itemErr.message}`); return }
-
-      const sync = await ensureItemInPurchase(prItem)
-      if (!sync.ok) { setNotice(`Gagal menambah item ke modul Purchase: ${sync.error}`); return }
+      if (itemErr) { setNotice(`Gagal update item: ${itemErr.message}`); loadAll(); return }
 
       setNotice(`Item "${prItem.item_name || prItem.kode}" sudah diorder dan ada di modul Purchase.`)
       loadAll()
     } catch (err) {
       setNotice(`Terjadi kesalahan saat order item: ${err.message}`)
       loadAll()
+    } finally {
+      setActionBusy(false)
     }
   }
 
@@ -568,7 +575,7 @@ export default function App() {
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
-    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Receiving' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Purchase' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
     const itemName = item.invoice_no || item.pr_number || item.delivery_note || item.received_by || item.name || item.kode || item.code || 'Item'
     const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
     if (!ok) return

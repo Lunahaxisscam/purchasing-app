@@ -100,42 +100,34 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
 
   // Baris item utk modul Approval: pakai pr_items; jika kosong (data lama),
   // fallback ke ringkasan material PR supaya barang yang perlu di-approve tetap terlihat.
-  const approvalItemLines = (approval) => {
+  // Satu sumber data utk kolom Item Material + QTY (modul Approval) supaya baris
+  // kedua kolom TIDAK PERNAH meleset: setiap entri { text, qty } dipakai bersama.
+  const approvalItemRows = (approval) => {
     const items = approvalItems(approval)
     if (items.length) {
-      return items
-        .map(it => {
-          const base = String(it.item_name || it.kode || '').trim()
-          const bits = []
-          if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
-          const v = vendorName(it.vendor_id)
-          if (v) bits.push(`Vendor: ${v}`)
-          return bits.length ? `${base} — ${bits.join(' · ')}` : base
-        })
-        .filter(Boolean)
+      return items.map(it => {
+        const base = String(it.item_name || it.kode || '').trim() || '—'
+        const bits = []
+        if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
+        const v = vendorName(it.vendor_id)
+        if (v) bits.push(`Vendor: ${v}`)
+        const text = bits.length ? `${base} — ${bits.join(' · ')}` : base
+        const q = (it.quantity ?? '') === '' ? '' : `${it.quantity ?? ''} ${it.unit || ''}`.trim()
+        return { text, qty: q || '—' }
+      })
     }
     const pr = (allRequests || []).find(p => p.id === approval.purchase_request_id)
     const s = String(pr?.materials_summary || '').trim()
     if (!s) return []
-    return s.split(',').map(x => x.trim()).filter(Boolean)
-  }
-
-  // Kolom QTY di samping Item Material (modul Approval): "4 Lembar" per baris item.
-  // Data lama tanpa pr_items -> fallback: tampilkan qty apa adanya dari ringkasan.
-  const approvalItemQtys = (approval) => {
-    const items = approvalItems(approval)
-    if (items.length) {
-      return items.map(it => {
-        const q = (it.quantity ?? '') === '' ? '' : `${it.quantity ?? ''} ${it.unit || ''}`.trim()
-        return q || '—'
-      })
-    }
-    const lines = approvalItemLines(approval)
-    return lines.map(line => {
-      const m = line.match(/^(\d+(?:[.,]\d+)?)\s+(\S+)/)
-      return m ? `${m[1]} ${m[2]}` : '—'
+    // Data lama: ringkasan "4 Lembar Triplek" — pisahkan qty utk kolom QTY.
+    return s.split(',').map(x => x.trim()).filter(Boolean).map(line => {
+      const m = line.match(/^(\d+(?:[.,]\d+)?)\s+(\S+)\s+(.*)$/)
+      return m ? { text: m[3], qty: `${m[1]} ${m[2]}` } : { text: line, qty: '—' }
     })
   }
+
+  const approvalItemLines = (approval) => approvalItemRows(approval).map(r => r.text)
+  const approvalItemQtys = (approval) => approvalItemRows(approval).map(r => r.qty)
 
   // Daftar baris item material sebuah PR (dipakai modul Purchase Request):
   // utamakan pr_items yang lengkap; fallback ke ringkasan teks bila item tidak ada.
@@ -538,9 +530,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
               {columns.map(h => (
                 <th
                   key={h}
-                  onClick={() => !['items', 'items_qty'].includes(h) && toggleSort(h)}
-                  style={{ cursor: ['items', 'items_qty'].includes(h) ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                  title={['items', 'items_qty'].includes(h) ? undefined : 'Klik untuk urutkan'}
+                  onClick={() => h !== 'items' && toggleSort(h)}
+                  style={{ cursor: h === 'items' ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  title={h === 'items' ? undefined : 'Klik untuk urutkan'}
                 >
                   {page === 'requests' && h === 'priority' ? (
                     <span className="prio-dot prio-header" title="Prioritas — klik untuk urutkan" />

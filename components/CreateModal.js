@@ -47,7 +47,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     qty: '0',
     satuan: 'Lembar',
     harga_acuan: (editRow?.harga_acuan !== null && editRow?.harga_acuan !== undefined && editRow?.harga_acuan !== '')
-      ? formatNominalInput(String(editRow.harga_acuan))
+      ? formatNominalInput(String(Math.round(Number(editRow.harga_acuan))))
       : '',
     phone: '',
     contact: '',
@@ -328,7 +328,9 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         }, 0)
         newKode = 'MAT-' + String(maxNum + 1).padStart(4, '0')
       }
-      const hargaDigits = String(form.harga_acuan ?? '').replace(/[^\d]/g, '')
+      // Acuan harga disimpan sebagai INTEGER rupiah (bukan desimal) supaya
+      // round-trip edit tidak pernah menggeser nilai; kosong = null.
+      const hargaDigits = String(form.harga_acuan ?? '').replace(/[^\d]/g, '').slice(0, 15)
       data = {
         name: form.name,
         category: form.category || null,
