@@ -469,6 +469,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           say={say}
         />
       )}
+      <div className="table-scroll-hint">
+        <span>⇄</span> Geser ke kanan untuk melihat kolom lengkap & tombol aksi
+      </div>
       <div className="panel table">
         <table className={page === 'materials' ? 'materials-table' : (page === 'requests' ? 'requests-table' : (page === 'approvals' ? 'approvals-table' : undefined))}>
           <thead>
