@@ -121,6 +121,7 @@ export default function App() {
     receiving_items: []
   })
   const [notice, setNotice] = useState('')
+  const [actionBusy, setActionBusy] = useState(false)
   const [noteModal, setNoteModal] = useState(null)
   const [noteText, setNoteText] = useState('')
 
@@ -256,9 +257,11 @@ export default function App() {
     }
   }
 
-  // "→ Ke Gudang": menambah stok barang ke modul Materials, lalu tandai penerimaan masuk gudang.
+  // "→ Ke Gudang": SATU panggilan RPC transaksional (klaim + kredit stok di DB).
+  // Guard double-klik via actionBusy; guard sebenarnya (anti dobel) ada di dalam RPC
+  // (update ... where masuk_gudang = false) sehingga retry/2 user aman.
   async function moveToWarehouse(receiving) {
-    if (!supabase) return
+    if (!supabase || actionBusy) return
     const label = receiving.invoice_no || receiving.delivery_note || 'Penerimaan'
     if (receiving.masuk_gudang) { setNotice('Barang penerimaan ini sudah masuk Stok Gudang.'); return }
 
@@ -268,64 +271,78 @@ export default function App() {
       return
     }
 
-    const ok = window.confirm(`Masukkan barang dari "${label}" ke Stok Gudang Workshop? Stok material terkait akan bertambah otomatis.`)
+    const ok = window.confirm(`Masukkan barang dari "${label}" ke Stok Gudang Workshop? Stok material terkait akan bertambah otomatis (hanya item yang sudah diterima).`)
     if (!ok) return
 
-    let added = 0
-    const failed = []
-    for (const it of items) {
-      const prItem = (rows.pr_items || []).find(p => p.id === it.pr_item_id)
-      const materialId = prItem?.material_id
-      if (!materialId) continue
-      const qtyAdd = Number(it.quantity_received) > 0 ? Number(it.quantity_received) : Number(prItem?.quantity || 0)
-      if (!isFinite(qtyAdd) || qtyAdd <= 0) continue
-      const mat = (rows.materials || []).find(m => m.id === materialId)
-      if (!mat) continue
-      const cur = Number(String(mat.qty ?? '0').replace(',', '.')) || 0
-      const { error: stockErr } = await supabase.from('materials').update({ qty: String(cur + qtyAdd) }).eq('id', materialId)
-      if (stockErr) failed.push(`${mat.name || mat.kode}: ${stockErr.message}`)
-      else added++
-    }
-
-    const now = new Date().toISOString()
-    const { error } = await supabase.from('receivings').update({
-      alokasi: 'MASUK_GUDANG',
-      masuk_gudang: true,
-      gudang_at: now
-    }).eq('id', receiving.id)
-
-    if (error) {
-      setNotice(`Gagal menandai masuk gudang: ${error.message}`)
+    setActionBusy(true)
+    try {
+      const { data, error } = await supabase.rpc('receive_to_warehouse', { p_receiving_id: receiving.id })
+      if (error) { setNotice(`Gagal masuk gudang: ${error.message}`); loadAll(); return }
+      if (!data || data.ok === false) {
+        if (data && data.reason === 'none_received') {
+          setNotice('Belum ada item yang bertanda "Sudah Diterima" — tandai dulu di panel item, lalu ulangi Ke Gudang.')
+        } else if (data && data.reason === 'already') {
+          setNotice('Barang penerimaan ini sudah masuk Stok Gudang (atau sedang Retur/Refund).')
+        } else {
+          setNotice('Tidak bisa masuk gudang: status penerimaan Retur/Refund atau sudah diproses.')
+        }
+        loadAll(); return
+      }
+      setNotice(`Barang "${label}" masuk Stok Gudang. ${data.added} material bertambah${data.skipped ? `, ${data.skipped} item dilewati (belum diterima/tanpa material)` : ''}.`)
       loadAll()
-      return
+    } finally {
+      setActionBusy(false)
     }
-    setNotice(`Barang "${label}" masuk Stok Gudang. ${added} material bertambah.${failed.length ? ` Gagal: ${failed.join('; ')}` : ''}`)
-    loadAll()
   }
 
-  // "→ Ke Tukang": kirim barang langsung ke tukang -> membuat entri di modul Handover.
+  // "→ Ke Tukang": SATU panggilan RPC transaksional — klaim alokasi dulu, lalu
+  // insert handover. Jika dipanggil dua kali (retry/2 user), handover tidak dobel.
   async function sendToTukang(receiving) {
-    if (!supabase) return
+    if (!supabase || actionBusy) return
     const label = receiving.invoice_no || receiving.delivery_note || 'Penerimaan'
     if (receiving.alokasi === 'KE_TUKANG' || receiving.tukang_at) { setNotice('Barang penerimaan ini sudah dikirim ke tukang.'); return }
-    const ok = window.confirm(`Kirim barang dari "${label}" langsung ke tukang? Data akan masuk ke modul Handover.`)
-    if (!ok) return
+    const receiverInput = window.prompt(`Kirim barang dari "${label}" langsung ke tukang?\nMasukkan nama tukang / penerima barang:`, 'Tukang')
+    if (receiverInput === null) return
+    const receivedBy = receiverInput.trim() || 'Tukang'
 
-    const now = new Date().toISOString()
-    const { error: hoErr } = await supabase.from('handovers').insert({
-      receiving_id: receiving.id,
-      project_id: receiving.project_id || null,
-      received_by: 'Belum ditentukan',
-      handover_date: now.slice(0, 10),
-      status: 'DRAFT',
-      note: `Barang dari penerimaan ${label} dikirim langsung ke tukang.`
-    })
-    if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
+    setActionBusy(true)
+    try {
+      let handledByRpc = false
+      try {
+        const { data, error } = await supabase.rpc('send_receiving_to_tukang', { p_receiving_id: receiving.id, p_label: label })
+        if (!error && data && data.ok) {
+          handledByRpc = true
+          // Perbarui received_by pada handover bila sebelumnya terisi default
+          await supabase.from('handovers').update({ received_by: receivedBy }).eq('receiving_id', receiving.id).eq('received_by', 'Belum ditentukan')
+        }
+      } catch (rpcErr) {
+        // Fallback ke operasi client-side jika RPC tidak tersedia
+      }
 
-    const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
-    if (error) { setNotice(`Handover dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
-    setNotice(`Barang "${label}" dikirim ke tukang dan masuk ke modul Handover.`)
-    loadAll()
+      if (!handledByRpc) {
+        const now = new Date().toISOString()
+        const { error: hoErr } = await supabase.from('handovers').insert({
+          receiving_id: receiving.id,
+          project_id: receiving.project_id || null,
+          received_by: receivedBy,
+          handover_date: now.slice(0, 10),
+          status: 'DRAFT',
+          note: `Barang dari penerimaan ${label} dikirim langsung ke tukang.`
+        })
+        if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
+
+        const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
+        if (error) { setNotice(`Handover dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
+      }
+
+      setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk ke modul Handover.`)
+      loadAll()
+    } catch (err) {
+      setNotice(`Terjadi kesalahan saat kirim ke tukang: ${err.message}`)
+      loadAll()
+    } finally {
+      setActionBusy(false)
+    }
   }
 
   // Handover: tandai "sudah diserahkan". Waktu diserahkan (diserahkan_at) disimpan
@@ -1328,6 +1345,10 @@ function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], a
                               <span style={{ fontSize: '11px', color: '#1a73e8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                                 👷 Ke Tukang (Handover)
                               </span>
+                            ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
+                              <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                ⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah
+                              </span>
                             ) : (
                               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                                 <button
@@ -1967,6 +1988,7 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
 
   async function save(e) {
     e.preventDefault()
+    if (saving) return
     setSaving(true)
     const table = {
       projects: 'projects',
@@ -2041,11 +2063,18 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
         return
       }
 
-      // PR baru dibuat sebagai DRAFT; masuk modul Approval lewat tombol ✓ Selesai
+      // PR baru dibuat sebagai DRAFT; masuk modul Approval lewat tombol ✓ Selesai.
+      // Nomor PR diambil atomic dari DB (advisory lock) agar tidak dobel saat
+      // dua user membuka form bersamaan; fallback ke nilai tampilan bila RPC gagal.
+      let prNumberFinal = form.pr_number || nextPrNum
+      {
+        const { data: rpcPr, error: rpcPrErr } = await supabase.rpc('next_pr_number')
+        if (!rpcPrErr && rpcPr) prNumberFinal = String(rpcPr)
+      }
       data = {
         project_id: form.project_id || null,
         title: form.title,
-        pr_number: form.pr_number || nextPrNum,
+        pr_number: prNumberFinal,
         priority: form.priority || 'NORMAL',
         status: 'DRAFT',
         materials_summary: summary,
@@ -2089,6 +2118,13 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
       // Kode material otomatis (MAT-XXXX): dihitung saat simpan dari nomor
       // tertinggi di database supaya tidak pernah dobel.
       let newKode = (isEdit && (editRow?.kode || editRow?.code)) || ''
+      if (!newKode) {
+        // Alokasi atomic di DB (advisory lock) — anti dobel walau 2 user simpan bersamaan.
+        const { data: rpcKode, error: rpcErr } = await supabase.rpc('next_material_kode')
+        if (!rpcErr && rpcKode) {
+          newKode = String(rpcKode)
+        }
+      }
       if (!newKode) {
         const { data: allMats, error: kodeErr } = await supabase.from('materials').select('kode')
         if (kodeErr) {
@@ -2150,7 +2186,23 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
       }
     }
 
-    const { error } = await supabase.from(table).insert(data)
+    let { error } = await supabase.from(table).insert(data)
+    // Retry sekali bila kode/nomor bentrok (unique index) karena balapan sesi lain:
+    // ambil nomor baru dari RPC atomic, lalu insert ulang.
+    if (error && String(error.code) === '23505') {
+      let retryKode = null
+      if (page === 'materials') {
+        const { data: rk } = await supabase.rpc('next_material_kode')
+        if (rk) { retryKode = String(rk); data = { ...data, kode: retryKode, code: retryKode } }
+      } else if (page === 'requests') {
+        const { data: rp } = await supabase.rpc('next_pr_number')
+        if (rp) data = { ...data, pr_number: String(rp) }
+      }
+      if (retryKode || page === 'requests') {
+        const retry = await supabase.from(table).insert(data)
+        error = retry.error
+      }
+    }
     setSaving(false)
     if (error) {
       say(error.message)
