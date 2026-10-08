@@ -894,48 +894,40 @@ input:focus, select:focus, textarea:focus {
   margin: 10px 4px;
 }
 
-/* Tables Specific Widths & Layouts */
-table.materials-table {
-  table-layout: fixed;
-  min-width: 760px;
+/* Tables Specific Widths & Layouts — Fluid & Scrollable (Anti-Collision) */
+.table {
+  width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
 }
-table.materials-table th:nth-child(1), table.materials-table td:nth-child(1) { width: 10%; }
-table.materials-table th:nth-child(2), table.materials-table td:nth-child(2) { width: 28%; }
-table.materials-table th:nth-child(3), table.materials-table td:nth-child(3) { width: 16%; }
-table.materials-table th:nth-child(4), table.materials-table td:nth-child(4) { width: 10%; }
-table.materials-table th:nth-child(5), table.materials-table td:nth-child(5) { width: 16%; }
-table.materials-table th:nth-child(6), table.materials-table td:nth-child(6) { width: 20%; }
-table.materials-table td:nth-child(2) .cell-name {
+
+table {
+  table-layout: auto !important;
+  width: 100%;
+}
+
+table.materials-table {
+  min-width: 820px !important;
+}
+
+table.requests-table {
+  min-width: 1000px !important;
+}
+
+table.approvals-table {
+  min-width: 1100px !important;
+}
+
+th, td {
+  white-space: nowrap !important;
+}
+
+td .cell-name {
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-table.requests-table {
-  table-layout: fixed;
-  width: 100%;
-}
-table.requests-table th:nth-child(1), table.requests-table td:nth-child(1) { width: 4%; text-align: center; padding-left: 8px; padding-right: 6px; }
-table.requests-table th:nth-child(2), table.requests-table td:nth-child(2) { width: 13%; }
-table.requests-table th:nth-child(3), table.requests-table td:nth-child(3) { width: 12%; }
-table.requests-table th:nth-child(4), table.requests-table td:nth-child(4) { width: 17%; }
-table.requests-table th:nth-child(5), table.requests-table td:nth-child(5) { width: 33%; }
-table.requests-table th:nth-child(6), table.requests-table td:nth-child(6) { width: 9%; }
-table.requests-table th:nth-child(7), table.requests-table td:nth-child(7) { width: 12%; padding-left: 8px; padding-right: 8px; }
-
-table.approvals-table {
-  table-layout: fixed;
-  width: 100%;
-}
-table.approvals-table th:nth-child(1), table.approvals-table td:nth-child(1) { width: 6%; }
-table.approvals-table th:nth-child(2), table.approvals-table td:nth-child(2) { width: 10%; }
-table.approvals-table th:nth-child(3), table.approvals-table td:nth-child(3) { width: 12%; }
-table.approvals-table th:nth-child(4), table.approvals-table td:nth-child(4) { width: 18%; }
-table.approvals-table th:nth-child(5), table.approvals-table td:nth-child(5) { width: 5%; }
-table.approvals-table th:nth-child(6), table.approvals-table td:nth-child(6) { width: 8%; }
-table.approvals-table th:nth-child(7), table.approvals-table td:nth-child(7) { width: 14%; }
-table.approvals-table th:nth-child(8), table.approvals-table td:nth-child(8) { width: 9%; }
-table.approvals-table th:nth-child(9), table.approvals-table td:nth-child(9) { width: 18%; }
 
 .note-dot {
   width: 9px;
@@ -1008,7 +1000,7 @@ textarea {
 /* ========================================================
    RESPONSIVE DESIGN (MOBILE & TABLET <= 900px)
    ======================================================== */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .shell {
     flex-direction: column;
     min-height: 100vh;
