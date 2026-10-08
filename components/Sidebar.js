@@ -17,7 +17,7 @@ export default function Sidebar({ page, setPage, session, logout }) {
           <span className="logo-badge">NL</span>
           <div>
             <b>NOIR LIVING</b>
-            <small>Purchasing • {labels[page] || page}</small>
+            <small>v1.2 Mobile • {labels[page] || page}</small>
           </div>
         </div>
         <button
