@@ -508,54 +508,63 @@ export default function App() {
     if (!ok) return
     const now = new Date().toISOString()
 
-    const prId = prItem.pr_id
-    const pr = (rows.requests || []).find(p => p.id === prId)
-    if (!pr) { setNotice('PR item tidak terhubung ke PR manapun.'); return }
+    try {
+      const prId = prItem.pr_id
+      const pr = (rows.requests || []).find(p => p.id === prId)
+      if (!pr) { setNotice('PR item tidak terhubung ke PR manapun.'); return }
 
-    // 1. Update status item jadi ORDERED
-    const { error: itemErr } = await supabase.from('pr_items')
-      .update({ status: 'ORDERED' })
-      .eq('id', prItem.id)
-    if (itemErr) { setNotice(`Gagal update item: ${itemErr.message}`); return }
+      // 1. Update status item jadi ORDERED
+      const { error: itemErr } = await supabase.from('pr_items')
+        .update({ status: 'ORDERED' })
+        .eq('id', prItem.id)
+      if (itemErr) { setNotice(`Gagal update item: ${itemErr.message}`); return }
 
-    // 2. Cari/buat receivings utk PR ini (satu header per PR)
-    let recId = null
-    const { data: existingRecs } = await supabase.from('receivings')
-      .select('*').eq('purchase_request_id', prId).order('created_at', { ascending: true })
-    if (existingRecs && existingRecs.length) {
-      recId = existingRecs[0].id
-    } else {
-      const { data: newRec, error: recErr } = await supabase.from('receivings').insert({
-        purchase_request_id: prId,
-        project_id: pr.project_id || null,
-        status: 'NORMAL',
-        delivery_note: `PO ${pr.pr_number || ''} - ${pr.title || ''}`.trim(),
-        note: `Dibuat otomatis dari PR ${pr.pr_number || ''} (item diorder di supplier).`
-      }).select().single()
-      if (recErr) { setNotice(`Gagal membuat receiving: ${recErr.message}`); return }
-      recId = newRec.id
+      // 2. Cari/buat receivings utk PR ini (satu header per PR)
+      let recId = null
+      const { data: existingRecs, error: fetchRecErr } = await supabase.from('receivings')
+        .select('*').eq('purchase_request_id', prId).order('created_at', { ascending: true })
+      if (fetchRecErr) { setNotice(`Gagal mengambil data receiving: ${fetchRecErr.message}`); return }
+
+      if (existingRecs && existingRecs.length) {
+        recId = existingRecs[0].id
+      } else {
+        const { data: newRec, error: recErr } = await supabase.from('receivings').insert({
+          purchase_request_id: prId,
+          project_id: pr.project_id || null,
+          status: 'NORMAL',
+          delivery_note: `PO ${pr.pr_number || ''} - ${pr.title || ''}`.trim(),
+          note: `Dibuat otomatis dari PR ${pr.pr_number || ''} (item diorder di supplier).`
+        }).select().single()
+        if (recErr) { setNotice(`Gagal membuat receiving: ${recErr.message}`); return }
+        recId = newRec.id
+      }
+
+      // 3. Tambahkan item ini ke receiving_items
+      const { error: riErr } = await supabase.from('receiving_items').insert({
+        receiving_id: recId,
+        pr_item_id: prItem.id,
+        item_name: prItem.item_name || 'Item',
+        quantity_received: 0,
+        unit: prItem.unit || 'Pcs'
+      })
+      if (riErr) { setNotice(`Gagal menambah item receiving: ${riErr.message}`); return }
+
+      // 4. Titip status ordered di kolom status item juga pada purchase_requests summary (best-effort, no schema change)
+      setNotice(`Item "${prItem.item_name || prItem.kode}" sudah diorder dan masuk ke modul Receiving.`)
+      loadAll()
+    } catch (err) {
+      setNotice(`Terjadi kesalahan saat order item: ${err.message}`)
+      loadAll()
     }
-
-    // 3. Tambahkan item ini ke receiving_items
-    const { error: riErr } = await supabase.from('receiving_items').insert({
-      receiving_id: recId,
-      pr_item_id: prItem.id,
-      item_name: prItem.item_name || 'Item',
-      quantity_received: 0,
-      unit: prItem.unit || 'Pcs'
-    })
-    if (riErr) { setNotice(`Gagal menambah item receiving: ${riErr.message}`); return }
-
-    // 4. Titip status ordered di kolom status item juga pada purchase_requests summary (best-effort, no schema change)
-    setNotice(`Item "${prItem.item_name || prItem.kode}" sudah diorder dan masuk ke modul Receiving.`)
-    loadAll()
   }
 
   // Item di receiving -> tandai "sudah diterima", lalu pindah ke Handover
   async function markReceivingItemReceived(recItem) {
     if (!supabase) return
-    const ok = window.confirm(`Tandai barang "${recItem.item_name}" sudah DITERIMA? Item akan masuk daftar Handover.`)
-    if (!ok) return
+    const receiverInput = window.prompt(`Barang "${recItem.item_name}" sudah diterima.\nMasukkan nama tukang / penerima barang:`, 'Tukang')
+    if (receiverInput === null) return
+    const receivedBy = receiverInput.trim() || 'Tukang'
+
     const now = new Date().toISOString()
     const qtyInput = Number(recItem.quantity_received || 0)
     // Qty yang dipakai: isian user bila diisi, kalau kosong pakai qty yang dipesan di PR
@@ -567,27 +576,32 @@ export default function App() {
     const pr = prItem ? (rows.requests || []).find(p => p.id === prItem.pr_id) : null
     const projectId = receiving?.project_id || pr?.project_id || null
 
-    // 1. Tandai item sudah diterima (qty terima + penanda di kolom note)
-    const { error: riErr } = await supabase.from('receiving_items')
-      .update({ quantity_received: qtyFinal, note: `DITERIMA ${now.slice(0, 10)}` })
-      .eq('id', recItem.id)
-    if (riErr) { setNotice(`Gagal update item: ${riErr.message}`); return }
+    try {
+      // 1. Tandai item sudah diterima (qty terima + penanda di kolom note)
+      const { error: riErr } = await supabase.from('receiving_items')
+        .update({ quantity_received: qtyFinal, note: `DITERIMA ${now.slice(0, 10)}` })
+        .eq('id', recItem.id)
+      if (riErr) { setNotice(`Gagal update item: ${riErr.message}`); return }
 
-    // 2. Buat handover utk item ini
-    // Catatan memuat nama item di depan agar selalu terbaca di tabel & ekspor,
-    // karena tabel handovers tidak punya kolom khusus nama barang.
-    const { error: hoErr } = await supabase.from('handovers').insert({
-      receiving_id: recItem.receiving_id,
-      project_id: projectId,
-      received_by: 'Belum ditentukan',
-      handover_date: now.slice(0, 10),
-      status: 'DRAFT',
-      note: `Item: ${recItem.item_name} — diterima ${qtyFinal || '?'} ${recItem.unit || ''} (dari PR ${pr?.pr_number || '-'}).`
-    })
-    if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
+      // 2. Buat handover utk item ini
+      // Catatan memuat nama item di depan agar selalu terbaca di tabel & ekspor,
+      // karena tabel handovers tidak punya kolom khusus nama barang.
+      const { error: hoErr } = await supabase.from('handovers').insert({
+        receiving_id: recItem.receiving_id,
+        project_id: projectId,
+        received_by: receivedBy,
+        handover_date: now.slice(0, 10),
+        status: 'DRAFT',
+        note: `Item: ${recItem.item_name} — diterima ${qtyFinal || '?'} ${recItem.unit || ''} (dari PR ${pr?.pr_number || '-'}).`
+      })
+      if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
 
-    setNotice(`Barang "${recItem.item_name}" sudah diterima dan masuk ke daftar Handover.`)
-    loadAll()
+      setNotice(`Barang "${recItem.item_name}" sudah diterima oleh ${receivedBy} dan masuk ke daftar Handover.`)
+      loadAll()
+    } catch (err) {
+      setNotice(`Terjadi kesalahan saat memproses penerimaan item: ${err.message}`)
+      loadAll()
+    }
   }
 
   // Update qty terima (dipakai di modul Receiving saat user isi qty)
@@ -610,7 +624,7 @@ export default function App() {
     const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
     if (!ok) return
 
-    const table = {
+    const tableMap = {
       vendors: 'vendors',
       materials: 'materials',
       requests: 'purchase_requests',
@@ -619,7 +633,12 @@ export default function App() {
       approvals: 'approval_steps',
       projects: 'projects',
       past_projects: 'projects'
-    }[pageTarget] || pageTarget
+    }
+    const table = tableMap[pageTarget]
+    if (!table) {
+      setNotice(`Operasi hapus dibatalkan: target ${pageTarget} tidak diizinkan.`)
+      return
+    }
     
     // optimistic update
     setRows(prev => ({
@@ -632,12 +651,17 @@ export default function App() {
     // - hapus master -> tautan di item PR otomatis jadi NULL
     // Jadi cukup satu operasi delete; tidak ada pembersihan manual yang bisa
     // meninggalkan data setengah jalan bila delete utamanya gagal.
-    const { error } = await supabase.from(table).delete().eq('id', item.id)
-    if (error) {
-      setNotice(`Gagal menghapus ${typeLabel.toLowerCase()}: ${error.message}`)
-      loadAll()
-    } else {
-      setNotice(`${typeLabel} "${itemName}" berhasil dihapus.`)
+    try {
+      const { error } = await supabase.from(table).delete().eq('id', item.id)
+      if (error) {
+        setNotice(`Gagal menghapus ${typeLabel.toLowerCase()}: ${error.message}`)
+        loadAll()
+      } else {
+        setNotice(`${typeLabel} "${itemName}" berhasil dihapus.`)
+        loadAll()
+      }
+    } catch (err) {
+      setNotice(`Terjadi kesalahan saat menghapus: ${err.message}`)
       loadAll()
     }
   }
@@ -1990,16 +2014,24 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
     e.preventDefault()
     if (saving) return
     setSaving(true)
-    const table = {
+
+    const tableMap = {
       projects: 'projects',
       vendors: 'vendors',
       materials: 'materials',
       requests: 'purchase_requests',
       receivings: 'receivings',
       handovers: 'handovers'
-    }[page]
+    }
+    const table = tableMap[page]
+    if (!table) {
+      setSaving(false)
+      say(`Modul ${page} tidak didukung untuk penyimpanan.`)
+      return
+    }
 
-    let data = {}
+    try {
+      let data = {}
     if (page === 'requests') {
       const summary = prItemsList.length
         ? prItemsList.map(it => `${it.qty} ${it.satuan || ''} ${it.name}`).join(', ')
@@ -2211,6 +2243,10 @@ function Create({ page, allProjects = [], allMaterials = [], allVendors = [], ex
     say(`${labels[page]} berhasil ditambahkan.`)
     close()
     refresh()
+    } catch (err) {
+      setSaving(false)
+      say(`Gagal menyimpan: ${err.message}`)
+    }
   }
 
   return (
