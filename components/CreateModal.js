@@ -46,6 +46,9 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     kode: '',
     qty: '0',
     satuan: 'Lembar',
+    harga_acuan: (editRow?.harga_acuan !== null && editRow?.harga_acuan !== undefined && editRow?.harga_acuan !== '')
+      ? formatNominalInput(String(editRow.harga_acuan))
+      : '',
     phone: '',
     contact: '',
     title: editRow?.title || '',
@@ -325,6 +328,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         }, 0)
         newKode = 'MAT-' + String(maxNum + 1).padStart(4, '0')
       }
+      const hargaDigits = String(form.harga_acuan ?? '').replace(/[^\d]/g, '')
       data = {
         name: form.name,
         category: form.category || null,
@@ -332,7 +336,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         code: newKode,
         qty: form.qty || '0',
         satuan: form.satuan || 'Lembar',
-        unit: form.satuan || 'Lembar'
+        unit: form.satuan || 'Lembar',
+        harga_acuan: hargaDigits ? Number(hargaDigits) : null
       }
     } else if (page === 'vendors') {
       data = {
@@ -604,6 +609,15 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
                 <option value="Bungkus">Bungkus</option>
               </select>
             </label>
+            <label>Acuan Harga (Rp)
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Contoh: 250.000"
+                value={form.harga_acuan || ''}
+                onChange={e => setForm({ ...form, harga_acuan: formatNominalInput(e.target.value) })}
+              />
+            </label>
           </>
         )}
         {page === 'vendors' && (
@@ -698,7 +712,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         )}
         {page === 'handovers' && (
           <>
-            <label>Penerimaan (Receiving)
+            <label>Penerimaan (Purchase)
               <select
                 value={form.receiving_id || ''}
                 onChange={e => {

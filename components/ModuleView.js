@@ -105,7 +105,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     if (items.length) {
       return items
         .map(it => {
-          const base = `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim()
+          const base = String(it.item_name || it.kode || '').trim()
           const bits = []
           if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
           const v = vendorName(it.vendor_id)
@@ -118,6 +118,23 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     const s = String(pr?.materials_summary || '').trim()
     if (!s) return []
     return s.split(',').map(x => x.trim()).filter(Boolean)
+  }
+
+  // Kolom QTY di samping Item Material (modul Approval): "4 Lembar" per baris item.
+  // Data lama tanpa pr_items -> fallback: tampilkan qty apa adanya dari ringkasan.
+  const approvalItemQtys = (approval) => {
+    const items = approvalItems(approval)
+    if (items.length) {
+      return items.map(it => {
+        const q = (it.quantity ?? '') === '' ? '' : `${it.quantity ?? ''} ${it.unit || ''}`.trim()
+        return q || '—'
+      })
+    }
+    const lines = approvalItemLines(approval)
+    return lines.map(line => {
+      const m = line.match(/^(\d+(?:[.,]\d+)?)\s+(\S+)/)
+      return m ? `${m[1]} ${m[2]}` : '—'
+    })
   }
 
   // Daftar baris item material sebuah PR (dipakai modul Purchase Request):
@@ -184,7 +201,16 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   // Urutkan berdasar kolom yang diklik (klik ulang untuk balik arah)
   if (sortKey) {
     const dir = sortDir === 'desc' ? -1 : 1
-    const valOf = (row) => (sortKey === 'kode' ? (row.kode || row.code) : row[sortKey])
+    const valOf = (row) => {
+      if (sortKey === 'kode') return row.kode || row.code
+      // Kolom QTY modul Approval = nilai virtual: pakai qty item pertama utk sortir.
+      if (sortKey === 'items_qty') {
+        const q = approvalItemQtys(row)[0]
+        const m = String(q || '').match(/^([\d.,]+)/)
+        return m ? Number(String(m[1]).replace(',', '.')) : null
+      }
+      return row[sortKey]
+    }
     displayRows = [...displayRows].sort((a, b) => {
       const va = valOf(a)
       const vb = valOf(b)
@@ -512,9 +538,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
               {columns.map(h => (
                 <th
                   key={h}
-                  onClick={() => h !== 'items' && toggleSort(h)}
-                  style={{ cursor: h === 'items' ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                  title={h === 'items' ? undefined : 'Klik untuk urutkan'}
+                  onClick={() => !['items', 'items_qty'].includes(h) && toggleSort(h)}
+                  style={{ cursor: ['items', 'items_qty'].includes(h) ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  title={['items', 'items_qty'].includes(h) ? undefined : 'Klik untuk urutkan'}
                 >
                   {page === 'requests' && h === 'priority' ? (
                     <span className="prio-dot prio-header" title="Prioritas — klik untuk urutkan" />
@@ -646,6 +672,14 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                               </span>
                             )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
                           </div>
+                        ) : page === 'approvals' && h === 'items_qty' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {approvalItemQtys(r).length ? approvalItemQtys(r).map((q, idx) => (
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, fontWeight: 600 }}>
+                                {q}
+                              </span>
+                            )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
+                          </div>
                         ) : page === 'requests' && h === 'pr_number' ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -707,6 +741,10 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                           </div>
                         ) : page === 'materials' && h === 'name' ? (
                           <div className="cell-name" title={String(rawVal || '')}>{format(rawVal)}</div>
+                        ) : page === 'materials' && h === 'harga_acuan' ? (
+                          <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            {rawVal === null || rawVal === undefined || rawVal === '' ? <span className="muted">—</span> : rupiah(rawVal)}
+                          </span>
                         ) : h === 'materials_summary' ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                             {requestItemLines(r).map((line, idx) => (
@@ -962,7 +1000,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                                   </td>
                                   <td style={{ padding: '4px 6px', textAlign: 'center' }}>
                                     {st === 'ORDERED' ? (
-                                      <span style={{ fontSize: '10px', color: '#137333' }}>→ ke Receiving</span>
+                                      <span style={{ fontSize: '10px', color: '#137333' }}>→ ke Purchase</span>
                                     ) : canOrder ? (
                                       <button
                                         type="button"
@@ -1028,9 +1066,14 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     <div className="mobile-card-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                       <span className="mobile-label">Item Material ({approvalItemLines(r).length}):</span>
                       <div className="mobile-items-box">
-                        {approvalItemLines(r).length ? approvalItemLines(r).map((line, idx) => (
-                          <div key={idx} className="mobile-item-line">• {line}</div>
-                        )) : <span className="muted">—</span>}
+                        {approvalItemLines(r).length ? approvalItemLines(r).map((line, idx) => {
+                          const q = approvalItemQtys(r)[idx]
+                          return (
+                            <div key={idx} className="mobile-item-line">
+                              • {line}{q && q !== '—' ? <b> — {q}</b> : null}
+                            </div>
+                          )
+                        }) : <span className="muted">—</span>}
                       </div>
                     </div>
                     {r.note && (
@@ -1214,6 +1257,12 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     <div className="mobile-card-row">
                       <span className="mobile-label">Kategori:</span>
                       <span className="mobile-val">{r.category || '—'}</span>
+                    </div>
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Acuan Harga:</span>
+                      <span className="mobile-val" style={{ fontWeight: 600 }}>
+                        {r.harga_acuan === null || r.harga_acuan === undefined || r.harga_acuan === '' ? '—' : rupiah(r.harga_acuan)}
+                      </span>
                     </div>
                   </div>
                   <div className="mobile-card-actions">

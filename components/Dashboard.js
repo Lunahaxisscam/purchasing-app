@@ -8,7 +8,7 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage 
     ['past_projects', 'Past Project', pastProjects.length],
     ['requests', 'Purchase Request', rows.requests?.length || 0],
     ['approvals', 'Menunggu approval', rows.approvals?.filter(a => a.status === 'PENDING').length || 0],
-    ['receivings', 'Receiving', rows.receivings?.length || 0]
+    ['receivings', 'Purchase', rows.receivings?.length || 0]
   ]
   return (
     <>

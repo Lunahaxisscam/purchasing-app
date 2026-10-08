@@ -152,11 +152,11 @@ export default function App() {
     const { error } = await supabase.from('receivings').update({ status: up, kendala }).eq('id', receiving.id)
 
     if (error) {
-      setNotice(`Gagal update status receiving: ${error.message}`)
+      setNotice(`Gagal update status Purchase: ${error.message}`)
       loadAll()
     } else {
       const label = prettyReceivingStatus(up)
-      setNotice(`Status receiving "${receiving.invoice_no || receiving.delivery_note || 'Data'}" berhasil diubah ke "${label}".`)
+      setNotice(`Status Purchase "${receiving.invoice_no || receiving.delivery_note || 'Data'}" berhasil diubah ke "${label}".`)
       loadAll()
     }
   }
@@ -322,6 +322,25 @@ export default function App() {
           .eq('pr_id', approval.purchase_request_id)
           .or('status.is.null,status.neq.ORDERED')
         itemErr = e2
+
+        // Semua barang yang disetujui otomatis masuk modul Purchase
+        // (idempotent — item yang sudah ada tidak diduplikasi).
+        if (!itemErr) {
+          const { data: prItems, error: fetchItemsErr } = await supabase.from('pr_items')
+            .select('*').eq('pr_id', approval.purchase_request_id)
+          if (fetchItemsErr) {
+            itemErr = fetchItemsErr
+          } else {
+            const syncErrors = []
+            for (const it of (prItems || [])) {
+              const sync = await ensureItemInPurchase(it)
+              if (!sync.ok) syncErrors.push(sync.error)
+            }
+            if (syncErrors.length) {
+              itemErr = { message: syncErrors[0] }
+            }
+          }
+        }
       }
     }
 
@@ -351,14 +370,21 @@ export default function App() {
     setNoteModal({ approval, decision: 'REVISI' })
   }
 
-  // Setujui material satu per satu (dipakai di modul Approval, panel Material)
+  // Setujui material satu per satu (dipakai di modul Approval, panel Material).
+  // Barang yang disetujui otomatis masuk ke modul Purchase (idempotent).
   async function approveItem(prItem) {
     if (!supabase) return
-    const ok = window.confirm(`Setujui material "${prItem.item_name || prItem.kode}"?`)
+    const ok = window.confirm(`Setujui material "${prItem.item_name || prItem.kode}"? Barang akan otomatis masuk ke modul Purchase.`)
     if (!ok) return
     const { error } = await supabase.from('pr_items').update({ status: 'APPROVED' }).eq('id', prItem.id)
     if (error) { setNotice(`Gagal menyetujui material: ${error.message}`); return }
-    setNotice(`Material "${prItem.item_name || prItem.kode}" disetujui.`)
+
+    const sync = await ensureItemInPurchase(prItem)
+    if (!sync.ok) {
+      setNotice(`Material "${prItem.item_name || prItem.kode}" disetujui, tapi gagal masuk modul Purchase: ${sync.error}`)
+    } else {
+      setNotice(`Material "${prItem.item_name || prItem.kode}" disetujui dan masuk modul Purchase.`)
+    }
     loadAll()
   }
 
@@ -411,29 +437,21 @@ export default function App() {
     loadAll()
   }
 
-  // Item PR di-approve -> tandai "sudah diorder" + pindahkan ke Receiving
-  async function markPrItemOrdered(prItem) {
-    if (!supabase) return
-    const ok = window.confirm(`Tandai item "${prItem.item_name || prItem.kode}" sebagai SUDAH DIORDER? Item akan masuk ke modul Receiving.`)
-    if (!ok) return
-    const now = new Date().toISOString()
-
+  // Pastikan item PR punya baris di modul Purchase (receiving + receiving_items).
+  // Idempotent: dipanggil saat approve per barang, approve semua (cascade), dan
+  // tombol "Sudah Order" — item yang sudah ada TIDAK pernah diduplikasi.
+  async function ensureItemInPurchase(prItem) {
+    if (!supabase) return { ok: false, error: 'Supabase tidak tersedia' }
     try {
       const prId = prItem.pr_id
       const pr = (rows.requests || []).find(p => p.id === prId)
-      if (!pr) { setNotice('PR item tidak terhubung ke PR manapun.'); return }
+      if (!pr) return { ok: false, error: 'PR item tidak terhubung ke PR manapun.' }
 
-      // 1. Update status item jadi ORDERED
-      const { error: itemErr } = await supabase.from('pr_items')
-        .update({ status: 'ORDERED' })
-        .eq('id', prItem.id)
-      if (itemErr) { setNotice(`Gagal update item: ${itemErr.message}`); return }
-
-      // 2. Cari/buat receivings utk PR ini (satu header per PR)
+      // 1. Cari/buat header receiving utk PR ini (satu header per PR)
       let recId = null
       const { data: existingRecs, error: fetchRecErr } = await supabase.from('receivings')
         .select('*').eq('purchase_request_id', prId).order('created_at', { ascending: true })
-      if (fetchRecErr) { setNotice(`Gagal mengambil data receiving: ${fetchRecErr.message}`); return }
+      if (fetchRecErr) return { ok: false, error: fetchRecErr.message }
 
       if (existingRecs && existingRecs.length) {
         recId = existingRecs[0].id
@@ -443,13 +461,19 @@ export default function App() {
           project_id: pr.project_id || null,
           status: 'NORMAL',
           delivery_note: `PO ${pr.pr_number || ''} - ${pr.title || ''}`.trim(),
-          note: `Dibuat otomatis dari PR ${pr.pr_number || ''} (item diorder di supplier).`
+          note: `Dibuat otomatis dari PR ${pr.pr_number || ''} (barang disetujui).`
         }).select().single()
-        if (recErr) { setNotice(`Gagal membuat receiving: ${recErr.message}`); return }
+        if (recErr) return { ok: false, error: recErr.message }
         recId = newRec.id
       }
 
-      // 3. Tambahkan item ini ke receiving_items
+      // 2. Dedup: jangan tambah baris kalau item ini sudah ada di receiving_items
+      const { data: existingItems, error: eiErr } = await supabase.from('receiving_items')
+        .select('id').eq('receiving_id', recId).eq('pr_item_id', prItem.id)
+      if (eiErr) return { ok: false, error: eiErr.message }
+      if (existingItems && existingItems.length) return { ok: true, recId, already: true }
+
+      // 3. Tambahkan item ke receiving_items
       const { error: riErr } = await supabase.from('receiving_items').insert({
         receiving_id: recId,
         pr_item_id: prItem.id,
@@ -457,10 +481,31 @@ export default function App() {
         quantity_received: 0,
         unit: prItem.unit || 'Pcs'
       })
-      if (riErr) { setNotice(`Gagal menambah item receiving: ${riErr.message}`); return }
+      if (riErr) return { ok: false, error: riErr.message }
+      return { ok: true, recId, already: false }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  }
 
-      // 4. Titip status ordered di kolom status item juga pada purchase_requests summary (best-effort, no schema change)
-      setNotice(`Item "${prItem.item_name || prItem.kode}" sudah diorder dan masuk ke modul Receiving.`)
+  // Tombol "🛒 Sudah Order": tandai item ORDERED. Item sudah otomatis ada di
+  // modul Purchase sejak disetujui (ensureItemInPurchase), jadi di sini hanya
+  // memastikan keberadaannya (dedup) lalu update status.
+  async function markPrItemOrdered(prItem) {
+    if (!supabase) return
+    const ok = window.confirm(`Tandai item "${prItem.item_name || prItem.kode}" sebagai SUDAH DIORDER? Item tetap terpantau di modul Purchase.`)
+    if (!ok) return
+
+    try {
+      const { error: itemErr } = await supabase.from('pr_items')
+        .update({ status: 'ORDERED' })
+        .eq('id', prItem.id)
+      if (itemErr) { setNotice(`Gagal update item: ${itemErr.message}`); return }
+
+      const sync = await ensureItemInPurchase(prItem)
+      if (!sync.ok) { setNotice(`Gagal menambah item ke modul Purchase: ${sync.error}`); return }
+
+      setNotice(`Item "${prItem.item_name || prItem.kode}" sudah diorder dan ada di modul Purchase.`)
       loadAll()
     } catch (err) {
       setNotice(`Terjadi kesalahan saat order item: ${err.message}`)

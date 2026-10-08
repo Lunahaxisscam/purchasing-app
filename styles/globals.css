@@ -907,7 +907,7 @@ table {
 }
 
 table.materials-table {
-  min-width: 820px !important;
+  min-width: 920px !important;
 }
 
 table.requests-table {
@@ -915,7 +915,7 @@ table.requests-table {
 }
 
 table.approvals-table {
-  min-width: 1100px !important;
+  min-width: 1180px !important;
 }
 
 th, td {
