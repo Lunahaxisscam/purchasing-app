@@ -1,0 +1,928 @@
+import React, { useState, useMemo } from 'react'
+import Create from './CreateModal'
+import { StoreLink, WaContact } from './Common'
+import { exportWorkbook } from '../lib/workflow'
+import {
+  headersFor,
+  pretty,
+  format,
+  prettyStatus,
+  normalizeStatus,
+  prettyReceivingStatus,
+  isReceivingKendala,
+  statusOptions,
+  labels
+} from '../lib/constants'
+
+export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
+  const [open, setOpen] = useState(false)
+  const [projectFilter, setProjectFilter] = useState('active')
+  const [receivingFilter, setReceivingFilter] = useState('all')
+  const [prFilter, setPrFilter] = useState('all')
+  const [approvalFilter, setApprovalFilter] = useState('all')
+  const [materialFilter, setMaterialFilter] = useState('all')
+  const [vendorFilter, setVendorFilter] = useState('all')
+  const [handoverFilter, setHandoverFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [expandedApproval, setExpandedApproval] = useState(null)
+  const [expandedReceiving, setExpandedReceiving] = useState(null)
+  const [openNoteId, setOpenNoteId] = useState(null)
+  const [editRow, setEditRow] = useState(null)
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
+  const title = labels[page]
+
+  // Reset urutan & popup catatan saat pindah modul (set kolom tiap modul berbeda)
+  useEffect(() => {
+    setSortKey(null)
+    setSortDir('asc')
+    setOpenNoteId(null)
+  }, [page])
+
+  function toggleSort(key) {
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  // --- Helper alur item (dipakai modul Approval & Receiving) ---
+  // CATATAN: item dibaca dari prop terpisah (allPrItems/allReceivingItems) karena
+  // `rows` pada komponen ini adalah array baris modul aktif, bukan objek semua tabel.
+  const prItemsForPr = (prId) => (allPrItems || []).filter(it => it.pr_id === prId)
+  const vendorName = (vendorId) => ((allVendors || []).find(v => v.id === vendorId) || {}).name || ''
+  const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
+  const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
+
+  // Status persetujuan per material: ORDERED (sudah dipesan) > APPROVED (disetujui) > PENDING (menunggu)
+  const itemState = (it) => {
+    const s = String(it?.status || '').toUpperCase()
+    if (s === 'ORDERED') return 'ORDERED'
+    if (s === 'APPROVED') return 'APPROVED'
+    return 'PENDING'
+  }
+
+  // Baris item utk modul Approval: pakai pr_items; jika kosong (data lama),
+  // fallback ke ringkasan material PR supaya barang yang perlu di-approve tetap terlihat.
+  const approvalItemLines = (approval) => {
+    const items = approvalItems(approval)
+    if (items.length) {
+      return items
+        .map(it => {
+          const base = `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim()
+          const bits = []
+          if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
+          const v = vendorName(it.vendor_id)
+          if (v) bits.push(`Vendor: ${v}`)
+          return bits.length ? `${base} — ${bits.join(' · ')}` : base
+        })
+        .filter(Boolean)
+    }
+    const pr = (allRequests || []).find(p => p.id === approval.purchase_request_id)
+    const s = String(pr?.materials_summary || '').trim()
+    if (!s) return []
+    return s.split(',').map(x => x.trim()).filter(Boolean)
+  }
+
+  // Daftar baris item material sebuah PR (dipakai modul Purchase Request):
+  // utamakan pr_items yang lengkap; fallback ke ringkasan teks bila item tidak ada.
+  const requestItemLines = (pr) => {
+    const items = prItemsForPr(pr.id)
+    if (items.length) {
+      return items
+        .map(it => {
+          const base = `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim()
+          const bits = []
+          if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
+          const v = vendorName(it.vendor_id)
+          if (v) bits.push(`Vendor: ${v}`)
+          return bits.length ? `${base} — ${bits.join(' · ')}` : base
+        })
+        .filter(Boolean)
+    }
+    const s = String(pr.materials_summary || '').trim()
+    if (!s) return ['—']
+    return s.split(',').map(x => x.trim()).filter(Boolean)
+  }
+
+  let displayRows = rows
+  if (page === 'projects') {
+    if (projectFilter === 'all') displayRows = allProjects
+    else if (projectFilter === 'NOT_START') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'NOT_START')
+    else if (projectFilter === 'ON_GOING') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'ON_GOING')
+    else displayRows = allProjects.filter(p => normalizeStatus(p.status) !== 'DONE')
+  } else if (page === 'requests') {
+    if (prFilter === 'DRAFT') displayRows = rows.filter(r => r.status === 'DRAFT')
+    else if (prFilter === 'SUBMITTED') displayRows = rows.filter(r => r.status === 'SUBMITTED')
+    else if (prFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
+    else if (prFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')
+    else if (prFilter === 'REJECTED') displayRows = rows.filter(r => r.status === 'REJECTED')
+    else if (prFilter === 'URGENT') displayRows = rows.filter(r => r.priority === 'URGENT')
+  } else if (page === 'approvals') {
+    if (approvalFilter === 'PENDING') displayRows = rows.filter(r => r.status === 'PENDING')
+    else if (approvalFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
+    else if (approvalFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')
+    else if (approvalFilter === 'REJECTED') displayRows = rows.filter(r => r.status === 'REJECTED')
+  } else if (page === 'receivings') {
+    if (receivingFilter === 'NORMAL') displayRows = rows.filter(r => !isReceivingKendala(r.status))
+    else if (receivingFilter === 'RETUR') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RETUR'))
+    else if (receivingFilter === 'REFUND') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('REFUND'))
+  } else if (page === 'materials') {
+    if (materialFilter === 'Lainnya') displayRows = rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category))
+    else if (materialFilter !== 'all') displayRows = rows.filter(r => r.category === materialFilter)
+  } else if (page === 'vendors') {
+    if (vendorFilter === 'HAS_PHONE') displayRows = rows.filter(r => !!r.phone)
+    else if (vendorFilter === 'HAS_CONTACT') displayRows = rows.filter(r => !!r.contact)
+  } else if (page === 'handovers') {
+    if (handoverFilter === 'CONFIRMED') displayRows = rows.filter(r => r.status === 'CONFIRMED' || r.status === 'SELESAI')
+    else if (handoverFilter === 'DRAFT') displayRows = rows.filter(r => r.status !== 'CONFIRMED' && r.status !== 'SELESAI')
+  }
+
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim()
+    displayRows = displayRows.filter(row => {
+      return Object.values(row).some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q))
+    })
+  }
+
+  // Urutkan berdasar kolom yang diklik (klik ulang untuk balik arah)
+  if (sortKey) {
+    const dir = sortDir === 'desc' ? -1 : 1
+    const valOf = (row) => (sortKey === 'kode' ? (row.kode || row.code) : row[sortKey])
+    displayRows = [...displayRows].sort((a, b) => {
+      const va = valOf(a)
+      const vb = valOf(b)
+      if (va === null || va === undefined) return (vb === null || vb === undefined) ? 0 : 1
+      if (vb === null || vb === undefined) return -1
+      const sa = String(va).trim()
+      const sb = String(vb).trim()
+      const na = Number(sa)
+      const nb = Number(sb)
+      if (sa !== '' && sb !== '' && isFinite(na) && isFinite(nb)) return (na - nb) * dir
+      return sa.localeCompare(sb, 'id', { numeric: true, sensitivity: 'base' }) * dir
+    })
+  }
+
+  const columns = headersFor(page, displayRows)
+  const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'handovers', 'projects', 'past_projects'].includes(page)
+
+  return (
+    <>
+      <div className="toolbar">
+        <div>
+          <p className="muted">
+            {displayRows.length} data tersedia {page === 'past_projects' && '(Project dengan status DONE)'}
+          </p>
+          {page === 'projects' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${projectFilter === 'active' ? 'active' : ''}`}
+                onClick={() => setProjectFilter('active')}
+              >
+                Aktif ({allProjects.filter(p => normalizeStatus(p.status) !== 'DONE').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${projectFilter === 'ON_GOING' ? 'active' : ''}`}
+                onClick={() => setProjectFilter('ON_GOING')}
+              >
+                On Going ({allProjects.filter(p => normalizeStatus(p.status) === 'ON_GOING').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${projectFilter === 'NOT_START' ? 'active' : ''}`}
+                onClick={() => setProjectFilter('NOT_START')}
+              >
+                Not Start ({allProjects.filter(p => normalizeStatus(p.status) === 'NOT_START').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${projectFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setProjectFilter('all')}
+              >
+                Semua ({allProjects.length})
+              </button>
+            </div>
+          )}
+          {page === 'requests' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${prFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setPrFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'DRAFT' ? 'active' : ''}`}
+                onClick={() => setPrFilter('DRAFT')}
+              >
+                Draft ({rows.filter(r => r.status === 'DRAFT').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'SUBMITTED' ? 'active' : ''}`}
+                onClick={() => setPrFilter('SUBMITTED')}
+              >
+                Submitted ({rows.filter(r => r.status === 'SUBMITTED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'APPROVED' ? 'active' : ''}`}
+                onClick={() => setPrFilter('APPROVED')}
+              >
+                Approved ({rows.filter(r => r.status === 'APPROVED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'REVISI' ? 'active' : ''}`}
+                onClick={() => setPrFilter('REVISI')}
+              >
+                Revisi ({rows.filter(r => r.status === 'REVISI').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'REJECTED' ? 'active' : ''}`}
+                onClick={() => setPrFilter('REJECTED')}
+              >
+                Ditolak ({rows.filter(r => r.status === 'REJECTED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${prFilter === 'URGENT' ? 'active' : ''}`}
+                onClick={() => setPrFilter('URGENT')}
+                style={rows.some(r => r.priority === 'URGENT') ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
+              >
+                🚨 Prioritas ({rows.filter(r => r.priority === 'URGENT').length})
+              </button>
+            </div>
+          )}
+          {page === 'approvals' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'PENDING' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('PENDING')}
+                style={rows.some(r => r.status === 'PENDING') ? { borderColor: '#d97706', color: '#d97706', fontWeight: 'bold' } : {}}
+              >
+                ⏳ Menunggu ({rows.filter(r => r.status === 'PENDING').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'APPROVED' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('APPROVED')}
+              >
+                ✓ Disetujui ({rows.filter(r => r.status === 'APPROVED').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'REVISI' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('REVISI')}
+              >
+                ✎ Revisi ({rows.filter(r => r.status === 'REVISI').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${approvalFilter === 'REJECTED' ? 'active' : ''}`}
+                onClick={() => setApprovalFilter('REJECTED')}
+              >
+                ✕ Ditolak ({rows.filter(r => r.status === 'REJECTED').length})
+              </button>
+            </div>
+          )}
+          {page === 'receivings' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'NORMAL' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('NORMAL')}
+              >
+                ✓ Normal ({rows.filter(r => !isReceivingKendala(r.status)).length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'RETUR' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('RETUR')}
+                style={rows.some(r => String(r.status).toUpperCase().includes('RETUR')) ? { borderColor: '#d97706', color: '#d97706', fontWeight: 'bold' } : {}}
+              >
+                ⚠️ Retur ({rows.filter(r => String(r.status).toUpperCase().includes('RETUR')).length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${receivingFilter === 'REFUND' ? 'active' : ''}`}
+                onClick={() => setReceivingFilter('REFUND')}
+                style={rows.some(r => String(r.status).toUpperCase().includes('REFUND')) ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
+              >
+                ⚠️ Refund ({rows.filter(r => String(r.status).toUpperCase().includes('REFUND')).length})
+              </button>
+            </div>
+          )}
+          {page === 'materials' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Plywood & Board' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Plywood & Board')}
+              >
+                Plywood & Board ({rows.filter(r => r.category === 'Plywood & Board').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'HPL & Edging' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('HPL & Edging')}
+              >
+                HPL & Edging ({rows.filter(r => r.category === 'HPL & Edging').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Hardware & Fitting' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Hardware & Fitting')}
+              >
+                Hardware & Fitting ({rows.filter(r => r.category === 'Hardware & Fitting').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Bahan Habis Pakai' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Bahan Habis Pakai')}
+              >
+                Bahan Habis Pakai ({rows.filter(r => r.category === 'Bahan Habis Pakai').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'Lainnya' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('Lainnya')}
+              >
+                Lainnya ({rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category)).length})
+              </button>
+            </div>
+          )}
+          {page === 'vendors' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${vendorFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setVendorFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${vendorFilter === 'HAS_PHONE' ? 'active' : ''}`}
+                onClick={() => setVendorFilter('HAS_PHONE')}
+              >
+                Ada Telepon ({rows.filter(r => !!r.phone).length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${vendorFilter === 'HAS_CONTACT' ? 'active' : ''}`}
+                onClick={() => setVendorFilter('HAS_CONTACT')}
+              >
+                Ada Kontak/Email ({rows.filter(r => !!r.contact).length})
+              </button>
+            </div>
+          )}
+          {page === 'handovers' && (
+            <div className="filter-tabs">
+              <button
+                type="button"
+                className={`pill ${handoverFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setHandoverFilter('all')}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${handoverFilter === 'CONFIRMED' ? 'active' : ''}`}
+                onClick={() => setHandoverFilter('CONFIRMED')}
+              >
+                ✓ Sudah Diserahkan ({rows.filter(r => r.status === 'CONFIRMED' || r.status === 'SELESAI').length})
+              </button>
+              <button
+                type="button"
+                className={`pill ${handoverFilter === 'DRAFT' ? 'active' : ''}`}
+                onClick={() => setHandoverFilter('DRAFT')}
+              >
+                Belum Diserahkan ({rows.filter(r => r.status !== 'CONFIRMED' && r.status !== 'SELESAI').length})
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="toolbar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            type="search"
+            placeholder="🔍 Cari..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              fontSize: '12px',
+              borderRadius: '8px',
+              border: '1px solid #d5dedb',
+              width: '160px',
+              background: '#ffffff'
+            }}
+          />
+          {page === 'past_projects' && (
+            <button type="button" className="outline" onClick={() => setPage('projects')}>
+              ← Ke Project Aktif
+            </button>
+          )}
+          {['projects', 'vendors', 'materials', 'requests', 'receivings', 'handovers'].includes(page) && (
+            <button onClick={() => setOpen(true)}>+ Tambah {title}</button>
+          )}
+        </div>
+      </div>
+      {(open || editRow) && (
+        <Create
+          page={page}
+          editRow={editRow}
+          editItems={editRow ? prItemsForPr(editRow.id) : []}
+          allReceivings={allReceivings}
+          allProjects={allProjects}
+          allMaterials={allMaterials}
+          allVendors={allVendors}
+          existingRequests={displayRows}
+          allRequestsFull={allRequests}
+          close={() => { setOpen(false); setEditRow(null) }}
+          refresh={refresh}
+          say={say}
+        />
+      )}
+      <div className="panel table">
+        <table className={page === 'materials' ? 'materials-table' : (page === 'requests' ? 'requests-table' : (page === 'approvals' ? 'approvals-table' : undefined))}>
+          <thead>
+            <tr>
+              {columns.map(h => (
+                <th
+                  key={h}
+                  onClick={() => h !== 'items' && toggleSort(h)}
+                  style={{ cursor: h === 'items' ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  title={h === 'items' ? undefined : 'Klik untuk urutkan'}
+                >
+                  {page === 'requests' && h === 'priority' ? (
+                    <span className="prio-dot prio-header" title="Prioritas — klik untuk urutkan" />
+                  ) : pretty(h)}
+                  {sortKey === h ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+              ))}
+              {(hasDeleteAction || page === 'approvals') && (
+                <th style={{ width: page === 'approvals' ? '140px' : (page === 'requests' ? '150px' : '90px'), textAlign: 'center' }}>Aksi</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.length ? (
+              displayRows.map((r, i) => (
+                <React.Fragment key={r.id || i}>
+                <tr>
+                  {columns.map(h => {
+                    const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
+                    return (
+                      <td key={h}>
+                        {['projects', 'past_projects'].includes(page) && h === 'status' ? (
+                          <select
+                            className={`status-select status-${normalizeStatus(r.status)}`}
+                            value={normalizeStatus(r.status)}
+                            onChange={e => onStatusChange(r, e.target.value)}
+                          >
+                            <option value="NOT_START">Not Start</option>
+                            <option value="ON_GOING">On Going</option>
+                            <option value="DONE">Done</option>
+                          </select>
+                        ) : page === 'receivings' && h === 'status' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <select
+                              className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
+                              value={['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? String(r.status).toUpperCase() : (r.status || 'NORMAL')}
+                              onChange={e => onReceivingStatusChange(r, e.target.value)}
+                            >
+                              {r.status && !['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status).toUpperCase()) && (
+                                <option value={r.status} disabled>{prettyReceivingStatus(r.status)} (status lama)</option>
+                              )}
+                              <option value="NORMAL">✓ Normal</option>
+                              <option value="RETUR">⚠️ Retur</option>
+                              <option value="REFUND">⚠️ Refund</option>
+                            </select>
+                            {r.masuk_gudang ? (
+                              <span style={{ fontSize: '11px', color: '#137333', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                ✓ Di Stok Gudang
+                              </span>
+                            ) : r.tukang_at || r.alokasi === 'KE_TUKANG' ? (
+                              <span style={{ fontSize: '11px', color: '#1a73e8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                👷 Ke Tukang (Handover)
+                              </span>
+                            ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
+                              <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                ⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah
+                              </span>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => onMoveToWarehouse(r)}
+                                  style={{
+                                    background: '#e6f4ea',
+                                    color: '#137333',
+                                    border: '1px solid #ceead6',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    width: 'fit-content'
+                                  }}
+                                  title="Tambah stok barang ke modul Materials"
+                                >
+                                  📦 Ke Gudang
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onSendToTukang(r)}
+                                  style={{
+                                    background: '#e8f0fe',
+                                    color: '#1a73e8',
+                                    border: '1px solid #d2e3fc',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    width: 'fit-content'
+                                  }}
+                                  title="Kirim langsung ke tukang — masuk modul Handover"
+                                >
+                                  👷 Ke Tukang
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ) : page === 'vendors' && h === 'phone' ? (
+                          <WaContact value={rawVal} />
+                        ) : page === 'vendors' && h === 'store_link' ? (
+                          <StoreLink value={rawVal} />
+                        ) : page === 'approvals' && h === 'items' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {approvalItemLines(r).length ? approvalItemLines(r).map((line, idx) => (
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, paddingLeft: '12px', textIndent: '-12px' }}>
+                                • {line}
+                              </span>
+                            )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
+                          </div>
+                        ) : page === 'requests' && h === 'pr_number' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <b>{format(rawVal)}</b>
+                              <button
+                                type="button"
+                                className={`note-dot ${String(r.notes || '').trim() ? 'note-dot-on' : ''}`}
+                                title={String(r.notes || '').trim() || 'Tidak ada catatan'}
+                                aria-label="Catatan PR"
+                                onClick={() => setOpenNoteId(openNoteId === r.id ? null : r.id)}
+                              />
+                            </div>
+                            <small style={{ color: '#9aa8a4', fontSize: '10px', fontWeight: 500 }}>{format(r.created_at)}</small>
+                            {openNoteId === r.id && (
+                              <div className="note-pop">{String(r.notes || '').trim() || 'Tidak ada catatan.'}</div>
+                            )}
+                          </div>
+                        ) : page === 'requests' && h === 'priority' ? (
+                          <span
+                            className={`prio-dot ${String(r.priority || '').toUpperCase() === 'URGENT' ? 'prio-urgent' : 'prio-normal'}`}
+                            title={String(r.priority || '').toUpperCase() === 'URGENT' ? 'Prioritas' : 'Standard'}
+                          />
+                        ) : ['requests', 'approvals'].includes(page) && h === 'project_name' ? (
+                          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={String(rawVal || '')}>
+                            {format(rawVal)}
+                          </div>
+                        ) : ['requests', 'approvals'].includes(page) && (h === 'notes' || h === 'note') ? (
+                          <div style={{ whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: 1.4, fontSize: '12px' }}>
+                            {format(rawVal)}
+                          </div>
+                        ) : h === 'title' ? (
+                          <div
+                            style={{ maxWidth: ['requests', 'approvals'].includes(page) ? '100%' : '170px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            title={String(rawVal || '')}
+                          >
+                            {format(rawVal)}
+                          </div>
+                        ) : page === 'materials' && h === 'name' ? (
+                          <div className="cell-name" title={String(rawVal || '')}>{format(rawVal)}</div>
+                        ) : h === 'materials_summary' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {requestItemLines(r).map((line, idx) => (
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, whiteSpace: 'normal', paddingLeft: '12px', textIndent: '-12px' }}>
+                                • {line}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          format(rawVal)
+                        )}
+                      </td>
+                    )
+                  })}
+                  {page === 'approvals' && (
+                    <td style={{ textAlign: 'center' }}>
+                      {r.status === 'PENDING' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => onDecideApproval(r, 'APPROVED')}
+                            style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✓ Setujui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDecideApproval(r, 'REJECTED')}
+                            style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✕ Tolak
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onReviseApproval(r)}
+                            style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✎ Revisi
+                          </button>
+                        </div>
+                        {approvalItemLines(r).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
+                            style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
+                          >
+                            {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
+                          </button>
+                        )}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                          <span className={`badge status-${r.status}`}>{r.status}</span>
+                          {approvalItemLines(r).length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
+                              style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
+                            >
+                              {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  )}
+                  {hasDeleteAction && (
+                    <td style={{ textAlign: 'center' }}>
+                      {page === 'requests' ? (
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
+                            <button
+                              type="button"
+                              className="btn-finish"
+                              onClick={() => onFinishPr(r)}
+                              title={`Selesai — kirim ${r.pr_number || title} ke modul Approval`}
+                              style={{ fontSize: '9px', padding: '3px 6px', whiteSpace: 'nowrap' }}
+                            >
+                              ✓ Selesai
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-edit icon-btn"
+                            onClick={() => setEditRow(r)}
+                            title={`Edit ${r.pr_number || title}`}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-delete icon-btn"
+                            onClick={() => onDelete(page, r)}
+                            title={`Hapus ${r.pr_number || title}`}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ) : page === 'handovers' ? (
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {['CONFIRMED', 'SELESAI'].includes(String(r.status || '').toUpperCase()) ? (
+                            <span style={{ fontSize: '10px', color: '#137333', fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Sudah diserahkan</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onMarkHandoverDelivered(r)}
+                              style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                              title="Tandai serah terima sudah diserahkan"
+                            >
+                              ✓ Sudah Diserahkan
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-delete icon-btn"
+                            onClick={() => onDelete(page, r)}
+                            title={`Hapus ${title}`}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-delete"
+                          onClick={() => onDelete(page, r)}
+                          title={`Hapus ${title}`}
+                        >
+                          Hapus
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+                {page === 'receivings' && receivingItemsForReceiving(r.id).length > 0 && (
+                  <tr>
+                    <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#1f3a34' }}>
+                          📦 Item yang diorder — isi qty terima lalu tandai "Sudah Diterima"
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedReceiving(expandedReceiving === r.id ? null : r.id)}
+                          style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
+                        >
+                          {expandedReceiving === r.id ? '▲ Tutup item' : `▼ Lihat ${receivingItemsForReceiving(r.id).length} item`}
+                        </button>
+                      </div>
+                      {expandedReceiving === r.id && (
+                        <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
+                              <th style={{ padding: '4px 6px', width: '60px' }}>No</th>
+                              <th style={{ padding: '4px 6px' }}>Nama Item</th>
+                              <th style={{ padding: '4px 6px', width: '120px' }}>Qty Diterima</th>
+                              <th style={{ padding: '4px 6px', width: '70px' }}>Satuan</th>
+                              <th style={{ padding: '4px 6px', width: '130px', textAlign: 'center' }}>Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {receivingItemsForReceiving(r.id).map((it, i) => {
+                              const isReceived = String(it.note || '').toUpperCase().startsWith('DITERIMA')
+                              return (
+                                <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
+                                  <td style={{ padding: '4px 6px' }}>{i + 1}</td>
+                                  <td style={{ padding: '4px 6px' }}>{it.item_name}</td>
+                                  <td style={{ padding: '4px 6px' }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={it.quantity_received ?? ''}
+                                      placeholder="0"
+                                      disabled={isReceived}
+                                      onChange={e => onUpdateReceivingQty(it, e.target.value)}
+                                      style={{ width: '70px', padding: '2px 4px', fontSize: '11px' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '4px 6px' }}>{it.unit || '—'}</td>
+                                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                                    {isReceived ? (
+                                      <span style={{ fontSize: '10px', color: '#137333', fontWeight: 600 }}>✓ Sudah diterima → Handover</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => onMarkReceivingItemReceived(it)}
+                                        style={{ background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                                      >
+                                        ✓ Sudah Diterima
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                {page === 'approvals' && expandedApproval === r.id && (
+                  <tr>
+                    <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: '#1f3a34' }}>
+                        📋 Material — setujui per barang{r.status === 'APPROVED' ? ', lalu tandai yang sudah dipesan ke supplier' : ''}
+                      </div>
+                      {approvalItems(r).length === 0 ? (
+                        <div>
+                          {approvalItemLines(r).length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '6px' }}>
+                              {approvalItemLines(r).map((line, i) => (
+                                <span key={i} style={{ fontSize: '11px', lineHeight: 1.45, paddingLeft: '12px', textIndent: '-12px' }}>• {line}</span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="muted" style={{ fontSize: '11px', margin: 0 }}>
+                            Rincian per barang belum tersimpan untuk PR lama ini — gunakan tombol ✓ Setujui untuk menyetujui seluruh PR.
+                          </p>
+                        </div>
+                      ) : (
+                        <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
+                              <th style={{ padding: '4px 6px', width: '90px' }}>Kode</th>
+                              <th style={{ padding: '4px 6px' }}>Nama Item</th>
+                              <th style={{ padding: '4px 6px', width: '70px' }}>Qty</th>
+                              <th style={{ padding: '4px 6px', width: '70px' }}>Satuan</th>
+                              <th style={{ padding: '4px 6px', width: '110px' }}>Status</th>
+                              <th style={{ padding: '4px 6px', width: '150px', textAlign: 'center' }}>Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {approvalItems(r).map(it => {
+                              const st = itemState(it)
+                              const canApprove = st === 'PENDING' && (r.status === 'PENDING' || r.status === 'APPROVED')
+                              const canOrder = st === 'APPROVED' && r.status === 'APPROVED'
+                              return (
+                                <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
+                                  <td style={{ padding: '4px 6px' }}><b>{it.kode || '—'}</b></td>
+                                  <td style={{ padding: '4px 6px' }}>{it.item_name}</td>
+                                  <td style={{ padding: '4px 6px' }}>{it.quantity}</td>
+                                  <td style={{ padding: '4px 6px' }}>{it.unit || '—'}</td>
+                                  <td style={{ padding: '4px 6px' }}>
+                                    <span className={`badge ${st === 'ORDERED' ? 'status-APPROVED' : (st === 'APPROVED' ? 'badge-item-approved' : 'status-PENDING')}`} style={{ fontSize: '10px' }}>
+                                      {st === 'ORDERED' ? '✓ Sudah Order' : (st === 'APPROVED' ? '✓ Disetujui' : '⏳ Menunggu')}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                                    {st === 'ORDERED' ? (
+                                      <span style={{ fontSize: '10px', color: '#137333' }}>→ ke Receiving</span>
+                                    ) : canOrder ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => onMarkPrItemOrdered(it)}
+                                        style={{ background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                                      >
+                                        🛒 Sudah Order
+                                      </button>
+                                    ) : canApprove ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => onApproveItem(it)}
+                                        style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+                                      >
+                                        ✓ Setujui
+                                      </button>
+                                    ) : st === 'APPROVED' ? (
+                                      <span style={{ fontSize: '10px', color: '#b45309', whiteSpace: 'nowrap' }}>⏳ Menunggu PR disetujui</span>
+                                    ) : (
+                                      <span style={{ fontSize: '10px', color: '#71817d' }}>—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length + (hasDeleteAction || page === 'approvals' ? 1 : 0)} className="empty">
+                  Belum ada data.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
