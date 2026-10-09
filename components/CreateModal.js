@@ -550,13 +550,13 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                               <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 600 }}>🛒 Rencana beli:</span>
                               <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
-                                Supplier
+                                Kategori
                                 <select
                                   value={it.supplier_category || ''}
                                   onChange={e => updateItemSupplier(idx, e.target.value)}
                                   style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
                                 >
-                                  <option value="">-- Kategori --</option>
+                                  <option value="">-- Pilih Kategori --</option>
                                   {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                               </label>
@@ -652,7 +652,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
             {field('name', 'Nama Vendor', 'text', true)}
             {field('phone', 'Kontak WA (No. WhatsApp)', 'text', false)}
             {field('store_link', 'Link Toko (URL)', 'text', false)}
-            <label>Supplier — Kategori Material
+            <label>Kategori Material yang Disuplai Vendor Ini
               <select value={form.supplier_category || ''} onChange={e => setForm({ ...form, supplier_category: e.target.value })}>
                 <option value="">-- Pilih Kategori --</option>
                 {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}

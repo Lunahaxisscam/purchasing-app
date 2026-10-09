@@ -108,7 +108,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
       return items.map(it => {
         const base = String(it.item_name || it.kode || '').trim() || '—'
         const bits = []
-        if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
+        if (it.supplier_category) bits.push(`Kategori: ${it.supplier_category}`)
         const v = vendorName(it.vendor_id)
         if (v) bits.push(`Vendor: ${v}`)
         const text = bits.length ? `${base} — ${bits.join(' · ')}` : base
@@ -131,7 +131,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
 
   // Satu sumber data untuk kolom Item Material + Qty + Vendor (modul PR) supaya
   // baris antar kolom tidak pernah meleset. Vendor dipisah ke kolomnya sendiri;
-  // Supplier tetap menempel di teks item. Fallback ke ringkasan teks utk data lama.
+  // Kategori (material) menempel di teks item. Fallback ke ringkasan teks utk data lama.
   const requestItemRows = (pr) => {
     const items = prItemsForPr(pr.id)
     if (items.length) {
@@ -142,7 +142,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
         const qtyText = qtyVal === '' ? '—' : `${qtyVal} ${unit}`.replace(/\s+/g, ' ').trim()
         const supplier = String(it.supplier_category || '').trim()
         const vendor = vendorName(it.vendor_id)
-        const text = supplier ? `${name} — Supplier: ${supplier}` : name
+        const text = supplier ? `${name} — Kategori: ${supplier}` : name
         return { name, text, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor }
       })
     }
@@ -276,7 +276,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
         y += metaLines.length * 3.6 + 0.6
         autoTable(doc, {
           startY: y,
-          head: [['Item Material', 'Qty', 'Satuan', 'Supplier', 'Vendor']],
+          head: [['Item Material', 'Qty', 'Satuan', 'Kategori', 'Vendor']],
           body: items.length
             ? items.map(it => [it.name || '—', it.qty === '' ? '—' : String(it.qty ?? '—'), it.unit || '—', it.supplier || '—', it.vendor || '—'])
             : [['(belum ada rincian item)', '—', '—', '—', '—']],
@@ -1264,7 +1264,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                       <div className="mobile-items-box">
                         {requestItemRows(r).map((it, idx) => (
                           <div key={idx} className="mobile-item-line">
-                            • {it.name}{it.supplier ? ` — Supplier: ${it.supplier}` : ''}
+                            • {it.name}{it.supplier ? ` — Kategori: ${it.supplier}` : ''}
                             {it.qtyText && it.qtyText !== '—' ? <b> — {it.qtyText}</b> : null}
                             {it.vendor ? <span style={{ color: '#1a73e8' }}> · 🛒 {it.vendor}</span> : null}
                           </div>
