@@ -254,7 +254,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
           const { error } = await supabase.from('pr_items').delete().eq('id', oi.id)
           if (error && !itemErrMsg) itemErrMsg = error.message
         }
-        for (const it of prItemsList) {
+        for (let idx = 0; idx < prItemsList.length; idx++) {
+          const it = prItemsList[idx]
           if (it.id) {
             const { error } = await supabase.from('pr_items').update({
               quantity: it.qty,
