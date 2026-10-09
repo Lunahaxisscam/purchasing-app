@@ -261,7 +261,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
               unit: it.satuan,
               supplier_category: it.supplier_category || null,
               vendor_id: it.vendor_id || null,
-              estimated_price: priceDigits(it.estimated_price)
+              estimated_price: priceDigits(it.estimated_price),
+              sort_order: idx
             }).eq('id', it.id)
             if (error && !itemErrMsg) itemErrMsg = error.message
           } else {
@@ -275,7 +276,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
               status: 'PENDING_APPROVAL',
               supplier_category: it.supplier_category || null,
               vendor_id: it.vendor_id || null,
-              estimated_price: priceDigits(it.estimated_price)
+              estimated_price: priceDigits(it.estimated_price),
+              sort_order: idx
             })
             if (error && !itemErrMsg) itemErrMsg = error.message
           }
@@ -317,7 +319,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
       }
 
       if (prItemsList.length && insertedPR) {
-        const itemRecords = prItemsList.map(it => ({
+        const itemRecords = prItemsList.map((it, idx) => ({
           pr_id: insertedPR.id,
           material_id: it.material_id,
           item_name: it.name,
@@ -327,7 +329,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
           status: 'PENDING_APPROVAL',
           supplier_category: it.supplier_category || null,
           vendor_id: it.vendor_id || null,
-          estimated_price: priceDigits(it.estimated_price)
+          estimated_price: priceDigits(it.estimated_price),
+          sort_order: idx
         }))
         const { error: itemErr } = await supabase.from('pr_items').insert(itemRecords)
         if (itemErr) {

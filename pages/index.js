@@ -75,7 +75,10 @@ export default function App() {
       } else {
         const spec = orderSpecFor(table)
         const base = supabase.from(table).select('*')
-        const { data } = spec ? await base.order(spec.column, { ascending: spec.ascending }) : await base
+        // sort_order bisa NULL utk data lama (sebelum backfill) — taruh di akhir.
+        const { data } = spec
+          ? await base.order(spec.column, { ascending: spec.ascending, nullsFirst: false })
+          : await base
         items = data || []
       }
 
