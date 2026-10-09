@@ -129,25 +129,36 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const approvalItemLines = (approval) => approvalItemRows(approval).map(r => r.text)
   const approvalItemQtys = (approval) => approvalItemRows(approval).map(r => r.qty)
 
-  // Daftar baris item material sebuah PR (dipakai modul Purchase Request):
-  // utamakan pr_items yang lengkap; fallback ke ringkasan teks bila item tidak ada.
-  const requestItemLines = (pr) => {
+  // Satu sumber data untuk kolom Item Material + Qty + Vendor (modul PR) supaya
+  // baris antar kolom tidak pernah meleset. Vendor dipisah ke kolomnya sendiri;
+  // Supplier tetap menempel di teks item. Fallback ke ringkasan teks utk data lama.
+  const requestItemRows = (pr) => {
     const items = prItemsForPr(pr.id)
     if (items.length) {
-      return items
-        .map(it => {
-          const base = `${it.quantity ?? ''} ${it.unit || ''} ${it.item_name || it.kode || ''}`.replace(/\s+/g, ' ').trim()
-          const bits = []
-          if (it.supplier_category) bits.push(`Supplier: ${it.supplier_category}`)
-          const v = vendorName(it.vendor_id)
-          if (v) bits.push(`Vendor: ${v}`)
-          return bits.length ? `${base} — ${bits.join(' · ')}` : base
-        })
-        .filter(Boolean)
+      return items.map(it => {
+        const name = String(it.item_name || it.kode || '—').trim() || '—'
+        const unit = String(it.unit || '').trim()
+        const qtyVal = (it.quantity ?? '') === '' ? '' : it.quantity
+        const qtyText = qtyVal === '' ? '—' : `${qtyVal} ${unit}`.replace(/\s+/g, ' ').trim()
+        const supplier = String(it.supplier_category || '').trim()
+        const vendor = vendorName(it.vendor_id)
+        const text = supplier ? `${name} — Supplier: ${supplier}` : name
+        return { name, text, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor }
+      })
     }
     const s = String(pr.materials_summary || '').trim()
-    if (!s) return ['—']
-    return s.split(',').map(x => x.trim()).filter(Boolean)
+    if (!s) return []
+    return s.split(',').map(x => x.trim()).filter(Boolean).map(line => {
+      const m = line.match(/^(\d+(?:[.,]\d+)?)\s+(\S+)\s+(.*)$/)
+      return m
+        ? { name: m[3], text: m[3], qty: m[1], qtyText: `${m[1]} ${m[2]}`, unit: m[2], supplier: '', vendor: '' }
+        : { name: line, text: line, qty: '', qtyText: '—', unit: '', supplier: '', vendor: '' }
+    })
+  }
+
+  const requestItemLines = (pr) => {
+    const rows = requestItemRows(pr)
+    return rows.length ? rows.map(r => r.text) : ['—']
   }
 
   let displayRows = rows
@@ -195,11 +206,15 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     const dir = sortDir === 'desc' ? -1 : 1
     const valOf = (row) => {
       if (sortKey === 'kode') return row.kode || row.code
-      // Kolom QTY modul Approval = nilai virtual: pakai qty item pertama utk sortir.
+      // Kolom QTY (Approval & PR) = nilai virtual: pakai qty item pertama utk sortir.
       if (sortKey === 'items_qty') {
-        const q = approvalItemQtys(row)[0]
+        const q = page === 'requests' ? (requestItemRows(row)[0] || {}).qtyText : approvalItemQtys(row)[0]
         const m = String(q || '').match(/^([\d.,]+)/)
         return m ? Number(String(m[1]).replace(',', '.')) : null
+      }
+      // Kolom Vendor (PR) = nilai virtual dari item pertama.
+      if (sortKey === 'vendor_name' && page === 'requests') {
+        return (requestItemRows(row)[0] || {}).vendor || ''
       }
       return row[sortKey]
     }
@@ -215,6 +230,83 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
       if (sa !== '' && sb !== '' && isFinite(na) && isFinite(nb)) return (na - nb) * dir
       return sa.localeCompare(sb, 'id', { numeric: true, sensitivity: 'base' }) * dir
     })
+  }
+
+  // ============================================================
+  // Print Pengadaan (PDF) — modul Purchase Request.
+  // Membuat file PDF dari PR yang SEDANG TAMPIL (ikut filter & pencarian),
+  // berisi item material, qty, satuan, supplier, dan vendor per PR.
+  // Library PDF dimuat dinamis saat tombol diklik (tidak membebani halaman).
+  // ============================================================
+  async function printPengadaan() {
+    const list = displayRows || []
+    if (!list.length) {
+      say('Tidak ada data pengadaan untuk dicetak pada tampilan ini.')
+      return
+    }
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const now = new Date()
+      const tanggal = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.text('LAPORAN PENGADAAN', 105, 15, { align: 'center' })
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.text('Noir Living — Daftar Purchase Request', 105, 20.5, { align: 'center' })
+      doc.text(`Dicetak: ${tanggal}  ·  ${list.length} PR`, 105, 25, { align: 'center' })
+      let y = 32
+      for (const r of list) {
+        const items = requestItemRows(r)
+        if (y > 245) { doc.addPage(); y = 18 }
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(10.5)
+        const head = doc.splitTextToSize(`${r.pr_number || '—'}  ·  ${r.project_name || 'Tanpa Project'}  ·  ${r.title || '—'}`, 186)
+        doc.text(head, 12, y)
+        y += head.length * 4.8
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8.5)
+        const meta = [`Status: ${r.status || '—'}`]
+        if (String(r.priority || '').toUpperCase() === 'URGENT') meta.push('PRIORITAS')
+        if (String(r.notes || '').trim()) meta.push(`Catatan: ${String(r.notes).trim()}`)
+        const metaLines = doc.splitTextToSize(meta.join('  ·  '), 186)
+        doc.text(metaLines, 12, y)
+        y += metaLines.length * 3.6 + 0.6
+        autoTable(doc, {
+          startY: y,
+          head: [['Item Material', 'Qty', 'Satuan', 'Supplier', 'Vendor']],
+          body: items.length
+            ? items.map(it => [it.name || '—', it.qty === '' ? '—' : String(it.qty ?? '—'), it.unit || '—', it.supplier || '—', it.vendor || '—'])
+            : [['(belum ada rincian item)', '—', '—', '—', '—']],
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 1.8, textColor: [30, 46, 43], lineColor: [214, 220, 222], lineWidth: 0.15 },
+          headStyles: { fillColor: [31, 58, 52], textColor: [255, 255, 255], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [247, 250, 249] },
+          columnStyles: {
+            0: { cellWidth: 'auto' },
+            1: { cellWidth: 16, halign: 'right' },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 40 },
+            4: { cellWidth: 40 }
+          },
+          margin: { left: 12, right: 12 }
+        })
+        y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 7
+      }
+      const pages = doc.getNumberOfPages()
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.text(`Halaman ${i} / ${pages}`, 105, 290, { align: 'center' })
+      }
+      doc.save(`Pengadaan-${now.toISOString().slice(0, 10)}.pdf`)
+      say(`File PDF pengadaan berhasil dibuat (${list.length} PR).`)
+    } catch (err) {
+      say(`Gagal membuat PDF pengadaan: ${err.message}`)
+    }
   }
 
   const columns = headersFor(page, displayRows)
@@ -261,29 +353,17 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           )}
           {page === 'requests' && (
             <div className="filter-tabs">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div className="print-pengadaan-row">
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  style={{
-                    background: '#e6f4ea',
-                    color: '#137333',
-                    border: '1px solid #ceead6',
-                    borderRadius: '4px',
-                    padding: '8px 16px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                  title="Cetak daftar pengadaan untuk semua PR yang Disetujui"
+                  className="btn-print-pengadaan"
+                  onClick={printPengadaan}
+                  title="Buat file PDF daftar pengadaan dari data yang sedang tampil"
                 >
-                  🖨️ Cetak Pengadaan
+                  🖨️ Print Pengadaan (PDF)
                 </button>
-                <span style={{ fontSize: '12px', color: '#71817d' }}>
-                  Klik untuk mencetak laporan pengadaan dari item-item yang sudah disetujui
+                <span className="print-pengadaan-hint">
+                  File PDF berisi {displayRows.length} PR yang sedang tampil (ikut filter & pencarian)
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -337,6 +417,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
               >
                 🚨 Prioritas ({rows.filter(r => r.priority === 'URGENT').length})
               </button>
+              </div>
             </div>
           )}
           {page === 'approvals' && (
@@ -757,6 +838,22 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                           >
                             {format(rawVal)}
                           </div>
+                        ) : page === 'requests' && h === 'items_qty' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {requestItemRows(r).length ? requestItemRows(r).map((it, idx) => (
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                {it.qtyText}
+                              </span>
+                            )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
+                          </div>
+                        ) : page === 'requests' && h === 'vendor_name' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {requestItemRows(r).length ? requestItemRows(r).map((it, idx) => (
+                              <span key={idx} style={{ fontSize: '12px', lineHeight: 1.45, color: it.vendor ? '#1a73e8' : '#9aa8a4', whiteSpace: 'normal' }}>
+                                {it.vendor || '—'}
+                              </span>
+                            )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
+                          </div>
                         ) : page === 'materials' && h === 'name' ? (
                           <div className="cell-name" title={String(rawVal || '')}>{format(rawVal)}</div>
                         ) : page === 'materials' && h === 'harga_acuan' ? (
@@ -1165,8 +1262,12 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     <div className="mobile-card-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                       <span className="mobile-label">Item Material:</span>
                       <div className="mobile-items-box">
-                        {requestItemLines(r).map((line, idx) => (
-                          <div key={idx} className="mobile-item-line">• {line}</div>
+                        {requestItemRows(r).map((it, idx) => (
+                          <div key={idx} className="mobile-item-line">
+                            • {it.name}{it.supplier ? ` — Supplier: ${it.supplier}` : ''}
+                            {it.qtyText && it.qtyText !== '—' ? <b> — {it.qtyText}</b> : null}
+                            {it.vendor ? <span style={{ color: '#1a73e8' }}> · 🛒 {it.vendor}</span> : null}
+                          </div>
                         ))}
                       </div>
                     </div>

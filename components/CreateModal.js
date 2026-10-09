@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { labels, statusOptions, receivingStatusOptions, normalizeStatus, buildReceivingNote, formatNominalInput, parseReceivingNote } from '../lib/constants'
+import { labels, statusOptions, receivingStatusOptions, normalizeStatus, buildReceivingNote, formatNominalInput, parseReceivingNote, prefixForCategory } from '../lib/constants' 
 
 export default function Create({ page, allProjects = [], allMaterials = [], allVendors = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], close, refresh, say }) {
   const isEdit = !!editRow
@@ -15,16 +15,39 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     return 'PR-' + String(maxNum + 1).padStart(3, '0')
   })()
 
-  // Kode material berikutnya (hanya untuk tampilan di form). Kode final dihitung
-  // ulang saat simpan agar tidak dobel bila ada penambahan dari sesi lain.
-  const nextMatNum = (() => {
+  // Kode material mengikuti KATEGORI (PLY/HPL/WPC/HWF/KEL/ALM/BHP).
+  // Preview di form dihitung dari data yang sudah dimuat; kode final dihitung
+  // ulang saat simpan (RPC atomic bila ada -> fallback hitung dari DB) supaya
+  // tidak dobel walau 2 user menyimpan bersamaan.
+  const nextMatKodeFor = (category) => {
+    const prefix = prefixForCategory(category)
+    const re = new RegExp('^' + prefix + '-(\\d+)$')
     const maxNum = (allMaterials || []).reduce((max, m) => {
-      const match = String(m.kode || m.code || '').match(/^MAT-(\d+)$/)
+      const match = String(m.kode || m.code || '').match(re)
       const n = match ? parseInt(match[1], 10) : NaN
       return isFinite(n) && n > max ? n : max
     }, 0)
-    return 'MAT-' + String(maxNum + 1).padStart(4, '0')
-  })()
+    return prefix + '-' + String(maxNum + 1).padStart(4, '0')
+  }
+
+  // Alokasi kode final saat simpan: coba RPC atomic dulu (bila fungsi DB
+  // tersedia), lalu fallback hitung dari data terbaru di DB.
+  async function allocMaterialKode(category) {
+    const prefix = prefixForCategory(category)
+    try {
+      const { data: rpcKode, error: rpcErr } = await supabase.rpc('next_material_kode_cat', { p_category: category })
+      if (!rpcErr && rpcKode) return String(rpcKode)
+    } catch (e) { /* RPC belum tersedia — lanjut fallback */ }
+    const { data: allMats, error: kodeErr } = await supabase.from('materials').select('kode')
+    if (kodeErr) throw new Error(kodeErr.message)
+    const re = new RegExp('^' + prefix + '-(\\d+)$')
+    const maxNum = (allMats || []).reduce((max, m) => {
+      const match = String(m.kode || '').match(re)
+      const n = match ? parseInt(match[1], 10) : NaN
+      return isFinite(n) && n > max ? n : max
+    }, 0)
+    return prefix + '-' + String(maxNum + 1).padStart(4, '0')
+  }
 
   // Data validation kategori: dropdown berisi kategori yang ada di master material
   // (kategori utama tampil lebih dulu, sisanya urut alfabetis).
@@ -304,29 +327,22 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
       refresh()
       return
     } else if (page === 'materials') {
-      // Kode material otomatis (MAT-XXXX): dihitung saat simpan dari nomor
-      // tertinggi di database supaya tidak pernah dobel.
+      // Kode material otomatis mengikuti KATEGORI (PLY-0001, HWF-0124, dst).
+      // Kategori wajib dipilih supaya kode tidak jatuh ke prefix cadangan.
+      if (!form.category) {
+        setSaving(false)
+        say('Pilih Kategori dulu — kode material dibuat dari kategori.')
+        return
+      }
       let newKode = (isEdit && (editRow?.kode || editRow?.code)) || ''
       if (!newKode) {
-        // Alokasi atomic di DB (advisory lock) — anti dobel walau 2 user simpan bersamaan.
-        const { data: rpcKode, error: rpcErr } = await supabase.rpc('next_material_kode')
-        if (!rpcErr && rpcKode) {
-          newKode = String(rpcKode)
-        }
-      }
-      if (!newKode) {
-        const { data: allMats, error: kodeErr } = await supabase.from('materials').select('kode')
-        if (kodeErr) {
+        try {
+          newKode = await allocMaterialKode(form.category)
+        } catch (err) {
           setSaving(false)
-          say(`Gagal membuat kode material: ${kodeErr.message}`)
+          say(`Gagal membuat kode material: ${err.message}`)
           return
         }
-        const maxNum = (allMats || []).reduce((max, m) => {
-          const match = String(m.kode || '').match(/^MAT-(\d+)$/)
-          const n = match ? parseInt(match[1], 10) : NaN
-          return isFinite(n) && n > max ? n : max
-        }, 0)
-        newKode = 'MAT-' + String(maxNum + 1).padStart(4, '0')
       }
       // Acuan harga disimpan sebagai INTEGER rupiah (bukan desimal) supaya
       // round-trip edit tidak pernah menggeser nilai; kosong = null.
@@ -385,8 +401,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     if (error && String(error.code) === '23505') {
       let retryKode = null
       if (page === 'materials') {
-        const { data: rk } = await supabase.rpc('next_material_kode')
-        if (rk) { retryKode = String(rk); data = { ...data, kode: retryKode, code: retryKode } }
+        try { retryKode = await allocMaterialKode(form.category) } catch (e) { retryKode = null }
+        if (retryKode) data = { ...data, kode: retryKode, code: retryKode }
       } else if (page === 'requests') {
         const { data: rp } = await supabase.rpc('next_pr_number')
         if (rp) data = { ...data, pr_number: String(rp) }
@@ -575,22 +591,31 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         )}
         {page === 'materials' && (
           <>
-            <label>Kode Material (otomatis)
+            <label>Kategori
+              <select
+                required
+                value={form.category || ''}
+                onChange={e => setForm({ ...form, category: e.target.value })}
+              >
+                <option value="">-- Pilih Kategori --</option>
+                {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+            <label>Kode Material (otomatis dari kategori)
               <input
                 type="text"
-                value={isEdit ? (editRow?.kode || editRow?.code || '') : nextMatNum}
+                value={isEdit ? (editRow?.kode || editRow?.code || '') : (form.category ? nextMatKodeFor(form.category) : '— pilih kategori dulu —')}
                 readOnly
                 disabled
                 style={{ background: '#f1f5f3', color: '#5b6b66', fontWeight: 600, cursor: 'not-allowed' }}
               />
             </label>
+            {isEdit && (
+              <small style={{ color: '#5b6b66', marginTop: '-6px' }}>
+                Kode dibuat sekali saat material dibuat — mengubah kategori tidak mengubah kode.
+              </small>
+            )}
             {field('name', 'Nama Material', 'text', true)}
-            <label>Kategori
-              <select value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })}>
-                <option value="">-- Pilih Kategori --</option>
-                {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
             {field('qty', 'Qty', 'number', false)}
             <label>Satuan
               <select value={form.satuan || 'Lembar'} onChange={e => setForm({ ...form, satuan: e.target.value })}>

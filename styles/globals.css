@@ -671,6 +671,40 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius-md);
 }
 
+/* Tombol Print Pengadaan (modul Purchase Request) */
+.print-pengadaan-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.btn-print-pengadaan {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e6f4ea;
+  color: #137333;
+  border: 1px solid #ceead6;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-print-pengadaan:hover {
+  background: #d7efe3;
+  border-color: #9fd3b4;
+}
+
+.print-pengadaan-hint {
+  font-size: 12px;
+  color: #71817d;
+}
+
 .notice {
   background: #edf7f2;
   color: #0e5e34;
@@ -910,8 +944,28 @@ table.materials-table {
   min-width: 920px !important;
 }
 
+/* Kategori rapat ke kolom Nama: kolom Kategori dibuat selebar isinya (1%),
+   Nama dibatasi 300px, sisa ruang dibagi ke kolom kanan */
+table.materials-table th:nth-child(1),
+table.materials-table td:nth-child(1) { width: 84px; }
+
+table.materials-table th:nth-child(2),
+table.materials-table td:nth-child(2) { width: 300px; max-width: 300px; }
+
+table.materials-table th:nth-child(3),
+table.materials-table td:nth-child(3) { width: 1%; white-space: nowrap; }
+
 table.requests-table {
-  min-width: 1000px !important;
+  min-width: 1150px !important;
+}
+
+/* Modul PR compact: padding & font lebih rapat supaya semua kolom (Qty, Vendor)
+   muat tanpa teks tabrakan */
+table.requests-table th,
+table.requests-table td {
+  padding: 8px 10px;
+  font-size: 12.5px;
+  vertical-align: top;
 }
 
 table.approvals-table {
@@ -1215,7 +1269,7 @@ textarea {
   }
 
   table.requests-table {
-    min-width: 980px !important;
+    min-width: 1100px !important;
     table-layout: auto !important;
   }
 
