@@ -4,6 +4,7 @@ import Login from '../components/Login'
 import Sidebar from '../components/Sidebar'
 import Dashboard from '../components/Dashboard'
 import Finance from '../components/Finance'
+import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import { labels, normalizeStatus, orderSpecFor } from '../lib/constants' 
 
@@ -677,10 +678,12 @@ export default function App() {
           />
         ) : page === 'finance' ? (
           role === 'admin' ? (
-            <Finance rows={rows} />
+            <Finance rows={rows} session={session} />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
+        ) : page === 'settings' ? (
+          <Settings role={role} session={session} />
         ) : (
           <Module
             page={page}
