@@ -261,6 +261,32 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           )}
           {page === 'requests' && (
             <div className="filter-tabs">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  style={{
+                    background: '#e6f4ea',
+                    color: '#137333',
+                    border: '1px solid #ceead6',
+                    borderRadius: '4px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  title="Cetak daftar pengadaan untuk semua PR yang Disetujui"
+                >
+                  🖨️ Cetak Pengadaan
+                </button>
+                <span style={{ fontSize: '12px', color: '#71817d' }}>
+                  Klik untuk mencetak laporan pengadaan dari item-item yang sudah disetujui
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className={`pill ${prFilter === 'all' ? 'active' : ''}`}
