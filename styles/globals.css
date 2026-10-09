@@ -671,39 +671,6 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius-md);
 }
 
-/* Tombol Print Pengadaan (modul Purchase Request) */
-.print-pengadaan-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.btn-print-pengadaan {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #e6f4ea;
-  color: #137333;
-  border: 1px solid #ceead6;
-  border-radius: var(--radius-sm);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-print-pengadaan:hover {
-  background: #d7efe3;
-  border-color: #9fd3b4;
-}
-
-.print-pengadaan-hint {
-  font-size: 12px;
-  color: #71817d;
-}
 
 .notice {
   background: #edf7f2;

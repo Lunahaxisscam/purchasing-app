@@ -239,84 +239,6 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     })
   }
 
-  // ============================================================
-  // Print Pengadaan (PDF) — modul Purchase Request.
-  // Membuat file PDF dari PR yang SEDANG TAMPIL (ikut filter & pencarian),
-  // berisi item material, qty, satuan, supplier, dan vendor per PR.
-  // Library PDF dimuat dinamis saat tombol diklik (tidak membebani halaman).
-  // ============================================================
-  async function printPengadaan() {
-    const list = displayRows || []
-    if (!list.length) {
-      say('Tidak ada data pengadaan untuk dicetak pada tampilan ini.')
-      return
-    }
-    try {
-      const { jsPDF } = await import('jspdf')
-      const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-      const now = new Date()
-      const tanggal = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(14)
-      doc.text('LAPORAN PENGADAAN', 105, 15, { align: 'center' })
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text('Noir Living — Daftar Purchase Request', 105, 20.5, { align: 'center' })
-      doc.text(`Dicetak: ${tanggal}  ·  ${list.length} PR`, 105, 25, { align: 'center' })
-      let y = 32
-      for (const r of list) {
-        const items = requestItemRows(r)
-        if (y > 245) { doc.addPage(); y = 18 }
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(10.5)
-        const head = doc.splitTextToSize(`${r.pr_number || '—'}  ·  ${r.project_name || 'Tanpa Project'}  ·  ${r.title || '—'}`, 186)
-        doc.text(head, 12, y)
-        y += head.length * 4.8
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(8.5)
-        const meta = [`Status: ${r.status || '—'}`]
-        if (String(r.priority || '').toUpperCase() === 'URGENT') meta.push('PRIORITAS')
-        if (String(r.notes || '').trim()) meta.push(`Catatan: ${String(r.notes).trim()}`)
-        const metaLines = doc.splitTextToSize(meta.join('  ·  '), 186)
-        doc.text(metaLines, 12, y)
-        y += metaLines.length * 3.6 + 0.6
-        autoTable(doc, {
-          startY: y,
-          head: [['Item Material', 'Qty', 'Satuan', 'Kategori', 'Vendor', 'Estimasi Harga']],
-          body: items.length
-            ? items.map(it => [it.name || '—', it.qty === '' ? '—' : String(it.qty ?? '—'), it.unit || '—', it.supplier || '—', it.vendor || '—', (it.estPrice !== null && it.estPrice !== undefined) ? rupiah(it.estPrice) : '—'])
-            : [['(belum ada rincian item)', '—', '—', '—', '—', '—']],
-          theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 1.8, textColor: [30, 46, 43], lineColor: [214, 220, 222], lineWidth: 0.15 },
-          headStyles: { fillColor: [31, 58, 52], textColor: [255, 255, 255], fontStyle: 'bold' },
-          alternateRowStyles: { fillColor: [247, 250, 249] },
-          columnStyles: {
-            0: { cellWidth: 'auto' },
-            1: { cellWidth: 14, halign: 'right' },
-            2: { cellWidth: 18 },
-            3: { cellWidth: 34 },
-            4: { cellWidth: 34 },
-            5: { cellWidth: 30, halign: 'right' }
-          },
-          margin: { left: 12, right: 12 }
-        })
-        y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 7
-      }
-      const pages = doc.getNumberOfPages()
-      for (let i = 1; i <= pages; i++) {
-        doc.setPage(i)
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(8)
-        doc.text(`Halaman ${i} / ${pages}`, 105, 290, { align: 'center' })
-      }
-      doc.save(`Pengadaan-${now.toISOString().slice(0, 10)}.pdf`)
-      say(`File PDF pengadaan berhasil dibuat (${list.length} PR).`)
-    } catch (err) {
-      say(`Gagal membuat PDF pengadaan: ${err.message}`)
-    }
-  }
-
   const columns = headersFor(page, displayRows)
   const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'handovers', 'projects', 'past_projects'].includes(page)
 
@@ -361,19 +283,6 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           )}
           {page === 'requests' && (
             <div className="filter-tabs">
-              <div className="print-pengadaan-row">
-                <button
-                  type="button"
-                  className="btn-print-pengadaan"
-                  onClick={printPengadaan}
-                  title="Buat file PDF daftar pengadaan dari data yang sedang tampil"
-                >
-                  🖨️ Print Pengadaan (PDF)
-                </button>
-                <span className="print-pengadaan-hint">
-                  File PDF berisi {displayRows.length} PR yang sedang tampil (ikut filter & pencarian)
-                </span>
-              </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 type="button"
