@@ -651,6 +651,95 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
             {displayRows.length ? (
               displayRows.map((r, i) => (
                 <React.Fragment key={r.id || i}>
+                {page === 'requests' ? (() => {
+                  // Master-detail: setiap item = satu baris tabel; Qty / Item Material /
+                  // Vendor PASTI sejajar karena berada di baris fisik yang sama.
+                  // Kolom lain (prioritas, no PR, project, judul, status, aksi) pakai rowSpan.
+                  const itemList = requestItemRows(r)
+                  const list = itemList.length ? itemList : [{ name: '—', qtyText: '—', vendor: '' }]
+                  const span = list.length
+                  const urgent = String(r.priority || '').toUpperCase() === 'URGENT'
+                  return list.map((it, idx) => (
+                    <tr key={`pr-item-${idx}`} className="pr-item-row">
+                      {idx === 0 && (
+                        <>
+                          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+                            <span className={`prio-dot ${urgent ? 'prio-urgent' : 'prio-normal'}`} title={urgent ? 'Prioritas' : 'Standard'} />
+                          </td>
+                          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <b>{format(r.pr_number)}</b>
+                                <button
+                                  type="button"
+                                  className={`note-dot ${String(r.notes || '').trim() ? 'note-dot-on' : ''}`}
+                                  title={String(r.notes || '').trim() || 'Tidak ada catatan'}
+                                  aria-label="Catatan PR"
+                                  onClick={() => setOpenNoteId(openNoteId === r.id ? null : r.id)}
+                                />
+                              </div>
+                              <small style={{ color: '#9aa8a4', fontSize: '10px', fontWeight: 500 }}>{format(r.created_at)}</small>
+                              {openNoteId === r.id && (
+                                <div className="note-pop">{String(r.notes || '').trim() || 'Tidak ada catatan.'}</div>
+                              )}
+                            </div>
+                          </td>
+                          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+                            <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={String(r.project_name || '')}>
+                              {format(r.project_name)}
+                            </div>
+                          </td>
+                          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+                            <div className="pr-title-cell" title={String(r.title || '')}>
+                              {format(r.title)}
+                            </div>
+                          </td>
+                        </>
+                      )}
+                      <td className="pr-item-qty"><b>{it.qtyText}</b></td>
+                      <td className="pr-item-name">{it.name}</td>
+                      <td className="pr-item-vendor" style={{ color: it.vendor ? '#1a73e8' : '#9aa8a4' }}>{it.vendor || '—'}</td>
+                      {idx === 0 && (
+                        <>
+                          <td rowSpan={span} style={{ verticalAlign: 'top' }}>{format(r.status)}</td>
+                          <td rowSpan={span} style={{ textAlign: 'center', verticalAlign: 'top' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'center', alignItems: 'stretch', width: '92px', margin: '0 auto' }}>
+                              {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
+                                <button
+                                  type="button"
+                                  className="btn-finish"
+                                  onClick={() => onFinishPr(r)}
+                                  title={`Selesai — kirim ${r.pr_number || title} ke modul Approval`}
+                                  style={{ fontSize: '10px', padding: '4px 6px', whiteSpace: 'nowrap', width: '100%' }}
+                                >
+                                  ✓ Selesai
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="btn-edit icon-btn"
+                                onClick={() => setEditRow(r)}
+                                title={`Edit ${r.pr_number || title}`}
+                                style={{ width: '100%' }}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-delete icon-btn"
+                                onClick={() => onDelete(page, r)}
+                                title={`Hapus ${r.pr_number || title}`}
+                                style={{ width: '100%' }}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))
+                })() : (
                 <tr>
                   {columns.map(h => {
                     const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
@@ -992,6 +1081,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     </td>
                   )}
                 </tr>
+                )}
                 {page === 'receivings' && receivingItemsForReceiving(r.id).length > 0 && (
                   <tr>
                     <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>

@@ -968,6 +968,42 @@ table.requests-table td {
   vertical-align: top;
 }
 
+/* PR master-detail: tiap item satu baris — Qty / Item / Vendor sejajar */
+table.requests-table tr.pr-item-row > td {
+  border-bottom: 1px dashed #e6ecea;
+  vertical-align: middle;
+}
+
+table.requests-table tr.pr-item-row:last-child > td {
+  border-bottom: 1px solid #edf2ef;
+}
+
+table.requests-table td.pr-item-qty {
+  white-space: nowrap !important;
+  font-weight: 700;
+}
+
+table.requests-table td.pr-item-name {
+  white-space: normal !important;
+  min-width: 220px;
+  line-height: 1.45;
+}
+
+table.requests-table td.pr-item-vendor {
+  white-space: normal !important;
+  min-width: 130px;
+  line-height: 1.45;
+}
+
+/* Judul kebutuhan di-wrap ke bawah (bukan ellipsis) */
+table.requests-table .pr-title-cell {
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.45;
+  min-width: 170px;
+  max-width: 260px;
+}
+
 table.approvals-table {
   min-width: 1180px !important;
 }
