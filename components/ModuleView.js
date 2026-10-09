@@ -138,7 +138,14 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
         const qtyText = qtyVal === '' ? '—' : `${qtyVal} ${unit}`.replace(/\s+/g, ' ').trim()
         const supplier = String(it.supplier_category || '').trim()
         const vendor = vendorName(it.vendor_id)
-        return { name, text: name, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor }
+        // Estimasi harga: dari pr_items.estimated_price; fallback ke harga acuan material.
+        const mat = (allMaterials || []).find(m => m.id === it.material_id)
+        const rawPrice = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
+          ? it.estimated_price
+          : (mat ? mat.harga_acuan : null)
+        const numPrice = (rawPrice === null || rawPrice === undefined || rawPrice === '') ? null : Number(rawPrice)
+        const estPrice = numPrice !== null && isFinite(numPrice) ? numPrice : null
+        return { name, text: name, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor, estPrice }
       })
     }
     const s = String(pr.materials_summary || '').trim()
@@ -146,8 +153,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     return s.split(',').map(x => x.trim()).filter(Boolean).map(line => {
       const m = line.match(/^(\d+(?:[.,]\d+)?)\s+(\S+)\s+(.*)$/)
       return m
-        ? { name: m[3], text: m[3], qty: m[1], qtyText: `${m[1]} ${m[2]}`, unit: m[2], supplier: '', vendor: '' }
-        : { name: line, text: line, qty: '', qtyText: '—', unit: '', supplier: '', vendor: '' }
+        ? { name: m[3], text: m[3], qty: m[1], qtyText: `${m[1]} ${m[2]}`, unit: m[2], supplier: '', vendor: '', estPrice: null }
+        : { name: line, text: line, qty: '', qtyText: '—', unit: '', supplier: '', vendor: '', estPrice: null }
     })
   }
 
@@ -211,6 +218,11 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
       if (sortKey === 'vendor_name' && page === 'requests') {
         return (requestItemRows(row)[0] || {}).vendor || ''
       }
+      // Kolom Estimasi Harga (PR) = nilai virtual dari item pertama.
+      if (sortKey === 'estimasi_harga' && page === 'requests') {
+        const p = (requestItemRows(row)[0] || {}).estPrice
+        return p === null || p === undefined ? null : p
+      }
       return row[sortKey]
     }
     displayRows = [...displayRows].sort((a, b) => {
@@ -271,20 +283,21 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
         y += metaLines.length * 3.6 + 0.6
         autoTable(doc, {
           startY: y,
-          head: [['Item Material', 'Qty', 'Satuan', 'Kategori', 'Vendor']],
+          head: [['Item Material', 'Qty', 'Satuan', 'Kategori', 'Vendor', 'Estimasi Harga']],
           body: items.length
-            ? items.map(it => [it.name || '—', it.qty === '' ? '—' : String(it.qty ?? '—'), it.unit || '—', it.supplier || '—', it.vendor || '—'])
-            : [['(belum ada rincian item)', '—', '—', '—', '—']],
+            ? items.map(it => [it.name || '—', it.qty === '' ? '—' : String(it.qty ?? '—'), it.unit || '—', it.supplier || '—', it.vendor || '—', (it.estPrice !== null && it.estPrice !== undefined) ? rupiah(it.estPrice) : '—'])
+            : [['(belum ada rincian item)', '—', '—', '—', '—', '—']],
           theme: 'grid',
           styles: { fontSize: 8, cellPadding: 1.8, textColor: [30, 46, 43], lineColor: [214, 220, 222], lineWidth: 0.15 },
           headStyles: { fillColor: [31, 58, 52], textColor: [255, 255, 255], fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [247, 250, 249] },
           columnStyles: {
             0: { cellWidth: 'auto' },
-            1: { cellWidth: 16, halign: 'right' },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 40 },
-            4: { cellWidth: 40 }
+            1: { cellWidth: 14, halign: 'right' },
+            2: { cellWidth: 18 },
+            3: { cellWidth: 34 },
+            4: { cellWidth: 34 },
+            5: { cellWidth: 30, halign: 'right' }
           },
           margin: { left: 12, right: 12 }
         })
@@ -699,6 +712,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                       <td className="pr-item-qty"><b>{it.qtyText}</b></td>
                       <td className="pr-item-name">{it.name}</td>
                       <td className="pr-item-vendor" style={{ color: it.vendor ? '#1a73e8' : '#9aa8a4' }}>{it.vendor || '—'}</td>
+                      <td className="pr-item-price">{it.estPrice !== null && it.estPrice !== undefined ? rupiah(it.estPrice) : '—'}</td>
                       {idx === 0 && (
                         <>
                           <td rowSpan={span} style={{ verticalAlign: 'top' }}>{format(r.status)}</td>
@@ -1354,6 +1368,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                             • {it.name}
                             {it.qtyText && it.qtyText !== '—' ? <b> — {it.qtyText}</b> : null}
                             {it.vendor ? <span style={{ color: '#1a73e8' }}> · 🛒 {it.vendor}</span> : null}
+                            {(it.estPrice !== null && it.estPrice !== undefined) ? <span style={{ color: '#137333' }}> · {rupiah(it.estPrice)}</span> : null}
                           </div>
                         ))}
                       </div>

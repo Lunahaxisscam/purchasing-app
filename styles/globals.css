@@ -956,7 +956,7 @@ table.materials-table th:nth-child(3),
 table.materials-table td:nth-child(3) { width: 1%; white-space: nowrap; }
 
 table.requests-table {
-  min-width: 1150px !important;
+  min-width: 1250px !important;
 }
 
 /* Modul PR compact: padding & font lebih rapat supaya semua kolom (Qty, Vendor)
@@ -995,13 +995,19 @@ table.requests-table td.pr-item-vendor {
   line-height: 1.45;
 }
 
-/* Judul kebutuhan di-wrap ke bawah (bukan ellipsis) */
+/* Judul kebutuhan di-wrap ke bawah; kolom dikecilkan (revisi user 9 Okt) */
 table.requests-table .pr-title-cell {
   white-space: normal;
   overflow-wrap: break-word;
   line-height: 1.45;
-  min-width: 170px;
-  max-width: 260px;
+  max-width: 150px;
+}
+
+/* Estimasi harga per item (PR) */
+table.requests-table td.pr-item-price {
+  white-space: nowrap !important;
+  font-weight: 600;
+  color: #137333;
 }
 
 table.approvals-table {
@@ -1305,7 +1311,7 @@ textarea {
   }
 
   table.requests-table {
-    min-width: 1100px !important;
+    min-width: 1200px !important;
     table-layout: auto !important;
   }
 

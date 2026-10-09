@@ -107,7 +107,10 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     satuan: it.unit || 'Pcs',
     qty: it.quantity ?? 1,
     supplier_category: it.supplier_category || '',
-    vendor_id: it.vendor_id || ''
+    vendor_id: it.vendor_id || '',
+    estimated_price: (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
+      ? formatNominalInput(String(Math.round(Number(it.estimated_price))))
+      : ''
   })))
 
   const filteredMaterials = useMemo(() => {
@@ -138,7 +141,10 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         satuan: mat.satuan || mat.unit || 'Pcs',
         qty: Number(itemQty) || 1,
         supplier_category: mat.category || '',
-        vendor_id: ''
+        vendor_id: '',
+        estimated_price: (mat.harga_acuan !== null && mat.harga_acuan !== undefined && mat.harga_acuan !== '')
+          ? formatNominalInput(String(Math.round(Number(mat.harga_acuan))))
+          : ''
       }])
     }
     setItemQty('1')
@@ -161,6 +167,14 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
   }
   function updateItemVendor(idx, val) {
     setPrItemsList(prItemsList.map((it, i) => i === idx ? { ...it, vendor_id: val } : it))
+  }
+  // Estimasi harga: diformat ribuan saat mengetik; disimpan sebagai integer rupiah.
+  function updateItemPrice(idx, val) {
+    setPrItemsList(prItemsList.map((it, i) => i === idx ? { ...it, estimated_price: formatNominalInput(val) } : it))
+  }
+  const priceDigits = (v) => {
+    const d = String(v ?? '').replace(/[^\d]/g, '')
+    return d ? Number(d) : null
   }
   // Vendor yang cocok dengan kategori supplier diprioritaskan; jika tidak ada yang cocok, tampilkan semua.
   function vendorsForItem(it) {
@@ -246,7 +260,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
               quantity: it.qty,
               unit: it.satuan,
               supplier_category: it.supplier_category || null,
-              vendor_id: it.vendor_id || null
+              vendor_id: it.vendor_id || null,
+              estimated_price: priceDigits(it.estimated_price)
             }).eq('id', it.id)
             if (error && !itemErrMsg) itemErrMsg = error.message
           } else {
@@ -259,7 +274,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
               quantity: it.qty,
               status: 'PENDING_APPROVAL',
               supplier_category: it.supplier_category || null,
-              vendor_id: it.vendor_id || null
+              vendor_id: it.vendor_id || null,
+              estimated_price: priceDigits(it.estimated_price)
             })
             if (error && !itemErrMsg) itemErrMsg = error.message
           }
@@ -310,7 +326,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
           quantity: it.qty,
           status: 'PENDING_APPROVAL',
           supplier_category: it.supplier_category || null,
-          vendor_id: it.vendor_id || null
+          vendor_id: it.vendor_id || null,
+          estimated_price: priceDigits(it.estimated_price)
         }))
         const { error: itemErr } = await supabase.from('pr_items').insert(itemRecords)
         if (itemErr) {
@@ -570,6 +587,17 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
                                   <option value="">-- Pilih Vendor --</option>
                                   {vendorsForItem(it).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                                 </select>
+                              </label>
+                              <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
+                                Estimasi Harga
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="Rp…"
+                                  value={it.estimated_price || ''}
+                                  onChange={e => updateItemPrice(idx, e.target.value)}
+                                  style={{ width: '90px', padding: '2px 4px', fontSize: '10px' }}
+                                />
                               </label>
                             </div>
                           </td>
