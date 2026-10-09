@@ -106,12 +106,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     const items = approvalItems(approval)
     if (items.length) {
       return items.map(it => {
-        const base = String(it.item_name || it.kode || '').trim() || '—'
-        const bits = []
-        if (it.supplier_category) bits.push(`Kategori: ${it.supplier_category}`)
-        const v = vendorName(it.vendor_id)
-        if (v) bits.push(`Vendor: ${v}`)
-        const text = bits.length ? `${base} — ${bits.join(' · ')}` : base
+        // Kolom Item Material HANYA nama item (kategori & vendor tidak menempel).
+        const text = String(it.item_name || it.kode || '').trim() || '—'
         const q = (it.quantity ?? '') === '' ? '' : `${it.quantity ?? ''} ${it.unit || ''}`.trim()
         return { text, qty: q || '—' }
       })
@@ -130,8 +126,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const approvalItemQtys = (approval) => approvalItemRows(approval).map(r => r.qty)
 
   // Satu sumber data untuk kolom Item Material + Qty + Vendor (modul PR) supaya
-  // baris antar kolom tidak pernah meleset. Vendor dipisah ke kolomnya sendiri;
-  // Kategori (material) menempel di teks item. Fallback ke ringkasan teks utk data lama.
+  // baris antar kolom tidak pernah meleset. Kolom Item Material HANYA nama item;
+  // Qty & Vendor punya kolomnya sendiri. Fallback ke ringkasan teks utk data lama.
   const requestItemRows = (pr) => {
     const items = prItemsForPr(pr.id)
     if (items.length) {
@@ -142,8 +138,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
         const qtyText = qtyVal === '' ? '—' : `${qtyVal} ${unit}`.replace(/\s+/g, ' ').trim()
         const supplier = String(it.supplier_category || '').trim()
         const vendor = vendorName(it.vendor_id)
-        const text = supplier ? `${name} — Kategori: ${supplier}` : name
-        return { name, text, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor }
+        return { name, text: name, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor }
       })
     }
     const s = String(pr.materials_summary || '').trim()
@@ -1266,7 +1261,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                       <div className="mobile-items-box">
                         {requestItemRows(r).map((it, idx) => (
                           <div key={idx} className="mobile-item-line">
-                            • {it.name}{it.supplier ? ` — Kategori: ${it.supplier}` : ''}
+                            • {it.name}
                             {it.qtyText && it.qtyText !== '—' ? <b> — {it.qtyText}</b> : null}
                             {it.vendor ? <span style={{ color: '#1a73e8' }}> · 🛒 {it.vendor}</span> : null}
                           </div>
