@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabaseClient'
 import Login from '../components/Login'
 import Sidebar from '../components/Sidebar'
 import Dashboard from '../components/Dashboard'
+import Finance from '../components/Finance'
 import Module from '../components/ModuleView'
-import { labels, normalizeStatus, orderSpecFor } from '../lib/constants'
+import { labels, normalizeStatus, orderSpecFor } from '../lib/constants' 
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -28,6 +29,10 @@ export default function App() {
   const [actionBusy, setActionBusy] = useState(false)
   const [noteModal, setNoteModal] = useState(null)
   const [noteText, setNoteText] = useState('')
+  // Role user: 'admin' (semua modul + Finance) atau 'user' (tanpa Finance).
+  // Diambil dari tabel profiles (kolom role) saat sesi aktif; default 'user'
+  // supaya kalau gagal baca, modul admin tidak pernah tampil ke non-admin.
+  const [role, setRole] = useState('user') 
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return }
@@ -41,6 +46,24 @@ export default function App() {
 
   useEffect(() => {
     if (session) loadAll()
+  }, [session])
+
+  // Muat role dari profiles setiap sesi berubah.
+  useEffect(() => {
+    let cancelled = false
+    async function loadRole() {
+      if (!supabase || !session?.user?.id) { setRole('user'); return }
+      try {
+        const { data, error } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle()
+        if (cancelled) return
+        if (!error && data?.role) setRole(String(data.role).toLowerCase() === 'admin' ? 'admin' : 'user')
+        else setRole('user')
+      } catch (e) {
+        if (!cancelled) setRole('user')
+      }
+    }
+    loadRole()
+    return () => { cancelled = true }
   }, [session])
 
   async function loadAll() {
@@ -634,7 +657,7 @@ export default function App() {
 
   return (
     <main className="shell">
-      <Sidebar page={page} setPage={setPage} session={session} logout={logout} />
+      <Sidebar page={page} setPage={setPage} session={session} logout={logout} role={role} />
       <section className="content">
         <header>
           <div>
@@ -650,7 +673,14 @@ export default function App() {
             activeProjects={activeProjects}
             pastProjects={pastProjects}
             setPage={setPage}
+            role={role}
           />
+        ) : page === 'finance' ? (
+          role === 'admin' ? (
+            <Finance rows={rows} />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
         ) : (
           <Module
             page={page}

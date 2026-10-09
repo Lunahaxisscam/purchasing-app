@@ -2,7 +2,7 @@ import React from 'react'
 import { exportWorkbook } from '../lib/workflow'
 import { headersFor } from '../lib/constants'
 
-export default function Dashboard({ rows, activeProjects, pastProjects, setPage }) {
+export default function Dashboard({ rows, activeProjects, pastProjects, setPage, role = 'user' }) {
   const cards = [
     ['projects', 'Project aktif', activeProjects.length],
     ['past_projects', 'Past Project', pastProjects.length],
@@ -10,6 +10,8 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage 
     ['approvals', 'Menunggu approval', rows.approvals?.filter(a => a.status === 'PENDING').length || 0],
     ['receivings', 'Purchase', rows.receivings?.length || 0]
   ]
+  // Kartu Finance hanya untuk admin.
+  if (role === 'admin') cards.push(['finance', '★ Finance (admin)', '→'])
   return (
     <>
       <div className="cards">
