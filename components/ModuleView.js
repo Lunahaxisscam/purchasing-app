@@ -930,14 +930,14 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                   {hasDeleteAction && (
                     <td style={{ textAlign: 'center' }}>
                       {page === 'requests' ? (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'center', alignItems: 'stretch', width: '92px', margin: '0 auto' }}>
                           {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
                             <button
                               type="button"
                               className="btn-finish"
                               onClick={() => onFinishPr(r)}
                               title={`Selesai — kirim ${r.pr_number || title} ke modul Approval`}
-                              style={{ fontSize: '9px', padding: '3px 6px', whiteSpace: 'nowrap' }}
+                              style={{ fontSize: '10px', padding: '4px 6px', whiteSpace: 'nowrap', width: '100%' }}
                             >
                               ✓ Selesai
                             </button>
@@ -947,6 +947,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                             className="btn-edit icon-btn"
                             onClick={() => setEditRow(r)}
                             title={`Edit ${r.pr_number || title}`}
+                            style={{ width: '100%' }}
                           >
                             ✏️
                           </button>
@@ -955,6 +956,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                             className="btn-delete icon-btn"
                             onClick={() => onDelete(page, r)}
                             title={`Hapus ${r.pr_number || title}`}
+                            style={{ width: '100%' }}
                           >
                             🗑️
                           </button>
