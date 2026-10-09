@@ -10,8 +10,11 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     ['approvals', 'Menunggu approval', rows.approvals?.filter(a => a.status === 'PENDING').length || 0],
     ['receivings', 'Purchase', rows.receivings?.length || 0]
   ]
-  // Kartu Finance hanya untuk admin.
-  if (role === 'admin') cards.push(['finance', '★ Finance (admin)', '→'])
+  // Modul tambahan khusus admin
+  if (role === 'admin') {
+    cards.push(['finance', '★ Finance', '→'])
+    cards.push(['settings', '⚙️ Settings', '→'])
+  }
   return (
     <>
       <div className="cards">

@@ -38,8 +38,17 @@ export default function Finance({ rows, session }) {
         supabase.from('project_cost_summary').select('*').order('project_no', { ascending: true }),
         supabase.from('sync_status').select('*').eq('id', 'rekap_cost').maybeSingle()
       ])
-      if (costRes.error) setDriveError(costRes.error.message)
-      else setDriveRows(costRes.data || [])
+      if (costRes.error) {
+        setDriveError(costRes.error.message)
+      } else {
+        const sorted = (costRes.data || []).sort((a, b) => {
+          const na = parseInt(a.project_no, 10)
+          const nb = parseInt(b.project_no, 10)
+          if (!isNaN(na) && !isNaN(nb)) return na - nb
+          return (a.project_no || '').localeCompare(b.project_no || '', 'id', { numeric: true })
+        })
+        setDriveRows(sorted)
+      }
       if (!syncRes.error && syncRes.data) setSync(syncRes.data)
     } catch (e) {
       setDriveError(e.message)
@@ -48,8 +57,13 @@ export default function Finance({ rows, session }) {
     }
   }, [])
 
+  // Muat data Drive saat pertama kali masuk agar kartu ringkasan langsung terisi
   useEffect(() => {
-    if (view === 'drive') loadDrive()
+    loadDrive(true)
+  }, [loadDrive])
+
+  useEffect(() => {
+    if (view === 'drive') loadDrive(false)
   }, [view, loadDrive])
 
   // Bersihkan polling saat unmount
@@ -201,46 +215,63 @@ export default function Finance({ rows, session }) {
             ☁️ Cost Drive ({driveRows.length || '…'})
           </button>
         </div>
+        {view === 'drive' && (
+          <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn-finish"
+              onClick={requestRefresh}
+              disabled={refreshing}
+              style={{ opacity: refreshing ? 0.7 : 1, padding: '7px 14px', fontSize: '12px' }}
+              title="Minta daemon menarik data terbaru dari Google Sheets REKAP COST 2026 (read-only)"
+            >
+              {refreshing ? '⏳ Sinkronisasi…' : '🔄 Refresh Sekarang'}
+            </button>
+            <button
+              type="button"
+              className="outline"
+              onClick={() => loadDrive()}
+              style={{ padding: '7px 12px', fontSize: '12px' }}
+              title="Muat ulang data dari database lokal"
+            >
+              ↻ Muat Ulang
+            </button>
+          </div>
+        )}
       </div>
+
+      {view === 'drive' && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', padding: '8px 14px', background: '#f0f7f4', borderRadius: 'var(--radius-sm)', border: '1px solid #cce3d8', marginBottom: '14px', fontSize: '12px', color: '#173d36' }}>
+          <div>
+            {refreshing ? (
+              <span style={{ fontWeight: 600, color: '#137333' }}>
+                ⏳ Permintaan sinkronisasi sedang diproses daemon (maksimal ±45 detik)…
+              </span>
+            ) : sync?.last_synced_at ? (
+              <span>
+                Google Sheets <b>REKAP COST 2026</b> · Terakhir disinkronkan: <b>{formatDateTime(sync.last_synced_at)}</b> ({timeAgo(sync.last_synced_at)})
+                {sync.last_message ? <span style={{ color: '#556b65' }}> · {sync.last_message}</span> : null}
+              </span>
+            ) : (
+              <span style={{ color: '#556b65' }}>Belum pernah disinkronkan dari Google Drive.</span>
+            )}
+          </div>
+          {sync?.last_status === 'ERROR' && (
+            <span style={{ color: '#b91c1c', fontWeight: 700 }}>
+              ⚠️ Sync gagal: {sync.last_message || 'Terjadi kesalahan'}
+            </span>
+          )}
+        </div>
+      )}
+
+      {driveError && (
+        <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b', marginBottom: '14px' }}>
+          {driveError}
+        </div>
+      )}
 
       {view === 'drive' ? (
         <>
-          {/* Baris kontrol sync: tombol Refresh Sekarang + indikator waktu */}
-          <div className="toolbar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn-finish"
-                onClick={requestRefresh}
-                disabled={refreshing}
-                style={{ opacity: refreshing ? 0.7 : 1, padding: '8px 16px', fontSize: '13px' }}
-                title="Minta daemon menarik data terbaru dari Google Sheets REKAP COST 2026 (read-only)"
-              >
-                {refreshing ? '⏳ Menunggu daemon…' : '🔄 Refresh Sekarang'}
-              </button>
-              <span style={{ fontSize: '12px', color: '#556b65' }}>
-                {refreshing
-                  ? 'Permintaan terkirim — daemon memproses maksimal ±45 detik…'
-                  : sync?.last_synced_at
-                    ? <>Terakhir disinkronkan: <b>{formatDateTime(sync.last_synced_at)}</b> ({timeAgo(sync.last_synced_at)}) · {sync.last_message || ''}</>
-                    : 'Belum pernah disinkronkan.'}
-              </span>
-              <button type="button" className="outline" onClick={() => loadDrive()} style={{ padding: '6px 12px', fontSize: '12px' }}>
-                ↻ Muat ulang tampilan
-              </button>
-            </div>
-            {driveError && (
-              <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b', marginTop: '10px' }}>
-                {driveError}
-              </div>
-            )}
-            {sync?.last_status === 'ERROR' && (
-              <div className="notice" style={{ background: '#fef6e7', borderColor: '#fcdfa6', color: '#a15309', marginTop: '10px' }}>
-                Sync terakhir GAGAL: {sync.last_message || '—'}
-              </div>
-            )}
-          </div>
-
           <div className="panel table desktop-table-view">
             <table>
               <thead>
