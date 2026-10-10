@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { rupiah, formatDateTime, timeAgo } from '../lib/constants'
+import { rupiah, formatDateTime, timeAgo, persen, formatNominalInput } from '../lib/constants'
 
 // ============================================================
 // Modul FINANCE — khusus role admin.
@@ -9,6 +9,10 @@ import { rupiah, formatDateTime, timeAgo } from '../lib/constants'
 //   (READ-ONLY) yang disinkronkan daemon ke tabel project_cost_summary.
 //   Tombol "🔄 Refresh Sekarang" meminta sync on-demand via sync_status;
 //   daemon (pm2 drive-sync) memproses permintaan itu dalam ≤45 detik.
+// Tab 4 "Closing Proyek": P&L per proyek (Revenue, Budget 70%, Cost Kumulatif,
+//   Margin, Labor Ratio) + modal review & kunci snapshot permanen ke tabel
+//   project_closings (RPC close_project — atomic, admin-only).
+// Tab 5 "Arsip Closing": riwayat P&L yang sudah terkunci permanen.
 // ============================================================
 
 function parseNominalFromNote(note) {
@@ -28,6 +32,14 @@ export default function Finance({ rows, session }) {
   const [driveError, setDriveError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const pollRef = useRef(null)
+  // --- state tab Closing Proyek ---
+  const [closings, setClosings] = useState([])
+  const [plans, setPlans] = useState([])
+  const [closingLoading, setClosingLoading] = useState(false)
+  const [closingError, setClosingError] = useState('')
+  const [closingModal, setClosingModal] = useState(null)   // { project, calc }
+  const [closingNotes, setClosingNotes] = useState('')
+  const [closingSaving, setClosingSaving] = useState(false)
 
   const loadDrive = useCallback(async (silent = false) => {
     if (!supabase) return
@@ -61,6 +73,32 @@ export default function Finance({ rows, session }) {
   useEffect(() => {
     loadDrive(true)
   }, [loadDrive])
+
+  // --- Loader data Closing (project_closings + project_plans) ---
+  const loadClosing = useCallback(async () => {
+    if (!supabase) return
+    setClosingLoading(true)
+    setClosingError('')
+    try {
+      const [clRes, plRes] = await Promise.all([
+        supabase.from('project_closings').select('*').order('closed_at', { ascending: false }),
+        supabase.from('project_plans').select('project_id,labor_cost')
+      ])
+      if (clRes.error) setClosingError(clRes.error.message)
+      else setClosings(clRes.data || [])
+      if (!plRes.error) setPlans(plRes.data || [])
+    } catch (e) {
+      setClosingError(e.message)
+    } finally {
+      setClosingLoading(false)
+    }
+  }, [])
+
+  // Muat saat pertama kali & saat tab closing dibuka.
+  useEffect(() => { loadClosing() }, [loadClosing])
+  useEffect(() => {
+    if (view === 'closing' || view === 'closing_archive') loadClosing()
+  }, [view, loadClosing])
 
   useEffect(() => {
     if (view === 'drive') loadDrive(false)
@@ -116,6 +154,144 @@ export default function Finance({ rows, session }) {
       count: driveRows.length
     }
   }, [driveRows])
+
+  // ============================================================
+  // CLOSING PROYEK — kalkulasi P&L per proyek.
+  //   Revenue        : dari project_cost_summary.revenue (sync REV PROJECT)
+  //   Material       : project_cost_summary.cumulative_cost (COST ITEMS CONFIRMED)
+  //   Petty Cash     : project_cost_summary.petty_cash (tab PETTY CASH)
+  //   Biaya Tukang   : SUM(project_plans.labor_cost) per proyek (modul Planning)
+  //   Budget Target  : 70% × Revenue
+  //   Cost Kumulatif : Material + Petty Cash + Tukang
+  //   Margin         : Revenue − Cost Kumulatif (Rp & %)
+  //   Labor Ratio    : Tukang ÷ Cost Kumulatif × 100%
+  // ============================================================
+  const closingRows = useMemo(() => {
+    const projects = rows.projects || []
+    const laborByProject = {}
+    for (const pl of plans) {
+      if (!pl.project_id) continue
+      laborByProject[pl.project_id] = (laborByProject[pl.project_id] || 0) + (Number(pl.labor_cost) || 0)
+    }
+    const closedByProjectId = {}
+    const closedByNo = {}
+    for (const c of closings) {
+      if (c.project_id) closedByProjectId[c.project_id] = c
+      if (c.project_no) closedByNo[String(c.project_no)] = c
+    }
+    const driveByNo = {}
+    for (const d of driveRows) {
+      driveByNo[String(d.project_no || '').trim()] = d
+    }
+
+    const list = projects.map(p => {
+      const drive = driveByNo[String(p.kode || '').trim()] || null
+      const revenue = Number(drive?.revenue) || 0
+      const material = Number(drive?.cumulative_cost) || 0
+      const petty = Number(drive?.petty_cash) || 0
+      const labor = laborByProject[p.id] || 0
+      const total = material + petty + labor
+      const target = revenue * 0.7
+      const margin = revenue - total
+      const marginPct = revenue === 0 ? 0 : (margin / revenue) * 100
+      const laborRatio = total === 0 ? 0 : (labor / total) * 100
+      const closed = closedByProjectId[p.id] || closedByNo[String(p.kode || '').trim()] || null
+      return {
+        project: p,
+        revenue, material, petty, labor, total, target, margin, marginPct, laborRatio,
+        closed,
+        underBudget: total <= target
+      }
+    })
+    // Urut nomor proyek numerik.
+    return list.sort((a, b) => {
+      const na = parseInt(a.project.kode, 10)
+      const nb = parseInt(b.project.kode, 10)
+      if (!isNaN(na) && !isNaN(nb)) return na - nb
+      return String(a.project.kode || '').localeCompare(String(b.project.kode || ''))
+    })
+  }, [rows, plans, closings, driveRows])
+
+  // Estimasi Net Profit bulanan (preview): total margin proyek − OPEX WS.
+  const netProfitPreview = useMemo(() => {
+    const gross = closingRows.reduce((s, r) => s + (r.margin || 0), 0)
+    const opex = Number((driveByNoGlobal(driveRows)['operasional ws'])?.cumulative_cost) || 0
+    return { gross, opex, net: gross - opex }
+  }, [closingRows, driveRows])
+
+  function driveByNoGlobal(list) {
+    const map = {}
+    for (const d of list) map[String(d.project_no || '').trim().toLowerCase()] = d
+    return map
+  }
+
+  // Buka modal review closing.
+  function openClosingModal(row) {
+    if (row.closed) {
+      setClosingError(`Proyek [${row.project.kode}] ${row.project.name} sudah pernah di-closing pada ${formatDateTime(row.closed.closed_at)} — snapshot permanen tidak bisa diubah.`)
+      return
+    }
+    if (row.revenue <= 0) {
+      setClosingError(`Revenue proyek [${row.project.kode}] belum tersedia. Pastikan sync Drive berjalan & nilai kontrak terisi di REV PROJECT, lalu klik "🔄 Refresh Sekarang" di tab Cost Drive.`)
+      return
+    }
+    setClosingError('')
+    setClosingNotes('')
+    setClosingModal(row)
+  }
+
+  // Konfirmasi closing — RPC atomic (snapshot permanen).
+  async function confirmClosing() {
+    if (!supabase || !closingModal || closingSaving) return
+    const row = closingModal
+    const label = `[${row.project.kode}] ${row.project.name}`
+    const ok = window.confirm(
+      `KUNCI SNAPSHOT PERMANEN untuk ${label}?\n\n` +
+      `Revenue: ${rupiah(row.revenue)}\n` +
+      `Cost Kumulatif: ${rupiah(row.total)}\n` +
+      `Margin: ${rupiah(row.margin)} (${persen(row.marginPct)})\n\n` +
+      `Setelah dikunci, angka historis ini TIDAK BISA diubah lagi dan proyek dipindahkan ke Past Project.`
+    )
+    if (!ok) return
+    setClosingSaving(true)
+    try {
+      const { data, error } = await supabase.rpc('close_project', {
+        p_project_id: row.project.id,
+        p_project_no: String(row.project.kode),
+        p_project_name: row.project.name,
+        p_revenue: row.revenue,
+        p_material_cost: row.material,
+        p_petty_cash_cost: row.petty,
+        p_labor_cost: row.labor,
+        p_notes: closingNotes.trim() || null
+      })
+      if (error) { setClosingError(`Gagal closing: ${error.message}`); return }
+      if (!data || data.ok === false) {
+        if (data && data.reason === 'already_closed') {
+          setClosingError(`${label} sudah pernah di-closing sebelumnya (snapshot permanen sudah ada).`)
+        } else if (data && data.reason === 'not_admin') {
+          setClosingError('Hanya admin yang boleh melakukan closing proyek.')
+        } else {
+          setClosingError('Closing gagal: alasan tidak dikenal.')
+        }
+        return
+      }
+      setClosingModal(null)
+      setClosingNotes('')
+      setClosingError('')
+      await loadClosing()
+      await loadDrive(true)
+      window.alert(
+        `✅ Closing proyek ${label} berhasil dikunci permanen.\n\n` +
+        `Total Cost: ${rupiah(data.total_cost)} ${data.under_budget ? '(HEMAT — di bawah budget 70%)' : '(OVER-BUDGET — di atas budget 70%)'}\n` +
+        `Margin: ${rupiah(data.margin_nominal)} (${persen(data.margin_percentage)})\n` +
+        `Labor Ratio: ${persen(data.labor_ratio)}\n\n` +
+        `Proyek dipindahkan ke Past Project dan snapshot tercatat di tab Arsip Closing.`
+      )
+    } finally {
+      setClosingSaving(false)
+    }
+  }
 
   const data = useMemo(() => {
     const prs = rows.requests || []
@@ -200,6 +376,13 @@ export default function Finance({ rows, session }) {
           <strong>{data.projectCount}</strong>
           <small>{data.byProject.length} project ada pengadaan</small>
         </div>
+        <div className="card" title="Estimasi: Total Gross Margin Proyek − Beban OPEX WS (bulan berjalan)">
+          <span>Net Profit Bulanan (Preview)</span>
+          <strong style={{ fontSize: '22px', color: netProfitPreview.net < 0 ? '#b91c1c' : '#0d6e38' }}>
+            {rupiah(netProfitPreview.net)}
+          </strong>
+          <small>Margin {rupiah(netProfitPreview.gross)} − OPEX WS {rupiah(netProfitPreview.opex)}</small>
+        </div>
       </div>
 
       <div className="toolbar">
@@ -212,6 +395,12 @@ export default function Finance({ rows, session }) {
           </button>
           <button type="button" className={`pill ${view === 'drive' ? 'active' : ''}`} onClick={() => setView('drive')}>
             ☁️ Cost Drive ({driveRows.length || '…'})
+          </button>
+          <button type="button" className={`pill ${view === 'closing' ? 'active' : ''}`} onClick={() => setView('closing')}>
+            🔒 Closing Proyek ({closingRows.filter(r => !r.closed).length})
+          </button>
+          <button type="button" className={`pill ${view === 'closing_archive' ? 'active' : ''}`} onClick={() => setView('closing_archive')}>
+            📁 Arsip Closing ({closings.length})
           </button>
         </div>
         {view === 'drive' && (
@@ -269,7 +458,203 @@ export default function Finance({ rows, session }) {
         </div>
       )}
 
-      {view === 'drive' ? (
+      {view === 'closing' ? (
+        <>
+          {closingError && (
+            <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
+              {closingError}
+            </div>
+          )}
+          <div className="panel table desktop-table-view">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '110px' }}>No. &amp; Nama Proyek</th>
+                  <th style={{ textAlign: 'right' }}>Revenue Project</th>
+                  <th style={{ textAlign: 'right' }}>Budget Target (70%)</th>
+                  <th style={{ textAlign: 'right' }}>Cost Kumulatif</th>
+                  <th style={{ textAlign: 'right' }}>Margin (Laba Kotor)</th>
+                  <th style={{ textAlign: 'right' }}>Labor Ratio</th>
+                  <th style={{ width: '150px', textAlign: 'center' }}>Aksi Closing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {closingLoading ? (
+                  <tr><td colSpan={7} className="empty">Memuat data closing…</td></tr>
+                ) : closingRows.length ? closingRows.map(row => {
+                  const p = row.project
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <div style={{ fontWeight: 700 }}>{p.kode || '—'}</div>
+                        <div style={{ fontSize: '12px', color: '#556b65', whiteSpace: 'normal', maxWidth: '170px' }}>{p.name || '—'}</div>
+                        <div style={{ fontSize: '11px', color: '#9aa8a4', marginTop: '2px' }}>{p.status || '—'}</div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{row.revenue > 0 ? rupiah(row.revenue) : '—'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {row.revenue > 0 ? (
+                          <>
+                            <div style={{ fontWeight: 600 }}>{rupiah(row.target)}</div>
+                            <div style={{ fontSize: '11px', color: row.underBudget ? '#137333' : '#b91c1c', fontWeight: 700 }}>
+                              {row.underBudget ? '✓ HEMAT' : '⚠ OVER-BUDGET'}
+                            </div>
+                          </>
+                        ) : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 700 }}>{rupiah(row.total)}</div>
+                        <div style={{ fontSize: '11px', color: '#71817d' }}>
+                          Mat {rupiah(row.material)} · PC {rupiah(row.petty)} · Tukang {rupiah(row.labor)}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 700, color: row.margin < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(row.margin)}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: row.margin < 0 ? '#b91c1c' : '#0d6e38' }}>{persen(row.marginPct)}</div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{persen(row.laborRatio)}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        {row.closed ? (
+                          <div>
+                            <span className="badge status-APPROVED" style={{ fontSize: '10px' }}>🔒 TERKUNCI</span>
+                            <div style={{ fontSize: '10px', color: '#9aa8a4', marginTop: '4px' }}>{formatDateTime(row.closed.closed_at)}</div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-finish"
+                            style={{ fontSize: '11px', padding: '6px 10px', whiteSpace: 'nowrap' }}
+                            onClick={() => openClosingModal(row)}
+                            title="Review P&L lalu kunci snapshot permanen"
+                          >
+                            🔒 Closing Proyek
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                }) : (
+                  <tr><td colSpan={7} className="empty">Belum ada proyek.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Kartu mobile */}
+          <div className="mobile-cards-view">
+            {closingLoading ? (
+              <div className="panel empty">Memuat data closing…</div>
+            ) : closingRows.length ? closingRows.map(row => {
+              const p = row.project
+              return (
+                <div className="mobile-card" key={p.id}>
+                  <div className="mobile-card-header">
+                    <div>
+                      <b className="mobile-card-title">[{p.kode || '—'}] {p.name || '—'}</b>
+                      <div className="mobile-card-sub">{p.status || '—'}</div>
+                    </div>
+                    {row.closed && <span className="badge status-APPROVED" style={{ fontSize: '10px' }}>🔒</span>}
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-row"><span className="mobile-label">Revenue:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{row.revenue > 0 ? rupiah(row.revenue) : '—'}</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Budget 70%:</span><span className="mobile-val">{row.revenue > 0 ? rupiah(row.target) : '—'}</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Cost Kumulatif:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{rupiah(row.total)}</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Margin:</span><span className="mobile-val" style={{ fontWeight: 700, color: row.margin < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(row.margin)} ({persen(row.marginPct)})</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Labor Ratio:</span><span className="mobile-val">{persen(row.laborRatio)}</span></div>
+                  </div>
+                  {!row.closed && (
+                    <div className="mobile-card-actions">
+                      <button type="button" className="btn-finish" style={{ fontSize: '11px', padding: '7px 12px' }} onClick={() => openClosingModal(row)}>🔒 Closing Proyek</button>
+                    </div>
+                  )}
+                </div>
+              )
+            }) : <div className="panel empty">Belum ada proyek.</div>}
+          </div>
+        </>
+      ) : view === 'closing_archive' ? (
+        <>
+          <div className="panel" style={{ marginBottom: '18px', padding: '16px 22px' }}>
+            <p className="muted" style={{ margin: 0 }}>
+              🔒 <b>Arsip Closing</b> — snapshot P&L historis yang sudah <b>terkunci permanen</b>. Angka di tab ini adalah rekaman audit saat closing dilakukan dan tidak berubah walaupun data sumber diperbarui.
+            </p>
+          </div>
+          <div className="panel table desktop-table-view">
+            <table>
+              <thead>
+                <tr>
+                  <th>No. &amp; Nama Proyek</th>
+                  <th style={{ textAlign: 'right' }}>Revenue</th>
+                  <th style={{ textAlign: 'right' }}>Budget (70%)</th>
+                  <th style={{ textAlign: 'right' }}>Cost Kumulatif</th>
+                  <th style={{ textAlign: 'right' }}>Margin</th>
+                  <th style={{ textAlign: 'right' }}>Labor Ratio</th>
+                  <th>Closing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {closingLoading ? (
+                  <tr><td colSpan={7} className="empty">Memuat arsip…</td></tr>
+                ) : closings.length ? closings.map(c => {
+                  const hemat = (Number(c.total_cost) || 0) <= (Number(c.target_budget) || 0)
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <div style={{ fontWeight: 700 }}>{c.project_no || '—'}</div>
+                        <div style={{ fontSize: '12px', color: '#556b65', whiteSpace: 'normal', maxWidth: '170px' }}>{c.project_name || '—'}</div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{rupiah(c.revenue || 0)}</td>
+                      <td style={{ textAlign: 'right' }}>{rupiah(c.target_budget || 0)}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 700 }}>{rupiah(c.total_cost || 0)}</div>
+                        <div style={{ fontSize: '11px', color: hemat ? '#137333' : '#b91c1c', fontWeight: 700 }}>{hemat ? '✓ HEMAT' : '⚠ OVER-BUDGET'}</div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 700, color: Number(c.margin_nominal) < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(c.margin_nominal || 0)}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: Number(c.margin_nominal) < 0 ? '#b91c1c' : '#0d6e38' }}>{persen(c.margin_percentage || 0)}</div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{persen(c.labor_ratio || 0)}</td>
+                      <td style={{ fontSize: '12px' }}>
+                        <div style={{ fontWeight: 600 }}>{formatDateTime(c.closed_at)}</div>
+                        <div style={{ fontSize: '11px', color: '#9aa8a4' }}>oleh {c.closed_by || '—'}</div>
+                        {c.notes && <div style={{ fontSize: '11px', color: '#556b65', whiteSpace: 'normal', maxWidth: '220px', marginTop: '2px' }}>📝 {c.notes}</div>}
+                      </td>
+                    </tr>
+                  )
+                }) : (
+                  <tr><td colSpan={7} className="empty">Belum ada proyek yang di-closing. Buka tab "🔒 Closing Proyek" untuk memulai.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Kartu mobile */}
+          <div className="mobile-cards-view">
+            {closingLoading ? (
+              <div className="panel empty">Memuat arsip…</div>
+            ) : closings.length ? closings.map(c => {
+              const hemat = (Number(c.total_cost) || 0) <= (Number(c.target_budget) || 0)
+              return (
+                <div className="mobile-card" key={c.id}>
+                  <div className="mobile-card-header">
+                    <div>
+                      <b className="mobile-card-title">[{c.project_no || '—'}] {c.project_name || '—'}</b>
+                      <div className="mobile-card-sub">{formatDateTime(c.closed_at)} · {c.closed_by || '—'}</div>
+                    </div>
+                    <span className={`badge ${hemat ? 'status-APPROVED' : 'status-REJECTED'}`} style={{ fontSize: '10px' }}>{hemat ? '✓ HEMAT' : '⚠ OVER'}</span>
+                  </div>
+                  <div className="mobile-card-body">
+                    <div className="mobile-card-row"><span className="mobile-label">Revenue:</span><span className="mobile-val">{rupiah(c.revenue || 0)}</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Cost:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{rupiah(c.total_cost || 0)}</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Margin:</span><span className="mobile-val" style={{ fontWeight: 700, color: Number(c.margin_nominal) < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(c.margin_nominal || 0)} ({persen(c.margin_percentage || 0)})</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Labor Ratio:</span><span className="mobile-val">{persen(c.labor_ratio || 0)}</span></div>
+                    {c.notes && <div className="mobile-card-row"><span className="mobile-label">Catatan:</span><span className="mobile-val">{c.notes}</span></div>}
+                  </div>
+                </div>
+              )
+            }) : <div className="panel empty">Belum ada proyek yang di-closing.</div>}
+          </div>
+        </>
+      ) : view === 'drive' ? (
         <>
           <div className="panel table desktop-table-view">
             <table>
@@ -399,7 +784,7 @@ export default function Finance({ rows, session }) {
       )}
 
       {/* Kartu mobile (tab ringkasan/detail) */}
-      {view !== 'drive' && (
+      {(view === 'summary' || view === 'detail') && (
       <div className="mobile-cards-view">
         {view === 'summary' ? (
           data.byProject.length ? data.byProject.map((p, i) => {
@@ -438,6 +823,91 @@ export default function Finance({ rows, session }) {
           )) : <div className="panel empty">Belum ada data pengadaan.</div>
         )}
       </div>
+      )}
+
+      {/* ============================================================
+          MODAL REVIEW CLOSING PROYEK
+          Rincian P&L + evaluasi budget 70% + catatan + tombol kunci.
+          ============================================================ */}
+      {closingModal && (
+        <div className="modal">
+          <div className="dialog dialog-wide">
+            <div className="dialoghead">
+              <h2>🔒 Review Closing Proyek — [{closingModal.project.kode}] {closingModal.project.name}</h2>
+              <button type="button" className="icon" onClick={() => setClosingModal(null)}>×</button>
+            </div>
+
+            <div className="panel" style={{ padding: '14px 18px', marginBottom: '14px', background: closingModal.underBudget ? '#f0f9f2' : '#fdf2f2', borderColor: closingModal.underBudget ? '#bce1ce' : '#fca5a5' }}>
+              <b style={{ color: closingModal.underBudget ? '#137333' : '#b91c1c', fontSize: '14px' }}>
+                {closingModal.underBudget
+                  ? '✓ HEMAT — Cost kumulatif berada DI BAWAH Budget Target 70%'
+                  : '⚠ OVER-BUDGET — Cost kumulatif MELEBIHI Budget Target 70%'}
+              </b>
+              <div style={{ fontSize: '12px', color: '#556b65', marginTop: '4px' }}>
+                Cost Kumulatif {rupiah(closingModal.total)} vs Budget 70% {rupiah(closingModal.target)}
+              </div>
+            </div>
+
+            <table style={{ marginBottom: '14px' }}>
+              <tbody>
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Revenue (Nilai Kontrak)</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(closingModal.revenue)}</td>
+                </tr>
+                <tr>
+                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>a. Material Cost <small>(Bakpau — COST ITEMS)</small></td>
+                  <td style={{ textAlign: 'right' }}>{rupiah(closingModal.material)}</td>
+                </tr>
+                <tr>
+                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>b. Petty Cash <small>(Bakpau — PETTY CASH)</small></td>
+                  <td style={{ textAlign: 'right' }}>{rupiah(closingModal.petty)}</td>
+                </tr>
+                <tr>
+                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>c. Biaya Tukang <small>(Brokoli / Planning)</small></td>
+                  <td style={{ textAlign: 'right' }}>{rupiah(closingModal.labor)}</td>
+                </tr>
+                <tr style={{ background: '#f7faf9' }}>
+                  <td style={{ fontWeight: 700 }}>COST KUMULATIF (a + b + c)</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(closingModal.total)}</td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Budget Target (70% × Revenue)</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{rupiah(closingModal.target)}</td>
+                </tr>
+                <tr style={{ background: closingModal.margin < 0 ? '#fdf2f2' : '#f0f9f2' }}>
+                  <td style={{ fontWeight: 700 }}>MARGIN / LABA KOTOR</td>
+                  <td style={{ textAlign: 'right', fontWeight: 800, color: closingModal.margin < 0 ? '#b91c1c' : '#0d6e38' }}>
+                    {rupiah(closingModal.margin)} ({persen(closingModal.marginPct)})
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Labor Ratio (Tukang ÷ Cost Kumulatif)</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{persen(closingModal.laborRatio)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <label>Catatan Evaluasi Closing
+              <textarea
+                rows={3}
+                value={closingNotes}
+                onChange={e => setClosingNotes(e.target.value)}
+                placeholder="cth: Pekerjaan selesai lebih cepat, material hemat. Evaluasi: koordinasi tukang sudah baik, lanjutkan pola ini…"
+              />
+            </label>
+
+            <p className="muted" style={{ fontSize: '12px', margin: '10px 0 0' }}>
+              Menekan tombol di bawah akan <b>mengunci snapshot permanen</b> ke tabel <code>project_closings</code> dan memindahkan proyek ke <b>Past Project</b>. Angka historis tidak dapat diubah lagi.
+            </p>
+
+            <div className="actions">
+              <button type="button" className="outline" onClick={() => setClosingModal(null)}>Batal</button>
+              <button type="button" disabled={closingSaving} onClick={confirmClosing}>
+                {closingSaving ? '⏳ Mengunci…' : '🔒 Konfirmasi Closing & Kunci Snapshot'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
