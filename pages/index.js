@@ -679,7 +679,7 @@ export default function App() {
           />
         ) : page === 'planning' ? (
           role === 'admin' ? (
-            <Planning rows={rows} session={session} say={setNotice} setPage={setPage} />
+            <Planning rows={rows} session={session} say={setNotice} setPage={setPage} refresh={loadAll} />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )

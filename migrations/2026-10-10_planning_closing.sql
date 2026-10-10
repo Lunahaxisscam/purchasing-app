@@ -237,8 +237,10 @@ $function$;
 
 -- ------------------------------------------------------------
 -- 8) Trigger updated_at untuk project_plans
+--    Nama fungsi SPESIFIK (bukan generik) supaya tidak pernah
+--    menimpa fungsi umum milik tabel lain bila nama sama.
 -- ------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.touch_updated_at()
+CREATE OR REPLACE FUNCTION public.fn_project_plans_touch_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
     NEW.updated_at := NOW();
@@ -249,6 +251,46 @@ $$;
 DROP TRIGGER IF EXISTS trg_project_plans_touch ON public.project_plans;
 CREATE TRIGGER trg_project_plans_touch
     BEFORE UPDATE ON public.project_plans
-    FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION public.fn_project_plans_touch_updated_at();
+
+-- ------------------------------------------------------------
+-- 9) SNAPSHOT PERMANEN: tolak UPDATE/DELETE pada project_closings
+--    (L5) — walaupun admin, riwayat closing tidak boleh berubah
+--    lewat API. Break-glass lewat SQL Editor (role postgres)
+--    tetap diizinkan untuk koreksi darurat.
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.fn_project_closings_immutable()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    IF current_user IN ('postgres', 'supabase_admin', 'service_role') THEN
+        IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+    END IF;
+    RAISE EXCEPTION 'project_closings bersifat PERMANEN — baris snapshot tidak boleh diubah/dihapus.';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_project_closings_immutable ON public.project_closings;
+CREATE TRIGGER trg_project_closings_immutable
+    BEFORE UPDATE OR DELETE ON public.project_closings
+    FOR EACH ROW EXECUTE FUNCTION public.fn_project_closings_immutable();
+
+-- Catatan: trigger ini juga memblokir UPDATE dari RPC close_project,
+-- tetapi RPC hanya melakukan INSERT (ON CONFLICT DO NOTHING) — aman.
+
+-- Bersihkan fungsi generik lama yang dibuat versi awal migrasi ini
+-- (sudah tidak dipakai trigger mana pun setelah rename di atas).
+DROP FUNCTION IF EXISTS public.touch_updated_at();
 
 COMMIT;
+
+-- ============================================================
+-- ROLLBACK (bila perlu membatalkan migrasi ini):
+--   DROP TRIGGER IF EXISTS trg_project_closings_immutable ON public.project_closings;
+--   DROP TRIGGER IF EXISTS trg_project_plans_touch ON public.project_plans;
+--   DROP FUNCTION IF EXISTS public.fn_project_closings_immutable();
+--   DROP FUNCTION IF EXISTS public.fn_project_plans_touch_updated_at();
+--   DROP FUNCTION IF EXISTS public.close_project(UUID,TEXT,TEXT,NUMERIC,NUMERIC,NUMERIC,NUMERIC,TEXT);
+--   DROP TABLE IF EXISTS public.project_closings;
+--   DROP TABLE IF EXISTS public.project_plans;
+--   ALTER TABLE public.project_cost_summary DROP COLUMN IF EXISTS revenue, DROP COLUMN IF EXISTS petty_cash;
+-- ============================================================

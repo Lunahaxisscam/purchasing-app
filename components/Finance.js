@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { rupiah, formatDateTime, timeAgo, persen, formatNominalInput } from '../lib/constants'
+import { rupiah, formatDateTime, timeAgo, persen } from '../lib/constants'
 
 // ============================================================
 // Modul FINANCE — khusus role admin.
@@ -191,7 +191,10 @@ export default function Finance({ rows, session }) {
       const petty = Number(drive?.petty_cash) || 0
       const labor = laborByProject[p.id] || 0
       const total = material + petty + labor
-      const target = revenue * 0.7
+      // L1: revenue*0.7 bisa menghasilkan float (mis. 30309999.999999996);
+      // dibulatkan ke rupiah supaya perbandingan HEMAT/OVER-BUDGET tepat di
+      // batas pas 70%.
+      const target = Math.round(revenue * 70) / 100
       const margin = revenue - total
       const marginPct = revenue === 0 ? 0 : (margin / revenue) * 100
       const laborRatio = total === 0 ? 0 : (labor / total) * 100
@@ -215,20 +218,24 @@ export default function Finance({ rows, session }) {
   // Estimasi Net Profit bulanan (preview): total margin proyek − OPEX WS.
   const netProfitPreview = useMemo(() => {
     const gross = closingRows.reduce((s, r) => s + (r.margin || 0), 0)
-    const opex = Number((driveByNoGlobal(driveRows)['operasional ws'])?.cumulative_cost) || 0
-    return { gross, opex, net: gross - opex }
-  }, [closingRows, driveRows])
-
-  function driveByNoGlobal(list) {
+    // L4: OPEX dicari case-insensitive & dilaporkan bila barisnya tidak ada —
+    // tanpa ini net profit tampak lebih besar dari kenyataan (opex dianggap 0).
     const map = {}
-    for (const d of list) map[String(d.project_no || '').trim().toLowerCase()] = d
-    return map
-  }
+    for (const d of driveRows) map[String(d.project_no || '').trim().toLowerCase()] = d
+    const opexRow = map['operasional ws']
+    const opex = opexRow ? (Number(opexRow.cumulative_cost) || 0) : null
+    return { gross, opex, net: opex === null ? null : gross - opex }
+  }, [closingRows, driveRows])
 
   // Buka modal review closing.
   function openClosingModal(row) {
     if (row.closed) {
       setClosingError(`Proyek [${row.project.kode}] ${row.project.name} sudah pernah di-closing pada ${formatDateTime(row.closed.closed_at)} — snapshot permanen tidak bisa diubah.`)
+      return
+    }
+    // L3: tanpa kode proyek, snapshot akan menyimpan literal "null" permanen.
+    if (!row.project.kode) {
+      setClosingError(`Proyek "${row.project.name}" belum punya Kode Project. Isi kodenya dulu di modul Projects sebelum closing (kode dipakai sebagai kunci snapshot permanen).`)
       return
     }
     if (row.revenue <= 0) {
@@ -378,10 +385,14 @@ export default function Finance({ rows, session }) {
         </div>
         <div className="card" title="Estimasi: Total Gross Margin Proyek − Beban OPEX WS (bulan berjalan)">
           <span>Net Profit Bulanan (Preview)</span>
-          <strong style={{ fontSize: '22px', color: netProfitPreview.net < 0 ? '#b91c1c' : '#0d6e38' }}>
-            {rupiah(netProfitPreview.net)}
+          <strong style={{ fontSize: '22px', color: netProfitPreview.net === null ? '#9aa8a4' : (netProfitPreview.net < 0 ? '#b91c1c' : '#0d6e38') }}>
+            {netProfitPreview.net === null ? '—' : rupiah(netProfitPreview.net)}
           </strong>
-          <small>Margin {rupiah(netProfitPreview.gross)} − OPEX WS {rupiah(netProfitPreview.opex)}</small>
+          <small>
+            {netProfitPreview.opex === null
+              ? 'baris OPEX "operasional ws" belum ada di data Drive'
+              : `Margin ${rupiah(netProfitPreview.gross)} − OPEX WS ${rupiah(netProfitPreview.opex)}`}
+          </small>
         </div>
       </div>
 

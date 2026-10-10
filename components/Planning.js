@@ -42,7 +42,7 @@ function digitsOnly(v) {
   return d ? Number(d) : 0
 }
 
-export default function Planning({ rows, session, say, setPage }) {
+export default function Planning({ rows, say, setPage, refresh }) {
   const allProjects = rows?.projects || []
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -224,8 +224,15 @@ export default function Planning({ rows, session, say, setPage }) {
         if (!rpcErr && rpcNum) prNumber = String(rpcNum)
       } catch (e) { /* fallback di bawah */ }
       if (!prNumber) {
-        const { data: allPrs } = await supabase.from('purchase_requests').select('pr_number')
-        const maxNum = (allPrs || []).reduce((max, p) => {
+        // Fallback terakhir bila RPC tidak tersedia: baca PR dengan nomor
+        // TERBESAR (order numerik + limit 1) supaya tidak terpotong limit
+        // default PostgREST dan tidak salah ambil format.
+        const { data: lastPr } = await supabase.from('purchase_requests')
+          .select('pr_number')
+          .not('pr_number', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(200)
+        const maxNum = (lastPr || []).reduce((max, p) => {
           const n = parseInt(String(p.pr_number || '').replace(/^\D+/, ''), 10)
           return isFinite(n) && n > max ? n : max
         }, 0)
@@ -280,7 +287,8 @@ export default function Planning({ rows, session, say, setPage }) {
       item_name: plan.item_name,
       kode: '',
       unit: plan.unit || 'unit',
-      quantity: Number(plan.volume) || 1,
+      // Volume 0 / kosong → pakai 1 supaya qty PR tidak pernah 0.
+      quantity: Number.isFinite(Number(plan.volume)) && Number(plan.volume) > 0 ? Number(plan.volume) : 1,
       status: 'PENDING_APPROVAL',
       supplier_category: null,
       vendor_id: null,
@@ -292,6 +300,9 @@ export default function Planning({ rows, session, say, setPage }) {
     } else {
       say(`PR ${insertedPr.pr_number} berhasil dibuat (DRAFT) untuk "${plan.item_name}" — ${summary}. Lanjutkan di modul Purchase Request (klik "✓ Selesai" untuk kirim ke Approval).`)
     }
+    // Muat ulang data app DULU supaya PR baru langsung terlihat di modul
+    // Purchase Request (mencegah user mengira gagal lalu klik lagi → PR duplikat).
+    try { if (refresh) await refresh() } catch (e) { /* navigasi tetap lanjut */ }
     setPage && setPage('requests')
   }
 
