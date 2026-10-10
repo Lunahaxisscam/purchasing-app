@@ -112,8 +112,7 @@ export default function Finance({ rows, session }) {
     const sum = (k) => driveRows.reduce((s, r) => s + (Number(r[k]) || 0), 0)
     return {
       cumulative: sum('cumulative_cost'),
-      paid: sum('total_paid'),
-      outstanding: sum('outstanding'),
+      week: sum('current_week_expense'),
       count: driveRows.length
     }
   }, [driveRows])
@@ -280,28 +279,22 @@ export default function Finance({ rows, session }) {
                   <th>Project</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'right' }}>Cost Kumulatif</th>
-                  <th style={{ textAlign: 'right' }}>Terbayar</th>
-                  <th style={{ textAlign: 'right' }}>Sisa (Outstanding)</th>
                   <th style={{ textAlign: 'right' }}>Minggu Ini</th>
                 </tr>
               </thead>
               <tbody>
                 {driveLoading ? (
-                  <tr><td colSpan={7} className="empty">Memuat data cost dari Drive…</td></tr>
+                  <tr><td colSpan={5} className="empty">Memuat data cost dari Drive…</td></tr>
                 ) : driveRows.length ? driveRows.map((r, i) => (
                   <tr key={r.id || i}>
                     <td><b>{r.project_no || '—'}</b></td>
                     <td style={{ fontWeight: 600 }}>{r.project_name || '—'}</td>
                     <td>{r.project_status || '—'}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(r.cumulative_cost || 0)}</td>
-                    <td style={{ textAlign: 'right', color: '#0d6e38' }}>{rupiah(r.total_paid || 0)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: Number(r.outstanding) > 0 ? '#b91c1c' : '#0d6e38' }}>
-                      {rupiah(r.outstanding || 0)}
-                    </td>
                     <td style={{ textAlign: 'right' }}>{rupiah(r.current_week_expense || 0)}</td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={7} className="empty">
+                  <tr><td colSpan={5} className="empty">
                     {driveError ? 'Tidak bisa menampilkan data cost.' : 'Belum ada data — klik "🔄 Refresh Sekarang" untuk menarik dari Google Drive.'}
                   </td></tr>
                 )}
@@ -311,8 +304,6 @@ export default function Finance({ rows, session }) {
                   <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
                     <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL</td>
                     <td style={{ textAlign: 'right' }}>{rupiah(driveTotals.cumulative)}</td>
-                    <td style={{ textAlign: 'right' }}>{rupiah(driveTotals.paid)}</td>
-                    <td style={{ textAlign: 'right' }}>{rupiah(driveTotals.outstanding)}</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -334,8 +325,6 @@ export default function Finance({ rows, session }) {
                 </div>
                 <div className="mobile-card-body">
                   <div className="mobile-card-row"><span className="mobile-label">Cost Kumulatif:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{rupiah(r.cumulative_cost || 0)}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Terbayar:</span><span className="mobile-val" style={{ color: '#0d6e38' }}>{rupiah(r.total_paid || 0)}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Sisa:</span><span className="mobile-val" style={{ fontWeight: 700, color: Number(r.outstanding) > 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(r.outstanding || 0)}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Minggu Ini:</span><span className="mobile-val">{rupiah(r.current_week_expense || 0)}</span></div>
                 </div>
               </div>
