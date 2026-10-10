@@ -85,9 +85,16 @@ export default async function handler(req, res) {
   const rawConn = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING
   if (!rawConn) return res.status(500).json({ error: 'No POSTGRES_URL' })
 
-  // Buang parameter sslmode dari connection string: beberapa nilai (mis. verify-full)
-  // menimpa konfigurasi ssl di bawah dan menyebabkan "self-signed certificate in chain".
-  const connectionString = rawConn.replace(/[?&]sslmode=[^&]*/g, '').replace(/[?&]$/, '')
+  // Parse URL dengan benar dan buang parameter sslmode (menimpa konfigurasi ssl
+  // dan menyebabkan "self-signed certificate in chain" dari Vercel).
+  let connectionString = rawConn
+  try {
+    const u = new URL(rawConn)
+    u.searchParams.delete('sslmode')
+    connectionString = u.toString()
+  } catch (e) {
+    connectionString = rawConn.replace(/\?sslmode=[^&]*/, '').replace(/&sslmode=[^&]*/, '')
+  }
 
   const client = new Client({
     connectionString,
