@@ -82,10 +82,18 @@ export default async function handler(req, res) {
   const provided = req.headers['x-fix-token'] || req.query.token
   if (provided !== FIX_TOKEN) return res.status(401).json({ error: 'Unauthorized' })
 
-  const connectionString = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING
-  if (!connectionString) return res.status(500).json({ error: 'No POSTGRES_URL' })
+  const rawConn = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING
+  if (!rawConn) return res.status(500).json({ error: 'No POSTGRES_URL' })
 
-  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } })
+  // Buang parameter sslmode dari connection string: beberapa nilai (mis. verify-full)
+  // menimpa konfigurasi ssl di bawah dan menyebabkan "self-signed certificate in chain".
+  const connectionString = rawConn.replace(/[?&]sslmode=[^&]*/g, '').replace(/[?&]$/, '')
+
+  const client = new Client({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 15000
+  })
   try {
     await client.connect()
     const out = {}
