@@ -356,7 +356,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
         </div>
         <div className="toolbar-actions">
           <button type="button" className="outline" onClick={loadPlans} style={{ padding: '9px 14px', fontSize: '13px' }}>
-            ↻ Muat Ulang
+            ↻ Perbarui
           </button>
           <button type="button" className="btn-create-module" onClick={openAdd}>
             + Tambah Pekerjaan

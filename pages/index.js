@@ -668,7 +668,12 @@ export default function App() {
             <p className="eyebrow">OPERASIONAL INTERNAL</p>
             <h1>{page === 'dashboard' ? 'Dashboard' : labels[page]}</h1>
           </div>
-          <button className="outline" onClick={loadAll}>↻ Perbarui</button>
+          {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
+              (satu tombol per halaman — permintaan user 11 Okt). Tombol global
+              disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'settings'].includes(page) && (
+            <button className="outline" onClick={loadAll}>↻ Perbarui</button>
+          )}
         </header>
         {notice && <div className="notice">{notice}</div>}
         {page === 'dashboard' ? (
@@ -693,7 +698,7 @@ export default function App() {
           )
         ) : page === 'finance' ? (
           role === 'admin' ? (
-            <Finance rows={rows} session={session} />
+            <Finance rows={rows} session={session} refresh={loadAll} />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )

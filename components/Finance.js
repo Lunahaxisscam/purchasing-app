@@ -23,7 +23,7 @@ function parseNominalFromNote(note) {
   return digits ? Number(digits) : null
 }
 
-export default function Finance({ rows, session }) {
+export default function Finance({ rows, session, refresh }) {
   const [view, setView] = useState('summary')
   // --- state tab Cost Drive ---
   const [driveRows, setDriveRows] = useState([])
@@ -146,6 +146,14 @@ export default function Finance({ rows, session }) {
     }
   }
 
+  // Tombol "↻ Perbarui" (tab selain Cost Drive): muat ulang data lokal —
+  // data app dari parent (rows) + tabel closing + ringkasan Drive.
+  async function handleReloadLocal() {
+    try { if (refresh) await refresh() } catch (e) { /* tetap lanjut memuat data lokal */ }
+    await loadClosing()
+    await loadDrive(true)
+  }
+
   const driveTotals = useMemo(() => {
     const sum = (k) => driveRows.reduce((s, r) => s + (Number(r[k]) || 0), 0)
     return {
@@ -239,7 +247,7 @@ export default function Finance({ rows, session }) {
       return
     }
     if (row.revenue <= 0) {
-      setClosingError(`Revenue proyek [${row.project.kode}] belum tersedia. Pastikan sync Drive berjalan & nilai kontrak terisi di REV PROJECT, lalu klik "🔄 Refresh Sekarang" di tab Cost Drive.`)
+      setClosingError(`Revenue proyek [${row.project.kode}] belum tersedia. Pastikan sync Drive berjalan & nilai kontrak terisi di REV PROJECT, lalu klik "🔄 Refresh dari Drive" di tab Cost Drive.`)
       return
     }
     setClosingError('')
@@ -414,8 +422,12 @@ export default function Finance({ rows, session }) {
             📁 Arsip Closing ({closings.length})
           </button>
         </div>
-        {view === 'drive' && (
-          <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* SATU tombol refresh per halaman (permintaan user 11 Okt — sebelumnya
+            ada 3 tombol refresh membingungkan: Perbarui global + Refresh Sekarang
+            + Muat Ulang). Tab Cost Drive → tarik data dari Google Sheets;
+            tab lain → muat ulang data dari database. */}
+        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {view === 'drive' ? (
             <button
               type="button"
               className="btn-finish"
@@ -424,19 +436,20 @@ export default function Finance({ rows, session }) {
               style={{ opacity: refreshing ? 0.7 : 1, padding: '7px 14px', fontSize: '12px' }}
               title="Minta daemon menarik data terbaru dari Google Sheets REKAP COST 2026 (read-only)"
             >
-              {refreshing ? '⏳ Sinkronisasi…' : '🔄 Refresh Sekarang'}
+              {refreshing ? '⏳ Sinkronisasi…' : '🔄 Refresh dari Drive'}
             </button>
+          ) : (
             <button
               type="button"
               className="outline"
-              onClick={() => loadDrive()}
+              onClick={handleReloadLocal}
               style={{ padding: '7px 12px', fontSize: '12px' }}
-              title="Muat ulang data dari database lokal"
+              title="Muat ulang data dari database"
             >
-              ↻ Muat Ulang
+              ↻ Perbarui
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {view === 'drive' && (
@@ -691,7 +704,7 @@ export default function Finance({ rows, session }) {
                   </tr>
                 )) : (
                   <tr><td colSpan={5} className="empty">
-                    {driveError ? 'Tidak bisa menampilkan data cost.' : 'Belum ada data — klik "🔄 Refresh Sekarang" untuk menarik dari Google Drive.'}
+                    {driveError ? 'Tidak bisa menampilkan data cost.' : 'Belum ada data — klik "🔄 Refresh dari Drive" untuk menarik dari Google Drive.'}
                   </td></tr>
                 )}
               </tbody>
@@ -724,7 +737,7 @@ export default function Finance({ rows, session }) {
                   <div className="mobile-card-row"><span className="mobile-label">Minggu Ini:</span><span className="mobile-val">{rupiah(r.current_week_expense || 0)}</span></div>
                 </div>
               </div>
-            )) : <div className="panel empty">Belum ada data — klik "🔄 Refresh Sekarang" untuk menarik dari Google Drive.</div>}
+            )) : <div className="panel empty">Belum ada data — klik "🔄 Refresh dari Drive" untuk menarik dari Google Drive.</div>}
           </div>
         </>
       ) : (

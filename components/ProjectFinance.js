@@ -180,7 +180,7 @@ export default function ProjectFinance({ rows }) {
         </div>
         <div className="toolbar-actions">
           <button type="button" className="outline" onClick={() => load(false)} style={{ padding: '9px 14px', fontSize: '13px' }}>
-            ↻ Muat Ulang
+            ↻ Perbarui
           </button>
         </div>
       </div>
@@ -293,7 +293,7 @@ export default function ProjectFinance({ rows }) {
               {!hasDriveData && (
                 <div className="notice" style={{ marginTop: '14px' }}>
                   Data Drive untuk proyek ini belum tersedia. Pastikan kode proyek ({project.kode || '—'}) cocok dengan
-                  PROJECT NO di REKAP COST 2026 / REV PROJECT, lalu klik &quot;🔄 Refresh Sekarang&quot; di modul Finance → tab Cost Drive.
+                  PROJECT NO di REKAP COST 2026 / REV PROJECT, lalu klik &quot;🔄 Refresh dari Drive&quot; di modul Finance → tab Cost Drive.
                 </div>
               )}
             </>

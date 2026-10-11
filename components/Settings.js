@@ -154,7 +154,7 @@ export default function Settings({ role = 'user', session }) {
             className="outline"
             onClick={() => (tab === 'logs' ? loadLogs() : loadUsers())}
           >
-            ↻ Muat ulang
+            ↻ Perbarui
           </button>
         </div>
       </div>
