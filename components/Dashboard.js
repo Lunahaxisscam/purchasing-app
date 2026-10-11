@@ -15,6 +15,7 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     cards.push(['planning', '🏗️ Project Planning', '→'])
     cards.push(['project_finance', '📊 Project Finance', '→'])
     cards.push(['finance', '★ Finance', '→'])
+    cards.push(['tukang_upah', '👷 Upah Tukang', '→'])
     cards.push(['settings', '⚙️ Settings', '→'])
   }
   return (

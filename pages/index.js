@@ -6,6 +6,7 @@ import Dashboard from '../components/Dashboard'
 import Finance from '../components/Finance'
 import Planning from '../components/Planning'
 import ProjectFinance from '../components/ProjectFinance'
+import TukangUpah from '../components/TukangUpah'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import { labels, normalizeStatus, orderSpecFor } from '../lib/constants' 
@@ -693,6 +694,12 @@ export default function App() {
         ) : page === 'finance' ? (
           role === 'admin' ? (
             <Finance rows={rows} session={session} />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'tukang_upah' ? (
+          role === 'admin' ? (
+            <TukangUpah />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
