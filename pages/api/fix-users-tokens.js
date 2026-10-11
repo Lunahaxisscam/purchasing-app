@@ -127,9 +127,9 @@ export default async function handler(req, res) {
     const r1 = await client.query(FIX_SQL)
     const r2 = await client.query(CREATE_USER_FN)
 
-    // Self-cleaning: hapus akun test E2E (pola email test-akun-*@noirliving.test)
+    // Self-cleaning: hapus akun test E2E (pola email test-*@noirliving.test)
     const del = await client.query(`
-      DELETE FROM auth.users WHERE email LIKE 'test-akun-%@noirliving.test';
+      DELETE FROM auth.users WHERE email LIKE 'test-%@noirliving.test';
     `)
 
     // Verifikasi: hitung user yang masih punya token NULL (harus 0)
