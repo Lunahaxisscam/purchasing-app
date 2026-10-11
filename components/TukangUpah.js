@@ -60,25 +60,37 @@ function EllipCell({ text, wide = false, small = false, muted = false }) {
 
 export default function TukangUpah() {
   const [tukangKey, setTukangKey] = useState('')
+  const [view, setView] = useState('dashboard')   // 'dashboard' | 'projects'
   const [rows, setRows] = useState([])
   const [sync, setSync] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const pollRef = useRef(null)
+  // --- data per proyek (3 tab Google Sheets) ---
+  const [projects, setProjects] = useState([])
+  const [upahItems, setUpahItems] = useState([])
+  const [kasbon, setKasbon] = useState([])
+  const [openProject, setOpenProject] = useState(null)   // nama proyek yg dibuka
 
   const load = useCallback(async (silent = false) => {
     if (!supabase) return
     if (!silent) setLoading(true)
     setError('')
     try {
-      const [dashRes, syncRes] = await Promise.all([
+      const [dashRes, syncRes, projRes, itemsRes, kasbonRes] = await Promise.all([
         supabase.from('tukang_dashboards').select('*').order('tukang_key', { ascending: true }),
-        supabase.from('sync_status').select('*').eq('id', STATUS_ID).maybeSingle()
+        supabase.from('sync_status').select('*').eq('id', STATUS_ID).maybeSingle(),
+        supabase.from('tukang_projects').select('*').order('sort_order', { ascending: true }),
+        supabase.from('tukang_upah_items').select('*').order('sort_order', { ascending: true }),
+        supabase.from('tukang_kasbon').select('*').order('sort_order', { ascending: true })
       ])
       if (dashRes.error) setError(dashRes.error.message)
       else setRows(dashRes.data || [])
       if (!syncRes.error && syncRes.data) setSync(syncRes.data)
+      if (!projRes.error) setProjects(projRes.data || [])
+      if (!itemsRes.error) setUpahItems(itemsRes.data || [])
+      if (!kasbonRes.error) setKasbon(kasbonRes.data || [])
     } catch (e) {
       setError(e.message)
     } finally {
@@ -143,6 +155,45 @@ export default function TukangUpah() {
     return tukang.batches
   }, [tukang])
 
+  // --- Data per proyek (tukang terpilih) ---
+  const myProjects = useMemo(
+    () => projects.filter(p => p.tukang_key === tukangKey),
+    [projects, tukangKey]
+  )
+  const myItems = useMemo(
+    () => upahItems.filter(it => it.tukang_key === tukangKey),
+    [upahItems, tukangKey]
+  )
+  const myKasbon = useMemo(
+    () => kasbon.filter(k => k.tukang_key === tukangKey),
+    [kasbon, tukangKey]
+  )
+  // Kelompokkan item pekerjaan per proyek (untuk panel detail).
+  const itemsByProject = useMemo(() => {
+    const map = {}
+    for (const it of myItems) {
+      const k = it.project_name || '—'
+      if (!map[k]) map[k] = []
+      map[k].push(it)
+    }
+    return map
+  }, [myItems])
+  // Total pekerjaan per proyek: pakai subtotal baris "Total Project X" bila ada,
+  // jika tidak jumlahkan kolom upah_rincian (pola yang sama dengan Dashboard sheet).
+  const projectTotals = useMemo(() => {
+    const map = {}
+    for (const p of myProjects) {
+      const items = itemsByProject[p.project_name] || []
+      const subtotal = items.reduce((s, it) => s + (Number(it.total_proyek) || 0), 0)
+      const sumRincian = items.reduce((s, it) => s + (Number(it.upah_rincian) || 0), 0)
+      map[p.project_name] = {
+        total: subtotal > 0 ? subtotal : sumRincian,
+        itemCount: items.filter(it => it.pekerjaan && !/^total\b/i.test(String(it.pekerjaan))).length
+      }
+    }
+    return map
+  }, [myProjects, itemsByProject])
+
   // Saldo berjalan: pakai nilai dari sheet; fallback hitung dari ringkasan.
   const saldo = useMemo(() => {
     if (!tukang) return null
@@ -194,6 +245,18 @@ export default function TukangUpah() {
         </div>
       </div>
 
+      {/* Tab tampilan: Dashboard (batch cut-off) vs Per Proyek (rincian upah) */}
+      <div className="toolbar">
+        <div className="filter-tabs">
+          <button type="button" className={`pill ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')}>
+            📊 Dashboard &amp; Batch Cut-Off
+          </button>
+          <button type="button" className={`pill ${view === 'projects' ? 'active' : ''}`} onClick={() => { setView('projects'); setOpenProject(null) }}>
+            🏗️ Per Proyek ({myProjects.length})
+          </button>
+        </div>
+      </div>
+
       {sync?.last_status === 'ERROR' && (
         <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
           ⚠️ Sync terakhir gagal: {sync.last_message || 'Terjadi kesalahan'}
@@ -214,6 +277,8 @@ export default function TukangUpah() {
         </div>
       ) : (
         <>
+          {view === 'dashboard' ? (
+          <>
           {/* Kartu ringkasan 4 angka (sama dengan baris ringkasan di sheet) */}
           <div className="cards">
             <div className="card" title="Total hak upah pekerjaan dari seluruh batch">
@@ -344,6 +409,176 @@ export default function TukangUpah() {
               </div>
             )) : <div className="panel empty">Belum ada batch cut-off untuk tukang ini.</div>}
           </div>
+          </>
+          ) : (
+          <>
+          {/* ================= TAB PER PROYEK ================= */}
+          {myProjects.length === 0 ? (
+            <div className="panel empty">
+              Belum ada data rincian upah per proyek untuk tukang ini.
+              {tukangKey === 'asep' ? ' Sheet Asep masih kosong — akan terisi otomatis setelah tim mengisi tab Rincian Upah.' : ''}
+            </div>
+          ) : (
+            <>
+              {/* Ringkasan per proyek (klik baris → buka detail pekerjaan) */}
+              <div className="panel table desktop-table-view">
+                <h2 style={{ marginBottom: '10px' }}>🏗️ Upah per Proyek — {tukang.tukang_name || tukang.tukang_key} ({myProjects.length} proyek)</h2>
+                <table className="upah-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '34px' }}>No</th>
+                      <th>Proyek</th>
+                      <th style={{ textAlign: 'right', width: '120px' }}>Total Upah</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Item</th>
+                      <th style={{ width: '110px' }}>Status</th>
+                      <th style={{ width: '170px' }}>Batch</th>
+                      <th style={{ width: '110px', textAlign: 'center' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myProjects.map((p, i) => {
+                      const tot = projectTotals[p.project_name] || { total: 0, itemCount: 0 }
+                      const isOpen = openProject === p.project_name
+                      return (
+                        <tr key={p.id || i}>
+                          <td><b>{i + 1}</b></td>
+                          <td><EllipCell text={p.project_name} wide /></td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtRp(p.total_upah !== null && p.total_upah !== undefined ? p.total_upah : tot.total)}</td>
+                          <td style={{ textAlign: 'center' }}>{tot.itemCount || '—'}</td>
+                          <td>
+                            <span className="badge badge-truncate" style={{ fontSize: '10px', ...batchStatusStyle(p.status) }} title={p.status || ''}>
+                              {shortStatus(p.status)}
+                            </span>
+                          </td>
+                          <td><EllipCell text={p.batch} small /></td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="outline"
+                              style={{ fontSize: '11.5px', padding: '5px 10px', whiteSpace: 'nowrap' }}
+                              onClick={() => setOpenProject(isOpen ? null : p.project_name)}
+                            >
+                              {isOpen ? '▲ Tutup' : '▼ Detail'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                      <td colSpan={2} style={{ textAlign: 'right' }}>TOTAL ({myProjects.length} proyek)</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {fmtRp(myProjects.reduce((s, p) => s + (Number(p.total_upah) || 0), 0))}
+                      </td>
+                      <td colSpan={4}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Detail pekerjaan proyek terpilih */}
+              {openProject && (
+                <div className="panel table desktop-table-view" style={{ marginTop: '16px' }}>
+                  <h2 style={{ marginBottom: '10px' }}>
+                    📋 Rincian Pekerjaan — {openProject}
+                    <button
+                      type="button"
+                      className="icon"
+                      style={{ marginLeft: '10px', fontSize: '16px' }}
+                      onClick={() => setOpenProject(null)}
+                      title="Tutup"
+                    >×</button>
+                  </h2>
+                  <table className="upah-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '34px' }}>No</th>
+                        <th>Pekerjaan</th>
+                        <th style={{ textAlign: 'right', width: '90px' }}>Ukuran</th>
+                        <th style={{ textAlign: 'right', width: '110px' }}>Harga Satuan</th>
+                        <th style={{ textAlign: 'right', width: '110px' }}>Upah Rincian</th>
+                        <th style={{ textAlign: 'right', width: '110px' }}>Total Proyek</th>
+                        <th style={{ width: '180px' }}>Catatan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(itemsByProject[openProject] || []).map((it, i) => (
+                        <tr key={it.id || i}>
+                          <td><b>{i + 1}</b></td>
+                          <td><EllipCell text={it.pekerjaan} wide /></td>
+                          <td style={{ textAlign: 'right' }}>{it.ukuran !== null && it.ukuran !== undefined ? it.ukuran : '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{fmtRp(it.harga_satuan)}</td>
+                          <td style={{ textAlign: 'right' }}>{fmtRp(it.upah_rincian)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtRp(it.total_proyek)}</td>
+                          <td><EllipCell text={it.catatan} small muted /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                        <td colSpan={4} style={{ textAlign: 'right' }}>TOTAL PROYEK</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {fmtRp((itemsByProject[openProject] || []).reduce((s, it) => s + (Number(it.upah_rincian) || 0), 0))}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {fmtRp((itemsByProject[openProject] || []).reduce((s, it) => s + (Number(it.total_proyek) || 0), 0))}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+
+              {/* Kartu mobile per proyek */}
+              <div className="mobile-cards-view">
+                {myProjects.map((p, i) => {
+                  const tot = projectTotals[p.project_name] || { total: 0, itemCount: 0 }
+                  const isOpen = openProject === p.project_name
+                  const items = itemsByProject[p.project_name] || []
+                  return (
+                    <div className="mobile-card" key={p.id || i}>
+                      <div className="mobile-card-header">
+                        <div>
+                          <b className="mobile-card-title">{p.project_name}</b>
+                          <div className="mobile-card-sub">{p.batch || '—'}</div>
+                        </div>
+                        <span className="badge" style={{ fontSize: '10px', ...batchStatusStyle(p.status) }}>{shortStatus(p.status)}</span>
+                      </div>
+                      <div className="mobile-card-body">
+                        <div className="mobile-card-row"><span className="mobile-label">Total Upah:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{fmtRp(p.total_upah !== null && p.total_upah !== undefined ? p.total_upah : tot.total)}</span></div>
+                        <div className="mobile-card-row"><span className="mobile-label">Item Pekerjaan:</span><span className="mobile-val">{tot.itemCount || '—'}</span></div>
+                        <div className="mobile-card-row">
+                          <span className="mobile-label">Detail:</span>
+                          <span className="mobile-val">
+                            <button type="button" className="outline" style={{ fontSize: '11.5px', padding: '4px 9px' }} onClick={() => setOpenProject(isOpen ? null : p.project_name)}>
+                              {isOpen ? '▲ Tutup' : '▼ Lihat Pekerjaan'}
+                            </button>
+                          </span>
+                        </div>
+                        {isOpen && items.map((it, j) => (
+                          <div className="mobile-card-row" key={it.id || j}>
+                            <span className="mobile-label">{j + 1}.</span>
+                            <span className="mobile-val" style={{ fontSize: '12px' }}>
+                              {it.pekerjaan} · {it.ukuran ?? '—'} · {fmtRp(it.upah_rincian)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <p className="muted" style={{ fontSize: '11px', marginTop: '10px' }}>
+                Sumber: Google Sheets <b>{tukang.tukang_name || tukang.tukang_key}</b> — tab List Proyek + Rincian Upah (folder BAKSO - ACCOUNTING).
+                {tukang.synced_at ? ` Data per ${formatDateTime(tukang.synced_at)}.` : ''} Angka ditampilkan persis seperti di sheet (belum dikonversi satuan ribuan).
+              </p>
+            </>
+          )}
+          </>
+          )}
         </>
       )}
     </>
