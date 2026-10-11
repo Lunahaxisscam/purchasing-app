@@ -10,9 +10,15 @@ import { rupiah, formatDateTime, timeAgo } from '../lib/constants'
 //   • Tabel batch cut-off & tutup buku (periode, proyek, upah, kasbon,
 //     sisa bersih, pelunasan, metode, saldo berjalan, status)
 // Data disinkronkan daemon (pm2 tukang-upah-sync, read-only) ke tabel
-// `tukang_dashboards` (RLS admin-only). Tombol "🔄 Refresh Sekarang"
+// `tukang_dashboards` (RLS admin-only). Tombol "🔄 Refresh dari Drive"
 // meminta sync on-demand via sync_status (id='tukang_upah').
 // TIDAK ada input di modul ini — sumbernya Google Sheets milik tim finance.
+//
+// CATATAN UI (perbaikan 11 Okt): CSS global `th, td { white-space: nowrap
+// !important }` membuat teks panjang MELUBER menimpa kolom lain (scrollWidth
+// 968px vs sel 230px). Sel teks panjang WAJIB dibungkus <div class="cell-ellip">
+// (ellipsis + title tooltip) — jangan mengandalkan inline style pada <td>,
+// karena tidak bisa mengalahkan aturan !important itu.
 // ============================================================
 
 const STATUS_ID = 'tukang_upah'
@@ -24,6 +30,32 @@ function batchStatusStyle(status) {
   if (s.includes('berjalan')) return { background: '#e8f0fe', color: '#1a56c4', border: '1px solid #c6dafc' }
   if (s.includes('balanced')) return { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
   return { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' }
+}
+
+// Status panjang dari sheet diringkas untuk badge; teks lengkap via tooltip (title).
+function shortStatus(s) {
+  const t = String(s || '').trim()
+  if (!t) return '—'
+  if (t.length <= 16) return t
+  const low = t.toLowerCase()
+  if (low.includes('ditahan')) return '⚠️ Ditahan'
+  if (low.includes('belum')) return '⏳ Belum final'
+  return t.slice(0, 14) + '…'
+}
+
+// Format rupiah dengan tanda minus di depan "Rp": -Rp 97 (lebih baku dari "Rp -97").
+function fmtRp(v) {
+  if (v === null || v === undefined || v === '') return '—'
+  const n = Number(v)
+  if (!isFinite(n)) return '—'
+  return n < 0 ? `-${rupiah(Math.abs(n))}` : rupiah(n)
+}
+
+// Sel teks panjang: dibungkus div ellipsis (lihat catatan UI di atas).
+function EllipCell({ text, wide = false, small = false, muted = false }) {
+  const cls = `cell-ellip${wide ? ' cell-ellip-wide' : ''}${small ? ' cell-ellip-sm' : ''}`
+  const style = muted ? { fontSize: '12px', color: '#556b65' } : undefined
+  return <div className={cls} style={style} title={text || ''}>{text || '—'}</div>
 }
 
 export default function TukangUpah() {
@@ -64,7 +96,8 @@ export default function TukangUpah() {
   // Bersihkan polling saat unmount.
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
-  // "🔄 Refresh Sekarang": tulis permintaan ke sync_status; daemon memproses.
+  // "🔄 Refresh dari Drive": tulis permintaan ke sync_status; daemon memproses.
+  // Setelah sync selesai, data DB dimuat ulang otomatis.
   async function requestRefresh() {
     if (!supabase || refreshing) return
     setRefreshing(true)
@@ -122,11 +155,11 @@ export default function TukangUpah() {
 
   return (
     <>
-      {/* Toolbar: pilih tukang + refresh */}
+      {/* Toolbar: pilih tukang + refresh dari Drive */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
           <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#3b504b' }}>
-            Pilih Tukang ({rows.length})
+            Pilih Tukang ({rows.length} tersedia)
             <select
               value={tukangKey}
               onChange={e => setTukangKey(e.target.value)}
@@ -147,19 +180,16 @@ export default function TukangUpah() {
             </div>
           )}
         </div>
-        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="toolbar-actions">
           <button
             type="button"
             className="btn-finish"
             onClick={requestRefresh}
             disabled={refreshing}
             style={{ opacity: refreshing ? 0.7 : 1, padding: '9px 14px', fontSize: '13px' }}
-            title="Minta daemon menarik dashboard terbaru dari Google Sheets (read-only)"
+            title="Minta daemon menarik dashboard terbaru dari Google Sheets (read-only). Setelah selesai, tabel di bawah otomatis dimuat ulang."
           >
-            {refreshing ? '⏳ Sinkronisasi…' : '🔄 Refresh Sekarang'}
-          </button>
-          <button type="button" className="outline" onClick={() => load(false)} style={{ padding: '9px 14px', fontSize: '13px' }}>
-            ↻ Muat Ulang
+            {refreshing ? '⏳ Sinkronisasi…' : '🔄 Refresh dari Drive'}
           </button>
         </div>
       </div>
@@ -179,7 +209,7 @@ export default function TukangUpah() {
         <div className="panel empty">Memuat dashboard upah tukang…</div>
       ) : !tukang ? (
         <div className="panel empty">
-          Belum ada data dashboard tukang. Klik &quot;🔄 Refresh Sekarang&quot; untuk menarik dari Google Sheets,
+          Belum ada data dashboard tukang. Klik &quot;🔄 Refresh dari Drive&quot; untuk menarik dari Google Sheets,
           atau pastikan file dashboard tukang sudah ada di folder BAKSO - ACCOUNTING.
         </div>
       ) : (
@@ -188,29 +218,23 @@ export default function TukangUpah() {
           <div className="cards">
             <div className="card" title="Total hak upah pekerjaan dari seluruh batch">
               <span>💼 Total Hak Upah</span>
-              <strong style={{ fontSize: '22px' }}>
-                {tukang.total_hak_upah === null || tukang.total_hak_upah === undefined ? '—' : rupiah(tukang.total_hak_upah)}
-              </strong>
+              <strong style={{ fontSize: '22px' }}>{fmtRp(tukang.total_hak_upah)}</strong>
               <small>total upah borongan seluruh periode</small>
             </div>
             <div className="card" title="Total kasbon yang sudah diambil tukang">
               <span>💸 Total Kasbon</span>
-              <strong style={{ fontSize: '22px' }}>
-                {tukang.total_kasbon === null || tukang.total_kasbon === undefined ? '—' : rupiah(tukang.total_kasbon)}
-              </strong>
+              <strong style={{ fontSize: '22px' }}>{fmtRp(tukang.total_kasbon)}</strong>
               <small>kasbon diambil s/d periode terakhir</small>
             </div>
             <div className="card" title="Total pelunasan yang sudah dibayarkan">
               <span>✅ Total Pelunasan</span>
-              <strong style={{ fontSize: '22px' }}>
-                {tukang.total_pelunasan === null || tukang.total_pelunasan === undefined ? '—' : rupiah(tukang.total_pelunasan)}
-              </strong>
+              <strong style={{ fontSize: '22px' }}>{fmtRp(tukang.total_pelunasan)}</strong>
               <small>pembayaran pelunasan tercatat</small>
             </div>
             <div className="card" title="Sisa saldo berjalan tukang (hak − kasbon + pelunasan)">
               <span>⚖️ Sisa Saldo Berjalan</span>
               <strong style={{ fontSize: '22px', color: saldo === null ? '#9aa8a4' : (saldo < 0 ? '#b91c1c' : '#0d6e38') }}>
-                {saldo === null ? '—' : rupiah(saldo)}
+                {saldo === null ? '—' : fmtRp(saldo)}
               </strong>
               <small>
                 {sync?.last_synced_at ? `terakhir sync ${timeAgo(sync.last_synced_at)}` : 'belum pernah sync'}
@@ -225,36 +249,40 @@ export default function TukangUpah() {
               <thead>
                 <tr>
                   <th style={{ width: '36px' }}>No</th>
-                  <th>Periode Cut-Off / Batch</th>
-                  <th>Daftar Proyek Utama</th>
-                  <th style={{ textAlign: 'right' }}>Total Upah</th>
-                  <th style={{ textAlign: 'right' }}>Total Kasbon</th>
-                  <th style={{ textAlign: 'right' }}>Sisa Bersih / Hak</th>
-                  <th style={{ textAlign: 'right' }}>Pelunasan Dibayar</th>
-                  <th>Metode Pelunasan</th>
-                  <th style={{ textAlign: 'right' }}>Sisa Saldo Berjalan</th>
-                  <th>Status</th>
+                  <th style={{ width: '200px' }}>Periode Cut-Off</th>
+                  <th style={{ width: '260px' }}>Daftar Proyek Utama</th>
+                  <th style={{ textAlign: 'right' }} title="Total Upah (Rp)">Upah</th>
+                  <th style={{ textAlign: 'right' }} title="Total Kasbon (Rp)">Kasbon</th>
+                  <th style={{ textAlign: 'right' }} title="Sisa Bersih / Hak (Rp)">Sisa Hak</th>
+                  <th style={{ textAlign: 'right' }} title="Pelunasan Dibayar (Rp)">Pelunasan</th>
+                  <th style={{ width: '150px' }} title="Metode Pelunasan">Metode</th>
+                  <th style={{ textAlign: 'right' }} title="Sisa Saldo Berjalan (Rp)">Saldo Berjalan</th>
+                  <th style={{ width: '110px', textAlign: 'center' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {batches.length ? batches.map(b => (
                   <tr key={b.no}>
                     <td><b>{b.no}</b></td>
-                    <td style={{ whiteSpace: 'normal', maxWidth: '200px' }}>{b.periode || '—'}</td>
-                    <td style={{ whiteSpace: 'normal', maxWidth: '230px', fontSize: '12px', color: '#556b65' }}>{b.proyek || '—'}</td>
-                    <td style={{ textAlign: 'right' }}>{b.total_upah === null || b.total_upah === undefined ? '—' : rupiah(b.total_upah)}</td>
-                    <td style={{ textAlign: 'right' }}>{b.total_kasbon === null || b.total_kasbon === undefined ? '—' : rupiah(b.total_kasbon)}</td>
+                    <td><EllipCell text={b.periode} /></td>
+                    <td><EllipCell text={b.proyek} wide muted /></td>
+                    <td style={{ textAlign: 'right' }}>{fmtRp(b.total_upah)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtRp(b.total_kasbon)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700, color: (b.sisa_bersih || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>
-                      {b.sisa_bersih === null || b.sisa_bersih === undefined ? '—' : rupiah(b.sisa_bersih)}
+                      {fmtRp(b.sisa_bersih)}
                     </td>
-                    <td style={{ textAlign: 'right' }}>{b.pelunasan === null || b.pelunasan === undefined ? '—' : rupiah(b.pelunasan)}</td>
-                    <td style={{ fontSize: '12px', whiteSpace: 'normal', maxWidth: '150px' }}>{b.metode || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtRp(b.pelunasan)}</td>
+                    <td><EllipCell text={b.metode} small /></td>
                     <td style={{ textAlign: 'right', fontWeight: 700, color: (b.saldo_berjalan || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>
-                      {b.saldo_berjalan === null || b.saldo_berjalan === undefined ? '—' : rupiah(b.saldo_berjalan)}
+                      {fmtRp(b.saldo_berjalan)}
                     </td>
-                    <td>
-                      <span className="badge" style={{ fontSize: '10px', whiteSpace: 'normal', maxWidth: '130px', ...batchStatusStyle(b.status) }}>
-                        {b.status || '—'}
+                    <td style={{ textAlign: 'center' }}>
+                      <span
+                        className="badge badge-truncate"
+                        style={{ fontSize: '10px', ...batchStatusStyle(b.status) }}
+                        title={b.status || ''}
+                      >
+                        {shortStatus(b.status)}
                       </span>
                     </td>
                   </tr>
@@ -266,16 +294,20 @@ export default function TukangUpah() {
                 <tfoot>
                   <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
                     <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL KESELURUHAN BATCH</td>
-                    <td style={{ textAlign: 'right' }}>{tukang.total_row.total_upah === null || tukang.total_row.total_upah === undefined ? '—' : rupiah(tukang.total_row.total_upah)}</td>
-                    <td style={{ textAlign: 'right' }}>{tukang.total_row.total_kasbon === null || tukang.total_row.total_kasbon === undefined ? '—' : rupiah(tukang.total_row.total_kasbon)}</td>
-                    <td style={{ textAlign: 'right' }}>{tukang.total_row.sisa_bersih === null || tukang.total_row.sisa_bersih === undefined ? '—' : rupiah(tukang.total_row.sisa_bersih)}</td>
-                    <td style={{ textAlign: 'right' }}>{tukang.total_row.pelunasan === null || tukang.total_row.pelunasan === undefined ? '—' : rupiah(tukang.total_row.pelunasan)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtRp(tukang.total_row.total_upah)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtRp(tukang.total_row.total_kasbon)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtRp(tukang.total_row.sisa_bersih)}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtRp(tukang.total_row.pelunasan)}</td>
                     <td></td>
                     <td></td>
-                    <td>
+                    <td style={{ textAlign: 'center' }}>
                       {tukang.total_row.status && (
-                        <span className="badge" style={{ fontSize: '10px', ...batchStatusStyle(tukang.total_row.status) }}>
-                          {tukang.total_row.status}
+                        <span
+                          className="badge badge-truncate"
+                          style={{ fontSize: '10px', ...batchStatusStyle(tukang.total_row.status) }}
+                          title={tukang.total_row.status}
+                        >
+                          {shortStatus(tukang.total_row.status)}
                         </span>
                       )}
                     </td>
@@ -285,7 +317,7 @@ export default function TukangUpah() {
             </table>
             <p className="muted" style={{ fontSize: '11px', marginTop: '10px', marginBottom: 0 }}>
               Sumber: Google Sheets <b>{tukang.tukang_name || tukang.tukang_key}</b> — tab Dashboard (folder BAKSO - ACCOUNTING).
-              {tukang.synced_at ? ` Data per ${formatDateTime(tukang.synced_at)}.` : ''} Read-only — perubahan dilakukan di Google Sheets, lalu klik &quot;🔄 Refresh Sekarang&quot;.
+              {tukang.synced_at ? ` Data per ${formatDateTime(tukang.synced_at)}.` : ''} Read-only — perubahan dilakukan di Google Sheets, lalu klik &quot;🔄 Refresh dari Drive&quot;. Arahkan kursor ke sel untuk melihat teks lengkap.
             </p>
           </div>
 
@@ -298,16 +330,16 @@ export default function TukangUpah() {
                     <b className="mobile-card-title">Batch {b.no}</b>
                     <div className="mobile-card-sub">{b.periode || '—'}</div>
                   </div>
-                  <span className="badge" style={{ fontSize: '10px', ...batchStatusStyle(b.status) }}>{b.status || '—'}</span>
+                  <span className="badge" style={{ fontSize: '10px', ...batchStatusStyle(b.status) }}>{shortStatus(b.status)}</span>
                 </div>
                 <div className="mobile-card-body">
                   {b.proyek && <div className="mobile-card-row"><span className="mobile-label">Proyek:</span><span className="mobile-val">{b.proyek}</span></div>}
-                  <div className="mobile-card-row"><span className="mobile-label">Upah:</span><span className="mobile-val">{b.total_upah === null || b.total_upah === undefined ? '—' : rupiah(b.total_upah)}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Kasbon:</span><span className="mobile-val">{b.total_kasbon === null || b.total_kasbon === undefined ? '—' : rupiah(b.total_kasbon)}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Sisa Hak:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.sisa_bersih || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>{b.sisa_bersih === null || b.sisa_bersih === undefined ? '—' : rupiah(b.sisa_bersih)}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Pelunasan:</span><span className="mobile-val">{b.pelunasan === null || b.pelunasan === undefined ? '—' : rupiah(b.pelunasan)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Upah:</span><span className="mobile-val">{fmtRp(b.total_upah)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Kasbon:</span><span className="mobile-val">{fmtRp(b.total_kasbon)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Sisa Hak:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.sisa_bersih || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>{fmtRp(b.sisa_bersih)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Pelunasan:</span><span className="mobile-val">{fmtRp(b.pelunasan)}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Metode:</span><span className="mobile-val">{b.metode || '—'}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Saldo:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.saldo_berjalan || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>{b.saldo_berjalan === null || b.saldo_berjalan === undefined ? '—' : rupiah(b.saldo_berjalan)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Saldo:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.saldo_berjalan || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>{fmtRp(b.saldo_berjalan)}</span></div>
                 </div>
               </div>
             )) : <div className="panel empty">Belum ada batch cut-off untuk tukang ini.</div>}

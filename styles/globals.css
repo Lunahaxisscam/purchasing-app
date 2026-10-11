@@ -985,6 +985,32 @@ th, td {
   white-space: nowrap !important;
 }
 
+/* ========================================================
+   Modul Upah Tukang — kolom teks panjang dipotong ellipsis.
+   Catatan: `th, td { white-space: nowrap !important }` di atas TIDAK bisa
+   dioverride dari inline style sel, dan `overflow:hidden` pada table-cell
+   diabaikan — karena itu teks panjang dibungkus <div class="cell-ellip">
+   di dalam sel, dengan title = teks lengkap (hover untuk melihat utuh).
+   ======================================================== */
+.cell-ellip {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cell-ellip.cell-ellip-wide { max-width: 240px; }
+.cell-ellip.cell-ellip-sm { max-width: 130px; }
+
+/* Badge status ringkas: 1 baris, teks panjang dipotong (title = teks penuh). */
+.badge.badge-truncate {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 td .cell-name {
   max-width: 260px;
   overflow: hidden;
