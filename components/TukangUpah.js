@@ -245,10 +245,10 @@ export default function TukangUpah() {
           {/* Tabel batch cut-off */}
           <div className="panel table desktop-table-view">
             <h2 style={{ marginBottom: '10px' }}>📋 Rekapitulasi Cut-Off &amp; Tutup Buku — {tukang.tukang_name || tukang.tukang_key}</h2>
-            <table>
+            <table className="upah-table">
               <thead>
                 <tr>
-                  <th style={{ width: '36px' }}>No</th>
+                  <th style={{ width: '34px' }}>No</th>
                   <th style={{ width: '200px' }}>Periode Cut-Off</th>
                   <th style={{ width: '260px' }}>Daftar Proyek Utama</th>
                   <th style={{ textAlign: 'right' }} title="Total Upah (Rp)">Upah</th>

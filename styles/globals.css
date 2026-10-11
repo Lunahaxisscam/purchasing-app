@@ -1012,6 +1012,18 @@ th, td {
   vertical-align: middle;
 }
 
+/* Tabel Upah Tukang: 10 kolom dirapatkan agar MUAT PENUH tanpa scroll
+   horizontal di layar ~1600px (panel tersedia ±1250px). Teks panjang tetap
+   dipotong ellipsis + tooltip. Jangan lebarkan kembali tanpa hitung ulang. */
+table.upah-table th,
+table.upah-table td {
+  padding: 10px 12px;
+}
+table.upah-table .cell-ellip { max-width: 165px; }
+table.upah-table .cell-ellip.cell-ellip-wide { max-width: 195px; }
+table.upah-table .cell-ellip.cell-ellip-sm { max-width: 108px; }
+table.upah-table .badge.badge-truncate { max-width: 98px; }
+
 td .cell-name {
   max-width: 260px;
   overflow: hidden;
