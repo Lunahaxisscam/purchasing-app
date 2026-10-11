@@ -571,8 +571,50 @@ export default function TukangUpah() {
                 })}
               </div>
 
+              {/* Riwayat Kasbon (tab Total Kasbon) */}
+              {myKasbon.length > 0 && (
+                <div className="panel table desktop-table-view" style={{ marginTop: '16px' }}>
+                  <h2 style={{ marginBottom: '10px' }}>💸 Riwayat Kasbon — {tukang.tukang_name || tukang.tukang_key} ({myKasbon.length} catatan)</h2>
+                  <table className="upah-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '34px' }}>No</th>
+                        <th style={{ width: '110px' }}>Tanggal</th>
+                        <th style={{ width: '130px' }}>Jenis</th>
+                        <th>Deskripsi</th>
+                        <th style={{ width: '170px' }}>Metode</th>
+                        <th style={{ textAlign: 'right', width: '110px' }}>Nominal</th>
+                        <th style={{ width: '120px' }}>Bukti</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {myKasbon.map((k, i) => (
+                        <tr key={k.id || i}>
+                          <td><b>{i + 1}</b></td>
+                          <td>{k.tanggal || '—'}</td>
+                          <td><EllipCell text={k.jenis} small /></td>
+                          <td><EllipCell text={k.deskripsi} wide /></td>
+                          <td><EllipCell text={k.metode} small /></td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtRp(k.nominal)}</td>
+                          <td><EllipCell text={k.bukti} small muted /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                        <td colSpan={5} style={{ textAlign: 'right' }}>TOTAL KASBON</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {fmtRp(myKasbon.reduce((s, k) => s + (Number(k.nominal) || 0), 0))}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+
               <p className="muted" style={{ fontSize: '11px', marginTop: '10px' }}>
-                Sumber: Google Sheets <b>{tukang.tukang_name || tukang.tukang_key}</b> — tab List Proyek + Rincian Upah (folder BAKSO - ACCOUNTING).
+                Sumber: Google Sheets <b>{tukang.tukang_name || tukang.tukang_key}</b> — tab List Proyek + Rincian Upah + Total Kasbon (folder BAKSO - ACCOUNTING).
                 {tukang.synced_at ? ` Data per ${formatDateTime(tukang.synced_at)}.` : ''} Angka ditampilkan persis seperti di sheet (belum dikonversi satuan ribuan).
               </p>
             </>
