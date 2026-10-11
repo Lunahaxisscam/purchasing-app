@@ -127,6 +127,11 @@ export default async function handler(req, res) {
     const r1 = await client.query(FIX_SQL)
     const r2 = await client.query(CREATE_USER_FN)
 
+    // Self-cleaning: hapus akun test E2E (pola email test-akun-*@noirliving.test)
+    const del = await client.query(`
+      DELETE FROM auth.users WHERE email LIKE 'test-akun-%@noirliving.test';
+    `)
+
     // Verifikasi: hitung user yang masih punya token NULL (harus 0)
     const chk = await client.query(`
       SELECT COUNT(*)::int AS null_tokens FROM auth.users
@@ -138,6 +143,7 @@ export default async function handler(req, res) {
       ok: true,
       tokens_fixed: r1.rowCount,
       fn_created: !!r2,
+      test_users_deleted: del.rowCount,
       null_tokens_remaining: chk.rows[0].null_tokens
     })
   } catch (e) {
