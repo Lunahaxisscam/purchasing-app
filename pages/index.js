@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar'
 import Dashboard from '../components/Dashboard'
 import Finance from '../components/Finance'
 import Planning from '../components/Planning'
+import ProjectFinance from '../components/ProjectFinance'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import { labels, normalizeStatus, orderSpecFor } from '../lib/constants' 
@@ -680,6 +681,12 @@ export default function App() {
         ) : page === 'planning' ? (
           role === 'admin' ? (
             <Planning rows={rows} session={session} say={setNotice} setPage={setPage} refresh={loadAll} />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'project_finance' ? (
+          role === 'admin' ? (
+            <ProjectFinance rows={rows} session={session} />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
