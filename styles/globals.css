@@ -226,6 +226,7 @@ nav .active {
 /* Main Content Area */
 .content {
   width: 100%;
+  min-width: 0; /* flex item: izinkan menyusut; tabel lebar scroll DI DALAM .table, bukan melar-kan halaman */
   padding: 36px 44px;
   max-width: 1560px;
   margin: 0 auto;
