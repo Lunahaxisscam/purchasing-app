@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
 import { rupiah, formatDateTime, timeAgo, persen } from '../lib/constants'
 
@@ -43,6 +44,11 @@ export default function Finance({ rows, session, refresh }) {
   // --- state cetak dokumen closing (Sprint 1) ---
   const [printDoc, setPrintDoc] = useState(null)   // snapshot project_closings utk dokumen cetak
   const [printDate, setPrintDate] = useState(null) // waktu dokumen dibuka/dicetak
+  // Portal hanya setelah mount (SSR-safe) — dokumen dicetak sebagai anak
+  // langsung <body> supaya @media print bisa display:none semua elemen app
+  // lain tanpa menyisakan halaman kosong (fix review F2).
+  const [portalReady, setPortalReady] = useState(false)
+  useEffect(() => { setPortalReady(true) }, [])
 
   // Saat dokumen cetak terbuka, tandai <body> supaya CSS @media print hanya
   // menyembunyikan kerangka aplikasi (navbar/sidebar/tombol) di mode ini.
@@ -931,10 +937,12 @@ export default function Finance({ rows, session, refresh }) {
 
       {/* ============================================================
           DOKUMEN CETAK CLOSING PROYEK RESMI (Sprint 1)
-          Layout siap cetak A4 — navbar/sidebar/tombol otomatis tersembunyi
-          saat print (lihat styles/globals.css @media print + body.printing-closing).
-          ============================================================ */}
-      {printDoc && (
+          Dirender via PORTAL langsung ke <body> — layout siap cetak A4;
+          saat print, semua elemen app di-display:none (lihat
+          styles/globals.css @media print + body.printing-closing), hanya
+          dokumen ini yang tercetak. ============================================ */}
+      {printDoc && portalReady && typeof document !== 'undefined' && createPortal(
+        <div className="print-portal">
         <div className="modal print-modal">
           <div className="dialog dialog-wide print-dialog">
             <div className="dialoghead print-toolbar">
@@ -1102,6 +1110,8 @@ export default function Finance({ rows, session, refresh }) {
             </div>
           </div>
         </div>
+        </div>,
+        document.body
       )}
 
       {/* ============================================================

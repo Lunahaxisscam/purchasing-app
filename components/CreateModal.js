@@ -73,11 +73,12 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
       ? formatNominalInput(String(Math.round(Number(editRow.harga_acuan))))
       : '',
     // Sprint 1 — stok BHP (mode edit ikut ter-prefill).
+    // Ditampilkan ala Indonesia (koma desimal): 1.5 -> '1,5'.
     current_stock: (editRow?.current_stock !== null && editRow?.current_stock !== undefined)
-      ? String(editRow.current_stock)
+      ? String(editRow.current_stock).replace('.', ',')
       : '0',
     min_stock: (editRow?.min_stock !== null && editRow?.min_stock !== undefined)
-      ? String(editRow.min_stock)
+      ? String(editRow.min_stock).replace('.', ',')
       : '0',
     phone: '',
     contact: '',
@@ -376,8 +377,15 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
       // round-trip edit tidak pernah menggeser nilai; kosong = null.
       const hargaDigits = String(form.harga_acuan ?? '').replace(/[^\d]/g, '').slice(0, 15)
       // Sprint 1 — stok BHP: current_stock & min_stock numeric (>= 0).
+      // Parser format Indonesia: '1.234,5' / '1234,5' / '1.234' → angka benar.
+      // (Input type=text agar tidak dinormalisasi browser — fix review F3.)
       const stokNum = (v) => {
-        const n = Number(String(v ?? '').replace(',', '.'))
+        const s = String(v ?? '').trim()
+        if (!s) return 0
+        // Buang titik ribuan, ganti koma desimal → titik; hanya digit/titik.
+        const cleaned = s.replace(/\./g, '').replace(',', '.')
+        if (!/^\d+(\.\d+)?$/.test(cleaned)) return 0
+        const n = Number(cleaned)
         return isFinite(n) && n >= 0 ? n : 0
       }
       data = {
@@ -704,28 +712,26 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
             </label>
             {/* Sprint 1 — Minimum Stock BHP. Opsional untuk kategori umum;
                 sangat dianjurkan untuk Bahan Habis Pakai (badge merah muncul
-                bila stok saat ini <= batas minimum). */}
+                bila stok saat ini <= batas minimum).
+                type=text + format koma (bukan type=number) supaya desimal
+                '1,5' tidak hilang dinormalisasi browser (fix review F3). */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <label>Stok Saat Ini
                 <input
-                  type="number"
-                  min="0"
-                  step="any"
+                  type="text"
                   inputMode="decimal"
                   placeholder="0"
                   value={form.current_stock ?? ''}
-                  onChange={e => setForm({ ...form, current_stock: e.target.value })}
+                  onChange={e => setForm({ ...form, current_stock: e.target.value.replace(/[^\d.,]/g, '').slice(0, 15) })}
                 />
               </label>
               <label>Batas Minimum Stok
                 <input
-                  type="number"
-                  min="0"
-                  step="any"
+                  type="text"
                   inputMode="decimal"
                   placeholder="0 = nonaktif"
                   value={form.min_stock ?? ''}
-                  onChange={e => setForm({ ...form, min_stock: e.target.value })}
+                  onChange={e => setForm({ ...form, min_stock: e.target.value.replace(/[^\d.,]/g, '').slice(0, 15) })}
                 />
               </label>
             </div>

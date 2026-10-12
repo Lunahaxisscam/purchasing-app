@@ -249,7 +249,6 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   // Sprint 1 — Minimum Stock Alert BHP:
   // jumlah item BHP dengan stok menipis (current_stock <= min_stock, min_stock > 0).
   const stokMenipisCount = page === 'materials' ? (rows || []).filter(isStokMenipis).length : 0
-  const showStokColumns = page === 'materials'
 
   return (
     <>
@@ -689,7 +688,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     </tr>
                   ))
                 })() : (
-                <tr style={page === 'materials' && isStokMenipis(r) ? { background: '#fff1f1' } : undefined}>
+                <tr className={page === 'materials' && isStokMenipis(r) ? 'row-stok-menipis' : undefined}>
                   {columns.map(h => {
                     const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
                     return (

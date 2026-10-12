@@ -1709,8 +1709,11 @@ textarea {
 
 /* ============================================================
    PRINT MODE — hanya dokumen closing yang tercetak.
-   Aturan: saat body.printing-closing, sembunyikan SEMUA lalu
-   tampilkan hanya .print-modal beserta isinya.
+   Pendekatan: saat modal cetak terbuka, React memindahkan dokumen ke
+   <body> (portal) dan menandai body.printing-closing. Di @media print,
+   SEMUA anak body disembunyikan dengan display:none KECUALI dokumen —
+   display:none menghapus layout box sehingga tidak ada halaman kosong
+   (visibility:hidden menyisakan ruang → dokumen terdorong ke halaman 2+).
    ============================================================ */
 @media print {
   @page {
@@ -1718,15 +1721,22 @@ textarea {
     margin: 12mm;
   }
 
-  body.printing-closing * {
-    visibility: hidden !important;
+  body.printing-closing > *:not(.print-portal) {
+    display: none !important;
   }
 
-  body.printing-closing .print-modal,
-  body.printing-closing .print-modal * {
-    visibility: visible !important;
+  body.printing-closing .print-portal {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    z-index: auto !important;
   }
 
+  /* Overlay modal (position:fixed + backdrop) → kertas biasa saat print */
   body.printing-closing .print-modal {
     position: static !important;
     inset: auto !important;
@@ -1735,6 +1745,7 @@ textarea {
     overflow: visible !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    display: block !important;
   }
 
   body.printing-closing .print-dialog {
@@ -1748,8 +1759,10 @@ textarea {
     border-radius: 0 !important;
     overflow: visible !important;
     background: #fff !important;
+    display: block !important;
   }
 
+  /* Toolbar (tombol Tutup/Cetak) tidak ikut tercetak */
   body.printing-closing .print-toolbar {
     display: none !important;
   }
@@ -1779,4 +1792,18 @@ textarea {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+}
+
+/* ============================================================
+   SPRINT 1 — Highlight baris BHP stok menipis.
+   Kelas dipakai di <tr> (ModuleView). Ditempatkan SETELAH rule
+   tbody tr:hover agar warnanya konsisten walau kursor di atas baris.
+   ============================================================ */
+tbody tr.row-stok-menipis,
+tbody tr.row-stok-menipis:hover {
+  background-color: #fff1f1 !important;
+}
+
+tbody tr.row-stok-menipis > td {
+  background-color: transparent !important;
 }

@@ -44,13 +44,13 @@ ALTER TABLE public.materials
     ADD COLUMN IF NOT EXISTS min_stock NUMERIC DEFAULT 0;
 
 -- Backfill aman: kolom qty lama (TEXT) → current_stock bila current_stock
--- masih kosong/0 sementara qty berisi angka > 0. Data qty tetap utuh.
+-- masih kosong/0 sementara qty berisi ANGKA BULAT > 0 (tanpa titik/koma —
+-- menghindari ambiguitas pemisah ribuan/desimal). Data qty tetap utuh.
 UPDATE public.materials
 SET current_stock = (NULLIF(trim(qty), ''))::numeric
 WHERE (current_stock IS NULL OR current_stock = 0)
   AND qty IS NOT NULL
-  AND trim(qty) <> ''
-  AND trim(qty) ~ '^[0-9]+(\.[0-9]+)?$'
+  AND trim(qty) ~ '^[0-9]+$'
   AND (NULLIF(trim(qty), ''))::numeric > 0;
 
 -- ------------------------------------------------------------
@@ -88,13 +88,14 @@ CREATE POLICY telegram_alerts_log_admin_all ON public.telegram_alerts_log
 GRANT SELECT ON public.telegram_alerts_log TO authenticated;
 
 -- ------------------------------------------------------------
--- 3) SEED private_secrets (nilai token diisi TERPISAH via SQL Editor —
---    tidak ditulis di file migrasi karena repo PUBLIC).
+-- 3) SEED private_secrets (BARIS KOSONG — nilai token & chat id diisi
+--    TERPISAH via SQL Editor / prosedur ops, TIDAK ditulis di file migrasi
+--    karena repo PUBLIC).
 -- ------------------------------------------------------------
 INSERT INTO public.private_secrets (k, v) VALUES ('telegram_bot_token', '')
 ON CONFLICT (k) DO NOTHING;
 
-INSERT INTO public.private_secrets (k, v) VALUES ('telegram_chat_id', '1320969465')
+INSERT INTO public.private_secrets (k, v) VALUES ('telegram_chat_id', '')
 ON CONFLICT (k) DO NOTHING;
 
 -- ------------------------------------------------------------
