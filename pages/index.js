@@ -10,6 +10,7 @@ import TukangUpah from '../components/TukangUpah'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import { labels, normalizeStatus, orderSpecFor } from '../lib/constants' 
+import { sendPrAlert } from '../lib/telegramAlert'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -489,7 +490,26 @@ export default function App() {
     const { error: prErr } = await supabase.from('purchase_requests').update({ status: 'SUBMITTED' }).eq('id', pr.id)
     if (prErr) { setNotice(`Approval siap, tapi gagal update status PR: ${prErr.message}`); loadAll(); return }
 
-    setNotice(`PR ${pr.pr_number || ''} selesai dan sudah masuk modul Approval (menunggu persetujuan).`)
+    // 3. TRIGGER A (Sprint 1): PR > Rp 5 juta → alert Telegram ke DAT.
+    //    Angka dihitung server-side (RPC dari pr_items) — tidak bisa dipalsukan.
+    //    Anti-dobel by nomor PR. Kegagalan alert TIDAK menggagalkan submit PR.
+    let alertNote = ''
+    try {
+      const alert = await sendPrAlert(supabase, pr.id)
+      if (alert && alert.ok && alert.sent) {
+        alertNote = ' 🔔 Alert Telegram (PR > 5 Juta) terkirim ke DAT.'
+      } else if (alert && alert.ok && alert.reason === 'below_threshold') {
+        alertNote = ''
+      } else if (alert && alert.ok && alert.reason === 'already_alerted') {
+        alertNote = ''
+      } else if (alert && alert.sent === false && alert.reason === 'send_failed') {
+        alertNote = ` ⚠️ Alert Telegram gagal terkirim (${alert.error || 'error'}) — cek konfigurasi bot.`
+      }
+    } catch (alertErr) {
+      alertNote = ` ⚠️ Alert Telegram error: ${alertErr.message}`
+    }
+
+    setNotice(`PR ${pr.pr_number || ''} selesai dan sudah masuk modul Approval (menunggu persetujuan).${alertNote}`)
     loadAll()
   }
 

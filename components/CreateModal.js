@@ -65,13 +65,20 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
   const [form, setForm] = useState({
     name: editRow?.name || '',
     status: editRow?.status || 'ON_GOING',
-    category: '',
+    category: editRow?.category || '',
     kode: '',
-    qty: '0',
-    satuan: 'Lembar',
+    qty: (editRow?.qty !== null && editRow?.qty !== undefined) ? String(editRow.qty) : '0',
+    satuan: editRow?.satuan || editRow?.unit || 'Lembar',
     harga_acuan: (editRow?.harga_acuan !== null && editRow?.harga_acuan !== undefined && editRow?.harga_acuan !== '')
       ? formatNominalInput(String(Math.round(Number(editRow.harga_acuan))))
       : '',
+    // Sprint 1 — stok BHP (mode edit ikut ter-prefill).
+    current_stock: (editRow?.current_stock !== null && editRow?.current_stock !== undefined)
+      ? String(editRow.current_stock)
+      : '0',
+    min_stock: (editRow?.min_stock !== null && editRow?.min_stock !== undefined)
+      ? String(editRow.min_stock)
+      : '0',
     phone: '',
     contact: '',
     title: editRow?.title || '',
@@ -368,6 +375,11 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
       // Acuan harga disimpan sebagai INTEGER rupiah (bukan desimal) supaya
       // round-trip edit tidak pernah menggeser nilai; kosong = null.
       const hargaDigits = String(form.harga_acuan ?? '').replace(/[^\d]/g, '').slice(0, 15)
+      // Sprint 1 — stok BHP: current_stock & min_stock numeric (>= 0).
+      const stokNum = (v) => {
+        const n = Number(String(v ?? '').replace(',', '.'))
+        return isFinite(n) && n >= 0 ? n : 0
+      }
       data = {
         name: form.name,
         category: form.category || null,
@@ -376,7 +388,20 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
         qty: form.qty || '0',
         satuan: form.satuan || 'Lembar',
         unit: form.satuan || 'Lembar',
-        harga_acuan: hargaDigits ? Number(hargaDigits) : null
+        harga_acuan: hargaDigits ? Number(hargaDigits) : null,
+        current_stock: stokNum(form.current_stock),
+        min_stock: stokNum(form.min_stock)
+      }
+      // Mode EDIT material: UPDATE baris yang ada — bukan insert baru.
+      // (Sebelumnya edit material ikut jatuh ke INSERT → gagal unique kode
+      // atau membuat duplikat; diperbaiki di Sprint 1.)
+      if (isEdit && editRow?.id) {
+        const { error: upMatErr } = await supabase.from('materials').update(data).eq('id', editRow.id)
+        setSaving(false)
+        if (upMatErr) { say(upMatErr.message); return }
+        say(`Material ${newKode} berhasil diperbarui.`)
+        close(); refresh()
+        return
       }
     } else if (page === 'vendors') {
       data = {
@@ -677,6 +702,38 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
                 onChange={e => setForm({ ...form, harga_acuan: formatNominalInput(e.target.value) })}
               />
             </label>
+            {/* Sprint 1 — Minimum Stock BHP. Opsional untuk kategori umum;
+                sangat dianjurkan untuk Bahan Habis Pakai (badge merah muncul
+                bila stok saat ini <= batas minimum). */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <label>Stok Saat Ini
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={form.current_stock ?? ''}
+                  onChange={e => setForm({ ...form, current_stock: e.target.value })}
+                />
+              </label>
+              <label>Batas Minimum Stok
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  inputMode="decimal"
+                  placeholder="0 = nonaktif"
+                  value={form.min_stock ?? ''}
+                  onChange={e => setForm({ ...form, min_stock: e.target.value })}
+                />
+              </label>
+            </div>
+            {(String(form.category || '').toLowerCase() === 'bahan habis pakai' || /^BHP/i.test(String(editRow?.kode || ''))) && (
+              <small style={{ color: '#a15309', marginTop: '-6px', fontWeight: 600 }}>
+                ⚠️ Bahan Habis Pakai: isi <b>Batas Minimum Stok</b> supaya sistem menampilkan badge 🔴 Stok Menipis saat stok menipis.
+              </small>
+            )}
           </>
         )}
         {page === 'vendors' && (

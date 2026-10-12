@@ -1517,3 +1517,266 @@ textarea {
     padding: 10px;
   }
 }
+
+/* ============================================================
+   SPRINT 1 — CETAK DOKUMEN CLOSING PROYEK RESMI (A4, siap PDF)
+   ============================================================
+   Alur: tombol "📄 Cetak Dokumen Closing (PDF)" membuka modal
+   preview (.print-modal) berisi kertas .print-paper, lalu
+   window.print(). Saat mode print:
+     * body.printing-closing aktif → SEMUA elemen app disembunyikan
+       kecuali .print-modal (navbar, sidebar, toolbar, tombol).
+     * Ukuran A4 portrait, margin 12mm, warna teks hitam.
+   ============================================================ */
+
+/* --- Kertas dokumen di layar (preview) --- */
+.print-paper {
+  background: #fff;
+  color: #111;
+  padding: 28px 34px;
+  border: 1px solid #e2e8e5;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.print-kop-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.print-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: #0f2e28;
+  color: #f3c969;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.print-company {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #0f2e28;
+}
+
+.print-company-sub {
+  font-size: 11.5px;
+  color: #444;
+}
+
+.print-kop-line {
+  margin-top: 12px;
+  border-bottom: 3px double #0f2e28;
+}
+
+.print-title {
+  text-align: center;
+  margin: 20px 0 16px;
+}
+
+.print-title h1 {
+  font-size: 16.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin: 0 0 4px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.print-title-no {
+  font-size: 11.5px;
+  color: #333;
+}
+
+.print-info {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.print-info td {
+  padding: 3px 6px;
+  vertical-align: top;
+  font-size: 12.5px;
+}
+
+.print-info-label {
+  width: 150px;
+  color: #333;
+}
+
+.print-info-value {
+  font-weight: 600;
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.print-table th,
+.print-table td {
+  border: 1px solid #999;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  white-space: normal !important;
+}
+
+.print-table th {
+  background: #eef3f1;
+  font-weight: 800;
+  text-align: left;
+}
+
+.print-table small {
+  color: #555;
+  font-size: 10.5px;
+}
+
+.print-row-total td {
+  background: #f4f7f6;
+}
+
+.print-row-profit td {
+  background: #f0f9f2;
+}
+
+.print-row-loss td {
+  background: #fdf2f2;
+}
+
+.print-section-title {
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.print-notes-box {
+  border: 1px solid #999;
+  border-radius: 4px;
+  padding: 10px 12px;
+  min-height: 56px;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  background: #fcfdfc;
+}
+
+.print-sign {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  margin-top: 34px;
+  page-break-inside: avoid;
+}
+
+.print-sign-col {
+  flex: 1;
+  text-align: center;
+  font-size: 12.5px;
+}
+
+.print-sign-space {
+  height: 62px;
+}
+
+.print-sign-name {
+  font-weight: 800;
+  border-top: 1px solid #333;
+  padding-top: 5px;
+}
+
+.print-sign-role {
+  font-size: 11px;
+  color: #444;
+}
+
+.print-footer {
+  margin-top: 26px;
+  text-align: center;
+  font-size: 10.5px;
+  color: #555;
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+}
+
+/* ============================================================
+   PRINT MODE — hanya dokumen closing yang tercetak.
+   Aturan: saat body.printing-closing, sembunyikan SEMUA lalu
+   tampilkan hanya .print-modal beserta isinya.
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body.printing-closing * {
+    visibility: hidden !important;
+  }
+
+  body.printing-closing .print-modal,
+  body.printing-closing .print-modal * {
+    visibility: visible !important;
+  }
+
+  body.printing-closing .print-modal {
+    position: static !important;
+    inset: auto !important;
+    background: #fff !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body.printing-closing .print-dialog {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.printing-closing .print-toolbar {
+    display: none !important;
+  }
+
+  body.printing-closing .print-paper {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    font-size: 12px;
+  }
+
+  body.printing-closing .print-table th,
+  body.printing-closing .print-table td {
+    border-color: #444 !important;
+    color: #000 !important;
+  }
+
+  body.printing-closing .print-table th {
+    background: #eee !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.printing-closing .print-row-profit td,
+  body.printing-closing .print-row-loss td,
+  body.printing-closing .print-row-total td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

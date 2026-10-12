@@ -14,7 +14,10 @@ import {
   labels,
   parseReceivingNote,
   notaHref,
-  rupiah
+  rupiah,
+  isBhpMaterial,
+  isStokMenipis,
+  stokText
 } from '../lib/constants'
 
 export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
@@ -186,7 +189,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     else if (receivingFilter === 'RETUR') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('RETUR'))
     else if (receivingFilter === 'REFUND') displayRows = rows.filter(r => String(r.status).toUpperCase().includes('REFUND'))
   } else if (page === 'materials') {
-    if (materialFilter === 'Lainnya') displayRows = rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category))
+    if (materialFilter === 'STOK_MENIPIS') displayRows = rows.filter(isStokMenipis)
+    else if (materialFilter === 'Lainnya') displayRows = rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category))
     else if (materialFilter !== 'all') displayRows = rows.filter(r => r.category === materialFilter)
   } else if (page === 'vendors') {
     if (vendorFilter === 'HAS_PHONE') displayRows = rows.filter(r => !!r.phone)
@@ -242,8 +246,22 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const columns = headersFor(page, displayRows)
   const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'handovers', 'projects', 'past_projects'].includes(page)
 
+  // Sprint 1 — Minimum Stock Alert BHP:
+  // jumlah item BHP dengan stok menipis (current_stock <= min_stock, min_stock > 0).
+  const stokMenipisCount = page === 'materials' ? (rows || []).filter(isStokMenipis).length : 0
+  const showStokColumns = page === 'materials'
+
   return (
     <>
+      {/* Banner peringatan stok BHP menipis (Sprint 1) */}
+      {page === 'materials' && stokMenipisCount > 0 && (
+        <div
+          className="notice"
+          style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b', fontWeight: 600, marginBottom: '12px' }}
+        >
+          🔴 {stokMenipisCount} bahan habis pakai (BHP) mencapai/melewati batas minimum stok — segera buat Purchase Request pengisian ulang.
+        </div>
+      )}
       <div className="toolbar">
         <div>
           <p className="muted">
@@ -455,6 +473,14 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
               >
                 Lainnya ({rows.filter(r => !['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Bahan Habis Pakai'].includes(r.category)).length})
               </button>
+              <button
+                type="button"
+                className={`pill ${materialFilter === 'STOK_MENIPIS' ? 'active' : ''}`}
+                onClick={() => setMaterialFilter('STOK_MENIPIS')}
+                style={stokMenipisCount > 0 ? { borderColor: '#dc2626', color: '#dc2626', fontWeight: 'bold' } : {}}
+              >
+                🔴 Stok Menipis ({stokMenipisCount})
+              </button>
             </div>
           )}
           {page === 'vendors' && (
@@ -663,7 +689,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     </tr>
                   ))
                 })() : (
-                <tr>
+                <tr style={page === 'materials' && isStokMenipis(r) ? { background: '#fff1f1' } : undefined}>
                   {columns.map(h => {
                     const rawVal = h === 'kode' ? (r.kode || r.code) : (h === 'qty' ? (r.qty ?? 0) : r[h])
                     return (
@@ -863,6 +889,29 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                           </div>
                         ) : page === 'materials' && h === 'name' ? (
                           <div className="cell-name" title={String(rawVal || '')}>{format(rawVal)}</div>
+                        ) : page === 'materials' && h === 'current_stock' ? (
+                          // Sprint 1 — stok BHP: badge merah mencolok bila menipis.
+                          isStokMenipis(r) ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{stokText(r.current_stock)}</span>
+                              <span style={{
+                                display: 'inline-block', width: 'fit-content',
+                                background: '#dc2626', color: '#fff', border: '1px solid #b91c1c',
+                                borderRadius: '10px', padding: '2px 8px', fontSize: '10px',
+                                fontWeight: 800, whiteSpace: 'nowrap'
+                              }}>
+                                🔴 Stok Menipis
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                              {isBhpMaterial(r) ? stokText(r.current_stock) : <span className="muted">—</span>}
+                            </span>
+                          )
+                        ) : page === 'materials' && h === 'min_stock' ? (
+                          <span style={{ whiteSpace: 'nowrap' }}>
+                            {isBhpMaterial(r) && Number(r.min_stock) > 0 ? stokText(r.min_stock) : <span className="muted">—</span>}
+                          </span>
                         ) : page === 'materials' && h === 'harga_acuan' ? (
                           <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
                             {rawVal === null || rawVal === undefined || rawVal === '' ? <span className="muted">—</span> : rupiah(rawVal)}
@@ -992,14 +1041,26 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          className="btn-delete"
-                          onClick={() => onDelete(page, r)}
-                          title={`Hapus ${title}`}
-                        >
-                          Hapus
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                          {page === 'materials' && (
+                            <button
+                              type="button"
+                              className="btn-edit icon-btn"
+                              onClick={() => setEditRow(r)}
+                              title={`Edit ${r.name || title} (ubah stok / batas minimum)`}
+                            >
+                              ✏️
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-delete"
+                            onClick={() => onDelete(page, r)}
+                            title={`Hapus ${title}`}
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       )}
                     </td>
                   )}
@@ -1383,11 +1444,28 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                       {r.qty ?? 0} {r.satuan || ''}
                     </span>
                   </div>
+                  {isStokMenipis(r) && (
+                    <div style={{ margin: '0 14px 8px', background: '#dc2626', color: '#fff', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 800, textAlign: 'center' }}>
+                      🔴 Stok Menipis — {stokText(r.current_stock)} (batas min {stokText(r.min_stock)})
+                    </div>
+                  )}
                   <div className="mobile-card-body">
                     <div className="mobile-card-row">
                       <span className="mobile-label">Kategori:</span>
                       <span className="mobile-val">{r.category || '—'}</span>
                     </div>
+                    {isBhpMaterial(r) && (
+                      <>
+                        <div className="mobile-card-row">
+                          <span className="mobile-label">Stok Saat Ini:</span>
+                          <span className="mobile-val" style={{ fontWeight: 700, color: isStokMenipis(r) ? '#b91c1c' : undefined }}>{stokText(r.current_stock)}</span>
+                        </div>
+                        <div className="mobile-card-row">
+                          <span className="mobile-label">Batas Min:</span>
+                          <span className="mobile-val">{Number(r.min_stock) > 0 ? stokText(r.min_stock) : '—'}</span>
+                        </div>
+                      </>
+                    )}
                     <div className="mobile-card-row">
                       <span className="mobile-label">Acuan Harga:</span>
                       <span className="mobile-val" style={{ fontWeight: 600 }}>
@@ -1396,14 +1474,24 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                     </div>
                   </div>
                   <div className="mobile-card-actions">
-                    <button
-                      type="button"
-                      className="btn-delete"
-                      onClick={() => onDelete(page, r)}
-                      style={{ width: '100%' }}
-                    >
-                      Hapus Material
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={() => setEditRow(r)}
+                        style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => onDelete(page, r)}
+                        style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                      >
+                        Hapus Material
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : page === 'receivings' ? (() => {

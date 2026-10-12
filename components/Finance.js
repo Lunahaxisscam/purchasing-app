@@ -40,6 +40,41 @@ export default function Finance({ rows, session, refresh }) {
   const [closingModal, setClosingModal] = useState(null)   // { project, calc }
   const [closingNotes, setClosingNotes] = useState('')
   const [closingSaving, setClosingSaving] = useState(false)
+  // --- state cetak dokumen closing (Sprint 1) ---
+  const [printDoc, setPrintDoc] = useState(null)   // snapshot project_closings utk dokumen cetak
+  const [printDate, setPrintDate] = useState(null) // waktu dokumen dibuka/dicetak
+
+  // Saat dokumen cetak terbuka, tandai <body> supaya CSS @media print hanya
+  // menyembunyikan kerangka aplikasi (navbar/sidebar/tombol) di mode ini.
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (printDoc) document.body.classList.add('printing-closing')
+    else document.body.classList.remove('printing-closing')
+    return () => document.body.classList.remove('printing-closing')
+  }, [printDoc])
+
+  // Buka preview dokumen closing resmi utk snapshot yang sudah terkunci.
+  function openPrintDoc(snapshot) {
+    if (!snapshot) return
+    setPrintDate(new Date())
+    setPrintDoc(snapshot)
+  }
+
+  // Nama proyek biasanya berformat "Klien - Lokasi" (mis. "Aan - BSD").
+  // Dipisah utk kop dokumen: Nama Klien & Lokasi. Tanpa pemisah → lokasi '—'.
+  function splitClientLocation(name) {
+    const s = String(name || '').trim()
+    const idx = s.indexOf(' - ')
+    if (idx > 0) return { client: s.slice(0, idx).trim(), location: s.slice(idx + 3).trim() }
+    return { client: s || '—', location: '—' }
+  }
+
+  function formatTanggalPanjang(v) {
+    if (!v) return '—'
+    const d = new Date(v)
+    if (isNaN(d.getTime())) return String(v)
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
 
   const loadDrive = useCallback(async (silent = false) => {
     if (!supabase) return
@@ -540,7 +575,17 @@ export default function Finance({ rows, session, refresh }) {
                         {row.closed ? (
                           <div>
                             <span className="badge status-APPROVED" style={{ fontSize: '10px' }}>🔒 TERKUNCI</span>
-                            <div style={{ fontSize: '10px', color: '#9aa8a4', marginTop: '4px' }}>{formatDateTime(row.closed.closed_at)}</div>
+                            <div style={{ fontSize: '10px', color: '#9aa8a4', margin: '4px 0' }}>{formatDateTime(row.closed.closed_at)}</div>
+                            {/* Sprint 1 — cetak dokumen resmi utk proyek yang sudah closed */}
+                            <button
+                              type="button"
+                              className="outline"
+                              style={{ fontSize: '10px', padding: '5px 8px', whiteSpace: 'nowrap' }}
+                              onClick={() => openPrintDoc(row.closed)}
+                              title="Buka dokumen laporan closing resmi siap cetak / simpan PDF"
+                            >
+                              📄 Cetak Dokumen Closing (PDF)
+                            </button>
                           </div>
                         ) : (
                           <button
@@ -590,6 +635,18 @@ export default function Finance({ rows, session, refresh }) {
                       <button type="button" className="btn-finish" style={{ fontSize: '11px', padding: '7px 12px' }} onClick={() => openClosingModal(row)}>🔒 Closing Proyek</button>
                     </div>
                   )}
+                  {row.closed && (
+                    <div className="mobile-card-actions">
+                      <button
+                        type="button"
+                        className="outline"
+                        style={{ width: '100%', fontSize: '12px', padding: '8px' }}
+                        onClick={() => openPrintDoc(row.closed)}
+                      >
+                        📄 Cetak Dokumen Closing (PDF)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             }) : <div className="panel empty">Belum ada proyek.</div>}
@@ -613,11 +670,12 @@ export default function Finance({ rows, session, refresh }) {
                   <th style={{ textAlign: 'right' }}>Margin</th>
                   <th style={{ textAlign: 'right' }}>Labor Ratio</th>
                   <th>Closing</th>
+                  <th style={{ width: '120px', textAlign: 'center' }}>Dokumen</th>
                 </tr>
               </thead>
               <tbody>
                 {closingLoading ? (
-                  <tr><td colSpan={7} className="empty">Memuat arsip…</td></tr>
+                  <tr><td colSpan={8} className="empty">Memuat arsip…</td></tr>
                 ) : closings.length ? closings.map(c => {
                   const hemat = (Number(c.total_cost) || 0) <= (Number(c.target_budget) || 0)
                   return (
@@ -642,10 +700,22 @@ export default function Finance({ rows, session, refresh }) {
                         <div style={{ fontSize: '11px', color: '#9aa8a4' }}>oleh {c.closed_by || '—'}</div>
                         {c.notes && <div style={{ fontSize: '11px', color: '#556b65', whiteSpace: 'normal', maxWidth: '220px', marginTop: '2px' }}>📝 {c.notes}</div>}
                       </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {/* Sprint 1 — One-Click Cetak Laporan Closing Proyek Resmi */}
+                        <button
+                          type="button"
+                          className="btn-finish"
+                          style={{ fontSize: '11px', padding: '6px 10px', whiteSpace: 'nowrap' }}
+                          onClick={() => openPrintDoc(c)}
+                          title="Buka dokumen laporan closing resmi siap cetak / simpan PDF"
+                        >
+                          📄 Cetak Dokumen Closing (PDF)
+                        </button>
+                      </td>
                     </tr>
                   )
                 }) : (
-                  <tr><td colSpan={7} className="empty">Belum ada proyek yang di-closing. Buka tab "🔒 Closing Proyek" untuk memulai.</td></tr>
+                  <tr><td colSpan={8} className="empty">Belum ada proyek yang di-closing. Buka tab "🔒 Closing Proyek" untuk memulai.</td></tr>
                 )}
               </tbody>
             </table>
@@ -672,6 +742,16 @@ export default function Finance({ rows, session, refresh }) {
                     <div className="mobile-card-row"><span className="mobile-label">Margin:</span><span className="mobile-val" style={{ fontWeight: 700, color: Number(c.margin_nominal) < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(c.margin_nominal || 0)} ({persen(c.margin_percentage || 0)})</span></div>
                     <div className="mobile-card-row"><span className="mobile-label">Labor Ratio:</span><span className="mobile-val">{persen(c.labor_ratio || 0)}</span></div>
                     {c.notes && <div className="mobile-card-row"><span className="mobile-label">Catatan:</span><span className="mobile-val">{c.notes}</span></div>}
+                  </div>
+                  <div className="mobile-card-actions">
+                    <button
+                      type="button"
+                      className="btn-finish"
+                      style={{ width: '100%', fontSize: '12px', padding: '8px' }}
+                      onClick={() => openPrintDoc(c)}
+                    >
+                      📄 Cetak Dokumen Closing (PDF)
+                    </button>
                   </div>
                 </div>
               )
@@ -847,6 +927,181 @@ export default function Finance({ rows, session, refresh }) {
           )) : <div className="panel empty">Belum ada data pengadaan.</div>
         )}
       </div>
+      )}
+
+      {/* ============================================================
+          DOKUMEN CETAK CLOSING PROYEK RESMI (Sprint 1)
+          Layout siap cetak A4 — navbar/sidebar/tombol otomatis tersembunyi
+          saat print (lihat styles/globals.css @media print + body.printing-closing).
+          ============================================================ */}
+      {printDoc && (
+        <div className="modal print-modal">
+          <div className="dialog dialog-wide print-dialog">
+            <div className="dialoghead print-toolbar">
+              <h2>📄 Dokumen Closing — [{printDoc.project_no}] {printDoc.project_name}</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="outline" onClick={() => setPrintDoc(null)}>Tutup</button>
+                <button type="button" className="btn-finish" onClick={() => window.print()}>
+                  🖨️ Cetak / Simpan PDF
+                </button>
+              </div>
+            </div>
+
+            {/* ---- Kertas dokumen resmi (tercetak apa adanya) ---- */}
+            <div className="print-paper">
+              {/* KOP SURAT */}
+              <div className="print-kop">
+                <div className="print-kop-brand">
+                  <span className="print-logo">NL</span>
+                  <div>
+                    <div className="print-company">NOIR LIVING INDONESIA</div>
+                    <div className="print-company-sub">Studio &amp; In-house Workshop Mandiri — Tangerang / Jakarta</div>
+                  </div>
+                </div>
+                <div className="print-kop-line" />
+              </div>
+
+              {/* JUDUL DOKUMEN */}
+              <div className="print-title">
+                <h1>LAPORAN PERTANGGUNGJAWABAN &amp; CLOSING PROYEK</h1>
+                <div className="print-title-no">No. Dokumen: CLS/{printDoc.project_no}/{String(printDoc.closed_at || '').slice(0, 4) || new Date().getFullYear()}</div>
+              </div>
+
+              {/* INFO PROYEK */}
+              {(() => {
+                const { client, location } = splitClientLocation(printDoc.project_name)
+                return (
+                  <table className="print-info">
+                    <tbody>
+                      <tr>
+                        <td className="print-info-label">Kode Proyek</td>
+                        <td className="print-info-value">: {printDoc.project_no || '—'}</td>
+                        <td className="print-info-label">Tanggal Closing</td>
+                        <td className="print-info-value">: {formatTanggalPanjang(printDoc.closed_at)}</td>
+                      </tr>
+                      <tr>
+                        <td className="print-info-label">Nama Klien</td>
+                        <td className="print-info-value">: {client}</td>
+                        <td className="print-info-label">Tanggal Dokumen Dicetak</td>
+                        <td className="print-info-value">: {formatTanggalPanjang(printDate)}</td>
+                      </tr>
+                      <tr>
+                        <td className="print-info-label">Lokasi</td>
+                        <td className="print-info-value">: {location}</td>
+                        <td className="print-info-label">Dikunci Oleh</td>
+                        <td className="print-info-value">: {printDoc.closed_by || '—'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                )
+              })()}
+
+              {/* TABEL RINCIAN BIAYA (HPP & PROFIT) */}
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '34px' }}>No</th>
+                    <th>Uraian</th>
+                    <th style={{ width: '150px', textAlign: 'right' }}>Nominal (Rp)</th>
+                    <th style={{ width: '110px', textAlign: 'right' }}>% Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const rev = Number(printDoc.revenue) || 0
+                    const pctOf = (v) => rev > 0 ? `${((Number(v) || 0) / rev * 100).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—'
+                    return (
+                      <>
+                        <tr>
+                          <td style={{ textAlign: 'center' }}>1</td>
+                          <td><b>Revenue Proyek (Nilai Kontrak)</b></td>
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(rev)}</td>
+                          <td style={{ textAlign: 'right' }}>100,00%</td>
+                        </tr>
+                        <tr>
+                          <td style={{ textAlign: 'center' }}>2</td>
+                          <td style={{ paddingLeft: '18px' }}>Realisasi Biaya Material <small>(COST ITEMS CONFIRMED)</small></td>
+                          <td style={{ textAlign: 'right' }}>{rupiah(printDoc.material_cost || 0)}</td>
+                          <td style={{ textAlign: 'right' }}>{pctOf(printDoc.material_cost)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ textAlign: 'center' }}>3</td>
+                          <td style={{ paddingLeft: '18px' }}>Realisasi Biaya Tukang <small>(Upah Borongan Mandor)</small></td>
+                          <td style={{ textAlign: 'right' }}>{rupiah(printDoc.labor_cost || 0)}</td>
+                          <td style={{ textAlign: 'right' }}>{pctOf(printDoc.labor_cost)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ textAlign: 'center' }}>4</td>
+                          <td style={{ paddingLeft: '18px' }}>Realisasi Biaya Lapangan <small>(Petty Cash)</small></td>
+                          <td style={{ textAlign: 'right' }}>{rupiah(printDoc.petty_cash_cost || 0)}</td>
+                          <td style={{ textAlign: 'right' }}>{pctOf(printDoc.petty_cash_cost)}</td>
+                        </tr>
+                        <tr className="print-row-total">
+                          <td />
+                          <td><b>TOTAL HPP RIIL (2 + 3 + 4)</b></td>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>{rupiah(printDoc.total_cost || 0)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>{pctOf(printDoc.total_cost)}</td>
+                        </tr>
+                        <tr className={Number(printDoc.margin_nominal) < 0 ? 'print-row-loss' : 'print-row-profit'}>
+                          <td />
+                          <td><b>GROSS MARGIN / KEUNTUNGAN KOTOR (1 − 5)</b></td>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>{rupiah(printDoc.margin_nominal || 0)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                            {Number(printDoc.margin_percentage || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                          </td>
+                        </tr>
+                        <tr>
+                          <td />
+                          <td>
+                            <b>Rasio Biaya (Cost Ratio)</b> vs Target Standar (Max 70%)
+                            <div style={{ fontSize: '10.5px', color: '#555', marginTop: '2px' }}>
+                              Budget target 70%: {rupiah(printDoc.target_budget || 0)} —{' '}
+                              <b>{(Number(printDoc.total_cost) || 0) <= (Number(printDoc.target_budget) || 0) ? '✓ HEMAT (di bawah target)' : '⚠ OVER-BUDGET (di atas target)'}</b>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                            {pctOf(printDoc.total_cost)}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {(Number(printDoc.total_cost) || 0) <= (Number(printDoc.target_budget) || 0) ? '✓' : '⚠'}
+                          </td>
+                        </tr>
+                      </>
+                    )
+                  })()}
+                </tbody>
+              </table>
+
+              {/* CATATAN CLOSING */}
+              <div className="print-notes">
+                <div className="print-section-title">Catatan Closing:</div>
+                <div className="print-notes-box">
+                  {printDoc.notes ? String(printDoc.notes) : '—'}
+                </div>
+              </div>
+
+              {/* KOLOM TANDA TANGAN */}
+              <div className="print-sign">
+                <div className="print-sign-col">
+                  <div>Disiapkan Oleh,</div>
+                  <div className="print-sign-space" />
+                  <div className="print-sign-name">Finance Specialist</div>
+                  <div className="print-sign-role">Divisi Keuangan</div>
+                </div>
+                <div className="print-sign-col">
+                  <div>Disetujui Oleh,</div>
+                  <div className="print-sign-space" />
+                  <div className="print-sign-name">Direktur / Project Owner</div>
+                  <div className="print-sign-role">DAT — Noir Living Indonesia</div>
+                </div>
+              </div>
+
+              <div className="print-footer">
+                Dokumen ini dicetak otomatis dari Internal Purchasing App — Noir Living Indonesia · {formatTanggalPanjang(printDate)}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ============================================================
