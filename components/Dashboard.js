@@ -1,6 +1,6 @@
 import React from 'react'
 import { exportWorkbook } from '../lib/workflow'
-import { headersFor } from '../lib/constants'
+import { headersFor, parseHandoverNote } from '../lib/constants'
 
 export default function Dashboard({ rows, activeProjects, pastProjects, setPage, role = 'user' }) {
   const cards = [
@@ -49,7 +49,13 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
               ['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']],
               ['Purchase', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note', 'alokasi', 'masuk_gudang', 'tukang_at']],
               ['Purchase Items', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
-              ['Handover', rows.handovers || [], ['project_name', 'received_by', 'status', 'handover_date', 'note', 'diserahkan_at']]
+              // Kolom note handover bisa memuat bukti foto base64 (maks 2MB) —
+              // JANGAN ikutkan ke sel Excel (batas 32.767 karakter/sel). Yang
+              // diekspor cukup catatan teksnya + penanda keberadaan foto.
+              ['Handover', (rows.handovers || []).map(h => {
+                const { foto, extra } = parseHandoverNote(h.note)
+                return { ...h, note: [extra, foto ? '(ada bukti foto di aplikasi)' : ''].filter(Boolean).join(' ') }
+              }), ['project_name', 'received_by', 'status', 'handover_date', 'note', 'diserahkan_at']]
             ], 'Purchasing-Seluruh-Data')}
           >
             📦 Export Semua Data (Excel)
