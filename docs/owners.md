@@ -49,14 +49,16 @@ purchasing-app/
 │   │   ├── sortRows.js            # Sortir kolom
 │   │   ├── renderGenericCell.jsx  # Cell generik (project_name, title, dll)
 │   │   ├── renderModuleCell.jsx   # Dispatcher cell/aksi/expand/mobile per modul
-│   │   └── renderCreateForm.jsx   # Dispatcher form tambah/edit per modul
-│   ├── requests/                  # view.jsx + form.jsx   (Purchase Request)
-│   ├── approvals/                 # view.jsx              (Approval)
-│   ├── vendors/                   # view.jsx + form.jsx   (Vendor)
-│   ├── materials/                 # view.jsx + form.jsx   (Material + stok BHP)
-│   ├── receivings/                # view.jsx + form.jsx   (Purchase/Receiving)
-│   ├── handovers/                 # view.jsx + form.jsx   (Handover)
-│   ├── projects/                  # view.jsx + form.jsx   (Project + Past Project)
+│   │   ├── renderCreateForm.jsx   # Dispatcher form tambah/edit per modul
+│   │   ├── saveHelpers.js         # Retry 23505 + ekor insert generik (Fase 2)
+│   │   └── saveDispatcher.js      # Dispatcher simpan per modul (Fase 2)
+│   ├── requests/                  # view.jsx + form.jsx + save.js  (Purchase Request)
+│   ├── approvals/                 # view.jsx                       (Approval)
+│   ├── vendors/                   # view.jsx + form.jsx + save.js  (Vendor)
+│   ├── materials/                 # view.jsx + form.jsx + save.js  (Material + stok BHP)
+│   ├── receivings/                # view.jsx + form.jsx + save.js  (Purchase/Receiving)
+│   ├── handovers/                 # view.jsx + form.jsx + save.js  (Handover)
+│   ├── projects/                  # view.jsx + form.jsx + save.js  (Project + Past Project)
 │   └── ...                        # planning, project-finance, finance, tukang-upah, settings
 ├── lib/constants.js               # Konstanta & util bersama                      [CORE]
 ├── lib/workflow.js                # STATE MACHINE approval — cross-cutting       [CORE, SANGAT SENSITIF]
@@ -90,6 +92,21 @@ Modul TIDAK mengimpor shell — arah dependensi selalu shell → modul.
 | Fungsi | Peran | Return null berarti |
 |---|---|---|
 | `formBody(ctx)` | Field form Tambah/Edit | modul tanpa form |
+
+### `save.js` (Fase 2)
+
+| Fungsi | Peran | Return null berarti |
+|---|---|---|
+| `save(ctx)` | Seluruh logika simpan modul (insert/update + pesan + tutup modal) | modul tanpa simpan |
+
+Modul yang punya `save.js`: requests, materials, vendors, projects, receivings,
+handovers. Shell `CreateModal.js` memanggil `dispatchSave(page, ctx)` dari
+`modules/shared/saveDispatcher.js`; bila modul tidak terdaftar, shell menampilkan
+pesan "Modul X tidak didukung untuk penyimpanan."
+
+**ctx untuk save** berisi: `page, form, isEdit, editRow, editItems, prItemsList,
+nextPrNum, allMaterials, allVendors, say, close, refresh, setSaving`.
+Perubahan daftar ini = perubahan KONTRAK (lewat Tech Lead).
 
 ### `ctx` yang disediakan shell
 
@@ -155,8 +172,24 @@ Halaman ini berguna sebagai regression harness saat memecah modul lebih lanjut.
 
 ## Fase berikutnya (belum dikerjakan)
 
-- **Fase 2:** pindahkan logika `save()` per modul dari `CreateModal.js` ke
-  `modules/<modul>/save.js` (mengikuti pola dispatcher yang sudah ada).
 - **Fase 3:** pisahkan data layer per modul (`modules/<modul>/api.js`) dan
   `navSections` per manifest modul (registry sudah menyiapkan `label`, `adminOnly`).
-- **Fase 4:** `git worktree` + branch `feat/<modul>/<tugas>` untuk kerja paralel penuh.
+- **Fase 4:** `git worktree` + branch `feat/<modul>/<tugas>` untuk kerja paralel penuh
+  (menunggu Sprint 1 masuk main + rebase, sesuai keputusan Brooklyn).
+
+## Riwayat Fase
+
+- **Fase 1 (selesai):** ekstraksi `ModuleView.js` (1672→266 baris) &
+  `CreateModal.js` (886→251 baris) ke `modules/<modul>/view.jsx` + `form.jsx`,
+  registry, shared helpers & dispatcher. Diaudit Brooklyn; 6 temuan diperbaiki.
+- **Fase 2 (selesai):** ekstraksi logika `save()` ke `modules/<modul>/save.js`
+  + `shared/saveHelpers.js` + `shared/saveDispatcher.js`. Shell `CreateModal.js`
+  kini 251 baris, murni state form + ctx. Diverifikasi 44 test mock (npm run test:save).
+
+## Test
+
+| Perintah | Fungsi |
+|---|---|
+| `npm run build` | Build produksi (rute /__smoke = 404) |
+| `npm run smoke` | Build + render semua modul dengan data mock (ENABLE_SMOKE=1) |
+| `npm run test:save` | 44 test logika save per modul (mock Supabase, tanpa DB) |

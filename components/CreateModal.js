@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
-import { supabase } from '../lib/supabaseClient'
-import { labels, statusOptions, receivingStatusOptions, normalizeStatus, buildReceivingNote, formatNominalInput, parseReceivingNote, prefixForCategory } from '../lib/constants' 
+import { labels, normalizeStatus, formatNominalInput, prefixForCategory } from '../lib/constants' 
 import { renderCreateForm } from '../modules/shared/renderCreateForm'
+import { dispatchSave } from '../modules/shared/saveDispatcher'
 
 export default function Create({ page, allProjects = [], allMaterials = [], allVendors = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], close, refresh, say }) {
   const isEdit = !!editRow
@@ -31,24 +31,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     return prefix + '-' + String(maxNum + 1).padStart(4, '0')
   }
 
-  // Alokasi kode final saat simpan: coba RPC atomic dulu (bila fungsi DB
-  // tersedia), lalu fallback hitung dari data terbaru di DB.
-  async function allocMaterialKode(category) {
-    const prefix = prefixForCategory(category)
-    try {
-      const { data: rpcKode, error: rpcErr } = await supabase.rpc('next_material_kode_cat', { p_category: category })
-      if (!rpcErr && rpcKode) return String(rpcKode)
-    } catch (e) { /* RPC belum tersedia — lanjut fallback */ }
-    const { data: allMats, error: kodeErr } = await supabase.from('materials').select('kode')
-    if (kodeErr) throw new Error(kodeErr.message)
-    const re = new RegExp('^' + prefix + '-(\\d+)$')
-    const maxNum = (allMats || []).reduce((max, m) => {
-      const match = String(m.kode || '').match(re)
-      const n = match ? parseInt(match[1], 10) : NaN
-      return isFinite(n) && n > max ? n : max
-    }, 0)
-    return prefix + '-' + String(maxNum + 1).padStart(4, '0')
-  }
+  // Alokasi kode final material (allocMaterialKode) kini berada di
+  // modules/materials/save.js — shell tidak lagi menyimpan logika simpan.
 
   // Data validation kategori: dropdown berisi kategori yang ada di master material
   // (kategori utama tampil lebih dulu, sisanya urut alfabetis).
@@ -213,271 +197,26 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     </label>
   )
 
+  // ============================================================
+  // SIMPAN PER MODUL (Fase 2 modularisasi)
+  // Seluruh logika save() kini berada di modules/<modul>/save.js dan
+  // dipanggil lewat dispatcher modules/shared/saveDispatcher.js.
+  // Menambah/mengubah cara simpan satu modul = cukup edit folder modul itu.
+  // Shell ini hanya menyediakan state form + ctx (kontrak dijaga Tech Lead).
+  // ============================================================
   async function save(e) {
     e.preventDefault()
     if (saving) return
     setSaving(true)
 
-    const tableMap = {
-      projects: 'projects',
-      vendors: 'vendors',
-      materials: 'materials',
-      requests: 'purchase_requests',
-      receivings: 'receivings',
-      handovers: 'handovers'
-    }
-    const table = tableMap[page]
-    if (!table) {
+    const { handled } = await dispatchSave(page, {
+      page, form, isEdit, editRow, editItems, prItemsList,
+      nextPrNum, allMaterials, allVendors,
+      say, close, refresh, setSaving
+    })
+    if (!handled) {
       setSaving(false)
       say(`Modul ${page} tidak didukung untuk penyimpanan.`)
-      return
-    }
-
-    try {
-      let data = {}
-    if (page === 'requests') {
-      const summary = prItemsList.length
-        ? prItemsList.map(it => `${it.qty} ${it.satuan || ''} ${it.name}`).join(', ')
-        : (form.title || '—')
-
-      // Mode EDIT: perbarui PR yang ada + sinkronkan item (tanpa membuat approval baru)
-      if (isEdit) {
-        const { error: upErr } = await supabase.from('purchase_requests').update({
-          project_id: form.project_id || null,
-          title: form.title,
-          pr_number: form.pr_number,
-          priority: form.priority || 'NORMAL',
-          materials_summary: summary,
-          notes: form.notes || form.title
-        }).eq('id', editRow.id)
-        if (upErr) { setSaving(false); say(upErr.message); return }
-
-        // Sinkronkan pr_items: hapus yang dibuang (kecuali sudah diorder),
-        // update item lama, dan insert item baru.
-        const keptIds = prItemsList.filter(it => it.id).map(it => it.id)
-        const removed = (editItems || []).filter(oi => !keptIds.includes(oi.id))
-        let skipped = 0
-        let itemErrMsg = ''
-        for (const oi of removed) {
-          if (String(oi.status || '').toUpperCase() === 'ORDERED') { skipped++; continue }
-          const { error } = await supabase.from('pr_items').delete().eq('id', oi.id)
-          if (error && !itemErrMsg) itemErrMsg = error.message
-        }
-        for (let idx = 0; idx < prItemsList.length; idx++) {
-          const it = prItemsList[idx]
-          if (it.id) {
-            const { error } = await supabase.from('pr_items').update({
-              quantity: it.qty,
-              unit: it.satuan,
-              supplier_category: it.supplier_category || null,
-              vendor_id: it.vendor_id || null,
-              estimated_price: priceDigits(it.estimated_price),
-              sort_order: idx
-            }).eq('id', it.id)
-            if (error && !itemErrMsg) itemErrMsg = error.message
-          } else {
-            const { error } = await supabase.from('pr_items').insert({
-              pr_id: editRow.id,
-              material_id: it.material_id,
-              item_name: it.name,
-              kode: it.kode,
-              unit: it.satuan,
-              quantity: it.qty,
-              status: 'PENDING_APPROVAL',
-              supplier_category: it.supplier_category || null,
-              vendor_id: it.vendor_id || null,
-              estimated_price: priceDigits(it.estimated_price),
-              sort_order: idx
-            })
-            if (error && !itemErrMsg) itemErrMsg = error.message
-          }
-        }
-
-        setSaving(false)
-        if (itemErrMsg) {
-          say(`PR ${form.pr_number} diperbarui, tapi ada masalah pada item: ${itemErrMsg}`)
-        } else {
-          say(`Purchase Request ${form.pr_number} berhasil diperbarui (${prItemsList.length} item).${skipped ? ` ${skipped} item sudah diorder tidak ikut dihapus.` : ''}`)
-        }
-        close(); refresh()
-        return
-      }
-
-      // PR baru dibuat sebagai DRAFT; masuk modul Approval lewat tombol ✓ Selesai.
-      // Nomor PR diambil atomic dari DB (advisory lock) agar tidak dobel saat
-      // dua user membuka form bersamaan; fallback ke nilai tampilan bila RPC gagal.
-      let prNumberFinal = form.pr_number || nextPrNum
-      {
-        const { data: rpcPr, error: rpcPrErr } = await supabase.rpc('next_pr_number')
-        if (!rpcPrErr && rpcPr) prNumberFinal = String(rpcPr)
-      }
-      data = {
-        project_id: form.project_id || null,
-        title: form.title,
-        pr_number: prNumberFinal,
-        priority: form.priority || 'NORMAL',
-        status: 'DRAFT',
-        materials_summary: summary,
-        notes: form.notes || form.title
-      }
-
-      const { data: insertedPR, error: prErr } = await supabase.from('purchase_requests').insert(data).select().single()
-      if (prErr) {
-        setSaving(false)
-        say(prErr.message)
-        return
-      }
-
-      if (prItemsList.length && insertedPR) {
-        const itemRecords = prItemsList.map((it, idx) => ({
-          pr_id: insertedPR.id,
-          material_id: it.material_id,
-          item_name: it.name,
-          kode: it.kode,
-          unit: it.satuan,
-          quantity: it.qty,
-          status: 'PENDING_APPROVAL',
-          supplier_category: it.supplier_category || null,
-          vendor_id: it.vendor_id || null,
-          estimated_price: priceDigits(it.estimated_price),
-          sort_order: idx
-        }))
-        const { error: itemErr } = await supabase.from('pr_items').insert(itemRecords)
-        if (itemErr) {
-          setSaving(false)
-          say(`PR tersimpan, tapi gagal simpan item: ${itemErr.message}`)
-          close(); refresh()
-          return
-        }
-      }
-
-      setSaving(false)
-      say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item). Klik "✓ Selesai" pada baris PR untuk mengirim ke modul Approval.`)
-      close()
-      refresh()
-      return
-    } else if (page === 'materials') {
-      // Kode material otomatis mengikuti KATEGORI (PLY-0001, HWF-0124, dst).
-      // Kategori wajib dipilih supaya kode tidak jatuh ke prefix cadangan.
-      if (!form.category) {
-        setSaving(false)
-        say('Pilih Kategori dulu — kode material dibuat dari kategori.')
-        return
-      }
-      let newKode = (isEdit && (editRow?.kode || editRow?.code)) || ''
-      if (!newKode) {
-        try {
-          newKode = await allocMaterialKode(form.category)
-        } catch (err) {
-          setSaving(false)
-          say(`Gagal membuat kode material: ${err.message}`)
-          return
-        }
-      }
-      // Acuan harga disimpan sebagai INTEGER rupiah (bukan desimal) supaya
-      // round-trip edit tidak pernah menggeser nilai; kosong = null.
-      const hargaDigits = String(form.harga_acuan ?? '').replace(/[^\d]/g, '').slice(0, 15)
-      // Sprint 1 — stok BHP: current_stock & min_stock numeric (>= 0).
-      // Parser format Indonesia: '1.234,5' / '1234,5' / '1.234' → angka benar.
-      // (Input type=text agar tidak dinormalisasi browser — fix review F3.)
-      const stokNum = (v) => {
-        const s = String(v ?? '').trim()
-        if (!s) return 0
-        // Buang titik ribuan, ganti koma desimal → titik; hanya digit/titik.
-        const cleaned = s.replace(/\./g, '').replace(',', '.')
-        if (!/^\d+(\.\d+)?$/.test(cleaned)) return 0
-        const n = Number(cleaned)
-        return isFinite(n) && n >= 0 ? n : 0
-      }
-      data = {
-        name: form.name,
-        category: form.category || null,
-        kode: newKode,
-        code: newKode,
-        qty: form.qty || '0',
-        satuan: form.satuan || 'Lembar',
-        unit: form.satuan || 'Lembar',
-        harga_acuan: hargaDigits ? Number(hargaDigits) : null,
-        current_stock: stokNum(form.current_stock),
-        min_stock: stokNum(form.min_stock)
-      }
-      // Mode EDIT material: UPDATE baris yang ada — bukan insert baru.
-      // (Sebelumnya edit material ikut jatuh ke INSERT → gagal unique kode
-      // atau membuat duplikat; diperbaiki di Sprint 1.)
-      if (isEdit && editRow?.id) {
-        const { error: upMatErr } = await supabase.from('materials').update(data).eq('id', editRow.id)
-        setSaving(false)
-        if (upMatErr) { say(upMatErr.message); return }
-        say(`Material ${newKode} berhasil diperbarui.`)
-        close(); refresh()
-        return
-      }
-    } else if (page === 'vendors') {
-      data = {
-        name: form.name,
-        phone: form.phone || null,
-        store_link: form.store_link || null,
-        supplier_category: form.supplier_category || null,
-        contact: form.contact || null
-      }
-    } else if (page === 'projects') {
-      data = {
-        kode: form.kode || null,
-        code: form.kode || null,
-        name: form.name,
-        status: form.status
-      }
-    } else if (page === 'receivings') {
-      const st = String(form.receiving_status || 'NORMAL').toUpperCase()
-      data = {
-        purchase_request_id: form.pr_id || null,
-        project_id: form.project_id || null,
-        delivery_note: form.delivery_note,
-        invoice_no: form.invoice_no || null,
-        status: st,
-        kendala: st === 'RETUR' ? 'RETUR' : (st === 'REFUND' ? 'REFUND' : null),
-        received_date: form.received_date || new Date().toISOString().slice(0, 10),
-        note: buildReceivingNote({ nominal: form.nominal, nota: form.nota_link, extra: form.notes })
-      }
-    } else if (page === 'handovers') {
-      data = {
-        receiving_id: form.receiving_id || null,
-        project_id: form.project_id || null,
-        received_by: form.received_by,
-        status: form.handover_status || 'CONFIRMED',
-        handover_date: form.handover_date || new Date().toISOString().slice(0, 10),
-        note: form.notes || null
-      }
-    }
-
-    let { error } = await supabase.from(table).insert(data)
-    // Retry sekali bila kode/nomor bentrok (unique index) karena balapan sesi lain:
-    // ambil nomor baru dari RPC atomic, lalu insert ulang.
-    if (error && String(error.code) === '23505') {
-      let retryKode = null
-      if (page === 'materials') {
-        try { retryKode = await allocMaterialKode(form.category) } catch (e) { retryKode = null }
-        if (retryKode) data = { ...data, kode: retryKode, code: retryKode }
-      } else if (page === 'requests') {
-        const { data: rp } = await supabase.rpc('next_pr_number')
-        if (rp) data = { ...data, pr_number: String(rp) }
-      }
-      if (retryKode || page === 'requests') {
-        const retry = await supabase.from(table).insert(data)
-        error = retry.error
-      }
-    }
-    setSaving(false)
-    if (error) {
-      say(error.message)
-      return
-    }
-    say(`${labels[page]} berhasil ditambahkan.`)
-    close()
-    refresh()
-    } catch (err) {
-      setSaving(false)
-      say(`Gagal menyimpan: ${err.message}`)
     }
   }
 

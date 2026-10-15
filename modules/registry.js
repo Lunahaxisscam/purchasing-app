@@ -1,5 +1,5 @@
 // ============================================================
-// modules/registry.js — MANIFEST MODUL (Fase 1 modularisasi)
+// modules/registry.js — MANIFEST MODUL (Fase 1 + Fase 2 modularisasi)
 // ============================================================
 // Ini adalah "satu pintu" daftar modul aplikasi. Setiap modul punya folder
 // sendiri di modules/<id>/ dan boleh dikerjakan oleh agent berbeda TANPA
@@ -35,28 +35,28 @@ export const modules = [
     label: 'Project',
     adminOnly: false,
     source: 'module',
-    files: ['modules/projects/view.jsx', 'modules/projects/form.jsx']
+    files: ['modules/projects/view.jsx', 'modules/projects/form.jsx', 'modules/projects/save.js']
   },
   {
     id: 'vendors',
     label: 'Vendor',
     adminOnly: false,
     source: 'module',
-    files: ['modules/vendors/view.jsx', 'modules/vendors/form.jsx']
+    files: ['modules/vendors/view.jsx', 'modules/vendors/form.jsx', 'modules/vendors/save.js']
   },
   {
     id: 'materials',
     label: 'Material',
     adminOnly: false,
     source: 'module',
-    files: ['modules/materials/view.jsx', 'modules/materials/form.jsx']
+    files: ['modules/materials/view.jsx', 'modules/materials/form.jsx', 'modules/materials/save.js']
   },
   {
     id: 'requests',
     label: 'Purchase Request',
     adminOnly: false,
     source: 'module',
-    files: ['modules/requests/view.jsx', 'modules/requests/form.jsx']
+    files: ['modules/requests/view.jsx', 'modules/requests/form.jsx', 'modules/requests/save.js']
   },
   {
     id: 'approvals',
@@ -70,14 +70,14 @@ export const modules = [
     label: 'Purchase',
     adminOnly: false,
     source: 'module',
-    files: ['modules/receivings/view.jsx', 'modules/receivings/form.jsx']
+    files: ['modules/receivings/view.jsx', 'modules/receivings/form.jsx', 'modules/receivings/save.js']
   },
   {
     id: 'handovers',
     label: 'Handover',
     adminOnly: false,
     source: 'module',
-    files: ['modules/handovers/view.jsx', 'modules/handovers/form.jsx']
+    files: ['modules/handovers/view.jsx', 'modules/handovers/form.jsx', 'modules/handovers/save.js']
   },
   {
     id: 'past_projects',

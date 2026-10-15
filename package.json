@@ -5,6 +5,7 @@
     "dev": "next dev",
     "build": "next build",
     "smoke": "ENABLE_SMOKE=1 next build",
+    "test:save": "python3 scripts/fase2-save-test/run.py",
     "start": "next start"
   },
   "dependencies": {
