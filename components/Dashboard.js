@@ -12,7 +12,7 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
   ]
   // Modul tambahan khusus admin
   if (role === 'admin') {
-    cards.push(['planning', '🏗️ Project Planning', '→'])
+    cards.push(['planning', '🏗️ Budgeting', '→'])
     cards.push(['project_finance', '📊 Project Finance', '→'])
     cards.push(['finance', '★ Finance', '→'])
     cards.push(['tukang_upah', '👷 Upah Tukang', '→'])

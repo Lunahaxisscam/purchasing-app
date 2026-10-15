@@ -6,13 +6,13 @@ import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatu
 // Modul PROJECT FINANCE — khusus role admin (READ-ONLY).
 // Monitoring keuangan PER PROYEK ON-GOING dengan 3 komponen:
 //   💰 Revenue  — nilai kontrak proyek (sync REV PROJECT.xlsx via Drive)
-//   👷 Tukang   — estimasi upah dari modul Project Planning (project_plans)
+//   👷 Tukang   — estimasi upah dari modul Budgeting (project_plans)
 //   🧱 Material — cost material (sync REKAP COST 2026) + rincian pengadaan
 //                 internal (estimasi PR vs purchase riil dari nota)
 // Plus kartu ringkasan: Margin = Revenue − (Material + Petty Cash + Tukang),
 // konsisten dengan formula modul Closing Proyek.
 // TIDAK ada input di modul ini — semua angka berasal dari sumbernya
-// (Google Drive sync & modul Planning). Jangan tambahkan form tulis di sini
+// (Google Drive sync & modul Budgeting). Jangan tambahkan form tulis di sini
 // tanpa permintaan eksplisit dari user.
 // ============================================================
 
@@ -80,7 +80,7 @@ export default function ProjectFinance({ rows }) {
     return driveRows.find(d => String(d.project_no || '').trim() === key) || null
   }, [project, driveRows])
 
-  // 👷 Tukang — item pekerjaan (WBS) proyek ini dari modul Planning.
+  // 👷 Tukang — item pekerjaan (WBS) proyek ini dari modul Budgeting.
   const laborRows = useMemo(
     () => plans.filter(pl => pl.project_id === projectId),
     [plans, projectId]
@@ -204,10 +204,10 @@ export default function ProjectFinance({ rows }) {
               <strong style={{ fontSize: '22px' }}>{summary.revenue > 0 ? rupiah(summary.revenue) : '—'}</strong>
               <small>{summary.revenue > 0 ? 'nilai kontrak (REV PROJECT)' : 'belum ada data revenue di Drive'}</small>
             </div>
-            <div className="card" title="Total estimasi upah tukang dari modul Project Planning">
+            <div className="card" title="Total estimasi upah tukang dari modul Budgeting">
               <span>👷 Biaya Tukang</span>
               <strong style={{ fontSize: '22px' }}>{laborRows.length ? rupiah(summary.labor) : '—'}</strong>
-              <small>{laborRows.length ? `${laborRows.length} item pekerjaan (Planning)` : 'belum ada item pekerjaan di Planning'}</small>
+              <small>{laborRows.length ? `${laborRows.length} item pekerjaan (Budgeting)` : 'belum ada item pekerjaan di Budgeting'}</small>
             </div>
             <div className="card" title="Cost material kumulatif — sumber: REKAP COST 2026 via sync Google Drive">
               <span>🧱 Material</span>
@@ -336,7 +336,7 @@ export default function ProjectFinance({ rows }) {
                       </tr>
                     )) : (
                       <tr><td colSpan={6} className="empty">
-                        Belum ada item pekerjaan / upah tukang untuk proyek ini. Tambahkan di modul Project Planning.
+                        Belum ada item pekerjaan / upah tukang untuk proyek ini. Tambahkan di modul Budgeting.
                       </td></tr>
                     )}
                   </tbody>

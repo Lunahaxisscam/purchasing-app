@@ -99,7 +99,7 @@ export const modules = [
   // --- Modul admin (folder masing-masing, sudah terpisah sejak awal) ---
   {
     id: 'planning',
-    label: 'Project Planning',
+    label: 'Budgeting',
     adminOnly: true,
     source: 'core',
     files: ['components/Planning.js', 'migrations/2026-10-10_planning_closing.sql']

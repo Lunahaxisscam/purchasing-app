@@ -12,7 +12,7 @@ import {
 } from '../lib/constants'
 
 // ============================================================
-// Modul PROJECT PLANNING — khusus role admin (adminOnly).
+// Modul BUDGETING — khusus role admin (adminOnly).
 // WBS per proyek: daftar pekerjaan per area, volume & satuan,
 // penugasan pekerja/tukang, estimasi upah (borongan/harian),
 // status progress, dan shortcut "+ Buat PR Material" ke modul
@@ -482,7 +482,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
         priority: 'NORMAL',
         status: 'DRAFT',
         materials_summary: summary,
-        notes: `Dari Project Planning — ${plan.area}${plan.spec ? ` (${plan.spec})` : ''}`
+        notes: `Dari Budgeting — ${plan.area}${plan.spec ? ` (${plan.spec})` : ''}`
       }).select().single()
 
       if (prErr) {
@@ -497,7 +497,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
               priority: 'NORMAL',
               status: 'DRAFT',
               materials_summary: summary,
-              notes: `Dari Project Planning — ${plan.area}${plan.spec ? ` (${plan.spec})` : ''}`
+              notes: `Dari Budgeting — ${plan.area}${plan.spec ? ` (${plan.spec})` : ''}`
             }).select().single()
             if (retry.error) { say(`Gagal membuat PR: ${retry.error.message}`); return }
             await finishPrItem(retry.data, plan, summary)
@@ -566,7 +566,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
           <small>
             {budget.revenue > 0
               ? `${persen(budget.laborPct, 1)} dari revenue (plafon 25%: ${rupiah(budget.budgetManpower)})`
-              : 'total labor cost planning proyek ini'}
+              : 'total labor cost budgeting proyek ini'}
           </small>
         </div>
         <div className="card">
@@ -615,7 +615,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
       {error && (
         <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
-          Gagal memuat data planning: {error}
+          Gagal memuat data budgeting: {error}
         </div>
       )}
 

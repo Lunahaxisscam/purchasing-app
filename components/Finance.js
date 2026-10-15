@@ -209,7 +209,7 @@ export default function Finance({ rows, session, refresh }) {
   //   Revenue        : dari project_cost_summary.revenue (sync REV PROJECT)
   //   Material       : project_cost_summary.cumulative_cost (COST ITEMS CONFIRMED)
   //   Petty Cash     : project_cost_summary.petty_cash (tab PETTY CASH)
-  //   Biaya Tukang   : SUM(project_plans.labor_cost) per proyek (modul Planning)
+  //   Biaya Tukang   : SUM(project_plans.labor_cost) per proyek (modul Budgeting)
   //   Budget Target  : 70% × Revenue
   //   Cost Kumulatif : Material + Petty Cash + Tukang
   //   Margin         : Revenue − Cost Kumulatif (Rp & %)
@@ -1152,7 +1152,7 @@ export default function Finance({ rows, session, refresh }) {
                   <td style={{ textAlign: 'right' }}>{rupiah(closingModal.petty)}</td>
                 </tr>
                 <tr>
-                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>c. Biaya Tukang <small>(Brokoli / Planning)</small></td>
+                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>c. Biaya Tukang <small>(Brokoli / Budgeting)</small></td>
                   <td style={{ textAlign: 'right' }}>{rupiah(closingModal.labor)}</td>
                 </tr>
                 <tr style={{ background: '#f7faf9' }}>

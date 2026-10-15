@@ -145,7 +145,7 @@ Perubahan daftar ini = perubahan KONTRAK (lewat Tech Lead).
 | Purchase/Receiving | `modules/receivings/` | _agent E_ | `receivings`, `receiving_items` | ✅ siap paralel |
 | Handover | `modules/handovers/` | _agent F_ | `handovers` | ✅ siap paralel |
 | Project | `modules/projects/` | _agent G_ | `projects` | ✅ siap paralel |
-| Project Planning | `components/Planning.js` | _agent H_ | `project_plans` | ✅ sudah terpisah |
+| Budgeting | `components/Planning.js` | _agent H_ | `project_plans` | ✅ sudah terpisah |
 | Project Finance | `components/ProjectFinance.js` | _agent H_ | (read-only) | ✅ sudah terpisah |
 | Finance & Closing | `components/Finance.js` | _agent I_ | `project_closings` | ✅ sudah terpisah |
 | Upah Tukang | `components/TukangUpah.js` | _agent J_ | `tukang_*` | ✅ sudah terpisah |
