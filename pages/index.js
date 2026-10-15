@@ -41,12 +41,33 @@ export default function App() {
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return }
+    let finished = false
+    const fallbackTimer = setTimeout(() => {
+      if (!finished) {
+        finished = true
+        setLoading(false)
+      }
+    }, 2500)
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
+      if (!finished) {
+        finished = true
+        clearTimeout(fallbackTimer)
+        setSession(data?.session || null)
+        setLoading(false)
+      }
+    }).catch(err => {
+      console.warn('Auth session load error:', err)
+      if (!finished) {
+        finished = true
+        clearTimeout(fallbackTimer)
+        setLoading(false)
+      }
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(fallbackTimer)
+      subscription?.unsubscribe?.()
+    }
   }, [])
 
   useEffect(() => {
@@ -328,8 +349,8 @@ export default function App() {
     if (!supabase || actionBusy) return
     const now = new Date().toISOString()
     const label = decision === 'APPROVED' ? 'DISETUJUI' : (decision === 'REJECTED' ? 'DITOLAK' : 'DIMINTA REVISI')
-    const baseNote = decision === 'APPROVED' ? 'Disetujui oleh Direksi / PM' : (decision === 'REJECTED' ? 'Ditolak oleh Direksi / PM' : 'Diminta revisi oleh Direksi / PM')
-    const note = userNote ? `${baseNote} — ${userNote}` : baseNote
+    // Catatan hanya diisi jika user mengetikkan sendiri; kalau kosong biarkan null
+    const note = userNote ? userNote : null
 
     const { error: appErr } = await supabase.from('approval_steps').update({
       status: decision,
