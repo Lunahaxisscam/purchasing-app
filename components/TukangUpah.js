@@ -67,30 +67,28 @@ export default function TukangUpah() {
   const [error, setError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const pollRef = useRef(null)
-  // --- data per proyek (3 tab Google Sheets) ---
-  const [projects, setProjects] = useState([])
-  const [upahItems, setUpahItems] = useState([])
-  const [kasbon, setKasbon] = useState([])
+  // --- data per proyek (LAZY: dimuat per tukang / per proyek, bukan semua) ---
+  const [projects, setProjects] = useState([])           // proyek tukang terpilih
+  const [projectsLoading, setProjectsLoading] = useState(false)
+  const [upahItems, setUpahItems] = useState([])         // item proyek yg dibuka saja
+  const [itemsLoading, setItemsLoading] = useState(false)
+  const [kasbon, setKasbon] = useState([])               // kasbon tukang terpilih
+  const [kasbonLoading, setKasbonLoading] = useState(false)
   const [openProject, setOpenProject] = useState(null)   // nama proyek yg dibuka
 
+  // Load ringan: hanya dashboard tukang + status sync (TIDAK menarik item/kasbon).
   const load = useCallback(async (silent = false) => {
     if (!supabase) return
     if (!silent) setLoading(true)
     setError('')
     try {
-      const [dashRes, syncRes, projRes, itemsRes, kasbonRes] = await Promise.all([
+      const [dashRes, syncRes] = await Promise.all([
         supabase.from('tukang_dashboards').select('*').order('tukang_key', { ascending: true }),
-        supabase.from('sync_status').select('*').eq('id', STATUS_ID).maybeSingle(),
-        supabase.from('tukang_projects').select('*').order('sort_order', { ascending: true }),
-        supabase.from('tukang_upah_items').select('*').order('sort_order', { ascending: true }),
-        supabase.from('tukang_kasbon').select('*').order('sort_order', { ascending: true })
+        supabase.from('sync_status').select('*').eq('id', STATUS_ID).maybeSingle()
       ])
       if (dashRes.error) setError(dashRes.error.message)
       else setRows(dashRes.data || [])
       if (!syncRes.error && syncRes.data) setSync(syncRes.data)
-      if (!projRes.error) setProjects(projRes.data || [])
-      if (!itemsRes.error) setUpahItems(itemsRes.data || [])
-      if (!kasbonRes.error) setKasbon(kasbonRes.data || [])
     } catch (e) {
       setError(e.message)
     } finally {
@@ -104,6 +102,51 @@ export default function TukangUpah() {
   useEffect(() => {
     if (!tukangKey && rows.length) setTukangKey(rows[0].tukang_key)
   }, [rows, tukangKey])
+
+  // LAZY: muat proyek + kasbon HANYA untuk tukang terpilih, dan hanya saat
+  // tab "Per Proyek" dibuka. Data lama dibersihkan saat tukang berganti.
+  useEffect(() => {
+    if (!supabase || !tukangKey || view !== 'projects') return
+    let cancelled = false
+    setProjectsLoading(true)
+    setKasbonLoading(true)
+    ;(async () => {
+      try {
+        const [projRes, kasbonRes] = await Promise.all([
+          supabase.from('tukang_projects').select('*').eq('tukang_key', tukangKey).order('sort_order', { ascending: true }),
+          supabase.from('tukang_kasbon').select('*').eq('tukang_key', tukangKey).order('sort_order', { ascending: true })
+        ])
+        if (cancelled) return
+        if (!projRes.error) setProjects(projRes.data || [])
+        if (!kasbonRes.error) setKasbon(kasbonRes.data || [])
+      } catch (e) {
+        if (!cancelled) setError(e.message)
+      } finally {
+        if (!cancelled) { setProjectsLoading(false); setKasbonLoading(false) }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [tukangKey, view])
+
+  // LAZY: muat item pekerjaan HANYA untuk proyek yg dibuka.
+  useEffect(() => {
+    if (!supabase || !tukangKey || !openProject) { setUpahItems([]); return }
+    let cancelled = false
+    setItemsLoading(true)
+    ;(async () => {
+      try {
+        const { data, error: itErr } = await supabase.from('tukang_upah_items').select('*')
+          .eq('tukang_key', tukangKey).eq('project_name', openProject).order('sort_order', { ascending: true })
+        if (cancelled) return
+        if (!itErr) setUpahItems(data || [])
+      } catch (e) {
+        if (!cancelled) setError(e.message)
+      } finally {
+        if (!cancelled) setItemsLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [tukangKey, openProject])
 
   // Bersihkan polling saat unmount.
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
@@ -155,44 +198,22 @@ export default function TukangUpah() {
     return tukang.batches
   }, [tukang])
 
-  // --- Data per proyek (tukang terpilih) ---
-  const myProjects = useMemo(
-    () => projects.filter(p => p.tukang_key === tukangKey),
-    [projects, tukangKey]
-  )
-  const myItems = useMemo(
-    () => upahItems.filter(it => it.tukang_key === tukangKey),
-    [upahItems, tukangKey]
-  )
-  const myKasbon = useMemo(
-    () => kasbon.filter(k => k.tukang_key === tukangKey),
-    [kasbon, tukangKey]
-  )
-  // Kelompokkan item pekerjaan per proyek (untuk panel detail).
-  const itemsByProject = useMemo(() => {
-    const map = {}
-    for (const it of myItems) {
-      const k = it.project_name || '—'
-      if (!map[k]) map[k] = []
-      map[k].push(it)
-    }
-    return map
-  }, [myItems])
-  // Total pekerjaan per proyek: pakai subtotal baris "Total Project X" bila ada,
-  // jika tidak jumlahkan kolom upah_rincian (pola yang sama dengan Dashboard sheet).
+  // --- Data per proyek (sudah difilter di DB per tukang terpilih) ---
+  const myProjects = projects
+  const myKasbon = kasbon
+  const myItems = upahItems
+  // Jumlah item & total per proyek SUDAH dihitung daemon (kolom item_count /
+  // total_rincian di tukang_projects) — UI tidak perlu menarik semua item.
   const projectTotals = useMemo(() => {
     const map = {}
     for (const p of myProjects) {
-      const items = itemsByProject[p.project_name] || []
-      const subtotal = items.reduce((s, it) => s + (Number(it.total_proyek) || 0), 0)
-      const sumRincian = items.reduce((s, it) => s + (Number(it.upah_rincian) || 0), 0)
       map[p.project_name] = {
-        total: subtotal > 0 ? subtotal : sumRincian,
-        itemCount: items.filter(it => it.pekerjaan && !/^total\b/i.test(String(it.pekerjaan))).length
+        total: p.total_rincian !== null && p.total_rincian !== undefined ? Number(p.total_rincian) : null,
+        itemCount: Number(p.item_count) || 0
       }
     }
     return map
-  }, [myProjects, itemsByProject])
+  }, [myProjects])
 
   // Saldo berjalan: pakai nilai dari sheet; fallback hitung dari ringkasan.
   const saldo = useMemo(() => {
@@ -413,7 +434,9 @@ export default function TukangUpah() {
           ) : (
           <>
           {/* ================= TAB PER PROYEK ================= */}
-          {myProjects.length === 0 ? (
+          {projectsLoading ? (
+            <div className="panel empty">Memuat data proyek…</div>
+          ) : myProjects.length === 0 ? (
             <div className="panel empty">
               Belum ada data rincian upah per proyek untuk tukang ini.
               {tukangKey === 'asep' ? ' Sheet Asep masih kosong — akan terisi otomatis setelah tim mengisi tab Rincian Upah.' : ''}
@@ -503,7 +526,9 @@ export default function TukangUpah() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(itemsByProject[openProject] || []).map((it, i) => (
+                      {itemsLoading ? (
+                        <tr><td colSpan={7} className="empty">Memuat rincian pekerjaan…</td></tr>
+                      ) : upahItems.length ? upahItems.map((it, i) => (
                         <tr key={it.id || i}>
                           <td><b>{i + 1}</b></td>
                           <td><EllipCell text={it.pekerjaan} wide /></td>
@@ -513,16 +538,18 @@ export default function TukangUpah() {
                           <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtRp(it.total_proyek)}</td>
                           <td><EllipCell text={it.catatan} small muted /></td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr><td colSpan={7} className="empty">Belum ada item pekerjaan untuk proyek ini.</td></tr>
+                      )}
                     </tbody>
                     <tfoot>
                       <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
                         <td colSpan={4} style={{ textAlign: 'right' }}>TOTAL PROYEK</td>
                         <td style={{ textAlign: 'right' }}>
-                          {fmtRp((itemsByProject[openProject] || []).reduce((s, it) => s + (Number(it.upah_rincian) || 0), 0))}
+                          {fmtRp(upahItems.reduce((s, it) => s + (Number(it.upah_rincian) || 0), 0))}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          {fmtRp((itemsByProject[openProject] || []).reduce((s, it) => s + (Number(it.total_proyek) || 0), 0))}
+                          {fmtRp(upahItems.reduce((s, it) => s + (Number(it.total_proyek) || 0), 0))}
                         </td>
                         <td></td>
                       </tr>
@@ -536,7 +563,6 @@ export default function TukangUpah() {
                 {myProjects.map((p, i) => {
                   const tot = projectTotals[p.project_name] || { total: 0, itemCount: 0 }
                   const isOpen = openProject === p.project_name
-                  const items = itemsByProject[p.project_name] || []
                   return (
                     <div className="mobile-card" key={p.id || i}>
                       <div className="mobile-card-header">
@@ -557,14 +583,16 @@ export default function TukangUpah() {
                             </button>
                           </span>
                         </div>
-                        {isOpen && items.map((it, j) => (
+                        {isOpen && (itemsLoading ? (
+                          <div className="mobile-card-row"><span className="mobile-label">⏳</span><span className="mobile-val">Memuat pekerjaan…</span></div>
+                        ) : upahItems.map((it, j) => (
                           <div className="mobile-card-row" key={it.id || j}>
                             <span className="mobile-label">{j + 1}.</span>
                             <span className="mobile-val" style={{ fontSize: '12px' }}>
                               {it.pekerjaan} · {it.ukuran ?? '—'} · {fmtRp(it.upah_rincian)}
                             </span>
                           </div>
-                        ))}
+                        )))}
                       </div>
                     </div>
                   )
