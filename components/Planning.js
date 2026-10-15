@@ -44,10 +44,25 @@ function digitsOnly(v) {
   return d ? Number(d) : 0
 }
 
+// Normalisasi nomor proyek untuk pencocokan project_no (Rekap Cost) ↔ kode (Projects).
+// Toleran terhadap: spasi, leading zero ('099' == '99'), dan sisa desimal ekspor
+// numerik Sheets ('99.0' == '99'). String non-numerik ('99abc') TIDAK dianggap
+// sama dengan '99' (mencegah false-match seperti parseInt).
+function normalizeProjectNo(v) {
+  const s = String(v ?? '').trim()
+  if (!s) return ''
+  const m = s.match(/^0*(\d+)(?:[.,]0+)?$/)
+  return m ? String(Number(m[1])) : s
+}
+
 export default function Planning({ rows, say, setPage, refresh }) {
   const allProjects = rows?.projects || []
   const [plans, setPlans] = useState([])
   const [costData, setCostData] = useState([])
+  // Error khusus tabel project_cost_summary (Rekap Cost) — dipisah dari `error`
+  // supaya panel pagu anggaran TIDAK salah klaim "Revenue belum diset" ketika
+  // data cost sebenarnya GAGAL dimuat (RLS / jaringan).
+  const [costError, setCostError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [projectId, setProjectId] = useState('')
@@ -77,6 +92,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
     if (!supabase) return
     setLoading(true)
     setError('')
+    setCostError('')
     try {
       const [plansRes, costRes] = await Promise.all([
         supabase
@@ -92,6 +108,8 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
       if (costRes.error) {
         console.warn('Gagal memuat project_cost_summary:', costRes.error.message)
+        setCostError(costRes.error.message || 'gagal memuat data Rekap Cost')
+        setCostData([])
       } else {
         setCostData(costRes.data || [])
       }
@@ -106,17 +124,19 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
   const project = activeProjects.find(p => p.id === projectId) || allProjects.find(p => p.id === projectId)
 
-  // Data project_cost_summary yang cocok dengan proyek aktif (berdasarkan project_no == p.kode)
+  // Data project_cost_summary yang cocok dengan proyek aktif (project_no == p.kode).
+  // Exact match dulu; fallback normalisasi nomor (leading zero / '.0') yang aman
+  // dari false-match (lihat normalizeProjectNo).
   const activeCost = useMemo(() => {
     if (!project || !costData.length) return null
     const key = String(project.kode || '').trim()
     if (!key) return null
+    const keyNorm = normalizeProjectNo(key)
     return costData.find(c => {
       const cNo = String(c.project_no || '').trim()
       if (cNo === key) return true
-      const na = parseInt(cNo, 10)
-      const nb = parseInt(key, 10)
-      return !isNaN(na) && !isNaN(nb) && na === nb
+      if (!keyNorm || !cNo) return false
+      return normalizeProjectNo(cNo) === keyNorm
     }) || null
   }, [project, costData])
 
@@ -313,9 +333,13 @@ export default function Planning({ rows, say, setPage, refresh }) {
       marginPct,
       marginAchievement,
 
+      // Status muat Rekap Cost (project_cost_summary) — dipakai panel untuk
+      // membedakan "revenue memang belum diisi" vs "data gagal dimuat".
+      costError,
+
       costSummary: activeCost
     }
-  }, [activeCost, stats.labor])
+  }, [activeCost, stats.labor, costError])
 
   // Sinkronkan ke stats untuk kompatibilitas penuh dengan pemanggilan legacy
   Object.assign(stats, budget)
@@ -595,6 +619,12 @@ export default function Planning({ rows, say, setPage, refresh }) {
         </div>
       )}
 
+      {costError && (
+        <div className="notice" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}>
+          ⚠️ Gagal memuat data Rekap Cost (project_cost_summary): {costError}. Pagu anggaran 4-pilar belum bisa dihitung — nilai di bawah BUKAN angka nol sesungguhnya. Coba tombol ↻ Perbarui; bila berulang, periksa koneksi / hak akses (RLS admin).
+        </div>
+      )}
+
       {/* ============================================================
           PANEL KONTROL ANGGARAN & PAGU HISTORIS (NOIR LIVING)
           Patokan: Material 50% max · Manpower 25% max · Ops 10% · Margin 15%
@@ -628,6 +658,10 @@ export default function Planning({ rows, say, setPage, refresh }) {
                   ✓ Semua 4-Pilar Aman (Margin {persen(budget.marginPct, 1)})
                 </span>
               )
+            ) : budget.costError ? (
+              <span className="badge" style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #f87171', fontSize: '12px', padding: '6px 12px', fontWeight: 700 }}>
+                ⚠️ Gagal memuat Rekap Cost — pagu belum bisa dihitung
+              </span>
             ) : (
               <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '12px', padding: '6px 12px', fontWeight: 700 }}>
                 Revenue belum diset di Rekap Cost
@@ -641,7 +675,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
           <div className="budget-overview-item">
             <span className="budget-overview-label">Nilai Kontrak (Revenue)</span>
             <div className="budget-overview-val">
-              {budget.revenue > 0 ? rupiah(budget.revenue) : 'Belum Diset'}
+              {budget.revenue > 0 ? rupiah(budget.revenue) : (budget.costError ? 'Gagal Dimuat' : 'Belum Diset')}
               {budget.revenue > 0 && <small>Basis 100%</small>}
             </div>
           </div>
@@ -680,6 +714,10 @@ export default function Planning({ rows, say, setPage, refresh }) {
                     ✓ Sesuai Pagu Historis
                   </span>
                 )
+              ) : budget.costError ? (
+                <span className="badge" style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #f87171', fontSize: '11px', fontWeight: 750 }}>
+                  ⚠️ Rekap Cost Gagal Dimuat
+                </span>
               ) : (
                 <span className="badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '11px', fontWeight: 650 }}>
                   Menunggu Nilai Kontrak
@@ -754,7 +792,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
                 <div className="budget-detail-row">
                   <span className="budget-detail-label">Pengeluaran Riil:</span>
                   <span className={`budget-detail-val ${budget.isMaterialOver ? 'danger-text' : ''}`}>
-                    {rupiah(budget.realMaterial)}
+                    {budget.costError ? '—' : rupiah(budget.realMaterial)}
                   </span>
                 </div>
                 <div className="budget-detail-row">
@@ -782,7 +820,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
                   )
                 ) : (
                   <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '10.5px', display: 'block', textAlign: 'center' }}>
-                    Riil: {rupiah(budget.realMaterial)}
+                    {budget.costError ? 'Riil: — (Rekap Cost gagal dimuat)' : `Riil: ${rupiah(budget.realMaterial)}`}
                   </span>
                 )}
               </div>
@@ -892,7 +930,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
                 <div className="budget-detail-row">
                   <span className="budget-detail-label">Pengeluaran Riil (Petty Cash):</span>
                   <span className={`budget-detail-val ${budget.isOperasionalOver ? 'danger-text' : ''}`}>
-                    {rupiah(budget.realOperasional)}
+                    {budget.costError ? '—' : rupiah(budget.realOperasional)}
                   </span>
                 </div>
                 <div className="budget-detail-row">
@@ -920,7 +958,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
                   )
                 ) : (
                   <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '10.5px', display: 'block', textAlign: 'center' }}>
-                    Petty Cash: {rupiah(budget.realOperasional)}
+                    {budget.costError ? 'Petty Cash: — (Rekap Cost gagal dimuat)' : `Petty Cash: ${rupiah(budget.realOperasional)}`}
                   </span>
                 )}
               </div>

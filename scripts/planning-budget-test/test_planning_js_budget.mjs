@@ -157,4 +157,29 @@ assert.strictEqual(safeNaN.isOperasionalOver, false)
 assert.strictEqual(safeNaN.isMarginThin, false)
 console.log('✓ Skenario 5 (Aman dari NaN & Fallback Zero) LULUS')
 
+// Skenario 6: normalisasi nomor project_no ↔ kode (integrasi revenue Rekap Cost).
+// Salinan persis dari normalizeProjectNo di components/Planning.js — jaga sinkron.
+function normalizeProjectNo(v) {
+  const s = String(v ?? '').trim()
+  if (!s) return ''
+  const m = s.match(/^0*(\d+)(?:[.,]0+)?$/)
+  return m ? String(Number(m[1])) : s
+}
+
+assert.strictEqual(normalizeProjectNo('99'), '99')
+assert.strictEqual(normalizeProjectNo('099'), '99', 'leading zero harus setara')
+assert.strictEqual(normalizeProjectNo('99.0'), '99', 'sisa desimal ekspor Sheets harus setara')
+assert.strictEqual(normalizeProjectNo(' 99 '), '99', 'spasi harus dibersihkan')
+assert.notStrictEqual(normalizeProjectNo('1000'), '99', 'nomor berbeda tidak boleh match')
+assert.notStrictEqual(normalizeProjectNo('99abc'), '99', 'string non-numerik tidak boleh false-match')
+assert.notStrictEqual(normalizeProjectNo('99b'), '99', 'sufiks huruf tidak boleh false-match')
+assert.strictEqual(normalizeProjectNo(''), '', 'kosong tetap kosong')
+assert.strictEqual(normalizeProjectNo(null), '', 'null aman')
+assert.strictEqual(normalizeProjectNo('A-12'), 'A-12', 'kode alfanumerik dipertahankan apa adanya')
+
+// Pastikan Planning.js benar-benar memakai normalisasi ini untuk activeCost.
+assert(planningCode.includes('normalizeProjectNo'), 'Planning.js harus memakai normalizeProjectNo')
+assert(planningCode.includes('costError'), 'Planning.js harus melacak kegagalan muat Rekap Cost (costError)')
+console.log('✓ Skenario 6 (Normalisasi nomor project_no ↔ kode) LULUS')
+
 console.log('[SUKSES] Semua verifikasi data layer 4-pilar berhasil!')

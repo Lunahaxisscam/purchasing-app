@@ -65,9 +65,11 @@ const PLANS = [
   { id: 'pl1', project_id: 'p1', area: 'Dapur', item_name: 'Kabinet Atas', labor_cost: 20000000, status: 'Perencanaan', progress: 50 }
 ]
 
-async function renderScenario(costs, plans = PLANS) {
+async function renderScenario(costs, plans = PLANS, opts = {}) {
   __mockState.costs = costs
   __mockState.plans = plans
+  __mockState.failPlans = !!opts.failPlans
+  __mockState.failCosts = !!opts.failCosts
   const host = window.document.createElement('div')
   window.document.body.appendChild(host)
   const root = createRoot(host)
@@ -149,6 +151,83 @@ console.log('\nC. Multi-pos anomali (mat 55jt, upah 28jt, ops 12jt — semua mel
   check('footer menandai pilar anomali (Over) & margin (Tipis)', text.includes('Material 50% (Over)') && text.includes('Margin 15% (Tipis)'))
   check('tidak ada "NaN" di DOM', !text.includes('NaN'))
   await unmount()
+}
+
+// ---------- SKENARIO D: Rekap Cost gagal dimuat (data-layer: costError) ----------
+console.log('\nD. Rekap Cost gagal dimuat (project_cost_summary error — bukan nol sesungguhnya)')
+{
+  const { html, text, host, unmount } = await renderScenario([], PLANS, { failCosts: true })
+  check('notice kegagalan Rekap Cost tampil', text.includes('Gagal memuat data Rekap Cost'))
+  check('notice menyebut nilai BUKAN angka nol sesungguhnya', text.includes('BUKAN angka nol sesungguhnya'))
+  check('badge header = "Gagal memuat Rekap Cost" (bukan "Revenue belum diset")', text.includes('Gagal memuat Rekap Cost — pagu belum bisa dihitung') && !text.includes('Revenue belum diset di Rekap Cost'))
+  check('overview Nilai Kontrak = "Gagal Dimuat"', text.includes('Gagal Dimuat') && !text.includes('Belum Diset'))
+  check('status anggaran = "Rekap Cost Gagal Dimuat"', text.includes('Rekap Cost Gagal Dimuat') && !text.includes('Menunggu Nilai Kontrak'))
+  check('kartu material tidak klaim "Riil: Rp 0"', text.includes('Riil: — (Rekap Cost gagal dimuat)') && !text.includes('Riil: Rp 0'))
+  check('kartu ops tidak klaim "Petty Cash: Rp 0"', text.includes('Petty Cash: — (Rekap Cost gagal dimuat)'))
+  check('detail Pengeluaran Riil = "—"', (text.match(/Pengeluaran Riil:/g) || []).length >= 1)
+  check('4 kartu pilar tetap ter-render', host.querySelectorAll('.budget-card').length === 4)
+  check('tidak ada "NaN" di DOM', !text.includes('NaN'))
+  check('tidak ada klaim anomali tanpa data revenue', !text.includes('ANOMALI ANGGARAN TERDETEKSI'))
+  await unmount()
+}
+
+// ---------- SKENARIO E: toleransi format nomor project_no ↔ kode ----------
+console.log('\nE. Integrasi revenue: normalisasi nomor (leading zero / desimal ekspor Sheets)')
+{
+  // E1: project.kode '99' vs cost.project_no '099' (leading zero)
+  {
+    const costs = [{ project_no: '099', revenue: 100000000, cumulative_cost: 45000000, petty_cash: 8000000 }]
+    const { text, host, unmount } = await renderScenario(costs)
+    check('kode "99" cocok dengan project_no "099"', text.includes('Semua 4-Pilar Aman') && text.includes('Rp 50.000.000'))
+    check('4 kartu is-on-track', host.querySelectorAll('.budget-card.is-on-track').length === 4)
+    await unmount()
+  }
+  // E2: project.kode '99' vs cost.project_no '99.0' (sisa desimal ekspor numerik)
+  {
+    const costs = [{ project_no: '99.0', revenue: 100000000, cumulative_cost: 45000000, petty_cash: 8000000 }]
+    const { text, unmount } = await renderScenario(costs)
+    check('kode "99" cocok dengan project_no "99.0"', text.includes('Semua 4-Pilar Aman'))
+    await unmount()
+  }
+  // E3: TIDAK boleh false-match — project_no '1000' tidak boleh dianggap proyek '99'
+  {
+    const costs = [{ project_no: '1000', revenue: 100000000, cumulative_cost: 45000000, petty_cash: 8000000 }]
+    const { text, unmount } = await renderScenario(costs)
+    check('project_no "1000" TIDAK dianggap proyek "99"', text.includes('Revenue belum diset di Rekap Cost') && !text.includes('Semua 4-Pilar Aman'))
+    await unmount()
+  }
+  // E4: string non-numerik tidak false-match ('99abc' ≠ '99')
+  {
+    const costs = [{ project_no: '99abc', revenue: 100000000, cumulative_cost: 45000000, petty_cash: 8000000 }]
+    const { text, unmount } = await renderScenario(costs)
+    check('project_no "99abc" TIDAK dianggap proyek "99"', text.includes('Revenue belum diset di Rekap Cost'))
+    await unmount()
+  }
+}
+
+// ---------- SKENARIO F: koersi nilai revenue/realisasi (string & null dari Sheets) ----------
+console.log('\nF. Integrasi revenue: nilai string / null dari ekspor Sheets aman')
+{
+  // F1: revenue & cost sebagai string angka (format Sheets)
+  {
+    const costs = [{ project_no: '99', revenue: '100000000', cumulative_cost: '55000000', petty_cash: '12000000' }]
+    const plans = [{ id: 'pl1', project_id: 'p1', area: 'Dapur', item_name: 'Kabinet Atas', labor_cost: 28000000, status: 'Perencanaan', progress: 50 }]
+    const { text, unmount } = await renderScenario(costs, plans)
+    check('revenue string "100000000" terbaca (pagu Rp 50.000.000)', text.includes('Rp 50.000.000'))
+    check('anomali material terdeteksi dari nilai string (+Rp 5.000.000)', text.includes('+Rp 5.000.000'))
+    check('tidak ada "NaN" di DOM', !text.includes('NaN'))
+    await unmount()
+  }
+  // F2: revenue null & cost null → fallback aman (bukan NaN, bukan anomali)
+  {
+    const costs = [{ project_no: '99', revenue: null, cumulative_cost: null, petty_cash: null }]
+    const { text, host, unmount } = await renderScenario(costs)
+    check('revenue null → "Revenue belum diset"', text.includes('Revenue belum diset di Rekap Cost'))
+    check('tidak ada "NaN" di DOM', !text.includes('NaN'))
+    check('tidak ada klaim anomali', !text.includes('ANOMALI ANGGARAN TERDETEKSI'))
+    check('4 kartu pilar tetap ter-render', host.querySelectorAll('.budget-card').length === 4)
+    await unmount()
+  }
 }
 
 console.log(`\n=== HASIL: ${pass} LULUS, ${fail} GAGAL ===`)
