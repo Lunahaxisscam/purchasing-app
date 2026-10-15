@@ -626,7 +626,25 @@ export default function App() {
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
     const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Purchase' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
-    const itemName = item.invoice_no || item.pr_number || item.delivery_note || item.received_by || item.name || item.kode || item.code || 'Item'
+    
+    // Sesuaikan penentuan itemName berdasarkan pageTarget
+    let itemName
+    if (pageTarget === 'vendors') {
+      itemName = item.name || item.code || 'Item'
+    } else if (pageTarget === 'materials') {
+      itemName = item.item_name || item.kode || 'Item'
+    } else if (pageTarget === 'projects' || pageTarget === 'past_projects') {
+      itemName = item.name || item.kode || 'Item'
+    } else if (pageTarget === 'requests') {
+      itemName = item.pr_number || item.title || 'Item'
+    } else if (pageTarget === 'receivings') {
+      itemName = item.invoice_no || item.delivery_note || 'Item'
+    } else if (pageTarget === 'handovers') {
+      itemName = item.received_by || 'Item'
+    } else {
+      itemName = item.invoice_no || item.pr_number || item.delivery_note || item.received_by || item.name || item.kode || item.code || 'Item'
+    }
+    
     const ok = window.confirm(`Apakah Anda yakin ingin menghapus ${typeLabel.toLowerCase()} "${itemName}"?`)
     if (!ok) return
 
