@@ -9,8 +9,11 @@ import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatu
 //   👷 Tukang   — estimasi upah dari modul Budgeting (project_plans)
 //   🧱 Material — cost material (sync REKAP COST 2026) + rincian pengadaan
 //                 internal (estimasi PR vs purchase riil dari nota)
-// Plus kartu ringkasan: Margin = Revenue − (Material + Petty Cash + Tukang),
-// konsisten dengan formula modul Closing Proyek.
+// Plus kartu ringkasan — Project Margin (Gross Profit) MURNI sesuai keputusan
+// brainstorm DAT:
+//   Gross Profit = Revenue − Actual Material − Actual Tukang.
+//   Petty cash / operasional TIDAK lagi memotong margin proyek — pos itu
+//   dilaporkan sebagai Beban Operasional WS (pos umum) di modul Finance.
 // TIDAK ada input di modul ini — semua angka berasal dari sumbernya
 // (Google Drive sync & modul Budgeting). Jangan tambahkan form tulis di sini
 // tanpa permintaan eksplisit dari user.
@@ -128,14 +131,17 @@ export default function ProjectFinance({ rows }) {
     return { est, real, count: materialPrRows.length }
   }, [materialPrRows])
 
-  // Ringkasan margin — formula sama dengan Closing Proyek:
-  // Margin = Revenue − (Material + Petty Cash + Tukang).
+  // Ringkasan margin — Project Margin (Gross Profit) murni sesuai keputusan
+  // brainstorm DAT:
+  //   Gross Profit = Revenue − Actual Material − Actual Tukang.
+  //   Petty cash dikecualikan — operasional dilaporkan sebagai pos umum WS
+  //   di modul Finance (Net Margin Perusahaan).
   const summary = useMemo(() => {
     const revenue = Number(drive?.revenue) || 0
     const material = Number(drive?.cumulative_cost) || 0
     const petty = Number(drive?.petty_cash) || 0
     const labor = Math.round(laborTotal)
-    const total = material + petty + labor
+    const total = material + labor
     const margin = revenue - total
     // Pembulatan sebelum dibandingkan (pitfall uang: 43300000*0.7 = 30309999.99…).
     const target = Math.round(revenue * 70) / 100
@@ -202,32 +208,20 @@ export default function ProjectFinance({ rows }) {
             <div className="card" title="Nilai kontrak proyek — sumber: REV PROJECT.xlsx via sync Google Drive">
               <span>💰 Revenue</span>
               <strong style={{ fontSize: '22px' }}>{summary.revenue > 0 ? rupiah(summary.revenue) : '—'}</strong>
-              <small>{summary.revenue > 0 ? 'nilai kontrak (REV PROJECT)' : 'belum ada data revenue di Drive'}</small>
             </div>
             <div className="card" title="Total estimasi upah tukang dari modul Budgeting">
               <span>👷 Biaya Tukang</span>
               <strong style={{ fontSize: '22px' }}>{laborRows.length ? rupiah(summary.labor) : '—'}</strong>
-              <small>{laborRows.length ? `${laborRows.length} item pekerjaan (Budgeting)` : 'belum ada item pekerjaan di Budgeting'}</small>
             </div>
             <div className="card" title="Cost material kumulatif — sumber: REKAP COST 2026 via sync Google Drive">
               <span>🧱 Material</span>
               <strong style={{ fontSize: '22px' }}>{drive ? rupiah(summary.material) : '—'}</strong>
-              <small>
-                {drive
-                  ? `REKAP COST${summary.petty > 0 ? ` · Petty Cash ${rupiah(summary.petty)}` : ''}`
-                  : 'belum ada data cost di Drive'}
-              </small>
             </div>
             <div className="card" title="Margin = Revenue − (Material + Petty Cash + Tukang)">
               <span>📈 Margin (Laba Kotor)</span>
               <strong style={{ fontSize: '22px', color: summary.marginPct === null ? '#9aa8a4' : (summary.margin < 0 ? '#b91c1c' : '#0d6e38') }}>
                 {summary.marginPct === null ? '—' : rupiah(summary.margin)}
               </strong>
-              <small>
-                {summary.marginPct === null
-                  ? 'menunggu data revenue'
-                  : `${persen(summary.marginPct)} · ${summary.underBudget ? '✓ HEMAT (≤ budget 70%)' : '⚠ OVER-BUDGET (> 70%)'}`}
-              </small>
             </div>
           </div>
 
