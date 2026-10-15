@@ -23,8 +23,9 @@ export function filters(ctx) {
         type="button"
         className={`pill ${prFilter === 'all' ? 'active' : ''}`}
         onClick={() => setPrFilter('all')}
+        title="Semua PR yang belum disetujui — riwayat PR approved ada di tab Approved"
       >
-        Semua ({rows.length})
+        Semua Aktif ({rows.filter(r => r.status !== 'APPROVED').length})
       </button>
       <button
         type="button"

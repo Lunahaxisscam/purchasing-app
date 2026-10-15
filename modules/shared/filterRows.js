@@ -30,6 +30,9 @@ export function filterRows({
     else if (prFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')
     else if (prFilter === 'REJECTED') displayRows = rows.filter(r => r.status === 'REJECTED')
     else if (prFilter === 'URGENT') displayRows = rows.filter(r => r.priority === 'URGENT')
+    // 'all' (default saat modul dibuka): sembunyikan PR yang sudah APPROVED —
+    // arahan DAT. Tab 'APPROVED' tetap tersedia untuk melihat riwayat approval.
+    else displayRows = rows.filter(r => r.status !== 'APPROVED')
   } else if (page === 'approvals') {
     if (approvalFilter === 'PENDING') displayRows = rows.filter(r => r.status === 'PENDING')
     else if (approvalFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
