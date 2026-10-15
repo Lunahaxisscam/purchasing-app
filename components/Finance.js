@@ -5,15 +5,22 @@ import { rupiah, formatDateTime, timeAgo, persen } from '../lib/constants'
 
 // ============================================================
 // Modul FINANCE — khusus role admin.
-// Tab 1 & 2: ringkasan dari data pengadaan app (estimasi PR vs purchase riil).
-// Tab 3 "Cost Drive": data cost dari Google Sheets "REKAP COST 2026"
+// Tab "🏢 Ringkasan Perusahaan" (OPSI C — default): 4 KPI konsolidasi
+//   (Total Revenue, Total Project Margin, Beban Operasional WS,
+//   Net Margin Perusahaan) + tabel gross margin per proyek +
+//   rekap pos umum Operasional WS. Gross Profit proyek MURNI =
+//   Revenue − Actual Material − Actual Tukang; petty cash/operasional
+//   TIDAK memotong margin proyek — dilaporkan sebagai pos umum WS.
+// Tab Pengadaan per Project & Detail per PR: ringkasan dari data
+//   pengadaan app (estimasi PR vs purchase riil).
+// Tab "Cost Drive": data cost dari Google Sheets "REKAP COST 2026"
 //   (READ-ONLY) yang disinkronkan daemon ke tabel project_cost_summary.
 //   Tombol "🔄 Refresh Sekarang" meminta sync on-demand via sync_status;
 //   daemon (pm2 drive-sync) memproses permintaan itu dalam ≤45 detik.
-// Tab 4 "Closing Proyek": P&L per proyek (Revenue, Budget 70%, Cost Kumulatif,
+// Tab "Closing Proyek": P&L per proyek (Revenue, Budget 70%, Cost Kumulatif,
 //   Margin, Labor Ratio) + modal review & kunci snapshot permanen ke tabel
 //   project_closings (RPC close_project — atomic, admin-only).
-// Tab 5 "Arsip Closing": riwayat P&L yang sudah terkunci permanen.
+// Tab "Arsip Closing": riwayat P&L yang sudah terkunci permanen.
 // ============================================================
 
 function parseNominalFromNote(note) {
@@ -24,18 +31,22 @@ function parseNominalFromNote(note) {
   return digits ? Number(digits) : null
 }
 
-export default function Finance({ rows, session, refresh }) {
-  const [view, setView] = useState('summary')
+export default function Finance({ rows, session, refresh, initialDriveRows, initialPlans, initialClosings }) {
+  // Opsi C: tab default = Ringkasan Perusahaan (KPI konsolidasi + gross margin
+  // per proyek + rekap pos umum Operasional WS).
+  const [view, setView] = useState('opsi')
   // --- state tab Cost Drive ---
-  const [driveRows, setDriveRows] = useState([])
+  // initial* props: data awal dari SSR/test (opsional) supaya kartu terisi
+  // tanpa menunggu efek muat data; produksi tetap memuat via loadDrive().
+  const [driveRows, setDriveRows] = useState(initialDriveRows || [])
   const [sync, setSync] = useState(null)
   const [driveLoading, setDriveLoading] = useState(false)
   const [driveError, setDriveError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const pollRef = useRef(null)
   // --- state tab Closing Proyek ---
-  const [closings, setClosings] = useState([])
-  const [plans, setPlans] = useState([])
+  const [closings, setClosings] = useState(initialClosings || [])
+  const [plans, setPlans] = useState(initialPlans || [])
   const [closingLoading, setClosingLoading] = useState(false)
   const [closingError, setClosingError] = useState('')
   const [closingModal, setClosingModal] = useState(null)   // { project, calc }
@@ -205,6 +216,76 @@ export default function Finance({ rows, session, refresh }) {
   }, [driveRows])
 
   // ============================================================
+  // OPSI C — RINGKASAN PERUSAHAAN (Net Margin WS)
+  // Gross Profit per proyek = Revenue − Actual Material − Actual Tukang
+  //   (MURNI — petty cash tidak memotong margin proyek).
+  // Beban Operasional WS = pos umum workshop di Drive data: baris dengan
+  //   project_no "operasional ws" (kolom cumulative_cost = OPEX kumulatif,
+  //   kolom current_week_expense = OPEX minggu berjalan).
+  // Net Margin Perusahaan = Σ Gross Profit seluruh proyek − Beban Operasional WS.
+  // ============================================================
+  const opsC = useMemo(() => {
+    // 👷 Actual Tukang per proyek — dari modul Budgeting (project_plans).
+    const laborByProject = {}
+    for (const pl of plans) {
+      if (!pl.project_id) continue
+      laborByProject[pl.project_id] = (laborByProject[pl.project_id] || 0) + (Number(pl.labor_cost) || 0)
+    }
+    // Baris pos umum "operasional ws" di tabel Drive (case-insensitive).
+    let opexRow = null
+    const opexRowsRest = []
+    for (const d of driveRows) {
+      const no = String(d.project_no || '').trim().toLowerCase()
+      if (!opexRow && no === 'operasional ws') opexRow = d
+      else opexRowsRest.push(d)
+    }
+    const opexWeek = opexRow ? (Number(opexRow.current_week_expense) || 0) : 0
+    const opexCumulative = opexRow ? (Number(opexRow.cumulative_cost) || 0) : null // null = baris pos umum belum ada
+
+    // 📊 Rincian gross margin per proyek (hanya proyek yang punya kode/Drive,
+    // supaya tidak muncul baris kosong; closing/arsip memakai tab lain).
+    const projectRows = (rows.projects || []).map(p => {
+      const drive = driveRows.find(d => String(d.project_no || '').trim() === String(p.kode || '').trim()) || null
+      const revenue = Number(drive?.revenue) || 0
+      const material = Number(drive?.cumulative_cost) || 0
+      const labor = Math.round(laborByProject[p.id] || 0)
+      const gross = revenue - material - labor
+      return {
+        id: p.id,
+        kode: p.kode || '—',
+        name: p.name || '—',
+        status: p.status || '—',
+        hasData: !!(drive && (revenue > 0 || material > 0 || labor > 0)),
+        revenue, material, labor, gross,
+        marginPct: revenue > 0 ? (gross / revenue) * 100 : null
+      }
+    })
+      .filter(r => r.hasData)
+      .sort((a, b) => {
+        const na = parseInt(a.kode, 10)
+        const nb = parseInt(b.kode, 10)
+        if (!isNaN(na) && !isNaN(nb)) return na - nb
+        return String(a.kode).localeCompare(String(b.kode), 'id', { numeric: true })
+      })
+
+    const totalRevenue = projectRows.reduce((s, r) => s + r.revenue, 0)
+    const totalMaterial = projectRows.reduce((s, r) => s + r.material, 0)
+    const totalLabor = projectRows.reduce((s, r) => s + r.labor, 0)
+    const totalGross = projectRows.reduce((s, r) => s + r.gross, 0)
+    // Net margin bisa dihitung hanya bila pos umum "operasional ws" ada di data.
+    const net = opexCumulative === null ? null : totalGross - opexCumulative
+    return {
+      projectRows,
+      totalRevenue, totalMaterial, totalLabor, totalGross,
+      totalGrossPct: totalRevenue > 0 ? (totalGross / totalRevenue) * 100 : null,
+      opexRow, opexWeek, opexCumulative,
+      opexRowsRest,
+      net,
+      netPct: net !== null && totalRevenue > 0 ? (net / totalRevenue) * 100 : null
+    }
+  }, [rows, plans, driveRows])
+
+  // ============================================================
   // CLOSING PROYEK — kalkulasi P&L per proyek.
   //   Revenue        : dari project_cost_summary.revenue (sync REV PROJECT)
   //   Material       : project_cost_summary.cumulative_cost (COST ITEMS CONFIRMED)
@@ -263,18 +344,6 @@ export default function Finance({ rows, session, refresh }) {
       return String(a.project.kode || '').localeCompare(String(b.project.kode || ''))
     })
   }, [rows, plans, closings, driveRows])
-
-  // Estimasi Net Profit bulanan (preview): total margin proyek − OPEX WS.
-  const netProfitPreview = useMemo(() => {
-    const gross = closingRows.reduce((s, r) => s + (r.margin || 0), 0)
-    // L4: OPEX dicari case-insensitive & dilaporkan bila barisnya tidak ada —
-    // tanpa ini net profit tampak lebih besar dari kenyataan (opex dianggap 0).
-    const map = {}
-    for (const d of driveRows) map[String(d.project_no || '').trim().toLowerCase()] = d
-    const opexRow = map['operasional ws']
-    const opex = opexRow ? (Number(opexRow.cumulative_cost) || 0) : null
-    return { gross, opex, net: opex === null ? null : gross - opex }
-  }, [closingRows, driveRows])
 
   // Buka modal review closing.
   function openClosingModal(row) {
@@ -411,44 +480,61 @@ export default function Finance({ rows, session, refresh }) {
 
   return (
     <>
+      {/* ==== 4 KARTU RINGKASAN ATAS — OPSI C (Ringkasan Perusahaan) ====
+          1. Total Revenue        = akumulasi revenue seluruh proyek (Drive)
+          2. Total Project Margin = akumulasi Gross Profit seluruh proyek
+             (Revenue − Actual Material − Actual Tukang, murni)
+          3. Beban Operasional WS = pos umum workshop (baris "operasional ws"
+             di data Drive — petty cash / operasional TIDAK memotong margin proyek)
+          4. Net Margin Perusahaan= Total Project Margin − Beban Operasional WS
+          Kartu lama (estimasi/purchase PR, jumlah project) pindah ke tab
+          Ringkasan Pengadaan. */}
       <div className="cards">
-        <div className="card">
-          <span>Total Estimasi PR</span>
-          <strong style={{ fontSize: '22px' }}>{rupiah(data.totalEst)}</strong>
-          <small>{data.totalPrWithPrice} PR punya estimasi harga</small>
+        <div className="card" title="Akumulasi revenue (nilai kontrak) seluruh proyek — sumber: REV PROJECT via sync Google Drive">
+          <span>💰 Total Revenue</span>
+          <strong style={{ fontSize: '22px' }}>{opsC.totalRevenue > 0 ? rupiah(opsC.totalRevenue) : '—'}</strong>
+          <small>{opsC.projectRows.length} proyek · akumulasi seluruh proyek</small>
         </div>
-        <div className="card">
-          <span>Total Purchase (Riil)</span>
-          <strong style={{ fontSize: '22px' }}>{rupiah(data.totalReal)}</strong>
-          <small>dari nota penerimaan</small>
+        <div className="card" title="Total Project Margin = Σ (Revenue − Actual Material − Actual Tukang) seluruh proyek — gross profit murni, tanpa petty cash/operasional">
+          <span>📈 Total Project Margin</span>
+          <strong style={{ fontSize: '22px', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>
+            {opsC.projectRows.length ? rupiah(opsC.totalGross) : '—'}
+          </strong>
+          <small style={{ fontWeight: 700, color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>
+            {opsC.projectRows.length ? `${persen(opsC.totalGrossPct)} margin kotor` : 'belum ada data proyek'}
+          </small>
         </div>
-        <div className="card">
-          <span>Cost Proyek (Drive)</span>
-          <strong style={{ fontSize: '22px' }}>{driveRows.length ? rupiah(driveTotals.cumulative) : '—'}</strong>
-          <small>{driveRows.length ? `${driveTotals.count} project · sinkron dari REKAP COST 2026` : 'buka tab Cost Drive untuk memuat'}</small>
-        </div>
-        <div className="card">
-          <span>Project</span>
-          <strong>{data.projectCount}</strong>
-          <small>{data.byProject.length} project ada pengadaan</small>
-        </div>
-        <div className="card" title="Estimasi: Total Gross Margin Proyek − Beban OPEX WS (bulan berjalan)">
-          <span>Net Profit Bulanan (Preview)</span>
-          <strong style={{ fontSize: '22px', color: netProfitPreview.net === null ? '#9aa8a4' : (netProfitPreview.net < 0 ? '#b91c1c' : '#0d6e38') }}>
-            {netProfitPreview.net === null ? '—' : rupiah(netProfitPreview.net)}
+        <div className="card" title="Beban Operasional WS (pos umum workshop) — baris 'operasional ws' di data REKAP COST 2026; tidak memotong margin proyek">
+          <span>🏢 Beban Operasional WS</span>
+          <strong style={{ fontSize: '22px' }}>
+            {opsC.opexCumulative === null ? '—' : rupiah(opsC.opexCumulative)}
           </strong>
           <small>
-            {netProfitPreview.opex === null
-              ? 'baris OPEX "operasional ws" belum ada di data Drive'
-              : `Margin ${rupiah(netProfitPreview.gross)} − OPEX WS ${rupiah(netProfitPreview.opex)}`}
+            {opsC.opexCumulative === null
+              ? 'pos umum "operasional ws" belum ada di data Drive'
+              : `pos umum workshop · minggu ini ${rupiah(opsC.opexWeek)}`}
+          </small>
+        </div>
+        <div className="card" title="Net Margin Perusahaan = Total Project Margin (Gross Profit semua proyek) − Beban Operasional WS">
+          <span>🏦 Net Margin Perusahaan</span>
+          <strong style={{ fontSize: '22px', color: opsC.net === null ? '#9aa8a4' : (opsC.net < 0 ? '#b91c1c' : '#0d6e38') }}>
+            {opsC.net === null ? '—' : rupiah(opsC.net)}
+          </strong>
+          <small style={{ fontWeight: 700, color: opsC.net === null ? '#9aa8a4' : (opsC.net < 0 ? '#b91c1c' : '#0d6e38') }}>
+            {opsC.net === null
+              ? 'menunggu pos umum Operasional WS di Drive'
+              : `${persen(opsC.netPct)} net margin · Gross ${rupiah(opsC.totalGross)} − OPEX ${rupiah(opsC.opexCumulative)}`}
           </small>
         </div>
       </div>
 
       <div className="toolbar">
         <div className="filter-tabs">
+          <button type="button" className={`pill ${view === 'opsi' ? 'active' : ''}`} onClick={() => setView('opsi')}>
+            🏢 Ringkasan Perusahaan
+          </button>
           <button type="button" className={`pill ${view === 'summary' ? 'active' : ''}`} onClick={() => setView('summary')}>
-            Ringkasan per Project ({data.byProject.length})
+            Pengadaan per Project ({data.byProject.length})
           </button>
           <button type="button" className={`pill ${view === 'detail' ? 'active' : ''}`} onClick={() => setView('detail')}>
             Detail per PR ({data.perPr.length})
@@ -521,6 +607,131 @@ export default function Finance({ rows, session, refresh }) {
         <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b', marginBottom: '14px' }}>
           {driveError}
         </div>
+      )}
+
+      {view === 'opsi' && (
+        <>
+          {/* ---- TABEL RINCIAN GROSS MARGIN PER PROYEK (OPSI C) ---- */}
+          <div className="panel table desktop-table-view">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '60px' }}>Kode</th>
+                  <th>Proyek</th>
+                  <th style={{ textAlign: 'right' }}>💰 Revenue</th>
+                  <th style={{ textAlign: 'right' }}>🧱 Material</th>
+                  <th style={{ textAlign: 'right' }}>👷 Tukang</th>
+                  <th style={{ textAlign: 'right' }}>📈 Gross Profit</th>
+                  <th style={{ textAlign: 'right', width: '90px' }}>% Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {opsC.projectRows.length ? opsC.projectRows.map(r => (
+                  <tr key={r.id}>
+                    <td><b>{r.kode}</b></td>
+                    <td style={{ whiteSpace: 'normal', maxWidth: '240px', fontWeight: 600 }}>
+                      {r.name}
+                      <div style={{ fontSize: '11px', color: '#9aa8a4' }}>{r.status}</div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{r.revenue > 0 ? rupiah(r.revenue) : '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{r.material > 0 ? rupiah(r.material) : '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{r.labor > 0 ? rupiah(r.labor) : '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.gross < 0 ? '#b91c1c' : '#0d6e38' }}>
+                      {rupiah(r.gross)}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.marginPct === null ? '#9aa8a4' : (r.gross < 0 ? '#b91c1c' : '#0d6e38') }}>
+                      {r.marginPct === null ? '—' : persen(r.marginPct)}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan={7} className="empty">
+                    Belum ada data revenue/cost proyek. Buka tab &quot;☁️ Cost Drive&quot; lalu klik &quot;🔄 Refresh dari Drive&quot;.
+                  </td></tr>
+                )}
+              </tbody>
+              {opsC.projectRows.length > 0 && (
+                <tfoot>
+                  <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                    <td colSpan={2} style={{ textAlign: 'right' }}>TOTAL</td>
+                    <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalRevenue)}</td>
+                    <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalMaterial)}</td>
+                    <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalLabor)}</td>
+                    <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(opsC.totalGross)}</td>
+                    <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>{persen(opsC.totalGrossPct)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          {/* ---- REKAP POS UMUM OPERASIONAL WS ---- */}
+          <div className="panel" style={{ marginBottom: '16px' }}>
+            <h2>🏢 Rekap Pos Umum — Beban Operasional WS</h2>
+            <table>
+              <tbody>
+                <tr>
+                  <td style={{ fontWeight: 600, width: '260px' }}>Beban Operasional WS (Kumulatif)</td>
+                  <td style={{ fontWeight: 800, fontSize: '16px' }}>
+                    {opsC.opexCumulative === null ? '—' : rupiah(opsC.opexCumulative)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Beban Operasional WS (Minggu Ini)</td>
+                  <td>{opsC.opexRow ? rupiah(opsC.opexWeek) : '—'}</td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Sumber Data</td>
+                  <td className="muted">
+                    Baris pos umum <code>operasional ws</code> di REKAP COST 2026 (tab PROJECT SUMMARY — Google Drive)
+                    {sync?.last_synced_at ? ` · terakhir sync ${timeAgo(sync.last_synced_at)}` : ''}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Perhitungan Net Margin</td>
+                  <td className="muted">
+                    {opsC.net === null
+                      ? <>Baris pos umum belum tersedia — Net Margin Perusahaan belum bisa dihitung. Tambahkan baris <code>operasional ws</code> di REKAP COST 2026, lalu sync ulang.</>
+                      : <>{rupiah(opsC.totalGross)} (Gross Profit semua proyek) − {rupiah(opsC.opexCumulative)} (Operasional WS) = <b style={{ color: opsC.net < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(opsC.net)}</b> ({persen(opsC.netPct)})</>}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Kartu mobile (tab Opsi C) */}
+          <div className="mobile-cards-view">
+            {opsC.projectRows.length ? opsC.projectRows.map(r => (
+              <div className="mobile-card" key={r.id}>
+                <div className="mobile-card-header">
+                  <div>
+                    <b className="mobile-card-title">[{r.kode}] {r.name}</b>
+                    <div className="mobile-card-sub">{r.status}</div>
+                  </div>
+                  <span className={`badge ${r.gross < 0 ? 'status-REJECTED' : 'status-APPROVED'}`} style={{ fontSize: '10px' }}>
+                    {r.marginPct === null ? '—' : persen(r.marginPct)}
+                  </span>
+                </div>
+                <div className="mobile-card-body">
+                  <div className="mobile-card-row"><span className="mobile-label">Revenue:</span><span className="mobile-val">{r.revenue > 0 ? rupiah(r.revenue) : '—'}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Material:</span><span className="mobile-val">{r.material > 0 ? rupiah(r.material) : '—'}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Tukang:</span><span className="mobile-val">{r.labor > 0 ? rupiah(r.labor) : '—'}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Gross Profit:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.gross < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(r.gross)}</span></div>
+                </div>
+              </div>
+            )) : <div className="panel empty">Belum ada data margin proyek.</div>}
+            <div className="panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Gross Profit (semua proyek):</span><b>{rupiah(opsC.totalGross)}</b>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+                <span>Operasional WS:</span><span>{opsC.opexCumulative === null ? '—' : rupiah(opsC.opexCumulative)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontWeight: 800, color: opsC.net === null ? '#9aa8a4' : (opsC.net < 0 ? '#b91c1c' : '#0d6e38') }}>
+                <span>Net Margin Perusahaan:</span><span>{opsC.net === null ? '—' : rupiah(opsC.net)}</span>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {view === 'closing' ? (
@@ -826,7 +1037,7 @@ export default function Finance({ rows, session, refresh }) {
             )) : <div className="panel empty">Belum ada data — klik "🔄 Refresh dari Drive" untuk menarik dari Google Drive.</div>}
           </div>
         </>
-      ) : (
+      ) : view === 'summary' || view === 'detail' ? (
       <div className="panel table desktop-table-view">
         {view === 'summary' ? (
           <table>
@@ -891,7 +1102,7 @@ export default function Finance({ rows, session, refresh }) {
           </table>
         )}
       </div>
-      )}
+      ) : null}
 
       {/* Kartu mobile (tab ringkasan/detail) */}
       {(view === 'summary' || view === 'detail') && (

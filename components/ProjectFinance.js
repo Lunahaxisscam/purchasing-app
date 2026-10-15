@@ -27,14 +27,16 @@ function parseNominalFromNote(note) {
   return digits ? Number(digits) : null
 }
 
-export default function ProjectFinance({ rows }) {
+export default function ProjectFinance({ rows, initialDriveRows, initialPlans }) {
   const [projectId, setProjectId] = useState('')
   const [view, setView] = useState('revenue')
   // Data dari tabel admin-only (RLS) — dimuat saat komponen dibuka.
-  const [driveRows, setDriveRows] = useState([])
-  const [plans, setPlans] = useState([])
+  // initial* props (opsional, dipakai SSR/test) mengisi data awal supaya kartu
+  // langsung terisi sebelum efek muat data berjalan; produksi memuat via load().
+  const [driveRows, setDriveRows] = useState(initialDriveRows || [])
+  const [plans, setPlans] = useState(initialPlans || [])
   const [sync, setSync] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialDriveRows)
   const [error, setError] = useState('')
 
   const activeProjects = useMemo(
@@ -43,6 +45,8 @@ export default function ProjectFinance({ rows }) {
   )
 
   // Pilih proyek pertama otomatis supaya halaman langsung terisi.
+  // (fallback di `project` di bawah membuat render pertama/SSR tanpa efek
+  // juga langsung menampilkan proyek pertama.)
   useEffect(() => {
     if (!projectId && activeProjects.length) setProjectId(activeProjects[0].id)
   }, [activeProjects, projectId])
@@ -73,7 +77,11 @@ export default function ProjectFinance({ rows }) {
 
   useEffect(() => { load() }, [load])
 
-  const project = activeProjects.find(p => p.id === projectId) || null
+  const project = activeProjects.find(p => p.id === projectId)
+    // SSR/render pertama: efek auto-select belum berjalan — fallback ke proyek
+    // pertama supaya kartu terisi langsung.
+    || activeProjects[0]
+    || null
 
   // Baris cost dari Drive yang cocok dengan kode proyek ini.
   const drive = useMemo(() => {
@@ -84,9 +92,11 @@ export default function ProjectFinance({ rows }) {
   }, [project, driveRows])
 
   // 👷 Tukang — item pekerjaan (WBS) proyek ini dari modul Budgeting.
+  // Memakai project?.id (bukan state projectId) supaya render pertama/SSR —
+  // saat efek auto-select belum jalan — tetap menampilkan angka proyek pertama.
   const laborRows = useMemo(
-    () => plans.filter(pl => pl.project_id === projectId),
-    [plans, projectId]
+    () => plans.filter(pl => pl.project_id === (project?.id || projectId)),
+    [plans, project, projectId]
   )
   const laborTotal = useMemo(
     () => laborRows.reduce((s, pl) => s + (Number(pl.labor_cost) || 0), 0),
@@ -139,14 +149,13 @@ export default function ProjectFinance({ rows }) {
   const summary = useMemo(() => {
     const revenue = Number(drive?.revenue) || 0
     const material = Number(drive?.cumulative_cost) || 0
-    const petty = Number(drive?.petty_cash) || 0
     const labor = Math.round(laborTotal)
     const total = material + labor
     const margin = revenue - total
     // Pembulatan sebelum dibandingkan (pitfall uang: 43300000*0.7 = 30309999.99…).
     const target = Math.round(revenue * 70) / 100
     return {
-      revenue, material, petty, labor, total, margin,
+      revenue, material, labor, total, margin,
       marginPct: revenue > 0 ? (margin / revenue) * 100 : null,
       target,
       underBudget: revenue > 0 ? total <= target : null
@@ -203,25 +212,30 @@ export default function ProjectFinance({ rows }) {
         <div className="panel empty">Belum ada proyek on-going. Tambahkan / aktifkan proyek dulu di modul Projects.</div>
       ) : (
         <>
-          {/* Kartu ringkasan 4 komponen */}
+          {/* Kartu ringkasan 4 komponen — urutan sesuai keputusan brainstorm
+              DAT: Revenue, Actual Material, Actual Tukang, Project Margin.
+              Petty cash TIDAK menjadi bagian margin proyek (murni gross profit). */}
           <div className="cards">
             <div className="card" title="Nilai kontrak proyek — sumber: REV PROJECT.xlsx via sync Google Drive">
               <span>💰 Revenue</span>
               <strong style={{ fontSize: '22px' }}>{summary.revenue > 0 ? rupiah(summary.revenue) : '—'}</strong>
             </div>
-            <div className="card" title="Total estimasi upah tukang dari modul Budgeting">
-              <span>👷 Biaya Tukang</span>
-              <strong style={{ fontSize: '22px' }}>{laborRows.length ? rupiah(summary.labor) : '—'}</strong>
-            </div>
             <div className="card" title="Cost material kumulatif — sumber: REKAP COST 2026 via sync Google Drive">
-              <span>🧱 Material</span>
+              <span>🧱 Actual Material</span>
               <strong style={{ fontSize: '22px' }}>{drive ? rupiah(summary.material) : '—'}</strong>
             </div>
-            <div className="card" title="Margin = Revenue − (Material + Petty Cash + Tukang)">
-              <span>📈 Margin (Laba Kotor)</span>
+            <div className="card" title="Total estimasi upah tukang dari modul Budgeting">
+              <span>👷 Actual Tukang</span>
+              <strong style={{ fontSize: '22px' }}>{laborRows.length ? rupiah(summary.labor) : '—'}</strong>
+            </div>
+            <div className="card" title="Project Margin (Gross Profit) = Revenue − Actual Material − Actual Tukang — murni, tanpa petty cash/operasional">
+              <span>📈 Project Margin (Gross Profit)</span>
               <strong style={{ fontSize: '22px', color: summary.marginPct === null ? '#9aa8a4' : (summary.margin < 0 ? '#b91c1c' : '#0d6e38') }}>
                 {summary.marginPct === null ? '—' : rupiah(summary.margin)}
               </strong>
+              <small style={{ fontWeight: 700, color: summary.marginPct === null ? '#9aa8a4' : (summary.margin < 0 ? '#b91c1c' : '#0d6e38') }}>
+                {summary.marginPct === null ? '' : persen(summary.marginPct)}
+              </small>
             </div>
           </div>
 
@@ -261,7 +275,7 @@ export default function ProjectFinance({ rows }) {
                               {summary.underBudget ? '✓ HEMAT' : '⚠ OVER-BUDGET'}
                             </span>
                             <div style={{ fontSize: '11px', color: '#71817d', marginTop: '2px' }}>
-                              total cost saat ini {rupiah(summary.total)} (Material + Petty Cash + Tukang)
+                              total cost saat ini {rupiah(summary.total)} (Material + Tukang)
                             </div>
                           </>
                         ) : '—'}
@@ -388,10 +402,6 @@ export default function ProjectFinance({ rows }) {
                       <td>{drive ? rupiah(drive.current_week_expense || 0) : '—'}</td>
                     </tr>
                     <tr>
-                      <td style={{ fontWeight: 600 }}>Petty Cash (Kas Kecil)</td>
-                      <td>{drive ? rupiah(summary.petty) : '—'}</td>
-                    </tr>
-                    <tr>
                       <td style={{ fontWeight: 600 }}>Sumber Data</td>
                       <td className="muted">
                         REKAP COST 2026 — tab PROJECT SUMMARY (Google Drive)
@@ -453,9 +463,6 @@ export default function ProjectFinance({ rows }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
                     <span>Minggu Ini:</span><span>{drive ? rupiah(drive.current_week_expense || 0) : '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                    <span>Petty Cash:</span><span>{drive ? rupiah(summary.petty) : '—'}</span>
                   </div>
                 </div>
                 {materialPrRows.length ? materialPrRows.map(p => (
