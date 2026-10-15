@@ -6,42 +6,17 @@
 // adalah SATU-SATUNYA tempat kode UI Vendor diubah — agent lain tidak perlu
 // menyentuh file modul lain. Lihat docs/owners.md.
 //
+// Feedback DAT: filter pills ('Semua', 'Ada Telepon', 'Ada Kontak/Email')
+// DIHAPUS — toolbar Vendor harus bersih (hanya search bar + tombol Tambah).
+// File ini sengaja TIDAK mengekspor `filters(ctx)` lagi; dispatcher
+// renderModuleFilters() otomatis merender null (tanpa container filter).
+//
 // ctx (konteks) disediakan shell ModuleView: H (helper item dari
 // modules/shared/itemHelpers), state filter, state UI, columns, dan callback
 // halaman dari pages/index.js.
 // ============================================================
 import React from 'react'
 import { WaContact, StoreLink } from '../../components/Common'
-
-// --- Filter tabs ---
-export function filters(ctx) {
-  const { rows, vendorFilter, setVendorFilter } = ctx
-  return (
-    <div className="filter-tabs">
-      <button
-        type="button"
-        className={`pill ${vendorFilter === 'all' ? 'active' : ''}`}
-        onClick={() => setVendorFilter('all')}
-      >
-        Semua ({rows.length})
-      </button>
-      <button
-        type="button"
-        className={`pill ${vendorFilter === 'HAS_PHONE' ? 'active' : ''}`}
-        onClick={() => setVendorFilter('HAS_PHONE')}
-      >
-        Ada Telepon ({rows.filter(r => !!r.phone).length})
-      </button>
-      <button
-        type="button"
-        className={`pill ${vendorFilter === 'HAS_CONTACT' ? 'active' : ''}`}
-        onClick={() => setVendorFilter('HAS_CONTACT')}
-      >
-        Ada Kontak/Email ({rows.filter(r => !!r.contact).length})
-      </button>
-    </div>
-  )
-}
 
 // --- Cell tabel desktop ---
 export function renderCell(h, r, rawVal) {

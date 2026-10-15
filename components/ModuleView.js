@@ -115,13 +115,20 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     <>
       {/* Banner modul (mis. peringatan stok BHP menipis di Materials) */}
       {renderModuleBanner(page, ctx)}
-      <div className="toolbar">
-        <div>
-          <p className="muted">
-            {displayRows.length} data tersedia {page === 'past_projects' && '(Project dengan status DONE)'}
-          </p>
-          {renderModuleFilters(page, ctx)}
-        </div>
+      {/* Feedback DAT: toolbar Vendor tampil BERSIH — teks counter
+          "{n} data tersedia" dan container filter kosong tidak dirender
+          (filter pills Vendor sudah dihapus di modules/vendors/view.jsx).
+          Sisa: search bar + tombol + Tambah Vendor. justifyContent
+          flex-end menjaga posisi aksi tetap di kanan seperti modul lain. */}
+      <div className="toolbar" style={page === 'vendors' ? { justifyContent: 'flex-end' } : undefined}>
+        {page !== 'vendors' && (
+          <div>
+            <p className="muted">
+              {displayRows.length} data tersedia {page === 'past_projects' && '(Project dengan status DONE)'}
+            </p>
+            {renderModuleFilters(page, ctx)}
+          </div>
+        )}
         <div className="toolbar-actions">
           <input
             type="search"
