@@ -272,6 +272,11 @@ export function mobileCard(r, ctx) {
             <b>Catatan:</b> {r.note}
           </div>
         )}
+        {!r.note && r.status !== 'PENDING' && (
+          <div className="mobile-card-note">
+            <b>Catatan:</b> —
+          </div>
+        )}
         {r.decided_at && (
           <div className="mobile-card-row">
             <span className="mobile-label">Diputuskan:</span>

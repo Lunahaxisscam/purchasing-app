@@ -544,38 +544,6 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
   return (
     <>
-      {/* Kartu statistik cepat proyek */}
-      <div className="cards">
-        <div className="card">
-          <span>Total Item Pekerjaan</span>
-          <strong>{stats.total}</strong>
-          <small>{stats.selesai} item selesai</small>
-        </div>
-        <div className="card" style={budget.isLaborOver ? { borderColor: '#fca5a5', background: '#fffafa' } : {}}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Estimasi Upah Tukang (WBS)</span>
-            {budget.revenue > 0 && (
-              <span className={`badge ${budget.isLaborOver ? 'status-REJECTED' : 'status-APPROVED'}`} style={{ fontSize: '10px' }}>
-                {budget.isLaborOver ? '⚠️ OVER-BUDGET' : '✓ ON-TRACK'}
-              </span>
-            )}
-          </div>
-          <strong style={{ fontSize: '22px', color: budget.isLaborOver ? '#dc2626' : 'inherit' }}>
-            {rupiah(stats.labor)}
-          </strong>
-          <small>
-            {budget.revenue > 0
-              ? `${persen(budget.laborPct, 1)} dari revenue (plafon 25%: ${rupiah(budget.budgetManpower)})`
-              : 'total labor cost budgeting proyek ini'}
-          </small>
-        </div>
-        <div className="card">
-          <span>Progress Rata-rata</span>
-          <strong>{stats.avgProgress}%</strong>
-          <small>dari {stats.total} item pekerjaan</small>
-        </div>
-      </div>
-
       {/* Header & filter proyek */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
