@@ -978,7 +978,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
                 {budget.revenue > 0 ? (
                   budget.isMarginThin ? (
                     <span className="badge badge-anomaly-glow" style={{ background: '#fee2e2', color: '#b91c1c', border: '1.5px solid #ef4444', fontWeight: 800, fontSize: '10.5px', whiteSpace: 'normal', lineHeight: 1.3, display: 'block', padding: '5px 8px', textAlign: 'center' }}>
-                      ⚠️ Over-Budget (-{rupiah(budget.marginDeficit)})
+                      ⚠️ Defisit Margin (-{rupiah(budget.marginDeficit)})
                     </span>
                   ) : (
                     <span className="badge" style={{ background: '#e8f7ee', color: '#0d6e38', border: '1px solid #b7e4c7', fontWeight: 750, fontSize: '11px', display: 'block', textAlign: 'center', padding: '4px 8px' }}>
@@ -1011,10 +1011,10 @@ export default function Planning({ rows, say, setPage, refresh }) {
             <strong>Komposisi Pagu Total (100%):</strong> Material 50% ({budget.revenue > 0 ? rupiah(budget.budgetMaterial) : '50%'}) + Upah 25% ({budget.revenue > 0 ? rupiah(budget.budgetManpower) : '25%'}) + Ops 10% ({budget.revenue > 0 ? rupiah(budget.budgetOperasional) : '10%'}) + Margin 15% ({budget.revenue > 0 ? rupiah(budget.targetMargin) : '15%'}) = <strong>{budget.revenue > 0 ? rupiah(budget.revenue) : '100%'}</strong>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '11px', fontWeight: 650, flexWrap: 'wrap' }}>
-            <span style={{ color: budget.isMaterialOver ? '#dc2626' : '#0284c7' }}>● Material 50% {budget.isMaterialOver ? '(Over)' : '(Aman)'}</span>
-            <span style={{ color: budget.isLaborOver ? '#dc2626' : '#0d9488' }}>● Upah 25% {budget.isLaborOver ? '(Over)' : '(Aman)'}</span>
-            <span style={{ color: budget.isOperasionalOver ? '#dc2626' : '#d97706' }}>● Ops 10% {budget.isOperasionalOver ? '(Over)' : '(Aman)'}</span>
-            <span style={{ color: budget.isMarginThin ? '#dc2626' : '#16a34a' }}>● Margin 15% {budget.isMarginThin ? '(Tipis)' : '(Aman)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isMaterialOver ? '#dc2626' : '#0284c7' }}>● Material 50% {budget.revenue > 0 ? (budget.isMaterialOver ? '(Over)' : '(Aman)') : '(—)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isLaborOver ? '#dc2626' : '#0d9488' }}>● Upah 25% {budget.revenue > 0 ? (budget.isLaborOver ? '(Over)' : '(Aman)') : '(—)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isOperasionalOver ? '#dc2626' : '#d97706' }}>● Ops 10% {budget.revenue > 0 ? (budget.isOperasionalOver ? '(Over)' : '(Aman)') : '(—)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isMarginThin ? '#dc2626' : '#16a34a' }}>● Margin 15% {budget.revenue > 0 ? (budget.isMarginThin ? '(Tipis)' : '(Aman)') : '(—)'}</span>
           </div>
         </div>
       </div>
