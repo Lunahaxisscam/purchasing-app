@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import {
   rupiah,
+  formatRibuan,
+  persen,
   formatNominalInput,
   PLANNING_STATUSES,
   planningStatusStyle,
@@ -45,6 +47,7 @@ function digitsOnly(v) {
 export default function Planning({ rows, say, setPage, refresh }) {
   const allProjects = rows?.projects || []
   const [plans, setPlans] = useState([])
+  const [costData, setCostData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [projectId, setProjectId] = useState('')
@@ -75,12 +78,23 @@ export default function Planning({ rows, say, setPage, refresh }) {
     setLoading(true)
     setError('')
     try {
-      const { data, error: err } = await supabase
-        .from('project_plans')
-        .select('*')
-        .order('created_at', { ascending: true })
-      if (err) setError(err.message)
-      else setPlans(data || [])
+      const [plansRes, costRes] = await Promise.all([
+        supabase
+          .from('project_plans')
+          .select('*')
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('project_cost_summary')
+          .select('*')
+      ])
+      if (plansRes.error) setError(plansRes.error.message)
+      else setPlans(plansRes.data || [])
+
+      if (costRes.error) {
+        console.warn('Gagal memuat project_cost_summary:', costRes.error.message)
+      } else {
+        setCostData(costRes.data || [])
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -92,12 +106,26 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
   const project = activeProjects.find(p => p.id === projectId) || allProjects.find(p => p.id === projectId)
 
+  // Data project_cost_summary yang cocok dengan proyek aktif (berdasarkan project_no == p.kode)
+  const activeCost = useMemo(() => {
+    if (!project || !costData.length) return null
+    const key = String(project.kode || '').trim()
+    if (!key) return null
+    return costData.find(c => {
+      const cNo = String(c.project_no || '').trim()
+      if (cNo === key) return true
+      const na = parseInt(cNo, 10)
+      const nb = parseInt(key, 10)
+      return !isNaN(na) && !isNaN(nb) && na === nb
+    }) || null
+  }, [project, costData])
+
   const projectPlans = useMemo(
     () => plans.filter(pl => pl.project_id === projectId),
     [plans, projectId]
   )
 
-  // Statistik cepat proyek terpilih.
+  // Statistik cepat proyek terpilih & kalkulasi pagu anggaran historis Noir Living
   const stats = useMemo(() => {
     const total = projectPlans.length
     const labor = projectPlans.reduce((s, pl) => s + (Number(pl.labor_cost) || 0), 0)
@@ -105,8 +133,64 @@ export default function Planning({ rows, say, setPage, refresh }) {
       ? Math.round(projectPlans.reduce((s, pl) => s + (Number(pl.progress) || 0), 0) / total)
       : 0
     const selesai = projectPlans.filter(pl => pl.status === 'Selesai').length
-    return { total, labor, avgProgress, selesai }
-  }, [projectPlans])
+
+    // Pagu anggaran historis dari revenue project_cost_summary:
+    // - Material = 50% max
+    // - Manpower = 25% max
+    // - Operasional = 10%
+    // - Target Margin = 15%
+    const revenue = Number(activeCost?.revenue) || 0
+    const budgetMaterial = Math.round(revenue * 0.50)
+    const budgetManpower = Math.round(revenue * 0.25)
+    const budgetOperasional = Math.round(revenue * 0.10)
+    const targetMargin = Math.round(revenue * 0.15)
+    const isLaborOverBudget = revenue > 0 && labor > budgetManpower
+    const laborVariance = labor - budgetManpower
+    const laborPct = revenue > 0 ? (labor / revenue) * 100 : 0
+    const laborUsageOfPlafon = budgetManpower > 0 ? (labor / budgetManpower) * 100 : 0
+
+    return {
+      total,
+      labor,
+      avgProgress,
+      selesai,
+      revenue,
+      budgetMaterial,
+      budgetManpower,
+      budgetOperasional,
+      targetMargin,
+      isLaborOverBudget,
+      laborVariance,
+      laborPct,
+      laborUsageOfPlafon
+    }
+  }, [projectPlans, activeCost])
+
+  // Expose budget data object useMemo untuk komponen Planning
+  const budget = useMemo(() => {
+    const revenue = Number(activeCost?.revenue) || 0
+    const budgetMaterial = Math.round(revenue * 0.50)
+    const budgetManpower = Math.round(revenue * 0.25)
+    const budgetOperasional = Math.round(revenue * 0.10)
+    const targetMargin = Math.round(revenue * 0.15)
+    const isLaborOverBudget = revenue > 0 && stats.labor > budgetManpower
+    const laborVariance = stats.labor - budgetManpower
+    const laborPct = revenue > 0 ? (stats.labor / revenue) * 100 : 0
+    const laborUsageOfPlafon = budgetManpower > 0 ? (stats.labor / budgetManpower) * 100 : 0
+
+    return {
+      revenue,
+      budgetMaterial,
+      budgetManpower,
+      budgetOperasional,
+      targetMargin,
+      isLaborOverBudget,
+      laborVariance,
+      laborPct,
+      laborUsageOfPlafon,
+      costSummary: activeCost
+    }
+  }, [activeCost, stats.labor])
 
   function openAdd() {
     if (!projectId) { say('Pilih proyek dulu sebelum menambah pekerjaan.'); return }
@@ -308,17 +392,30 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
   return (
     <>
-      {/* Kartu statistik cepat */}
+      {/* Kartu statistik cepat proyek */}
       <div className="cards">
         <div className="card">
           <span>Total Item Pekerjaan</span>
           <strong>{stats.total}</strong>
           <small>{stats.selesai} item selesai</small>
         </div>
-        <div className="card">
-          <span>Estimasi Upah Tukang</span>
-          <strong style={{ fontSize: '22px' }}>{rupiah(stats.labor)}</strong>
-          <small>total labor cost planning proyek ini</small>
+        <div className="card" style={stats.isLaborOverBudget ? { borderColor: '#fca5a5', background: '#fffafa' } : {}}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Estimasi Upah Tukang (WBS)</span>
+            {stats.revenue > 0 && (
+              <span className={`badge ${stats.isLaborOverBudget ? 'status-REJECTED' : 'status-APPROVED'}`} style={{ fontSize: '10px' }}>
+                {stats.isLaborOverBudget ? '⚠️ OVER-BUDGET' : '✓ ON-TRACK'}
+              </span>
+            )}
+          </div>
+          <strong style={{ fontSize: '22px', color: stats.isLaborOverBudget ? '#dc2626' : 'inherit' }}>
+            {rupiah(stats.labor)}
+          </strong>
+          <small>
+            {stats.revenue > 0
+              ? `${persen(stats.laborPct, 1)} dari revenue (plafon 25%: ${rupiah(stats.budgetManpower)})`
+              : 'total labor cost planning proyek ini'}
+          </small>
         </div>
         <div className="card">
           <span>Progress Rata-rata</span>
@@ -369,6 +466,207 @@ export default function Planning({ rows, say, setPage, refresh }) {
           Gagal memuat data planning: {error}
         </div>
       )}
+
+      {/* ============================================================
+          PANEL KONTROL ANGGARAN & PAGU HISTORIS (NOIR LIVING)
+          Patokan: Material 50% max · Manpower 25% max · Ops 10% · Margin 15%
+          Ditempatkan di atas tabel WBS
+          ============================================================ */}
+      <div className={`panel budget-control-panel ${stats.isLaborOverBudget ? 'has-anomaly' : ''}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid var(--border-light)' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#142320', fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🎯 Kontrol Anggaran &amp; Pagu Historis</span>
+              </h3>
+              <span className="badge" style={{ background: '#e6ece9', color: '#2d4a43', fontSize: '11px', fontWeight: 650 }}>
+                Patokan: Material 50% · Upah 25% · Ops 10% · Margin 15%
+              </span>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#6b7e79' }}>
+              Evaluasi alokasi pagu terhadap estimasi pekerjaan (WBS) untuk proyek <strong>{project ? (project.kode ? `[${project.kode}] ${project.name}` : project.name) : '—'}</strong>
+            </p>
+          </div>
+
+          <div>
+            {stats.revenue > 0 ? (
+              stats.isLaborOverBudget ? (
+                <span className="badge badge-anomaly-glow" style={{ background: '#fee2e2', color: '#b91c1c', border: '1.5px solid #ef4444', fontSize: '12px', padding: '6px 12px', fontWeight: 800 }}>
+                  ⚠️ ANOMALI: Upah Melebihi Plafon 25% (+{rupiah(stats.laborVariance)})
+                </span>
+              ) : (
+                <span className="badge" style={{ background: '#e8f7ee', color: '#0d6e38', border: '1px solid #b7e4c7', fontSize: '12px', padding: '6px 12px', fontWeight: 750 }}>
+                  ✓ On-Track ({persen(stats.laborPct, 1)} dari Revenue)
+                </span>
+              )
+            ) : (
+              <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '12px', padding: '6px 12px', fontWeight: 700 }}>
+                Revenue belum diset di Rekap Cost
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Banner Peringatan Anomali Over-Budget */}
+        {stats.revenue > 0 && stats.isLaborOverBudget && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1.5px solid #ef4444',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '22px' }}>⚠️</span>
+              <div>
+                <div style={{ fontWeight: 800, color: '#991b1b', fontSize: '13.5px' }}>
+                  PERINGATAN ANOMALI: Upah Melebihi Plafon 25% (+{rupiah(stats.laborVariance)})
+                </div>
+                <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px' }}>
+                  Estimasi upah WBS saat ini <strong>{rupiah(stats.labor)}</strong> ({persen(stats.laborPct, 1)} dari revenue), melampaui pagu 25% ({rupiah(stats.budgetManpower)}). Segera tinjau rincian pekerjaan atau negosiasi tarif tukang.
+                </div>
+              </div>
+            </div>
+            <span className="badge" style={{ background: '#b91c1c', color: '#ffffff', fontWeight: 800, fontSize: '11px', padding: '6px 12px' }}>
+              OVER-BUDGET +{rupiah(stats.laborVariance)}
+            </span>
+          </div>
+        )}
+
+        {/* Grid 5 Kartu Kontrol Pagu Anggaran */}
+        <div className="budget-cards-grid">
+          {/* 1. Revenue Proyek */}
+          <div className="budget-card card-revenue">
+            <div className="budget-card-header">
+              <span className="budget-card-title">Revenue Proyek</span>
+              <span className="badge" style={{ background: '#e8f0fe', color: '#1a56c4', fontSize: '10px', fontWeight: 700 }}>100%</span>
+            </div>
+            <div>
+              {stats.revenue > 0 ? (
+                <div className="budget-card-nominal">{rupiah(stats.revenue)}</div>
+              ) : (
+                <div style={{ margin: '6px 0 8px' }}>
+                  <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontWeight: 700, fontSize: '11px', whiteSpace: 'normal', lineHeight: 1.3, display: 'inline-block', padding: '5px 8px' }}>
+                    Revenue belum diset di Rekap Cost
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="budget-card-sub">
+              {stats.revenue > 0 ? 'Nilai Kontrak (REV PROJECT)' : 'Basis pagu dihitung otomatis saat nilai kontrak diisi'}
+            </div>
+          </div>
+
+          {/* 2. Plafon Upah Tukang (25% max) */}
+          <div className={`budget-card card-manpower ${stats.isLaborOverBudget ? 'is-anomaly' : (stats.revenue > 0 ? 'is-on-track' : '')}`}>
+            <div className="budget-card-header">
+              <span className="budget-card-title">Plafon Upah (25% max)</span>
+              <span className="badge" style={{ background: '#f0fdfa', color: '#0f766e', fontSize: '10px', fontWeight: 700 }}>25% Max</span>
+            </div>
+            <div>
+              <div className={`budget-card-nominal ${stats.isLaborOverBudget ? 'danger-text' : (stats.revenue > 0 ? 'success-text' : '')}`}>
+                {stats.revenue > 0 ? rupiah(stats.budgetManpower) : '—'}
+              </div>
+              <div style={{ fontSize: '11.5px', color: '#556b65', display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '2px 0 6px' }}>
+                <span>Estimasi WBS:</span>
+                <strong style={{ color: stats.isLaborOverBudget ? '#b91c1c' : '#142320' }}>{rupiah(stats.labor)}</strong>
+              </div>
+            </div>
+            <div>
+              {stats.revenue > 0 ? (
+                stats.isLaborOverBudget ? (
+                  <span className="badge badge-anomaly-glow" style={{ background: '#fee2e2', color: '#b91c1c', border: '1.5px solid #ef4444', fontWeight: 800, fontSize: '10.5px', whiteSpace: 'normal', lineHeight: 1.3, display: 'block', padding: '5px 8px', textAlign: 'center' }}>
+                    ⚠️ ANOMALI: Upah Melebihi Plafon 25% (+{rupiah(stats.laborVariance)})
+                  </span>
+                ) : (
+                  <span className="badge" style={{ background: '#e8f7ee', color: '#0d6e38', border: '1px solid #b7e4c7', fontWeight: 750, fontSize: '11px', display: 'inline-block', padding: '4px 8px' }}>
+                    ✓ On-Track ({persen(stats.laborUsageOfPlafon, 0)} pagu)
+                  </span>
+                )
+              ) : (
+                stats.labor > 0 ? (
+                  <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '10.5px' }}>
+                    WBS: {rupiah(stats.labor)}
+                  </span>
+                ) : (
+                  <span className="badge status-DRAFT" style={{ fontSize: '10.5px' }}>Belum ada WBS</span>
+                )
+              )}
+            </div>
+            {stats.revenue > 0 && (
+              <div className="budget-progress-track" title={`Pemakaian: ${persen(stats.laborUsageOfPlafon, 1)} dari pagu 25%`}>
+                <div
+                  className="budget-progress-fill"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, stats.laborUsageOfPlafon))}%`,
+                    background: stats.isLaborOverBudget ? '#dc2626' : '#10b981'
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 3. Plafon Material (50% max) */}
+          <div className="budget-card card-material">
+            <div className="budget-card-header">
+              <span className="budget-card-title">Plafon Material (50% max)</span>
+              <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '10px', fontWeight: 700 }}>50% Max</span>
+            </div>
+            <div className="budget-card-nominal">
+              {stats.revenue > 0 ? rupiah(stats.budgetMaterial) : '—'}
+            </div>
+            <div className="budget-card-sub">
+              Batas belanja pengadaan material proyek
+            </div>
+          </div>
+
+          {/* 4. Plafon Operasional (10%) */}
+          <div className="budget-card card-operasional">
+            <div className="budget-card-header">
+              <span className="budget-card-title">Plafon Operasional (10%)</span>
+              <span className="badge" style={{ background: '#fef3c7', color: '#b45309', fontSize: '10px', fontWeight: 700 }}>10%</span>
+            </div>
+            <div className="budget-card-nominal">
+              {stats.revenue > 0 ? rupiah(stats.budgetOperasional) : '—'}
+            </div>
+            <div className="budget-card-sub">
+              Overhead workshop &amp; operasional proyek
+            </div>
+          </div>
+
+          {/* 5. Target Margin (15%) */}
+          <div className="budget-card card-margin">
+            <div className="budget-card-header">
+              <span className="budget-card-title">Target Margin (15%)</span>
+              <span className="badge" style={{ background: '#dcfce7', color: '#15803d', fontSize: '10px', fontWeight: 700 }}>15%</span>
+            </div>
+            <div className="budget-card-nominal" style={{ color: stats.revenue > 0 ? '#0d6e38' : 'inherit' }}>
+              {stats.revenue > 0 ? rupiah(stats.targetMargin) : '—'}
+            </div>
+            <div className="budget-card-sub">
+              Target profit minimal perusahaan
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Ringkasan Patokan Historis */}
+        <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ fontSize: '11.5px', color: '#71817d' }}>
+            <strong>Komposisi Pagu Total (100%):</strong> Material 50% ({stats.revenue > 0 ? rupiah(stats.budgetMaterial) : '50%'}) + Upah 25% ({stats.revenue > 0 ? rupiah(stats.budgetManpower) : '25%'}) + Ops 10% ({stats.revenue > 0 ? rupiah(stats.budgetOperasional) : '10%'}) + Margin 15% ({stats.revenue > 0 ? rupiah(stats.targetMargin) : '15%'}) = <strong>{stats.revenue > 0 ? rupiah(stats.revenue) : '100%'}</strong>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '11px', fontWeight: 650 }}>
+            <span style={{ color: '#0284c7' }}>● Material 50%</span>
+            <span style={{ color: stats.isLaborOverBudget ? '#dc2626' : '#0d9488' }}>● Upah 25%</span>
+            <span style={{ color: '#d97706' }}>● Operasional 10%</span>
+            <span style={{ color: '#16a34a' }}>● Margin 15%</span>
+          </div>
+        </div>
+      </div>
 
       {/* Tabel WBS */}
       <div className="panel table desktop-table-view">

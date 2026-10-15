@@ -1807,3 +1807,181 @@ tbody tr.row-stok-menipis:hover {
 tbody tr.row-stok-menipis > td {
   background-color: transparent !important;
 }
+
+/* ============================================================
+   PROJECT PLANNING — KONTROL ANGGARAN & PAGU HISTORIS (NOIR LIVING)
+   Patokan historis: Material 50% · Manpower 25% · Ops 10% · Margin 15%
+   ============================================================ */
+
+.budget-control-panel {
+  margin-bottom: 22px;
+  padding: 20px 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease-in-out;
+}
+
+.budget-control-panel.has-anomaly {
+  border: 1.5px solid #fca5a5;
+  background: #fffdfd;
+}
+
+.budget-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+
+.budget-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 125px;
+  transition: all 0.15s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.budget-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #cbdad4;
+}
+
+.budget-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbdad4;
+}
+
+.budget-card.card-revenue::before {
+  background: linear-gradient(90deg, #173d36, #2d6a5f);
+}
+
+.budget-card.card-material::before {
+  background: #0284c7;
+}
+
+.budget-card.card-manpower::before {
+  background: #0d9488;
+}
+
+.budget-card.card-manpower.is-anomaly::before {
+  background: #dc2626;
+}
+
+.budget-card.card-operasional::before {
+  background: #d97706;
+}
+
+.budget-card.card-margin::before {
+  background: #16a34a;
+}
+
+.budget-card.is-anomaly {
+  border-color: #fca5a5;
+  background: #fffafa;
+}
+
+.budget-card.is-on-track {
+  border-color: #b7e4c7;
+  background: #fbfdfc;
+}
+
+.budget-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.budget-card-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.budget-card-nominal {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.25;
+  margin: 4px 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.budget-card-nominal.danger-text {
+  color: #b91c1c;
+}
+
+.budget-card-nominal.success-text {
+  color: #0d6e38;
+}
+
+.budget-card-sub {
+  font-size: 11.5px;
+  color: #71817d;
+  line-height: 1.35;
+}
+
+.budget-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #eef2f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.budget-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.badge-anomaly-glow {
+  animation: pulse-red 2s infinite;
+}
+
+@media (max-width: 1200px) {
+  .budget-cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .budget-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .budget-card-nominal {
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 480px) {
+  .budget-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
