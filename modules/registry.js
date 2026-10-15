@@ -1,0 +1,137 @@
+// ============================================================
+// modules/registry.js — MANIFEST MODUL (Fase 1 modularisasi)
+// ============================================================
+// Ini adalah "satu pintu" daftar modul aplikasi. Setiap modul punya folder
+// sendiri di modules/<id>/ dan boleh dikerjakan oleh agent berbeda TANPA
+// menyentuh file modul lain.
+//
+// KONTRAK MODUL (semua field wajib diisi bila menambah modul baru):
+//   id        : kunci unik modul; sama dengan `page` di sidebar & labels
+//   label     : judul modul (dipakai header & tombol tambah)
+//   adminOnly : true bila modul hanya untuk role admin
+//   source    : lokasi komponen
+//                 'core'      -> dirender langsung oleh pages/index.js
+//                 'module'    -> dirender oleh components/ModuleView.js
+//                 'dashboard' -> halaman dashboard
+//   files     : daftar file yang menjadi tanggung jawab modul (dokumentasi
+//               kepemilikan; dipakai docs/owners.md & review PR)
+//
+// ATURAN (lihat docs/owners.md):
+//   1. 1 file = 1 owner. File di modules/<id>/ hanya boleh diubah agent pemilik
+//      modul itu. File core (pages/index.js, lib/*, modules/registry.js,
+//      modules/shared/*) hanya boleh diubah Tech Lead.
+//   2. Data ownership: tiap modul punya tabel + RLS sendiri; modul lain hanya
+//      membaca via view/RPC read-only.
+//   3. Migrasi yang sudah merge TIDAK BOLEH diedit.
+// ============================================================
+
+export const modules = [
+  // --- Modul inti (dirender oleh ModuleView) ---
+  {
+    id: 'projects',
+    label: 'Project',
+    adminOnly: false,
+    source: 'module',
+    files: ['components/ModuleView.js', 'components/CreateModal.js']
+  },
+  {
+    id: 'vendors',
+    label: 'Vendor',
+    adminOnly: false,
+    source: 'module',
+    files: ['modules/vendors/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+  },
+  {
+    id: 'materials',
+    label: 'Material',
+    adminOnly: false,
+    source: 'module',
+    files: ['modules/materials/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+  },
+  {
+    id: 'requests',
+    label: 'Purchase Request',
+    adminOnly: false,
+    source: 'module',
+    files: ['modules/requests/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+  },
+  {
+    id: 'approvals',
+    label: 'Approval',
+    adminOnly: false,
+    source: 'module',
+    files: ['modules/approvals/view.jsx', 'components/ModuleView.js']
+  },
+  {
+    id: 'receivings',
+    label: 'Purchase',
+    adminOnly: false,
+    source: 'module',
+    files: ['modules/receivings/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+  },
+  {
+    id: 'handovers',
+    label: 'Handover',
+    adminOnly: false,
+    source: 'module',
+    files: ['components/ModuleView.js', 'components/CreateModal.js']
+  },
+  {
+    id: 'past_projects',
+    label: 'Past Project',
+    adminOnly: false,
+    source: 'module',
+    files: ['components/ModuleView.js']
+  },
+
+  // --- Halaman inti non-tabel ---
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    adminOnly: false,
+    source: 'dashboard',
+    files: ['components/Dashboard.js']
+  },
+
+  // --- Modul admin (folder masing-masing, sudah terpisah sejak awal) ---
+  {
+    id: 'planning',
+    label: 'Project Planning',
+    adminOnly: true,
+    source: 'core',
+    files: ['components/Planning.js', 'migrations/2026-10-10_planning_closing.sql']
+  },
+  {
+    id: 'project_finance',
+    label: 'Project Finance',
+    adminOnly: true,
+    source: 'core',
+    files: ['components/ProjectFinance.js']
+  },
+  {
+    id: 'finance',
+    label: 'Finance',
+    adminOnly: true,
+    source: 'core',
+    files: ['components/Finance.js']
+  },
+  {
+    id: 'tukang_upah',
+    label: 'Upah Tukang',
+    adminOnly: true,
+    source: 'core',
+    files: ['components/TukangUpah.js']
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    adminOnly: true,
+    source: 'core',
+    files: ['components/Settings.js']
+  }
+]
+
+export const moduleById = Object.fromEntries(modules.map(m => [m.id, m]))
+
+// Modul yang dirender oleh ModuleView (tabel generik).
+export const moduleViewPages = modules.filter(m => m.source === 'module').map(m => m.id)
