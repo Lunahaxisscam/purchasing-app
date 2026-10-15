@@ -7,10 +7,15 @@ import { rupiah, formatDateTime, timeAgo, persen } from '../lib/constants'
 // Modul FINANCE — khusus role admin.
 // Tab "🏢 Ringkasan Perusahaan" (OPSI C — default): 4 KPI konsolidasi
 //   (Total Revenue, Total Project Margin, Beban Operasional WS,
-//   Net Margin Perusahaan) + tabel gross margin per proyek +
-//   rekap pos umum Operasional WS. Gross Profit proyek MURNI =
-//   Revenue − Actual Material − Actual Tukang; petty cash/operasional
-//   TIDAK memotong margin proyek — dilaporkan sebagai pos umum WS.
+//   Net Margin Perusahaan) + tabel gross margin per proyek + rekap pos umum
+//   Operasional WS. Gross Profit proyek MURNI = Revenue − Actual Material −
+//   Actual Tukang; petty cash/operasional TIDAK memotong margin proyek —
+//   dilaporkan sebagai pos umum WS.
+// Filter Periode (arahan DAT): pilihan cepat Semua Periode (default),
+//   Bulan Ini, Bulan Lalu, Kustom Tanggal (Dari/Sampai). Angka utama Drive
+//   tetap akumulasi (sumber kumulatif tanpa riwayat bulanan); periode
+//   terpilih menghitung "🗓️ Biaya Periode" per proyek dari transaksi
+//   ber-tanggal (nominal Penerimaan Barang + rencana biaya tukang).
 // Tab Pengadaan per Project & Detail per PR: ringkasan dari data
 //   pengadaan app (estimasi PR vs purchase riil).
 // Tab "Cost Drive": data cost dari Google Sheets "REKAP COST 2026"
@@ -31,7 +36,24 @@ function parseNominalFromNote(note) {
   return digits ? Number(digits) : null
 }
 
-export default function Finance({ rows, session, refresh, initialDriveRows, initialPlans, initialClosings }) {
+// Timestamp (ms) transaksi utk Filter Periode: tanggal eksplisit dulu
+// (received_date DATE pada receivings), fallback created_at. String
+// 'YYYY-MM-DD' diparse sebagai waktu LOKAL (bukan UTC) supaya batas hari
+// mengikuti kalender Indonesia. Return null bila tidak ada tanggal valid
+// (transaksi tanpa tanggal tidak bisa dimasukkan ke periode apa pun).
+function periodTs(rec) {
+  if (!rec) return null
+  for (const k of ['received_date', 'created_at']) {
+    const v = rec[k]
+    if (!v) continue
+    const s = String(v)
+    const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T00:00:00` : s)
+    if (!isNaN(d.getTime())) return d.getTime()
+  }
+  return null
+}
+
+export default function Finance({ rows, session, refresh, initialDriveRows, initialPlans, initialClosings, initialPeriodMode, initialPeriodFrom, initialPeriodTo }) {
   // Opsi C: tab default = Ringkasan Perusahaan (KPI konsolidasi + gross margin
   // per proyek + rekap pos umum Operasional WS).
   const [view, setView] = useState('opsi')
@@ -55,6 +77,14 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
   // --- state cetak dokumen closing (Sprint 1) ---
   const [printDoc, setPrintDoc] = useState(null)   // snapshot project_closings utk dokumen cetak
   const [printDate, setPrintDate] = useState(null) // waktu dokumen dibuka/dicetak
+  // --- Filter Periode (tab Ringkasan Perusahaan — arahan DAT) ---
+  // mode: 'all' (Semua Periode, default) | 'this_month' (Bulan Ini) |
+  //       'last_month' (Bulan Lalu) | 'custom' (Kustom Tanggal: dari/sampai).
+  // Kustom dianggap AKTIF hanya bila kedua tanggal terisi & rentang valid —
+  // sebelum itu UI memaksa memilih tanggal dulu (data tetap tampil penuh).
+  const [periodMode, setPeriodMode] = useState(initialPeriodMode || 'all')
+  const [periodFrom, setPeriodFrom] = useState(initialPeriodFrom || '')
+  const [periodTo, setPeriodTo] = useState(initialPeriodTo || '')
   // Portal hanya setelah mount (SSR-safe) — dokumen dicetak sebagai anak
   // langsung <body> supaya @media print bisa display:none semua elemen app
   // lain tanpa menyisakan halaman kosong (fix review F2).
@@ -216,6 +246,64 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
   }, [driveRows])
 
   // ============================================================
+  // FILTER PERIODE (Ringkasan Perusahaan — arahan DAT)
+  // Pilihan Cepat: 'all' Semua Periode (default) | 'this_month' Bulan Ini |
+  //   'last_month' Bulan Lalu | 'custom' Kustom Tanggal (Dari/Sampai).
+  // Nama bulan mengikuti waktu perangkat (WIB), contoh "Okt 2026".
+  // custom valid hanya bila kedua tanggal terisi & rentangnya benar —
+  // sebelum itu periode kustom dianggap belum aktif (tampil data penuh).
+  // ============================================================
+  const period = useMemo(() => {
+    const now = new Date()
+    const monFmt = new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' })
+    const monthStart = (y, m) => new Date(y, m, 1, 0, 0, 0, 0).getTime()
+    const thisFrom = monthStart(now.getFullYear(), now.getMonth())
+    const thisTo = monthStart(now.getFullYear(), now.getMonth() + 1) // eksklusif
+    const lastFrom = monthStart(now.getFullYear(), now.getMonth() - 1)
+    const lastTo = thisFrom
+
+    let fromTs = null
+    let toTs = null           // eksklusif
+    let label = ''
+    let pending = false       // kustom belum lengkap → tampilkan data penuh
+    if (periodMode === 'this_month') {
+      fromTs = thisFrom; toTs = thisTo
+      label = `Bulan Ini (${monFmt.format(now)})`
+    } else if (periodMode === 'last_month') {
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      fromTs = lastFrom; toTs = lastTo
+      label = `Bulan Lalu (${monFmt.format(lm)})`
+    } else if (periodMode === 'custom') {
+      const okFrom = /^\d{4}-\d{2}-\d{2}$/.test(periodFrom)
+      const okTo = /^\d{4}-\d{2}-\d{2}$/.test(periodTo)
+      if (!okFrom || !okTo) {
+        pending = true
+      } else {
+        const f = new Date(`${periodFrom}T00:00:00`).getTime()
+        const t = new Date(`${periodTo}T00:00:00`).getTime()
+        if (isNaN(f) || isNaN(t) || f > t) {
+          pending = true
+        } else {
+          fromTs = f
+          toTs = t + 24 * 60 * 60 * 1000  // "Sampai Tanggal" inklusif
+          label = `Kustom (${new Date(f).toLocaleDateString('id-ID')} – ${new Date(t).toLocaleDateString('id-ID')})`
+        }
+      }
+    }
+
+    const active = !pending && fromTs !== null && toTs !== null
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    return {
+      mode: periodMode,
+      active: active,                 // true = saring transaksi per periode
+      pendingCustom: pending,         // kustom dipilih tapi tanggal belum lengkap/salah
+      fromTs, toTs, label, monFmt,
+      thisMonthLabel: monFmt.format(now),
+      lastMonthLabel: monFmt.format(lastMonthDate)
+    }
+  }, [periodMode, periodFrom, periodTo])
+
+  // ============================================================
   // OPSI C — RINGKASAN PERUSAHAAN (Net Margin WS)
   // Gross Profit per proyek = Revenue − Actual Material − Actual Tukang
   //   (MURNI — petty cash tidak memotong margin proyek).
@@ -274,6 +362,63 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
     const totalGross = projectRows.reduce((s, r) => s + r.gross, 0)
     // Net margin bisa dihitung hanya bila pos umum "operasional ws" ada di data.
     const net = opexCumulative === null ? null : totalGross - opexCumulative
+
+    // ============================================================
+    // FILTER PERIODE — 🗓️ Biaya Periode per proyek.
+    // Sumber data Drive bersifat KUMULATIF (tanpa riwayat per bulan), jadi
+    // angka utama (Revenue/Material/Tukang) tetap akumulasi. Utk periode
+    // terpilih, biaya dihitung dari transaksi app ber-tanggal:
+    //   • Material  = nominal riil Penerimaan Barang (kolom note receivings,
+    //     dipetakan ke proyek via project_id / project_name) dalam periode.
+    //   • Tukang    = rencana biaya tukang Budgeting (project_plans) yang
+    //     dibuat/diperbarui dalam periode.
+    // "Semua Periode" memakai angka akumulasi penuh (perilaku lama).
+    // ============================================================
+    const periodFilterOn = period.active
+    const inPeriod = (rec) => {
+      if (!periodFilterOn) return true
+      const ts = periodTs(rec)
+      return ts !== null && ts >= period.fromTs && ts < period.toTs
+    }
+
+    // Nominal material riil per proyek dalam periode (detil di ujung kartu).
+    const periodMaterialByProject = {}
+    let periodMaterialUnclassified = 0
+    if (periodFilterOn) {
+      for (const r of (rows.receivings || [])) {
+        if (!inPeriod(r)) continue
+        const nominal = parseNominalFromNote(r.note)
+        if (nominal === null || nominal <= 0) continue
+        const proj = (rows.projects || []).find(p => p.id === r.project_id)
+          || (r.project_name ? (rows.projects || []).find(p =>
+            `[${p.kode}] ${p.name}` === r.project_name || p.name === r.project_name) : null)
+        if (proj && proj.id) {
+          periodMaterialByProject[proj.id] = (periodMaterialByProject[proj.id] || 0) + nominal
+        } else {
+          // Penerimaan tanpa proyek yang cocok — tetap dilaporkan di baris total.
+          periodMaterialUnclassified += nominal
+        }
+      }
+    }
+    // Biaya tukang per proyek dalam periode (project_plans ber-tanggal).
+    const periodLaborByProject = {}
+    if (periodFilterOn) {
+      for (const pl of plans) {
+        if (!pl.project_id || !inPeriod(pl)) continue
+        periodLaborByProject[pl.project_id] =
+          (periodLaborByProject[pl.project_id] || 0) + (Number(pl.labor_cost) || 0)
+      }
+    }
+    // Terapkan ke baris proyek (tabel rincian) + kartu mobile.
+    for (const r of projectRows) {
+      r.periodMaterial = periodMaterialByProject[r.id] || 0
+      r.periodLabor = periodLaborByProject[r.id] || 0
+      r.periodTotal = r.periodMaterial + r.periodLabor
+    }
+    const totalPeriodMaterial = projectRows.reduce((s, r) => s + r.periodMaterial, 0)
+    const totalPeriodLabor = projectRows.reduce((s, r) => s + r.periodLabor, 0)
+    const totalPeriod = projectRows.reduce((s, r) => s + r.periodTotal, 0)
+
     return {
       projectRows,
       totalRevenue, totalMaterial, totalLabor, totalGross,
@@ -281,9 +426,15 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
       opexRow, opexWeek, opexCumulative,
       opexRowsRest,
       net,
-      netPct: net !== null && totalRevenue > 0 ? (net / totalRevenue) * 100 : null
+      netPct: net !== null && totalRevenue > 0 ? (net / totalRevenue) * 100 : null,
+      // --- Filter Periode ---
+      periodOn: periodFilterOn,
+      periodLabel: period.label,
+      periodPendingCustom: period.pendingCustom,
+      periodMaterialUnclassified,
+      totalPeriodMaterial, totalPeriodLabor, totalPeriod
     }
-  }, [rows, plans, driveRows])
+  }, [rows, plans, driveRows, period])
 
   // ============================================================
   // CLOSING PROYEK — kalkulasi P&L per proyek.
@@ -480,6 +631,73 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
 
   return (
     <>
+      {/* ==== FILTER PERIODE — tab Ringkasan Perusahaan (arahan DAT) ====
+          Pilihan Cepat: Semua Periode (default) / Bulan Ini / Bulan Lalu /
+          Kustom Tanggal (+ input Dari & Sampai Tanggal). Mengontrol kolom
+          "🗓️ Biaya Periode" & bar indikator di atas tabel rincian proyek. */}
+      {view === 'opsi' && (
+        <div
+          className="panel"
+          data-testid="period-filter"
+          style={{ marginBottom: '16px', padding: '12px 16px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <span style={{ fontWeight: 700, fontSize: '13px', color: '#2b453e' }}>
+              🗓️ Filter Periode
+            </span>
+            <div className="filter-tabs" style={{ marginTop: 0 }}>
+              {[
+                ['all', 'Semua Periode'],
+                ['this_month', `Bulan Ini (${period.thisMonthLabel})`],
+                ['last_month', `Bulan Lalu (${period.lastMonthLabel})`],
+                ['custom', 'Kustom Tanggal']
+              ].map(([mode, text]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`pill ${periodMode === mode ? 'active' : ''}`}
+                  onClick={() => {
+                    setPeriodMode(mode)
+                    // Ganti mode: kosongkan kustom lama agar tidak mengaktifkan
+                    // rentang basi saat kembali ke Kustom Tanggal.
+                    if (mode === 'custom') { setPeriodFrom(''); setPeriodTo('') }
+                  }}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+            {periodMode === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#556b65' }}>
+                  Dari Tanggal
+                  <input
+                    type="date"
+                    value={periodFrom}
+                    onChange={e => setPeriodFrom(e.target.value)}
+                    style={{ width: 'auto', padding: '6px 10px', fontSize: '12.5px', marginLeft: '6px' }}
+                  />
+                </label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#556b65' }}>
+                  Sampai Tanggal
+                  <input
+                    type="date"
+                    value={periodTo}
+                    onChange={e => setPeriodTo(e.target.value)}
+                    style={{ width: 'auto', padding: '6px 10px', fontSize: '12.5px', marginLeft: '6px' }}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+          {periodMode === 'custom' && period.pendingCustom && (
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#92400e', fontWeight: 600 }}>
+              Lengkapi Dari Tanggal &amp; Sampai Tanggal (rentang valid) untuk mengaktifkan periode kustom — sementara ini data ditampilkan penuh.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ==== 4 KARTU RINGKASAN ATAS — OPSI C (Ringkasan Perusahaan) ====
           1. Total Revenue        = akumulasi revenue seluruh proyek (Drive)
           2. Total Project Margin = akumulasi Gross Profit seluruh proyek
@@ -493,7 +711,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
         <div className="card" title="Akumulasi revenue (nilai kontrak) seluruh proyek — sumber: REV PROJECT via sync Google Drive">
           <span>💰 Total Revenue</span>
           <strong style={{ fontSize: '22px' }}>{opsC.totalRevenue > 0 ? rupiah(opsC.totalRevenue) : '—'}</strong>
-          <small>{opsC.projectRows.length} proyek · akumulasi seluruh proyek</small>
+          <small>{opsC.projectRows.length} proyek · {opsC.periodOn ? 'akumulasi penuh (Drive kumulatif)' : 'akumulasi seluruh proyek'}</small>
         </div>
         <div className="card" title="Total Project Margin = Σ (Revenue − Actual Material − Actual Tukang) seluruh proyek — gross profit murni, tanpa petty cash/operasional">
           <span>📈 Total Project Margin</span>
@@ -611,6 +829,24 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
 
       {view === 'opsi' && (
         <>
+          {/* ---- BAR INDIKATOR PERIODE AKTIF (arahan DAT) ----
+              Tampil hanya saat periode non-'Semua Periode' dipilih, tepat di
+              atas tabel rincian proyek. */}
+          {opsC.periodOn && (
+            <div
+              data-testid="period-indicator"
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '12px', padding: '9px 14px', background: '#eef6fb', border: '1px solid #bcd9f0', borderRadius: 'var(--radius-sm)', fontSize: '12.5px', fontWeight: 700, color: '#1d5a8a' }}
+            >
+              <span>🗓️ Menampilkan data periode: {opsC.periodLabel}</span>
+              <span style={{ fontWeight: 500, color: '#41729a' }}>
+                · Biaya Periode (Penerimaan + Tukang): {rupiah(opsC.totalPeriod)}
+                {opsC.periodMaterialUnclassified > 0
+                  ? ` (termasuk ${rupiah(opsC.periodMaterialUnclassified)} penerimaan tanpa proyek)`
+                  : ''}
+              </span>
+            </div>
+          )}
+
           {/* ---- TABEL RINCIAN GROSS MARGIN PER PROYEK (OPSI C) ---- */}
           <div className="panel table desktop-table-view">
             <table>
@@ -621,6 +857,9 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <th style={{ textAlign: 'right' }}>💰 Revenue</th>
                   <th style={{ textAlign: 'right' }}>🧱 Material</th>
                   <th style={{ textAlign: 'right' }}>👷 Tukang</th>
+                  {opsC.periodOn && (
+                    <th style={{ textAlign: 'right' }} title="Biaya transaksi ber-tanggal pada periode terpilih: nominal riil Penerimaan Barang + rencana biaya tukang Budgeting">🗓️ Biaya Periode</th>
+                  )}
                   <th style={{ textAlign: 'right' }}>📈 Gross Profit</th>
                   <th style={{ textAlign: 'right', width: '90px' }}>% Margin</th>
                 </tr>
@@ -636,6 +875,11 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     <td style={{ textAlign: 'right' }}>{r.revenue > 0 ? rupiah(r.revenue) : '—'}</td>
                     <td style={{ textAlign: 'right' }}>{r.material > 0 ? rupiah(r.material) : '—'}</td>
                     <td style={{ textAlign: 'right' }}>{r.labor > 0 ? rupiah(r.labor) : '—'}</td>
+                    {opsC.periodOn && (
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: r.periodTotal > 0 ? '#1d5a8a' : '#9aa8a4' }}>
+                        {r.periodTotal > 0 ? rupiah(r.periodTotal) : '—'}
+                      </td>
+                    )}
                     <td style={{ textAlign: 'right', fontWeight: 700, color: r.gross < 0 ? '#b91c1c' : '#0d6e38' }}>
                       {rupiah(r.gross)}
                     </td>
@@ -644,7 +888,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     </td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={7} className="empty">
+                  <tr><td colSpan={opsC.periodOn ? 8 : 7} className="empty">
                     Belum ada data revenue/cost proyek. Buka tab &quot;☁️ Cost Drive&quot; lalu klik &quot;🔄 Refresh dari Drive&quot;.
                   </td></tr>
                 )}
@@ -656,6 +900,11 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalRevenue)}</td>
                     <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalMaterial)}</td>
                     <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalLabor)}</td>
+                    {opsC.periodOn && (
+                      <td style={{ textAlign: 'right', color: opsC.totalPeriod > 0 ? '#1d5a8a' : '#9aa8a4' }}>
+                        {opsC.totalPeriod > 0 ? rupiah(opsC.totalPeriod) : '—'}
+                      </td>
+                    )}
                     <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(opsC.totalGross)}</td>
                     <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>{persen(opsC.totalGrossPct)}</td>
                   </tr>
@@ -715,10 +964,21 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <div className="mobile-card-row"><span className="mobile-label">Revenue:</span><span className="mobile-val">{r.revenue > 0 ? rupiah(r.revenue) : '—'}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Material:</span><span className="mobile-val">{r.material > 0 ? rupiah(r.material) : '—'}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Tukang:</span><span className="mobile-val">{r.labor > 0 ? rupiah(r.labor) : '—'}</span></div>
+                  {opsC.periodOn && (
+                    <div className="mobile-card-row"><span className="mobile-label">Biaya Periode:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.periodTotal > 0 ? '#1d5a8a' : '#9aa8a4' }}>{r.periodTotal > 0 ? rupiah(r.periodTotal) : '—'}</span></div>
+                  )}
                   <div className="mobile-card-row"><span className="mobile-label">Gross Profit:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.gross < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(r.gross)}</span></div>
                 </div>
               </div>
             )) : <div className="panel empty">Belum ada data margin proyek.</div>}
+            {opsC.periodOn && (
+              <div className="panel" style={{ fontWeight: 700, color: '#1d5a8a' }}>
+                🗓️ Menampilkan data periode: {opsC.periodLabel}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontWeight: 600, color: '#41729a' }}>
+                  <span>Biaya Periode (Penerimaan + Tukang):</span><span>{rupiah(opsC.totalPeriod)}</span>
+                </div>
+              </div>
+            )}
             <div className="panel">
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Gross Profit (semua proyek):</span><b>{rupiah(opsC.totalGross)}</b>
