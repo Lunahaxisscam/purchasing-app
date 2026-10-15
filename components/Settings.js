@@ -173,15 +173,17 @@ export default function Settings({ role = 'user', session }) {
   async function submitAdd(e) {
     e.preventDefault()
     if (!supabase || addBusy) return
-    if (!addForm.email.trim()) { setAddError('Email wajib diisi.'); return }
+    const cleanEmail = addForm.email.trim().toLowerCase()
+    const cleanName = addForm.full_name.trim()
+    if (!cleanEmail) { setAddError('Email wajib diisi.'); return }
     if (addForm.password.length < 8) { setAddError('Password minimal 8 karakter.'); return }
     setAddBusy(true)
     setAddError('')
     try {
       const { data, error } = await supabase.rpc('admin_create_user', {
-        p_email: addForm.email.trim(),
+        p_email: cleanEmail,
         p_password: addForm.password,
-        p_full_name: addForm.full_name.trim(),
+        p_full_name: cleanName,
         p_role: addForm.role
       })
       if (error) { setAddError(error.message); return }
@@ -192,15 +194,17 @@ export default function Settings({ role = 'user', session }) {
           weak_password: 'Password minimal 8 karakter.',
           invalid_role: 'Role tidak valid.',
           email_exists: 'Email sudah terdaftar.',
+          db_conflict: `Terjadi konflik database: ${data.message || data.detail || ''}`,
           not_authenticated: 'Sesi tidak valid, silakan login ulang.'
         }
         setAddError(reasons[data.reason] || `Gagal menambah akun (${data.reason}).`)
         return
       }
       setShowAddModal(false)
+      setAddForm({ email: '', full_name: '', role: 'user', password: '' })
       await loadUsers()
       await loadLogs()
-      window.alert(`✅ Akun ${addForm.email.trim()} berhasil dibuat. Password tercatat — bisa dilihat lewat tombol 👁 Lihat di tabel.`)
+      window.alert(`✅ Akun ${cleanEmail} berhasil dibuat. Password tercatat — bisa dilihat lewat tombol 👁 Lihat di tabel.`)
     } catch (e) {
       setAddError(e.message)
     } finally {

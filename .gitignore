@@ -16,3 +16,4 @@ scripts/drive_sync/google_token.json
 scripts/drive_sync/.env
 *.pyc
 __pycache__/
+.vercel
