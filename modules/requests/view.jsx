@@ -85,7 +85,7 @@ export function header(h) {
 // --- Cell tabel desktop ---
 export function renderCell(h, r, rawVal, ctx) {
   const { H, openNoteId, setOpenNoteId } = ctx
-  const { requestItemRows } = H
+  const { requestItemRows, requestItemLines } = H
 
   if (h === 'pr_number') {
     return (

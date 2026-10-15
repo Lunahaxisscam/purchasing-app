@@ -89,45 +89,46 @@ export function renderCell(h, r, rawVal, ctx) {
 }
 
 // --- Aksi per baris (desktop): Setujui / Tolak / Revisi + perluasan material ---
+// Standar Noir Living (review Brooklyn #B.3): kolom aksi tabel VERTIKAL —
+// tombol tersusun ke bawah dengan lebar seragam supaya tidak melompat
+// berantakan saat kolom menyempit di layar sempit.
 export function rowActions(r, ctx) {
   const { H, expandedApproval, setExpandedApproval, onDecideApproval, onReviseApproval } = ctx
   const { approvalItemLines } = H
   return (
     <td style={{ textAlign: 'center' }}>
       {r.status === 'PENDING' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'stretch', width: '110px', margin: '0 auto' }}>
           <button
             type="button"
             onClick={() => onDecideApproval(r, 'APPROVED')}
-            style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, width: '100%' }}
           >
             ✓ Setujui
           </button>
           <button
             type="button"
             onClick={() => onDecideApproval(r, 'REJECTED')}
-            style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, width: '100%' }}
           >
             ✕ Tolak
           </button>
           <button
             type="button"
             onClick={() => onReviseApproval(r)}
-            style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+            style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, width: '100%' }}
           >
             ✎ Revisi
           </button>
-        </div>
-        {approvalItemLines(r).length > 0 && (
-          <button
-            type="button"
-            onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
-            style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
-          >
-            {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
-          </button>
-        )}
+          {approvalItemLines(r).length > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
+              style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34', width: '100%' }}
+            >
+              {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>

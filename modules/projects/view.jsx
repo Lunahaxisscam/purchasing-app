@@ -71,20 +71,10 @@ export function renderCell(h, r, rawVal, ctx) {
 
 // --- Aksi per baris (desktop) ---
 export function rowActions(r, ctx) {
-  const { title, page, setEditRow, onDelete } = ctx
+  const { title, page, onDelete } = ctx
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-        {page === 'materials' && (
-          <button
-            type="button"
-            className="btn-edit icon-btn"
-            onClick={() => setEditRow(r)}
-            title={`Edit ${r.name || title} (ubah stok / batas minimum)`}
-          >
-            ✏️
-          </button>
-        )}
         <button
           type="button"
           className="btn-delete"

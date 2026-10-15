@@ -43,18 +43,20 @@ export function filters(ctx) {
 }
 
 // --- Aksi per baris (desktop): tandai sudah diserahkan + hapus ---
+// Standar Noir Living (review Brooklyn #B.3): kolom aksi VERTIKAL — lebar
+// seragam, tidak wrap horizontal.
 export function rowActions(r, ctx) {
   const { title, page, onMarkHandoverDelivered, onDelete } = ctx
   return (
     <td style={{ textAlign: 'center' }}>
-      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'stretch', width: '120px', margin: '0 auto' }}>
         {['CONFIRMED', 'SELESAI'].includes(String(r.status || '').toUpperCase()) ? (
-          <span style={{ fontSize: '10px', color: '#137333', fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Sudah diserahkan</span>
+          <span style={{ fontSize: '10px', color: '#137333', fontWeight: 600, whiteSpace: 'nowrap', textAlign: 'center' }}>✓ Sudah diserahkan</span>
         ) : (
           <button
             type="button"
             onClick={() => onMarkHandoverDelivered(r)}
-            style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
+            style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', width: '100%' }}
             title="Tandai serah terima sudah diserahkan"
           >
             ✓ Sudah Diserahkan
@@ -65,6 +67,7 @@ export function rowActions(r, ctx) {
           className="btn-delete icon-btn"
           onClick={() => onDelete(page, r)}
           title={`Hapus ${title}`}
+          style={{ width: '100%' }}
         >
           🗑️
         </button>

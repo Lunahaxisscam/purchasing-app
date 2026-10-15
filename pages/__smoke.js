@@ -7,6 +7,20 @@ import React from 'react'
 import Module from '../components/ModuleView'
 import Create from '../components/CreateModal'
 
+// ------------------------------------------------------------
+// GUARD PRODUKSI (temuan audit Brooklyn #A.2):
+// Halaman ini HANYA dirender bila ENABLE_SMOKE=1. Tanpa env var itu
+// (termasuk build Vercel produksi), rute /__smoke menjadi 404 statis —
+// mock data & struktur internal TIDAK pernah ter-deploy sebagai rute publik.
+// Regression harness lokal: `ENABLE_SMOKE=1 npm run build`
+// ------------------------------------------------------------
+export async function getStaticProps() {
+  if (process.env.ENABLE_SMOKE !== '1') {
+    return { notFound: true }
+  }
+  return { props: {} }
+}
+
 const noop = () => {}
 
 const mock = {

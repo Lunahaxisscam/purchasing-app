@@ -27,61 +27,64 @@
 
 export const modules = [
   // --- Modul inti (dirender oleh ModuleView) ---
+  // CATATAN: `files` HANYA berisi file kepemilikan modul (folder modules/<id>/).
+  // File CORE (ModuleView.js, CreateModal.js, registry.js, modules/shared/*)
+  // tidak dicantumkan di sini — file itu milik Tech Lead (lihat docs/owners.md).
   {
     id: 'projects',
     label: 'Project',
     adminOnly: false,
     source: 'module',
-    files: ['components/ModuleView.js', 'components/CreateModal.js']
+    files: ['modules/projects/view.jsx', 'modules/projects/form.jsx']
   },
   {
     id: 'vendors',
     label: 'Vendor',
     adminOnly: false,
     source: 'module',
-    files: ['modules/vendors/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+    files: ['modules/vendors/view.jsx', 'modules/vendors/form.jsx']
   },
   {
     id: 'materials',
     label: 'Material',
     adminOnly: false,
     source: 'module',
-    files: ['modules/materials/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+    files: ['modules/materials/view.jsx', 'modules/materials/form.jsx']
   },
   {
     id: 'requests',
     label: 'Purchase Request',
     adminOnly: false,
     source: 'module',
-    files: ['modules/requests/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+    files: ['modules/requests/view.jsx', 'modules/requests/form.jsx']
   },
   {
     id: 'approvals',
     label: 'Approval',
     adminOnly: false,
     source: 'module',
-    files: ['modules/approvals/view.jsx', 'components/ModuleView.js']
+    files: ['modules/approvals/view.jsx']
   },
   {
     id: 'receivings',
     label: 'Purchase',
     adminOnly: false,
     source: 'module',
-    files: ['modules/receivings/view.jsx', 'components/ModuleView.js', 'components/CreateModal.js']
+    files: ['modules/receivings/view.jsx', 'modules/receivings/form.jsx']
   },
   {
     id: 'handovers',
     label: 'Handover',
     adminOnly: false,
     source: 'module',
-    files: ['components/ModuleView.js', 'components/CreateModal.js']
+    files: ['modules/handovers/view.jsx', 'modules/handovers/form.jsx']
   },
   {
     id: 'past_projects',
     label: 'Past Project',
     adminOnly: false,
     source: 'module',
-    files: ['components/ModuleView.js']
+    files: ['modules/projects/view.jsx']
   },
 
   // --- Halaman inti non-tabel ---
