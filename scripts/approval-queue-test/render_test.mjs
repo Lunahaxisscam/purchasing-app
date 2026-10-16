@@ -70,6 +70,8 @@ const noopProps = {
 // 4 approval: 1 PENDING baru (tanpa note) + 1 PENDING legacy (auto-seed) +
 // 1 APPROVED + 1 REJECTED (mixed statuses). t_1fe52e80: approval baru dibuat
 // TANPA note (null) — teks "Menunggu persetujuan..." hanya ada di data legacy.
+// t_48f6b336: desktop Approval kini row-per-child (master-detail dgn grup
+// kategori) — hitungan ASSERTION pakai PR unik (noPR), bukan baris fisik.
 const APPROVALS = [
   { id: 'a1', pr_number: 'PR-010', project_name: '[101] Aan - BSD', title: 'Kabinet Atas & Meja Rias', purchase_request_id: 'r10', step_number: 1, status: 'PENDING', note: null, decided_at: null },
   { id: 'a4', pr_number: 'PR-012', project_name: '[55] Gudang Lama', title: 'Pintu & Kusen', purchase_request_id: 'r12', step_number: 1, status: 'PENDING', note: 'Menunggu persetujuan Direksi / PM untuk PR-012', decided_at: null },
@@ -109,6 +111,20 @@ function bodyText(doc) {
 function desktopRows(doc) {
   return Array.from(doc.querySelectorAll('.desktop-table-view tbody tr')).filter(tr => !tr.querySelector('td.empty'))
 }
+// t_48f6b336: hitung PR UNIK — bukan baris fisik (kini 1 PR = beberapa baris:
+// heading grup + item + total). PR dgn rincian = sel parent rowSpan; PR legacy
+// tanpa rincian = baris tunggal (kolom pertama berisi No.PR).
+function parentPRs(doc) {
+  const prs = new Set()
+  for (const tr of doc.querySelectorAll('.desktop-table-view tbody tr')) {
+    if (tr.querySelector('td.empty')) continue
+    const spanned = [...tr.querySelectorAll('td[rowspan]')].map(td => td.textContent.trim()).find(t => /^PR-/.test(t))
+    if (spanned) { prs.add(spanned); continue }
+    const first = tr.querySelector('td')?.textContent.trim()
+    if (first && /^PR-/.test(first)) prs.add(first)
+  }
+  return prs
+}
 
 console.log('=== VERIFIKASI ANTREAN APPROVAL (React client + jsdom, ModuleView.js asli) ===\n')
 
@@ -123,7 +139,7 @@ console.log('A. Default antrean — tab pertama "⏳ Menunggu" aktif, riwayat ti
   check('urutan tab: Menunggu → Disetujui → Revisi → Ditolak → Semua',
     pills.join(' | ') === '⏳ Menunggu (2) | ✓ Disetujui (1) | ✎ Revisi (0) | ✕ Ditolak (1) | Semua (4)', JSON.stringify(pills))
   const rows = desktopRows(doc)
-  check('hanya 2 baris (PENDING) tampil di default', rows.length === 2, `rows=${rows.length}`)
+  check('hanya 2 PR (PENDING) tampil di default', parentPRs(doc).size === 2 && [...parentPRs(doc)].join('|').includes('PR-010'), `rows=${rows.length} prs=${[...parentPRs(doc)].join('|')}`)
   check('baris yang tampil = PR-010 & PR-012 (bukan riwayat APPROVED)', bodyText(doc).includes('PR-010') && bodyText(doc).includes('PR-012') && !rows.some(r => r.textContent.includes('PR-001') || r.textContent.includes('PR-005')), rows.map(r => r.textContent.slice(0, 40)).join(' ;; '))
   check('tombol aksi Setujui/Tolak/Revisi tersedia di antrean', bodyText(doc).includes('✓ Setujui') && bodyText(doc).includes('✕ Tolak') && bodyText(doc).includes('✎ Revisi'))
   check('counter "2 data tersedia" konsisten', bodyText(doc).includes('2 data tersedia'))
@@ -161,10 +177,10 @@ console.log('\nC. Riwayat Disetujui/Revisi/Ditolak/Semua tetap bisa diakses eksp
   clickPill('✕ Ditolak')
   check('tab "✕ Ditolak" menampilkan PR-005', desktopRows(doc).some(r => r.textContent.includes('PR-005')))
   clickPill('Semua')
-  check('tab "Semua" menampilkan 4 baris (tidak ada data terhapus)', desktopRows(doc).length === 4, `rows=${desktopRows(doc).length}`)
+  check('tab "Semua" menampilkan 4 PR (tidak ada data terhapus)', parentPRs(doc).size === 4, `prs=${[...parentPRs(doc)].join('|')}`)
   check('tab "Semua" aktif di posisi terakhir', pillLabels(doc)[4] === 'Semua (4)' && activePill(doc) === 'Semua (4)')
   clickPill('⏳ Menunggu')
-  check('kembali ke antrean: hanya PENDING tampil', desktopRows(doc).length === 2 && bodyText(doc).includes('PR-010'))
+  check('kembali ke antrean: hanya PENDING tampil', parentPRs(doc).size === 2 && bodyText(doc).includes('PR-010'))
   ui.unmount()
 }
 
@@ -186,7 +202,7 @@ console.log('\nD. Masuk ulang modul — antrean reset ke Menunggu')
   renderPage('vendors', [{ id: 'v1', name: 'TB Sumber Jaya', phone: '0812', contact: 'x', supplier_category: 'Plywood & Board', store_link: '' }])
   renderPage('approvals', APPROVALS)
   check('setelah masuk ulang, tab aktif kembali "⏳ Menunggu (2)"', activePill(document) === '⏳ Menunggu (2)', activePill(document) || '')
-  check('antrean Menunggu tampil (bukan riwayat)', desktopRows(document).length === 2 && bodyText(document).includes('PR-010'))
+  check('antrean Menunggu tampil (bukan riwayat)', parentPRs(document).size === 2 && bodyText(document).includes('PR-010'))
   // Modul lain juga reset saat dibuka ulang (perilaku lama tetap)
   renderPage('vendors', [{ id: 'v1', name: 'TB Sumber Jaya', phone: '0812', contact: 'x', supplier_category: 'Plywood & Board', store_link: '' }])
   check('modul lain (vendors) tidak terpengaruh perubahan Approval', pillLabels(document).length === 0 || !bodyText(document).includes('⏳ Menunggu'))
@@ -206,14 +222,14 @@ console.log('\nE. Perbarui (data baru via props) — filter aktif dipertahankan'
   const refreshed = [...APPROVALS, { id: 'a5', pr_number: 'PR-011', project_name: '[83] Mabes', title: 'Meja kerja', purchase_request_id: 'r11', step_number: 1, status: 'PENDING', note: null, decided_at: null }]
   ui.rerender({ rows: refreshed })
   check('setelah refresh, tab tetap "Semua (5)" (filter dipertahankan)', activePill(doc) === 'Semua (5)', activePill(doc) || '')
-  check('data hasil refresh tampil (5 baris)', desktopRows(doc).length === 5, `rows=${desktopRows(doc).length}`)
+  check('data hasil refresh tampil (5 PR)', parentPRs(doc).size === 5, `prs=${[...parentPRs(doc)].join('|')}`)
   // Sama untuk tab antrean: refresh tidak melempar user kembali/default lain
   ui.rerender({ rows: APPROVALS, allPrItems: PR_ITEMS })
   const menunggu = Array.from(doc.querySelectorAll('.toolbar .filter-tabs .pill')).find(p => p.textContent.trim().startsWith('⏳ Menunggu'))
   act(() => { menunggu.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
   ui.rerender({ rows: refreshed, allPrItems: PR_ITEMS })
   check('refresh saat di antrean: tetap di "⏳ Menunggu (3)"', activePill(doc) === '⏳ Menunggu (3)', activePill(doc) || '')
-  check('3 PENDING tampil setelah refresh', desktopRows(doc).length === 3)
+  check('3 PENDING tampil setelah refresh', parentPRs(doc).size === 3)
   ui.unmount()
 }
 

@@ -2757,6 +2757,83 @@ tr.pr-est-total-row td {
   .pr-picker-row-3 button { width: 100%; }
 }
 
+/* ============================================================
+   PENGELOMPOKAN ITEM PER KATEGORI (t_48f6b336) — append-only
+   Judul kategori tampil sekali sebagai pemisah grup di dalam dokumen PR /
+   Approval (desktop & mobile). Murni tampilan — tidak mengubah data.
+   ============================================================ */
+
+/* Baris pemisah grup kategori (desktop PR & Approval) */
+tr.pr-group-row > td {
+  border-top: 1px solid #d7ddd8;
+}
+table.requests-table tr.pr-group-row > td,
+table.approvals-table tr.pr-group-row > td {
+  padding-top: 9px;
+}
+td.pr-group-cell {
+  background: #f4f7f4;
+  border-radius: 4px;
+  padding: 4px 8px !important;
+}
+span.pr-group-label {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #4a5d56;
+}
+td.pr-group-cell .pr-group-label::before {
+  content: '▸ ';
+  color: #8aa39a;
+}
+
+/* Nama item di master-detail Approval (wrap rapi, sejajar dgn Qty) */
+table.approvals-table td.ap-item-name {
+  white-space: normal !important;
+  min-width: 200px;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+/* Panel perluasan Approval: blok grup kategori */
+.ap-group-block { margin-bottom: 10px; }
+.ap-group-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #f4f7f4;
+  border: 1px solid #dfe5e0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  margin-bottom: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #4a5d56;
+}
+
+/* Mobile kartu PR/Approval: heading kategori di dalam kotak item */
+.mobile-item-group { margin-bottom: 6px; }
+.mobile-item-group:last-child { margin-bottom: 0; }
+.mobile-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #4a5d56;
+  border-bottom: 1px dashed #cfd8d3;
+  padding-bottom: 2px;
+  margin-bottom: 4px;
+}
+.mobile-group-label::before {
+  content: '▸ ';
+  color: #8aa39a;
+}
+
 /* Header form PR satu baris desktop (steer DAT t_ac0b39c0): Project (kiri
    ~40%) + Judul Kebutuhan (kanan ~60%), tetap dua field terpisah.
    Mobile (<=640px): stack vertikal agar readable / tanpa horizontal scroll. */

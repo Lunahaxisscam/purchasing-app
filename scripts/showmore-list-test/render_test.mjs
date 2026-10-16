@@ -224,11 +224,14 @@ console.log('\nD. PR master-detail & perluasan Approval tetap utuh')
   // tersimpan. Parent tetap 10 PR (Show More tetap memotong per parent, tidak
   // di tengah PR); jumlah fisik = 10×(3 item + 1 total) = 40. Panel perluasan
   // Approval juga +1 baris total di dalam nested table (3 item + 1 total = 4).
+  // CATATAN t_48f6b336 (grouping kategori): item mock TANPA material_id →
+  // masing-masing PR punya 1 heading "Belum Berkategori" → fisik = 10×(3 item
+  // + 1 heading + 1 total) = 50. Kontrak Show More tetap: potong per PARENT.
   const { document } = mount('requests', REQUESTS)
   await tick()
   // Tab default 'all' menyembunyikan PR-16 (APPROVED) -> 16 PR terfilter;
-  // tampil 10 PR pertama x (3 item + 1 total) = 40 baris fisik utuh
-  check('10 PR pertama tampil utuh (40 baris fisik = 10×(3 item+1 total))', tbodyRows(document) === 40, `got ${tbodyRows(document)}`)
+  // tampil 10 PR pertama x (3 item + 1 heading + 1 total) = 50 baris fisik utuh
+  check('10 PR pertama tampil utuh (50 baris fisik = 10×(3 item+1 heading+1 total))', tbodyRows(document) === 50, `got ${tbodyRows(document)}`)
   check('baris total estimasi tepat 10 (1 per PR, tidak bocor ke PR-11)',
     document.querySelectorAll('tr.pr-est-total-row').length === 10,
     String(document.querySelectorAll('tr.pr-est-total-row').length))
@@ -244,11 +247,13 @@ console.log('\nD. PR master-detail & perluasan Approval tetap utuh')
   const expandBtn = [...docA.querySelectorAll('.desktop-table-view button')].filter(b => b.textContent.includes('Material (3)'))[4]
   click(expandBtn); await tick()
   check('perluasan material approval tetap bisa dibuka di dalam batch 10', (docA.body.textContent || '').includes('Material — setujui per barang'))
-  // tbody utama = 10 PR + 1 baris perluasan; nested table item di DALAM td
-  // perluasan TIDAK dihitung (hitung tr yg BUKAN turunan nested table).
+  // tbody utama = 10 PR × (3 item + 1 heading grup kategori t_48f6b336 +
+  // 1 baris Total Estimasi t_ac0b39c0) + 1 baris perluasan; nested table item
+  // di DALAM td perluasan TIDAK dihitung (hitung tr yg BUKAN turunan nested
+  // table).
   const allTr = [...docA.querySelectorAll('.desktop-table-view table tbody tr')]
   const topTr = allTr.filter(tr => !tr.closest('table table')).length
-  check('baris level-atas: 10 PR + 1 expand = 11 (parent-child utuh)', topTr === 11, `got ${topTr}`)
+  check('baris level-atas: 10 PR×(3 item+1 heading+1 total) + 1 expand = 51 (parent-child utuh)', topTr === 51, `got ${topTr}`)
   // 3 baris ITEM perluasan + 1 baris Total Estimasi (t_ac0b39c0) — baris total
   // nested diberi kelas pr-est-total-row; item murni = nested tr tanpa kelas itu.
   const nestedItem = allTr.filter(tr => !!tr.closest('table table') && !tr.closest('thead') && !tr.classList.contains('pr-est-total-row')).length
