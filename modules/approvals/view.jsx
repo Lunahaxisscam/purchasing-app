@@ -11,7 +11,10 @@
 // halaman dari pages/index.js.
 // ============================================================
 import React from 'react'
-import { format } from '../../lib/constants'
+import { format, rupiah } from '../../lib/constants'
+// Total Estimasi PR (t_ac0b39c0): snapshot harga tersimpan pr_items —
+// read-only di Approval (detail persetujuan), resolver/list jujur sumbernya.
+import { prEstimateRows } from '../requests/view'
 
 // ============================================================
 // CATATAN APPROVAL — aturan render (t_1fe52e80)
@@ -218,6 +221,17 @@ export function rowExpand(r, ctx) {
   const { H, columns, expandedApproval, onApproveItem, onMarkPrItemOrdered } = ctx
   const { approvalItems, approvalItemLines, itemState } = H
   if (!(expandedApproval === r.id)) return null
+  // ============================================================
+  // Total Estimasi (t_ac0b39c0): harga SNAPSHOT pr_items yang tersimpan —
+  // read-only, TIDAK dihitung ulang dari histori terbaru saat dibuka ulang.
+  // Item tanpa harga ≠ 0 → label "belum lengkap".
+  // ============================================================
+  const est = prEstimateRows(approvalItems(r))
+  const savedPriceOf = (it) => {
+    const raw = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
+      ? Number(it.estimated_price) : null
+    return raw !== null && isFinite(raw) && raw >= 0 ? Math.round(raw) : null
+  }
   return (
     <tr>
       <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
@@ -245,6 +259,7 @@ export function rowExpand(r, ctx) {
                 <th style={{ padding: '4px 6px' }}>Nama Item</th>
                 <th style={{ padding: '4px 6px', width: '70px' }}>Qty</th>
                 <th style={{ padding: '4px 6px', width: '70px' }}>Satuan</th>
+                <th style={{ padding: '4px 6px', width: '110px', textAlign: 'right' }}>Subtotal</th>
                 <th style={{ padding: '4px 6px', width: '110px' }}>Status</th>
                 <th style={{ padding: '4px 6px', width: '150px', textAlign: 'center' }}>Aksi</th>
               </tr>
@@ -254,12 +269,24 @@ export function rowExpand(r, ctx) {
                 const st = itemState(it)
                 const canApprove = st === 'PENDING' && (r.status === 'PENDING' || r.status === 'APPROVED')
                 const canOrder = st === 'APPROVED' && r.status === 'APPROVED'
+                const price = savedPriceOf(it)
+                const qNum = Number(it.quantity)
+                const subtotal = (price !== null && isFinite(qNum) && qNum > 0) ? Math.round(qNum * price) : null
                 return (
                   <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
                     <td style={{ padding: '4px 6px' }}><b>{it.kode || '—'}</b></td>
                     <td style={{ padding: '4px 6px' }}>{it.item_name}</td>
                     <td style={{ padding: '4px 6px' }}>{it.quantity}</td>
                     <td style={{ padding: '4px 6px' }}>{it.unit || '—'}</td>
+                    <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {/* Subtotal per item (snapshot): harga satuan × qty */}
+                      {subtotal !== null
+                        ? <>
+                            <span className="muted" style={{ fontSize: '10px' }}>{rupiah(price)}</span>
+                            <div style={{ fontWeight: 700, color: '#137333' }}>{rupiah(subtotal)}</div>
+                          </>
+                        : <span className="muted">—</span>}
+                    </td>
                     <td style={{ padding: '4px 6px' }}>
                       <span className={`badge ${st === 'ORDERED' ? 'status-APPROVED' : (st === 'APPROVED' ? 'badge-item-approved' : 'status-PENDING')}`} style={{ fontSize: '10px' }}>
                         {st === 'ORDERED' ? '✓ Sudah Order' : (st === 'APPROVED' ? '✓ Disetujui' : '⏳ Menunggu')}
@@ -293,6 +320,16 @@ export function rowExpand(r, ctx) {
                   </tr>
                 )
               })}
+              {/* ===== Total Estimasi PR — snapshot tersimpan, read-only ===== */}
+              <tr className="pr-est-total-row">
+                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34', background: '#fbfdfc' }}>
+                  Total Estimasi{est.complete ? '' : ' (belum lengkap)'}:
+                </td>
+                <td style={{ fontWeight: 700, color: est.complete ? '#137333' : '#b45309', borderTop: '2px solid #1f3a34', background: '#fbfdfc', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {rupiah(est.total)}{!est.complete ? ` — ${est.unknown} item belum ada harga` : ''}
+                </td>
+                <td colSpan={2} style={{ borderTop: '2px solid #1f3a34', background: '#fbfdfc' }} />
+              </tr>
             </tbody>
           </table>
         )}

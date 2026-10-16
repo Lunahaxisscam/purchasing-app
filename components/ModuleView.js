@@ -313,6 +313,11 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           editRow={editRow}
           editItems={editRow ? prItemsForPr(editRow.id) : []}
           allReceivings={allReceivings}
+          // Estimator PR (t_ac0b39c0): resolver acuan membutuhkan histori
+          // pembelian terealisasi (receiving_items → pr_items → receivings)
+          // — data yang sama yang sudah dimuat halaman, dikirim ke form.
+          allPrItems={allPrItems}
+          allReceivingItems={allReceivingItems}
           allProjects={allProjects}
           allMaterials={allMaterials}
           allVendors={allVendors}

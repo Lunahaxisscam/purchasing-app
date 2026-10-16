@@ -25,6 +25,14 @@ for m in MODULES:
 
 for m in MODULES:
     shutil.copy(f'{REPO}/modules/{m}/save.js', f'{SB}/modules/{m}/save.js')
+# t_ac0b39c0: modules/requests/save.js mengimpor ./estimator (resolver acuan
+# & kelayakan vendor satu-sumber) — file pendamping ikut disalin. estimator
+# sendiri mengimpor resolver modul Material ../materials/acuan.js (satu sumber).
+if os.path.isfile(f'{REPO}/modules/requests/estimator.js'):
+    shutil.copy(f'{REPO}/modules/requests/estimator.js', f'{SB}/modules/requests/estimator.js')
+if os.path.isfile(f'{REPO}/modules/materials/acuan.js'):
+    os.makedirs(f'{SB}/modules/materials', exist_ok=True)
+    shutil.copy(f'{REPO}/modules/materials/acuan.js', f'{SB}/modules/materials/acuan.js')
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')

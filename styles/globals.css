@@ -2715,3 +2715,36 @@ tr.acuan-expand-row > td {
     font-size: 12px;
   }
 }
+
+/* ============================================================
+   ESTIMATOR HARGA PR (t_ac0b39c0) — append-only
+   ============================================================ */
+
+/* Baris Total Estimasi di daftar PR (desktop) */
+tr.pr-est-total-row td {
+  font-size: 11px;
+}
+
+/* Area pemilih item PR: baris search+filter kategori & dropdown+qty+tombol.
+   Mobile (<=640px): stack vertikal nyaman (steer 2 DAT — search diperkecil
+   di desktop, filter kategori sejajar; di HP semua lebar penuh). */
+.pr-picker-row-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 8px;
+  align-items: end;
+}
+.pr-picker-row-2 select { margin-bottom: 0; }
+.pr-picker-row-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px auto;
+  gap: 8px;
+  align-items: end;
+}
+@media (max-width: 640px) {
+  .pr-picker-row-2,
+  .pr-picker-row-3 {
+    grid-template-columns: 1fr;
+  }
+  .pr-picker-row-3 button { width: 100%; }
+}

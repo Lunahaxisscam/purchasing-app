@@ -141,8 +141,18 @@ export function makeItemHelpers({ allPrItems = [], allVendors = [], allMaterials
           ? it.estimated_price
           : (mat ? mat.harga_acuan : null)
         const numPrice = (rawPrice === null || rawPrice === undefined || rawPrice === '') ? null : Number(rawPrice)
-        const estPrice = numPrice !== null && isFinite(numPrice) ? numPrice : null
-        return { name, text: name, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor, estPrice }
+        const estPrice = numPrice !== null && isFinite(numPrice) && numPrice >= 0 ? numPrice : null
+        // ============================================================
+        // SUBTOTAL TERSIMPAN (t_ac0b39c0): qty × estimated_price TERSIMPAN
+        // (snapshot pr_items) — BUKAN fallback harga_acuan master (itu bukan
+        // bagian dari PR tersimpan). Null bila harga/qty tidak valid → item
+        // dihitung "belum lengkap" oleh prEstimateRows, bukan 0.
+        // ============================================================
+        const qNum = Number(it.quantity)
+        const savedSubtotal = (estPrice !== null && isFinite(qNum) && qNum > 0)
+          ? Math.round(qNum * estPrice)
+          : null
+        return { name, text: name, qty: qtyVal, qtyText: qtyText || '—', unit, supplier, vendor, estPrice, savedSubtotal }
       })
     }
     const s = String(pr.materials_summary || '').trim()

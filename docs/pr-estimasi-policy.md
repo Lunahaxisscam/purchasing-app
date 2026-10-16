@@ -1,0 +1,131 @@
+# Kebijakan Estimasi Harga Purchase Request (t_ac0b39c0)
+
+## Ringkasan fitur
+
+Saat membuat/mengedit PR, setiap item material kini menampilkan **harga acuan
+otomatis** yang diisi begitu item ditambahkan, plus **Total Estimasi** untuk
+satu PR. Semua angka estimasi di-resolve lewat **resolver yang sama** dengan
+modul Material (`makeAcuanHelpers` di `modules/materials/acuan.js`,
+t_090127ad) agar sumber harga konsisten antar modul.
+
+## Sumber harga acuan (urutan prioritas)
+
+1. **HISTORIS vendor terpilih** — bila vendor rencana beli dipilih, harga
+   terealisasi pembelian nyata dari vendor itu (material + **satuan sama**,
+   dijaga resolver; tanpa ongkir/admin; bukan `[Nominal]` nota).
+2. **HISTORIS terbaru** — bila vendor belum dipilih: histori terbaru yang
+   valid (vendor sumber **ditampilkan sebagai referensi**, bukan diset
+   diam-diam sebagai vendor pesanan).
+3. **MASTER** — `materials.harga_acuan` existing (tanpa tanggal/vendor).
+4. **Tidak ada sumber** → input dibiarkan **kosong + label
+   "Belum ada acuan"**. TIDAK PERNAH diisi 0 palsu, dan Total Estimasi
+   diberi label **"belum lengkap"** dengan daftar item yang belum punya
+   harga.
+
+Sumber manual: harga yang **diketik user** di form diberi badge
+**✍️ Manual** dan **tidak pernah ditimpa otomatis** (ganti vendor /
+"Pakai acuan" hanya mengubah harga bila harga masih milik auto-acuan;
+tombol `↺ Pakai acuan` mengembalikan harga ke acuan secara eksplisit).
+
+## Yang tersimpan vs yang TIDAK tersimpan (BATAS PERSISTENSI — WAJIB DIBACA)
+
+| Nilai | Tersimpan? | Di mana |
+|---|---|---|
+| Harga satuan estimasi per item | ✅ YA | `pr_items.estimated_price` (kolom existing) |
+| Vendor rencana beli per item | ✅ YA | `pr_items.vendor_id` (kolom existing) |
+| Kategori rencana beli per item | ✅ YA | `pr_items.supplier_category` (kolom existing) |
+| **Sumber acuan** (Historis/Master/Manual) | ❌ TIDAK | hanya state form (field `est_*`) |
+| **Vendor referensi & tanggal acuan** | ❌ TIDAK | hanya state form (field `est_*`) |
+
+**Konsekuensi snapshot yang DIJAGA kode:**
+
+- Reopening PR (mode edit) **TIDAK menghitung ulang** harga dari histori
+  terbaru — `estimated_price` tersimpan dipertahankan apa adanya. Hanya
+  item BARU tanpa harga yang diisi otomatis saat ditambahkan.
+- Daftar PR (desktop/mobile) & panel detail Approval menampilkan angka
+  **snapshot tersimpan** — bukan lookup dinamis. Pembelian baru TIDAK
+  mengubah Total Estimasi PR lama.
+- Kolom "sumber acuan" yang tampil di daftar form adalah metadata sesi;
+  setelah simpan, yang tersimpan hanya harga. **Jangan mengklaim sumber
+  tersimpan** sampai skema di bawah disetujui.
+
+**Kebutuhan skema yang diusulkan ke DAT (menunggu izin — freeze migrasi
+tetap berlaku; TIDAK dieksekusi):**
+
+```sql
+-- Snapshot per item PR agar sumber acuan ikut tersimpan & audit-able.
+alter table pr_items add column price_source text;        -- 'HISTORIS' | 'MASTER' | 'MANUAL'
+alter table pr_items add column price_ref_vendor_id uuid references vendors(id);
+alter table pr_items add column price_ref_date date;
+```
+
+Setelah izin diberi: form mengisi kolom ini saat simpan, daftar/detail
+menampilkan sumber tersimpan, dan metadata sesi tidak diperlukan lagi.
+
+## Validasi (service boundary — bukan UI-only)
+
+`modules/requests/save.js` memvalidasi SEBELUM menulis DB:
+
+- **Qty**: finite & > 0 (`validatedQty`) — NaN/0/negatif ditolak dengan
+  pesan per item.
+- **Harga**: nonnegative & finite (`validatedPrice`) — tanda minus dan
+  parentheses ditolak eksplisit (`-5` tidak pernah diam-diam menjadi `5`);
+  string berformat `1.250.000` diterima; hasil dibulatkan ke rupiah.
+- **Vendor eligible**: vendor harus aktif pada kategori yang cocok dengan
+  **kategori kanonik master material** (`materials.category` ↔
+  `vendors.supplier_category`). Pilihan kategori rencana beli TIDAK bisa
+  dipakai "mengakali" izin. Vendor tersimpan yang menjadi tidak-eligible
+  (kategori vendor diubah/dinonaktifkan) **tidak dihapus diam-diam** — form
+  menandainya "tidak aktif utk kategori material ini" dan save menolak dengan
+  pesan yang minta user memilih vendor valid. Histori lama vendor beda
+  kategori tetap tampil sebagai histori read-only di modul Material.
+- **Multi-kategori vendor (kebijakan DAT terbaru)**: satu vendor BOLEH aktif
+  pada beberapa kategori. Resolver `isVendorEligible` menerima vendor
+  ber-kategori scalar (existing) maupun array (bila skema disetujui):
+  eligible = kategori material termasuk SALAH SATU kategori aktif vendor.
+  Catatan skema: `vendors.supplier_category` existing = scalar text (dicek
+  read-only; 22/22 baris string, operator array PostgREST ditolak 42883) —
+  penyimpanan multi-kategori menunggu keputusan skema DAT
+  (usulan: kolom `text[]` atau tabel relasi; lihat komentar task t_ac0b39c0).
+  Tidak ada UI checklist yang tampil sebelum penyimpanan siap (tanpa klaim
+  palsu), dan tidak ada hack delimiter/note.
+
+## Batasan lain
+
+- **Satuan tanpa konversi**: entri historis hanya dipakai bila satuan item
+  PR = satuan master material (per Dus ≠ per Pcs tanpa faktor valid).
+- **Harga murni material**: tanpa ongkir/admin (sama dengan aturan acuan
+  Material t_090127ad).
+- **Vendor referensi ≠ vendor pesanan**: menampilkan "ref: Toko X" dari
+  histori TIDAK mengubah `vendor_id` item.
+- **Total Estimasi ≠ nominal actual**: nilai receiving/budget/finance tidak
+  tersentuh fitur ini.
+
+## File yang berubah
+
+- `modules/requests/estimator.js` (baru) — resolver wrapper + eligibility +
+  total (dipakai form & save).
+- `modules/requests/form.jsx` — area pemilih (filter kategori + search
+  diperkecil, stack mobile), badge sumber, subtotal per item, Total
+  Estimasi, tombol "Pakai acuan".
+- `modules/requests/save.js` — gate validasi harga/qty/vendor + penulisan
+  `validatedPrice`.
+- `modules/requests/view.jsx` — subtotal snapshot per item + baris Total
+  Estimasi PR (desktop & mobile).
+- `modules/approvals/view.jsx` — kolom Subtotal + Total Estimasi read-only
+  di panel detail material.
+- `modules/shared/itemHelpers.js` — `savedSubtotal` pada `requestItemRows`.
+- `components/CreateModal.js` — auto-fill saat tambah item, recalc saat
+  ganti vendor (hanya bila belum manual), filter kategori katalog, totals,
+  ctx save.
+- `components/ModuleView.js` — kirim `allPrItems`/`allReceivingItems` ke
+  form (data yang sudah dimuat halaman; tidak ada query baru).
+- `styles/globals.css` — blok `.pr-picker-row-*` (append-only).
+
+## RLS / role
+
+Tidak ada query baru dan tidak ada tabel baru: fitur hanya memakai data yang
+sudah dimuat halaman (`materials`, `vendors`, `pr_items`, `receivings`,
+`receiving_items`) dan menulis lewat jalur simpan PR existing. Izin baca/tulis
+mengikuti RLS existing; penambahan kolom `price_*` (bila disetujui) akan
+mewarisi RLS `pr_items`.

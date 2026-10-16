@@ -13,6 +13,43 @@
 import React from 'react'
 import { format, rupiah } from '../../lib/constants'
 
+// ============================================================
+// ESTIMASI HARGA TERSIMPAN (t_ac0b39c0) — SNAPSHOT, bukan lookup dinamis
+// ============================================================
+// Kolom Estimasi Harga di daftar PR menampilkan harga yang TERSIMPAN di
+// pr_items.estimated_price (snapshot saat PR dibuat/diedit). TIDAK ada
+// penghitungan ulang dari histori terbaru di sini: reopening PR / menambah
+// pembelian baru TIDAK mengubah angka PR lama (arahan snapshot DAT).
+// Per-item: subtotal = qty × harga tersimpan. Total Estimasi PR dihitung
+// dari snapshot yang tersimpan; item tanpa harga TIDAK dianggap 0 — total
+// diberi label "belum lengkap".
+function savedPriceOf(it) {
+  const raw = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
+    ? Number(it.estimated_price)
+    : null
+  // Harga tersimpan harus nonnegative finite — data lama aneh (negatif/NaN)
+  // ditampilkan dash, bukan dianggap 0 maupun dikoreksi di DB.
+  return raw !== null && isFinite(raw) && raw >= 0 ? Math.round(raw) : null
+}
+
+export function prEstimateRows(items) {
+  const list = items || []
+  let total = 0
+  let unknown = 0
+  for (const it of list) {
+    const p = savedPriceOf(it)
+    const q = Number(it.quantity)
+    if (p === null || !isFinite(q) || q <= 0) { unknown++; continue }
+    total += q * p
+  }
+  return {
+    total: Math.round(total),
+    unknown,
+    hasItems: list.length > 0,
+    complete: list.length > 0 && unknown === 0
+  }
+}
+
 // --- Filter tabs ---
 export function filters(ctx) {
   const { rows, prFilter, setPrFilter } = ctx
@@ -163,14 +200,36 @@ export function desktopRow(r, ctx) {
   const list = itemList.length ? itemList : [{ name: '—', qtyText: '—', vendor: '' }]
   const span = list.length
   const urgent = String(r.priority || '').toUpperCase() === 'URGENT'
+  // ============================================================
+  // TOTAL ESTIMASI (t_ac0b39c0): harga snapshot pr_items yang tersimpan —
+  // bukan lookup dinamis. Item tanpa harga ≠ 0 → label "belum lengkap".
+  // ============================================================
+  const itemsForEst = H.prItemsForPr(r.id)
+  const est = prEstimateRows(itemsForEst)
+  // Parent rowSpan mencakup baris total juga (total row SELALU ada bila PR
+  // punya item — lengkap maupun belum lengkap).
+  const estRowSpan = span + (est.hasItems ? 1 : 0)
+  // ===== Baris Total Estimasi PR (snapshot tersimpan) — baris ekstra di
+  // bawah item; parent rowSpan diperpanjang agar tetap menyatukan semua.
+  const totalRow = est.hasItems ? [(
+    <tr key="pr-est-total" className="pr-est-total-row">
+      <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34', background: '#fbfdfc' }}>
+        Total Estimasi{est.complete ? '' : ' (belum lengkap)'}:
+      </td>
+      <td style={{ fontWeight: 700, color: est.complete ? '#137333' : '#b45309', borderTop: '2px solid #1f3a34', background: '#fbfdfc', whiteSpace: 'nowrap' }}>
+        {rupiah(est.total)}{!est.complete ? ` — ${est.unknown} item belum ada harga` : ''}
+      </td>
+      <td colSpan={2} style={{ borderTop: '2px solid #1f3a34', background: '#fbfdfc' }} />
+    </tr>
+  )] : []
   return list.map((it, idx) => (
     <tr key={`pr-item-${idx}`} className="pr-item-row">
       {idx === 0 && (
         <>
-          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+          <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>
             <span className={`prio-dot ${urgent ? 'prio-urgent' : 'prio-normal'}`} title={urgent ? 'Prioritas' : 'Standard'} />
           </td>
-          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+          <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <b>{format(r.pr_number)}</b>
@@ -188,12 +247,12 @@ export function desktopRow(r, ctx) {
               )}
             </div>
           </td>
-          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+          <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>
             <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={String(r.project_name || '')}>
               {format(r.project_name)}
             </div>
           </td>
-          <td rowSpan={span} style={{ verticalAlign: 'top' }}>
+          <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>
             <div className="pr-title-cell" title={String(r.title || '')}>
               {format(r.title)}
             </div>
@@ -203,11 +262,16 @@ export function desktopRow(r, ctx) {
       <td className="pr-item-qty"><b>{it.qtyText}</b></td>
       <td className="pr-item-name">{it.name}</td>
       <td className="pr-item-vendor" style={{ color: it.vendor ? '#1a73e8' : '#9aa8a4' }}>{it.vendor || '—'}</td>
-      <td className="pr-item-price">{it.estPrice !== null && it.estPrice !== undefined ? rupiah(it.estPrice) : '—'}</td>
+      <td className="pr-item-price">
+        {/* Subtotal per item = qty × harga TERSIMPAN (snapshot) */}
+        {it.savedSubtotal !== null && it.savedSubtotal !== undefined
+          ? rupiah(it.savedSubtotal)
+          : (it.estPrice !== null && it.estPrice !== undefined ? rupiah(it.estPrice) : '—')}
+      </td>
       {idx === 0 && (
         <>
-          <td rowSpan={span} style={{ verticalAlign: 'top' }}>{format(r.status)}</td>
-          <td rowSpan={span} style={{ textAlign: 'center', verticalAlign: 'top' }}>
+          <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>{format(r.status)}</td>
+          <td rowSpan={estRowSpan} style={{ textAlign: 'center', verticalAlign: 'top' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'center', alignItems: 'stretch', width: '92px', margin: '0 auto' }}>
               {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
                 <button
@@ -243,7 +307,7 @@ export function desktopRow(r, ctx) {
         </>
       )}
     </tr>
-  ))
+  )).concat(totalRow)
 }
 
 // --- Aksi per baris (desktop) ---
@@ -290,6 +354,8 @@ export function rowActions(r, ctx) {
 export function mobileCard(r, ctx) {
   const { H, page, setEditRow, onFinishPr, onDelete } = ctx
   const { requestItemRows } = H
+  // Total Estimasi (t_ac0b39c0): snapshot harga tersimpan pr_items.
+  const est = prEstimateRows(H.prItemsForPr(r.id))
   return (
     <>
       <div className="mobile-card-header">
@@ -322,11 +388,27 @@ export function mobileCard(r, ctx) {
                 • {it.name}
                 {it.qtyText && it.qtyText !== '—' ? <b> — {it.qtyText}</b> : null}
                 {it.vendor ? <span style={{ color: '#1a73e8' }}> · 🛒 {it.vendor}</span> : null}
-                {(it.estPrice !== null && it.estPrice !== undefined) ? <span style={{ color: '#137333' }}> · {rupiah(it.estPrice)}</span> : null}
+                {/* Subtotal per item (snapshot): fallback estPrice utk data lama */}
+                {(it.savedSubtotal !== null && it.savedSubtotal !== undefined)
+                  ? <span style={{ color: '#137333' }}> · {rupiah(it.savedSubtotal)}</span>
+                  : (it.estPrice !== null && it.estPrice !== undefined
+                    ? <span style={{ color: '#137333' }}> · {rupiah(it.estPrice)}</span>
+                    : <span style={{ color: '#b45309' }}> · belum ada harga</span>)}
               </div>
             ))}
           </div>
         </div>
+        {/* Total Estimasi PR — snapshot tersimpan; label jujur bila belum lengkap */}
+        {est.hasItems && (
+          <div className="mobile-card-row" style={{ borderTop: '1px solid #e1e7e4', paddingTop: '6px' }}>
+            <span className="mobile-label">
+              Total Estimasi{est.complete ? '' : ' (belum lengkap)'}:
+            </span>
+            <span className="mobile-val" style={{ fontWeight: 700, color: est.complete ? '#137333' : '#b45309' }}>
+              {rupiah(est.total)}{!est.complete ? ` — ${est.unknown} item belum ada harga` : ''}
+            </span>
+          </div>
+        )}
         {String(r.notes || '').trim() && (
           <div className="mobile-card-note">
             <b>Catatan PR:</b> {r.notes}

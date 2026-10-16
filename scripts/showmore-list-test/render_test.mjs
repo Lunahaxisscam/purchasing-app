@@ -219,11 +219,19 @@ console.log('\nC. Reset ke 10 saat pindah filter tab & saat sort (klik nyata)')
 // ---------- D. PARENT-CHILD TIDAK TERPOTONG (PR & APPROVAL) ----------
 console.log('\nD. PR master-detail & perluasan Approval tetap utuh')
 {
+  // CATATAN t_ac0b39c0 (estimator PR): setiap PR kini punya +1 baris fisik
+  // "Total Estimasi" (tr.pr-est-total-row) di bawah item-nya — SNAPSHOT harga
+  // tersimpan. Parent tetap 10 PR (Show More tetap memotong per parent, tidak
+  // di tengah PR); jumlah fisik = 10×(3 item + 1 total) = 40. Panel perluasan
+  // Approval juga +1 baris total di dalam nested table (3 item + 1 total = 4).
   const { document } = mount('requests', REQUESTS)
   await tick()
   // Tab default 'all' menyembunyikan PR-16 (APPROVED) -> 16 PR terfilter;
-  // tampil 10 PR pertama x 3 item = 30 baris fisik utuh (bukan 10 baris fisik)
-  check('10 PR pertama tampil utuh (30 baris fisik, bukan terpotong di tengah PR)', tbodyRows(document) === 30, `got ${tbodyRows(document)}`)
+  // tampil 10 PR pertama x (3 item + 1 total) = 40 baris fisik utuh
+  check('10 PR pertama tampil utuh (40 baris fisik = 10×(3 item+1 total))', tbodyRows(document) === 40, `got ${tbodyRows(document)}`)
+  check('baris total estimasi tepat 10 (1 per PR, tidak bocor ke PR-11)',
+    document.querySelectorAll('tr.pr-est-total-row').length === 10,
+    String(document.querySelectorAll('tr.pr-est-total-row').length))
   check('PR-11 tidak tampil (judul 10 PR pertama lengkap, tanpa PR-11)',
     (document.body.textContent || '').includes('Permintaan 10')
     && ![...document.querySelectorAll('.pr-title-cell')].map(e => e.textContent.trim()).includes('Permintaan 11'))
@@ -241,9 +249,12 @@ console.log('\nD. PR master-detail & perluasan Approval tetap utuh')
   const allTr = [...docA.querySelectorAll('.desktop-table-view table tbody tr')]
   const topTr = allTr.filter(tr => !tr.closest('table table')).length
   check('baris level-atas: 10 PR + 1 expand = 11 (parent-child utuh)', topTr === 11, `got ${topTr}`)
-  // 3 baris ITEM perluasan (thead nested table bukan baris item)
-  const nestedItem = allTr.filter(tr => !!tr.closest('table table') && !tr.closest('thead')).length
+  // 3 baris ITEM perluasan + 1 baris Total Estimasi (t_ac0b39c0) — baris total
+  // nested diberi kelas pr-est-total-row; item murni = nested tr tanpa kelas itu.
+  const nestedItem = allTr.filter(tr => !!tr.closest('table table') && !tr.closest('thead') && !tr.classList.contains('pr-est-total-row')).length
   check('item perluasan utuh di dalam baris expand (3 item, tidak terpotong)', nestedItem === 3, `got ${nestedItem}`)
+  check('baris Total Estimasi ada di perluasan (3 item + 1 total = 4 nested)',
+    allTr.filter(tr => !!tr.closest('table table') && !tr.closest('thead') && tr.classList.contains('pr-est-total-row')).length === 1)
   check('footer approval dari hasil filter penuh: "Menampilkan 10 dari 12"', footerText(docA).includes('Menampilkan 10 dari 12'), footerText(docA))
   check('tab approval dari dataset penuh: "⏳ Menunggu (12)"', (docA.querySelector('.toolbar')?.textContent || '').includes('Menunggu (12)'), docA.querySelector('.toolbar')?.textContent || '')
 }

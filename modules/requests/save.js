@@ -6,19 +6,73 @@
 // (nomor atomic via RPC next_pr_number, dibuat sebagai DRAFT).
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
+// ============================================================
+// VALIDASI ESTIMASI & KELAYAKAN (t_ac0b39c0) — SERVICE BOUNDARY, bukan UI-only
+// ============================================================
+// Validasi harga/qty nonnegative & finite (tidak NaN) + vendor eligible
+// dijalankan di sini (save), bukan cuma di form. Resolver & aturan kelayakan
+// SATU SUMBER: modules/requests/estimator.js (resolver acuan sama dgn modul
+// Material, t_090127ad).
+import { isVendorEligible } from './estimator'
 
-// Estimasi harga: string berformat ("1.250.000") → integer rupiah.
-const priceDigits = (v) => {
-  const d = String(v ?? '').replace(/[^\d]/g, '')
-  return d ? Number(d) : null
+// Harga valid utk simpan: nonnegative, finite. Tanda minus/parenthesis
+// ditolak EKSPLISIT ('-5' tidak boleh diam-diam jadi 5). Hasil null =
+// tidak ada harga (bukan nol).
+function validatedPrice(v) {
+  if (v === null || v === undefined || v === '') return null
+  if (typeof v === 'number') return isFinite(v) && v >= 0 ? Math.round(v) : NaN
+  const raw = String(v)
+  if (/[-(]/.test(raw)) return NaN
+  const digits = raw.replace(/[^\d]/g, '')
+  return digits ? Number(digits) : null
+}
+
+// Qty valid utk simpan: finite & > 0. Return NaN bila invalid.
+function validatedQty(q) {
+  const n = Number(q)
+  return isFinite(n) && n > 0 ? n : NaN
 }
 
 export async function save(ctx) {
-  const { form, isEdit, editRow, editItems, prItemsList, nextPrNum, say, close, refresh, setSaving } = ctx
+  const { form, isEdit, editRow, editItems, prItemsList, nextPrNum, allMaterials, allVendors, say, close, refresh, setSaving } = ctx
 
   const summary = prItemsList.length
     ? prItemsList.map(it => `${it.qty} ${it.satuan || ''} ${it.name}`).join(', ')
     : (form.title || '—')
+
+  // ============================================================
+  // GATE VALIDASI ITEM (t_ac0b39c0): harga/qty nonnegatif & finite, dan
+  // vendor eligible terhadap kategori KANONIK master material. Validasi
+  // di service boundary — UI hanya lapisan pertama.
+  // ============================================================
+  const problems = []
+  for (const it of prItemsList) {
+    const label = it.name || it.kode || 'item'
+    if (Number.isNaN(validatedQty(it.qty))) {
+      problems.push(`Qty "${label}" harus angka lebih dari 0.`)
+    }
+    const p = validatedPrice(it.estimated_price)
+    if (Number.isNaN(p)) {
+      problems.push(`Estimasi harga "${label}" tidak valid (negatif / bukan angka).`)
+    }
+    if (it.vendor_id) {
+      const v = (allVendors || []).find(x => x.id === it.vendor_id)
+      if (v) {
+        const mat = (allMaterials || []).find(m => m.id === it.material_id)
+        if (mat && !isVendorEligible(v, mat.category || '')) {
+          problems.push(
+            `Vendor "${v.name}" untuk "${label}" tidak aktif pada kategori material ` +
+            `"${mat.category || '—'}" — aktifkan kategori itu di modul Vendor, atau pilih vendor lain.`
+          )
+        }
+      }
+    }
+  }
+  if (problems.length) {
+    setSaving(false)
+    say(`PR belum bisa disimpan: ${problems.join(' ')}`)
+    return
+  }
 
   // Mode EDIT: perbarui PR yang ada + sinkronkan item (tanpa membuat approval baru)
   if (isEdit) {
@@ -51,7 +105,7 @@ export async function save(ctx) {
           unit: it.satuan,
           supplier_category: it.supplier_category || null,
           vendor_id: it.vendor_id || null,
-          estimated_price: priceDigits(it.estimated_price),
+          estimated_price: validatedPrice(it.estimated_price),
           sort_order: idx
         }).eq('id', it.id)
         if (error && !itemErrMsg) itemErrMsg = error.message
@@ -66,7 +120,7 @@ export async function save(ctx) {
           status: 'PENDING_APPROVAL',
           supplier_category: it.supplier_category || null,
           vendor_id: it.vendor_id || null,
-          estimated_price: priceDigits(it.estimated_price),
+          estimated_price: validatedPrice(it.estimated_price),
           sort_order: idx
         })
         if (error && !itemErrMsg) itemErrMsg = error.message
@@ -119,7 +173,7 @@ export async function save(ctx) {
       status: 'PENDING_APPROVAL',
       supplier_category: it.supplier_category || null,
       vendor_id: it.vendor_id || null,
-      estimated_price: priceDigits(it.estimated_price),
+      estimated_price: validatedPrice(it.estimated_price),
       sort_order: idx
     }))
     const { error: itemErr } = await supabase.from('pr_items').insert(itemRecords)
