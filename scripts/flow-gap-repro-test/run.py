@@ -133,24 +133,30 @@ __CONSTANTS__
     const fotoLama = parseHandoverNote(editRow?.note).foto
     const foto = fotoBaru !== undefined ? String(fotoBaru || '') : fotoLama
     return {
-      receiving_id: form.receiving_id || null,     // ← bisa berubah di edit
-      project_id: form.project_id || null,          // ← bisa berubah di edit
+      receiving_id: form.receiving_id || null,     // ← ditentukan form, bukan editRow
+      project_id: form.project_id || null,          // ← ditentukan form, bukan editRow
       received_by: form.received_by,
       status: form.handover_status || 'CONFIRMED',  // ← bisa diubah bebas
       handover_date: form.handover_date || new Date().toISOString().slice(0, 10),
       note: buildHandoverNote({ foto, extra: form.notes })
     }
   }
-  // Kasus: edit catatan saja (arahan DAT t_b418827b: FK harus terkunci)
+  // Kasus 1 — payload tampering / select dipindah: source record boleh berubah
+  // (kontrak DAT t_b418827b: purchase/project diturunkan & DIKUNCI dari record sumber).
   const editRow = { id: 'h9', receiving_id: 'rec-src', project_id: 'proj-src', status: 'CONFIRMED', note: '[FotoBukti: data:image/png;base64,OLD] teks lama' }
-  const form = { receiving_id: '', project_id: '', received_by: 'X', handover_status: 'CONFIRMED', handover_date: '', notes: 'ganti catatan' } // user tidak menyentuh select (state kosong)
-  const d = handoverSaveDataMirror(form, editRow)
-  check('GAP-5a', 'edit catatan → receiving_id terkirim NULL (FK hilang)', null, d.receiving_id)
-  check('GAP-5b', 'edit catatan → project_id terkirim NULL', null, d.project_id)
-  // Dan kalau user PINDAH dropdown ke penerimaan lain (payload tampering):
-  const form2 = { ...form, receiving_id: 'rec-LAIN', project_id: 'proj-LAIN' }
+  const form2 = { receiving_id: 'rec-LAIN', project_id: 'proj-LAIN', received_by: 'X', handover_status: 'CONFIRMED', handover_date: '', notes: 'ganti catatan' }
   const d2 = handoverSaveDataMirror(form2, editRow)
   check('GAP-5c', 'source bisa dipindah lewat edit (kontrak: terkunci)', 'rec-LAIN', d2.receiving_id)
+  check('GAP-5d', 'project bisa dipindah lewat edit', 'proj-LAIN', d2.project_id)
+  check('GAP-5e', 'status bebas diedit via form (kontrak: via konfirmasi eksplisit)', 'CONFIRMED', d2.status)
+  // Kasus 2 — shell lama (sebelum dirty fix Bamboo): form.receiving_id kosong
+  // → FK dikirim NULL. Dirty fix Bamboo (prefill receiving_id) hanya menutup
+  // jalur modal edit TERBARU; save.js tetap memercayai form untuk field kunci.
+  // (dirty fix juga TIDAK menutup: pindah dropdown = pindah source — Kasus 1.)
+  const formKosong = { receiving_id: '', project_id: '', received_by: 'X', handover_status: 'DRAFT', handover_date: '', notes: 'catatan' }
+  const d = handoverSaveDataMirror(formKosong, editRow)
+  check('GAP-5a', 'form.kosong → receiving_id terkirim NULL (FK hilang, jalur shell lama/API)', null, d.receiving_id)
+  check('GAP-5b', 'form.kosong → project_id terkirim NULL', null, d.project_id)
 }
 
 // ================================================================
