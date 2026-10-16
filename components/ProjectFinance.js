@@ -27,9 +27,9 @@ function parseNominalFromNote(note) {
   return digits ? Number(digits) : null
 }
 
-export default function ProjectFinance({ rows, initialDriveRows, initialPlans }) {
+export default function ProjectFinance({ rows, initialDriveRows, initialPlans, initialView }) {
   const [projectId, setProjectId] = useState('')
-  const [view, setView] = useState('revenue')
+  const [view, setView] = useState(initialView || 'revenue')
   // Data dari tabel admin-only (RLS) — dimuat saat komponen dibuka.
   // initial* props (opsional, dipakai SSR/test) mengisi data awal supaya kartu
   // langsung terisi sebelum efek muat data berjalan; produksi memuat via load().

@@ -303,6 +303,12 @@ export function desktopRow(r, ctx) {
   // ===== Baris Total Estimasi PR (snapshot tersimpan) — baris ekstra di
   // bawah item; parent rowSpan diperpanjang agar tetap menyatukan semua.
   // Nilai TIDAK berubah karena pengelompokan (jumlah subtotal snapshot sama).
+  // Verifikasi geometri run 93: kolom parent (prioritas/noPR/project/judul,
+  // rowSpan) + kolom status/aksi (rowSpan) MENUTUP kolom 0..3 & 8..9 baris
+  // ini — filler colSpan 2 di ujung kanan menciptakan 2 kolom hantu
+  // (grid 12 vs header 10, strip kosong tampak di kanan kolom Aksi).
+  // Label colSpan 3 = Qty..Vendor, nilai = kolom Estimasi Harga (sejajar
+  // dgn subtotal item di atasnya). Grid baris: 4 (parent) + 3 + 1 + 2 = 10.
   const totalRow = est.hasItems ? [(
     <tr key="pr-est-total" className="pr-est-total-row">
       <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34', background: '#fbfdfc' }}>
@@ -311,7 +317,6 @@ export function desktopRow(r, ctx) {
       <td style={{ fontWeight: 700, color: est.complete ? '#137333' : '#b45309', borderTop: '2px solid #1f3a34', background: '#fbfdfc', whiteSpace: 'nowrap' }}>
         {rupiah(est.total)}{!est.complete ? ` — ${est.unknown} item belum ada harga` : ''}
       </td>
-      <td colSpan={2} style={{ borderTop: '2px solid #1f3a34', background: '#fbfdfc' }} />
     </tr>
   )] : []
   // ===== Susun baris fisik: heading kategori (pemisah grup) + item, rata.

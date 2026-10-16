@@ -218,17 +218,22 @@ export function desktopRow(r, ctx) {
   // ============================================================
   // Total Estimasi (t_ac0b39c0): SNAPSHOT pr_items tersimpan — read-only,
   // TIDAK berubah karena pengelompokan; item tanpa harga ≠ 0.
+  // Verifikasi geometri run 93: label colSpan = itemAreaSpan-1 (kolom Item
+  // SAJA) dan nilai di kolom Qty — parent (Step/Status/Catatan/Waktu/Aksi)
+  // sudah menutup kolom 5..9 via rowSpan, jadi label colSpan penuh
+  // (itemAreaSpan) mendorong nilai keluar grid (kolom hantu ke-11) dan
+  // versi lama (itemAreaSpan+2 + filler 2) menciptakan 2 kolom hantu lagi.
+  // Grid baris total: 3 parent + 1 label + 1 nilai + 5 parent = 10 ✓.
   // ============================================================
   const est = prEstimateRows(H.approvalItems(r))
   const totalRow = [(
     <tr key="ap-est-total" className="pr-est-total-row">
-      <td colSpan={itemAreaSpan + 2} style={{ textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34', background: '#fbfdfc' }}>
+      <td colSpan={itemAreaSpan - 1} style={{ textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34', background: '#fbfdfc' }}>
         Total Estimasi{est.complete ? '' : ' (belum lengkap)'}:
       </td>
-      <td style={{ fontWeight: 700, color: est.complete ? '#137333' : '#b45309', borderTop: '2px solid #1f3a34', background: '#fbfdfc', whiteSpace: 'nowrap' }}>
+      <td className="pr-item-qty" style={{ fontWeight: 700, color: est.complete ? '#137333' : '#b45309', borderTop: '2px solid #1f3a34', background: '#fbfdfc', whiteSpace: 'nowrap' }}>
         {rupiah(est.total)}{!est.complete ? ` — ${est.unknown} item belum ada harga` : ''}
       </td>
-      <td colSpan={2} style={{ borderTop: '2px solid #1f3a34', background: '#fbfdfc' }} />
     </tr>
   )]
   // Susun baris fisik: heading kategori (pemisah grup) + item. Nama & Qty
@@ -253,6 +258,10 @@ export function desktopRow(r, ctx) {
       </td>
     </>
   ) : null
+  // Kolom Aksi ikut rowSpan (verifikasi geometri run 93): tanpa rowSpan, kolom
+  // Aksi hanya menutup baris pertama → baris item berlubang di grid & baris
+  // Total Estimasi salah tempat. opts.rowSpan hanya dipakai jalur grouped;
+  // jalur legacy (satu baris) tetap tanpa rowSpan.
   const endTds = first => first ? (
     <>
       <td rowSpan={estRowSpan} style={{ textAlign: 'center', verticalAlign: 'top' }}>{format(r.step_number)}</td>
@@ -263,7 +272,7 @@ export function desktopRow(r, ctx) {
         </div>
       </td>
       <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>{format(r.decided_at)}</td>
-      {rowActions(r, ctx)}
+      {rowActions(r, ctx, { rowSpan: estRowSpan, valign: 'top' })}
     </>
   ) : null
   return bodyRows.map((row, idx) => {
@@ -295,11 +304,17 @@ export function desktopRow(r, ctx) {
 // Standar Noir Living (review Brooklyn #B.3): kolom aksi tabel VERTIKAL —
 // tombol tersusun ke bawah dengan lebar seragam supaya tidak melompat
 // berantakan saat kolom menyempit di layar sempit.
-export function rowActions(r, ctx) {
+// t_48f6b336 run 93 (verifikasi geometri): opts.rowSpan dipakai jalur
+// master-detail grouped (kolom Aksi ikut rowSpan parent — tanpa itu kolom
+// Aksi hanya menutup baris pertama & baris item berlubang di grid). Tanpa
+// opts (jalur legacy / baris tunggal) perilaku lama dipertahankan.
+export function rowActions(r, ctx, opts) {
   const { H, expandedApproval, setExpandedApproval, onDecideApproval, onReviseApproval } = ctx
   const { approvalItemLines } = H
+  const span = opts && opts.rowSpan ? opts.rowSpan : undefined
+  const valign = opts && opts.valign ? opts.valign : undefined
   return (
-    <td style={{ textAlign: 'center' }}>
+    <td rowSpan={span} style={{ textAlign: 'center', verticalAlign: valign }}>
       {r.status === 'PENDING' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'stretch', width: '110px', margin: '0 auto' }}>
           <button

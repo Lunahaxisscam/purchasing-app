@@ -75,6 +75,7 @@ os.symlink(os.path.join(REPO, 'node_modules'), os.path.join(SB, 'node_modules'))
 open(os.path.join(SB, 'package.json'), 'w').write('{ "type": "module" }')
 shutil.copy(os.path.join(HERE, 'compile_sandbox.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'unit_test.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'grid_audit.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'render_test.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')

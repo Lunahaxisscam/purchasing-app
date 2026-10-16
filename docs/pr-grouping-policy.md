@@ -38,6 +38,14 @@ hardcode daftar kategori di kode UI.
   status/alur.
 - Baris **Total Estimasi** (t_ac0b39c0) tetap SATU di bawah item terakhir,
   nilai snapshot tersimpan — **tidak berubah karena pengelompokan**.
+- **Geometri baris total** (verifikasi run 93): kolom parent rowSpan menutup
+  kolom kiri (0..3) & kanan (Status+Aksi) baris ini, jadi label `colSpan=3`
+  (Qty..Vendor) + nilai (kolom Estimasi Harga, sejajar subtotal item) SUDAH
+  menutup grid 10 kolom. Filler `<td colSpan={2}>` lama di ujung kanan
+  (sisa t_ac0b39c0) menciptakan 2 kolom hantu — strip kosong terlihat di
+  kanan kolom Aksi (grid 12 vs header 10) — dihapus & dijaga test grid
+  (`scripts/pr-group-test/grid_audit.mjs`, dijalankan di render_test untuk
+  PR multi-kategori/1 kategori/legacy, batch Show More 12 PR, & Approval).
 
 ### Desktop — Approval (`modules/approvals/view.jsx`)
 - **Baru: master-detail row-per-child.** Sebelumnya kolom Items (nama) dan QTY
@@ -45,7 +53,9 @@ hardcode daftar kategori di kode UI.
   nama + qty berada di baris fisik yang sama, dengan heading kategori
   sebagai pemisah grup (sumber kategori & urutan sama persis dengan PR).
 - Kolom lain (No.PR, Project, Judul, Step, Status, Catatan, Waktu Putusan,
-  Aksi) tetap satu dokumen (rowSpan).
+  Aksi) tetap satu dokumen (rowSpan). **Kolom Aksi ikut rowSpan** (verifikasi
+  geometri run 93) — tanpa itu kolom Aksi hanya menutup baris pertama dan
+  baris item menyisakan lubang grid.
 - **Panel perluasan material** (tombol "▼ Material") kini menampilkan tabel
   per grup kategori (blok `.ap-group-block` dengan heading + subtotal
   kategori). Markup per item (Kode, Nama, Qty, Satuan, Subtotal, Status, Aksi
@@ -54,6 +64,13 @@ hardcode daftar kategori di kode UI.
   (`estimated_price × qty` per item; item tanpa harga di-skip — bukan dianggap
   0). Tidak pernah menjumlah qty dengan satuan berbeda. Total Estimasi PR
   tetap SATU di akhir panel dan tidak berubah.
+- **Baris Total Estimasi desktop** (verifikasi geometri run 93): label
+  `colSpan = itemAreaSpan-1` (kolom Item SAJA) + nilai di **kolom Qty**
+  (sejajar dgn qty item) — parent Step/Status/Catatan/Waktu/Aksi sudah
+  menutup kolom kanan via rowSpan, jadi label tidak boleh melebar ke sana.
+  Versi awal (label colSpan area-item + 2 & filler colSpan 2) menggeser nilai
+  ke kolom Aksi + menciptakan 2 kolom hantu di ujung kanan (grid 12 vs
+  header 10) — sudah diperbaiki & dijaga test grid.
 - Approval legacy tanpa rincian `pr_items` → satu baris dash (perilaku lama).
 
 ### Mobile (PR & Approval)
@@ -92,17 +109,25 @@ hardcode daftar kategori di kode UI.
 | `styles/globals.css` | Append-only: `.pr-group-row`, `.pr-group-cell`, `.pr-group-label`, `.ap-item-name`, `.ap-group-block`, `.ap-group-heading`, `.mobile-item-group`, `.mobile-group-label` |
 | `scripts/showmore-list-test/render_test.mjs` | Penyesuaian kontrak fisik (2 assertion): heading kategori menambah baris fisik dalam PR; Show More tetap per parent |
 | `scripts/approval-queue-test/render_test.mjs` | Penyesuaian hitungan baris → hitungan PR unik (rowSpan parent / baris legacy) |
-| `scripts/pr-group-test/*` | Harness baru: unit (31) + render jsdom (45) + isolated build |
+| `scripts/pr-group-test/*` | Harness baru: unit (31) + render jsdom (54, termasuk penjaga geometri grid `grid_audit.mjs`) + isolated build |
 
 ## 6. Verifikasi
 
-- `python3 scripts/pr-group-test/run.py` → **76/76** (unit 31 + render 45)
+- `python3 scripts/pr-group-test/run.py` → **85/85** (unit 31 + render 54,
+  termasuk penjaga geometri grid)
+- Verifikasi geometri NYATA (run 93): algoritma slot tabel diukur di Chrome
+  sungguhan (CDP, viewport 1440px) pada build sandbox — sebelum perbaikan:
+  grid 12 vs header 10 (2 kolom hantu) di PR & Approval + nilai Total
+  Estimasi Approval jatuh di kolom Aksi + kolom Aksi approval tanpa rowSpan;
+  setelah perbaikan: grid 10/10 seimbang di semua baris, nilai total di
+  kolom yang benar (PR: Estimasi Harga; Approval: Qty), Aksi ikut rowSpan,
+  tanpa overflow kanan (dicek rect per sel + screenshot).
 - Regresi: pr-estimator 108/108, showmore 49/49, approval-queue 56/56,
   material-acuan 93/93, fase2-save 54/54, vendors-toolbar 25/25,
   receipt-flow 66/66, flow-logic 29/29, handover-flow 51/51
-- Isolated build OK — BUILD_ID `UeEf8PS8GEUwkoiKJcORI`; `.next` aktif
-  (qbkxkvFYYE3A2_Y-ODHzy) **tidak berubah** (live build terkoordinasi,
-  tidak ditimpa saat worker lain berjalan).
+- Isolated build OK — BUILD_ID `BwZ34ebkedDP2lLbFBZOb`; `.next` aktif
+  **tidak berubah** (live build terkoordinasi, tidak ditimpa saat worker
+  lain berjalan).
 
 ## 7. Batasan yang diketahui (jujur)
 

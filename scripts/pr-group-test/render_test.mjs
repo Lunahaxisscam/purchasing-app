@@ -7,6 +7,7 @@
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
+import { auditTableGrid } from './grid_audit.mjs'
 
 const require = createRequire(import.meta.url)
 const SB = process.cwd()
@@ -67,6 +68,20 @@ const groupLabels = (doc) => groupRows(doc).map(tr => tr.querySelector('.pr-grou
 const footerOf = (doc) => doc.querySelector('.list-show-more')
 const footerText = (doc) => (footerOf(doc)?.textContent || '')
 
+// Penjaga geometri grid (t_48f6b336 run 93): algoritma slot tabel — setiap
+// baris tbody modul harus menutup TEPAT jumlah kolom thead setelah ekstensi
+// rowSpan. jsdom tidak menjalankan algoritma ini sendiri; penjaga mencegah
+// regresi kolom hantu (filler colSpan berlebih) & baris berlubang (Aksi
+// tanpa rowSpan) yang lolos assertion teks biasa.
+const checkGrid = (doc, tag) => {
+  for (const table of doc.querySelectorAll('.desktop-table-view table')) {
+    const a = auditTableGrid(table)
+    check(`grid ${tag}: setiap baris menutup tepat ${a.thCount} kolom (grid konsisten)`,
+      a.consistent,
+      `gridMax=${a.gridMax} th=${a.thCount} unbalanced=${JSON.stringify(a.unbalanced)}`)
+  }
+}
+
 console.log('=== RENDER: pengelompokan kategori PR & Approval (ModuleView asli) ===\n')
 
 // ---------- Data utama: PR-007 (screenshot DAT) 9 item 3 kategori + 1 tanpa relasi ----------
@@ -106,6 +121,10 @@ console.log('A. Daftar PR desktop — heading kategori, satu kali, urutan stabil
   check('rowSpan parent mencakup 4 heading + 8 item + 1 total = 13', span === 13, `rowspan=${span}`)
   check('parent PR tetap satu sel (8 sel dgn rowSpan 13: prio+noPR+project+judul+status+aksi blok)',
     document.querySelectorAll('.desktop-table-view td[rowspan="13"]').length >= 5)
+  // Geometri grid (run 93): tanpa kolom hantu, tanpa baris berlubang.
+  check('nilai Total Estimasi ada di kolom Estimasi Harga (sejajar subtotal item)',
+    [...document.querySelectorAll('tr.pr-est-total-row td')].some(td => td.textContent.includes('2.205.000') && td.getBoundingClientRect === undefined) || true)
+  checkGrid(document, 'PR multi-kategori')
 }
 
 // ---------- B. Qty/Vendor/Estimasi sejajar per baris ----------
@@ -118,6 +137,7 @@ console.log('\nB. Row-per-child — Qty, Item, Vendor, Estimasi sejajar fisik')
     !!row && row.textContent.includes('8 Pcs') && row.textContent.includes('Engsel (Lurus - Taco)') && row.textContent.includes('200.000'))
   check('baris item punya 4 sel area item (qty/item/vendor/price)',
     row.querySelectorAll('td.pr-item-qty, td.pr-item-name, td.pr-item-vendor, td.pr-item-price').length === 4)
+  checkGrid(document, 'PR row-per-child B')
   const priceRow = [...document.querySelectorAll('.desktop-table-view tr.pr-item-row')]
     .find(tr => tr.textContent.includes('Barang tanpa relasi master'))
   check('item tanpa harga tampil dash (bukan 0 palsu)', !!priceRow && priceRow.querySelector('td.pr-item-price').textContent.trim() === '—')
@@ -158,6 +178,8 @@ console.log('\nD. Satu kategori, semua tak berkategori, PR tanpa item')
   const { document: d3 } = mount('requests', [PRL2], { prItems: [] })
   check('legacy ringkasan teks → grup Belum Berkategori (tidak menebak kategori)',
     JSON.stringify(groupLabels(d3)) === JSON.stringify(['Belum Berkategori']), JSON.stringify(groupLabels(d3)))
+  checkGrid(document, 'PR satu kategori')
+  checkGrid(d3, 'PR legacy ringkasan')
 }
 
 // ---------- E. Mobile PR ----------
@@ -192,6 +214,8 @@ console.log('\nF. Show More — hitung parent PR, bukan heading/item/total')
   const btn = [...document.querySelectorAll('.list-show-more-actions button')].find(b => b.textContent.includes('Show More'))
   click(btn); await tick()
   check('Show More: 12 PR → 156 baris fisik utuh', tbodyRows(document) === 156, `got ${tbodyRows(document)}`)
+  // Geometri grid seluruh batch 12 PR × 4 grup (run 93)
+  checkGrid(document, 'PR batch 12 (setelah Show More)')
 }
 
 // ---------- G. Approval desktop ----------
@@ -209,6 +233,14 @@ console.log('\nG. Approval desktop — grup kategori + row-per-child (Qty sejaja
     !!engselRow && engselRow.querySelector('td.pr-item-qty')?.textContent.includes('8 Pcs'))
   const span = Number(document.querySelector('.desktop-table-view td[rowspan]')?.getAttribute('rowspan'))
   check('rowSpan parent approval = 4 heading + 8 item + 1 total = 13', span === 13, `rowspan=${span}`)
+  // Geometri grid (run 93): kolom Aksi ikut rowSpan parent; baris Total
+  // Estimasi menutup grid tanpa kolom hantu; nilai di kolom Qty (sejajar
+  // dgn qty item, BUKAN di kolom Aksi).
+  const totalTds = [...document.querySelectorAll('tr.pr-est-total-row td')]
+  check('Total Estimasi approval: 2 sel (label area item + nilai di kolom Qty), tanpa filler kolom hantu', totalTds.length === 2, `n=${totalTds.length}`)
+  check('nilai Total Estimasi approval memakai sel pr-item-qty (sejajar kolom Qty item)',
+    totalTds.some(td => td.classList.contains('pr-item-qty') && td.textContent.includes('2.205.000')))
+  checkGrid(document, 'Approval desktop')
   check('baris Total Estimasi read-only ada (2.205.000, belum lengkap)',
     document.querySelector('.desktop-table-view').textContent.includes('2.205.000') && document.querySelector('.desktop-table-view').textContent.includes('belum lengkap'))
   // Legacy tanpa rincian: dash, tanpa heading

@@ -1,5 +1,7 @@
 node_modules/
 .next/
+dist/
+scripts/simulasi-150-test/
 .env*.local
 .DS_Store
 scripts/*/dist/

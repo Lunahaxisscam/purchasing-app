@@ -2,37 +2,98 @@ import React from 'react'
 import { exportWorkbook } from '../lib/workflow'
 import { headersFor, parseHandoverNote } from '../lib/constants'
 
+// Ikon kartu metrik (stroke SVG) — menggantikan emoji agar terlihat rapi
+// dan konsisten di semua platform. Murni visual.
+const CARD_ICONS = {
+  projects: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
+  past_projects: <path d="M3 8h18v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM2 4h20v4H2zM10 13h4" />,
+  requests: <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M9 13h6M9 17h6" />,
+  approvals: <path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />,
+  receivings: <path d="M6 6h15l-1.5 9h-12zM6 6L5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />,
+  planning: <path d="M3 3v18h18M7 15l3-4 3 3 5-7" />,
+  project_finance: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  finance: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
+  tukang_upah: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
+  rab_boq: <path d="M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 11h3M8 15h3M15 11v6M13 15h4" />,
+  settings: <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+}
+
+function CardIcon({ id }) {
+  const d = CARD_ICONS[id]
+  if (!d) return null
+  return (
+    <span className="card-ico" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+        strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+        {d}
+      </svg>
+    </span>
+  )
+}
+
 export default function Dashboard({ rows, activeProjects, pastProjects, setPage, role = 'user' }) {
+  const pendingApprovals = rows.approvals?.filter(a => a.status === 'PENDING').length || 0
+
+  // [key, label, nilai, tone, hint]
   const cards = [
-    ['projects', 'Project aktif', activeProjects.length],
-    ['past_projects', 'Past Project', pastProjects.length],
-    ['requests', 'Purchase Request', rows.requests?.length || 0],
-    ['approvals', 'Menunggu approval', rows.approvals?.filter(a => a.status === 'PENDING').length || 0],
-    ['receivings', 'Purchase', rows.receivings?.length || 0]
+    ['projects', 'Project aktif', activeProjects.length, 'tone-neutral', `${pastProjects.length} past project`],
+    ['requests', 'Purchase Request', rows.requests?.length || 0, 'tone-neutral', 'lihat semua PR'],
+    ['approvals', 'Menunggu approval', pendingApprovals, pendingApprovals > 0 ? 'tone-warn' : 'tone-ok',
+      pendingApprovals > 0 ? 'perlu tindakan' : 'tidak ada antrean'],
+    ['receivings', 'Purchase', rows.receivings?.length || 0, 'tone-neutral', 'penerimaan barang'],
+    ['past_projects', 'Past Project', pastProjects.length, 'tone-neutral', 'proyek selesai']
   ]
+
   // Modul tambahan khusus admin
-  if (role === 'admin') {
-    cards.push(['planning', '🏗️ Budgeting', '→'])
-    cards.push(['project_finance', '📊 Project Finance', '→'])
-    cards.push(['finance', '★ Finance', '→'])
-    cards.push(['tukang_upah', '👷 Upah Tukang', '→'])
-    // RAB & BOQ (t_18564dce) — kalkulator BOQ standalone, admin-only.
-    cards.push(['rab_boq', '🧮 RAB & BOQ', '→'])
-    cards.push(['settings', '⚙️ Settings', '→'])
-  }
+  const adminCards = role === 'admin' ? [
+    ['rab_boq', 'RAB & BOQ', 'Kalkulator', 'tone-neutral'],
+    ['planning', 'Budgeting', 'Rencana', 'tone-neutral'],
+    ['project_finance', 'Project Finance', 'Laba/rugi', 'tone-neutral'],
+    ['finance', 'Finance', 'Ringkasan', 'tone-neutral'],
+    ['tukang_upah', 'Upah Tukang', 'Upah', 'tone-neutral'],
+    ['settings', 'Settings', 'Admin', 'tone-neutral']
+  ] : []
+
   return (
     <>
       <div className="cards">
-        {cards.map(([k, t, count]) => (
-          <button className="card" onClick={() => setPage(k)} key={k}>
-            <span>{t}</span>
+        {cards.map(([k, t, count, tone, hint]) => (
+          <button className={`card ${tone}`} onClick={() => setPage(k)} key={k} type="button">
+            <div className="card-top">
+              <span className="card-label">{t}</span>
+              <CardIcon id={k} />
+            </div>
             <strong>{count}</strong>
-            <small>Lihat detail →</small>
+            <small className="card-hint">{hint} <span className="card-arrow">→</span></small>
           </button>
         ))}
       </div>
+
+      {adminCards.length > 0 && (
+        <div className="panel admin-shortcuts">
+          <div className="panel-head">
+            <h2>Admin Suite</h2>
+            <span className="badge-admin">★ Khusus admin</span>
+          </div>
+          <div className="shortcut-grid">
+            {adminCards.map(([k, t, sub]) => (
+              <button className="shortcut" onClick={() => setPage(k)} key={k} type="button">
+                <CardIcon id={k} />
+                <span className="shortcut-text">
+                  <b>{t}</b>
+                  <small>{sub}</small>
+                </span>
+                <span className="shortcut-arrow">→</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="panel">
-        <h2>Aktivitas terbaru</h2>
+        <div className="panel-head">
+          <h2>Aktivitas terbaru</h2>
+        </div>
         <p className="muted">Data terbaru akan tampil di masing-masing menu. Gunakan Purchase Request untuk memulai pengadaan.</p>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
           <button
@@ -60,7 +121,7 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
               }), ['project_name', 'received_by', 'status', 'handover_date', 'note', 'diserahkan_at']]
             ], 'Purchasing-Seluruh-Data')}
           >
-            📦 Export Semua Data (Excel)
+            Export Semua Data (Excel)
           </button>
         </div>
       </div>
