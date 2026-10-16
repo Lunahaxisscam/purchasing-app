@@ -86,6 +86,7 @@ Modul TIDAK mengimpor shell — arah dependensi selalu shell → modul.
 | `rowActions(r, ctx)` | Kolom "Aksi" | modul tanpa aksi |
 | `rowExpand(r, ctx)` | Baris perluasan di bawah baris | tidak ada perluasan |
 | `mobileCard(r, ctx)` | Kartu mobile | shell pakai kartu generik |
+| `receiptForm(ctx)` | Modal khusus modul (mis. Terima Barang), dirender SEKALI per halaman lewat `renderModuleModal` | modul tanpa modal |
 
 ### `form.jsx`
 
@@ -108,6 +109,14 @@ pesan "Modul X tidak didukung untuk penyimpanan."
 nextPrNum, allMaterials, allVendors, say, close, refresh, setSaving`.
 Perubahan daftar ini = perubahan KONTRAK (lewat Tech Lead).
 
+### Simpan khusus Purchase — `receiptSave.js` (t_5196b689)
+
+Form "Terima Barang" (`modules/receivings/receiptForm.jsx`) TIDAK lewat
+`CreateModal.save()`; ia memanggil `saveReceipt()` di
+`modules/receivings/receiptSave.js` (compare-and-swap per item, idempoten) dan
+`loadItemsFromPr()` (nota lama tanpa item → salin item PR qty 0).
+Input qty TIDAK menulis DB saat mengetik — hanya tombol "Simpan Penerimaan".
+
 ### `ctx` yang disediakan shell
 
 `ctx` dirakit di `components/ModuleView.js`. Berisi:
@@ -117,13 +126,13 @@ Perubahan daftar ini = perubahan KONTRAK (lewat Tech Lead).
   `requestItemRows/Lines`.
 - `columns`, `page`, `title`, `rows`, semua data master (`allProjects`, `allMaterials`,
   `allVendors`, `allRequests`, `allReceivings`).
+- `say`, `refresh` — umpan balik & reload setelah simpan (dipakai modal modul).
 - State filter: `projectFilter/setProjectFilter`, `receivingFilter/...`, dst.
-- State UI: `openNoteId/setOpenNoteId`, `expandedApproval/...`, `expandedReceiving/...`,
-  `setEditRow`.
+- State UI: `openNoteId/setOpenNoteId`, `expandedApproval/...`,
+  `receiptRow/setReceiptRow` (form Terima Barang), `setEditRow`.
 - Callback halaman: `onStatusChange`, `onReceivingStatusChange`, `onMoveToWarehouse`,
   `onSendToTukang`, `onMarkHandoverDelivered`, `onDecideApproval`, `onReviseApproval`,
-  `onApproveItem`, `onFinishPr`, `onMarkPrItemOrdered`, `onMarkReceivingItemReceived`,
-  `onUpdateReceivingQty`, `onDelete`, `setPage`.
+  `onApproveItem`, `onFinishPr`, `onMarkPrItemOrdered`, `onDelete`, `setPage`.
 
 **Menambah field ke `ctx` adalah perubahan KONTRAK — harus lewat Tech Lead.**
 

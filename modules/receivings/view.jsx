@@ -6,12 +6,22 @@
 // adalah SATU-SATUNYA tempat kode UI Purchase / Receiving diubah — agent lain tidak perlu
 // menyentuh file modul lain. Lihat docs/owners.md.
 //
-// ctx (konteks) disediakan shell ModuleView: H (helper item dari
-// modules/shared/itemHelpers), state filter, state UI, columns, dan callback
-// halaman dari pages/index.js.
+// REVISI 16 Okt 2026 (t_5196b689, arahan DAT):
+//   - Panel legacy "📦 Langkah 1 — Cek Fisik Item" + toggle "Lihat X item" +
+//     tabel cek-fisik inline DIHAPUS TOTAL (bukan ganti judul / sembunyi CSS).
+//   - Pengganti: SATU tombol "Terima Barang" (atau "Lihat Barang" bila sudah
+//     lengkap) yang membuka modal ReceiptForm per item. Input qty TIDAK lagi
+//     menulis DB saat mengetik — hanya saat "Simpan Penerimaan".
+//   - Kolom daftar menampilkan ringkasan nama/jumlah item (bukan cuma
+//     invoice/status).
+//   - Kondisi (rusak), tujuan (WS/tukang), retur: divalidasi di form; dimensi
+//     yang belum ada kolomnya di skema ditandai gap (lihat receiptLogic.js) —
+//     TIDAK di-packing ke kolom note, tidak ada migrasi.
 // ============================================================
 import React from 'react'
 import { format, rupiah, parseReceivingNote, notaHref, prettyReceivingStatus, isReceivingKendala } from '../../lib/constants'
+import ReceiptForm from './receiptForm'
+import { itemRingkas } from './receiptLogic'
 
 // --- Filter tabs ---
 export function filters(ctx) {
@@ -52,13 +62,62 @@ export function filters(ctx) {
   )
 }
 
+// --- Header kolom khusus: ringkasan barang ---
+export function header(h) {
+  if (h === 'items') return '📦 Barang'
+  return null
+}
+
+// Badge progres qty yang TIDAK menyamakan dimensi:
+//   - over-receipt (datang > dipesan) → merah "Melebihi pesanan" (audit G1)
+//   - nota kendala (Retur/Refund) dengan qty penuh → jangan hijau "LENGKAP";
+//     dimensi qty vs dimensi status nota dipisah tegas (audit G9).
+function progressBadge(prog, status) {
+  const base = { fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', width: 'fit-content', whiteSpace: 'nowrap' }
+  const over = prog.statuses.some(s => s.key === 'OVER')
+  if (over) {
+    return { text: `⚠ Melebihi pesanan (${prog.statuses.filter(s => s.key === 'OVER').map(s => `${s.rec}/${s.ordered}`).join(', ')})`, style: { ...base, background: '#fdecea', color: '#c93b2b', border: '1px solid #f5c6c0' } }
+  }
+  if (prog.allDone && prog.kendala) {
+    return { text: `Qty penuh (${prog.doneCount}/${prog.total}) · nota ${prettyReceivingStatus(status)}`, style: { ...base, background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' } }
+  }
+  if (prog.allDone) {
+    return { text: `✓ LENGKAP (${prog.doneCount}/${prog.total})`, style: { ...base, background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' } }
+  }
+  return { text: `⏳ PARSIAL (${prog.doneCount}/${prog.total})`, style: { ...base, background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' } }
+}
+
+// Nilai alokasi tak dikenal (mis. 'LANGSUNG_LAPANGAN' di data lama) ditampilkan
+// APA ADANYA — jangan disembunyikan / ditafsirkan ulang (kontrak audit A2).
+function unknownAlokasi(r) {
+  const a = String(r.alokasi || '').toUpperCase()
+  if (!a) return null
+  if (a === 'MASUK_GUDANG' || a === 'KE_TUKANG') return null
+  return r.alokasi
+}
+
 // --- Cell tabel desktop ---
 export function renderCell(h, r, rawVal, ctx) {
-  const { H, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang } = ctx
+  const { H, onReceivingStatusChange } = ctx
   const { receivingProgress } = H
 
+  if (h === 'items') {
+    const items = H.receivingItemsForReceiving(r.id)
+    const ring = itemRingkas(items)
+    if (!ring.count) {
+      return <span style={{ fontSize: '11px', color: '#9aa8a4' }}>Belum ada rincian</span>
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '220px', whiteSpace: 'normal', lineHeight: 1.35 }}>
+        <b style={{ fontSize: '12px' }}>{ring.count} item</b>
+        <span style={{ fontSize: '11px', color: '#556b65' }} title={ring.names.join(', ')}>{ring.ringkas}</span>
+      </div>
+    )
+  }
+
   if (h === 'status') {
-    const prog = receivingProgress(r.id)
+    const prog = receivingProgress(r.id, isReceivingKendala(r.status))
+    const alokasiAsing = unknownAlokasi(r)
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
         <select
@@ -73,26 +132,12 @@ export function renderCell(h, r, rawVal, ctx) {
           <option value="RETUR">⚠️ Retur</option>
           <option value="REFUND">⚠️ Refund</option>
         </select>
-        {prog && (
-          <span style={{
-            fontSize: '10px',
-            fontWeight: 700,
-            padding: '2px 7px',
-            borderRadius: '10px',
-            width: 'fit-content',
-            whiteSpace: 'nowrap',
-            ...(prog.allDone
-              ? { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
-              : { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' })
-          }}>
-            {prog.allDone ? `✓ LENGKAP (${prog.doneCount}/${prog.total})` : `⏳ PARSIAL (${prog.doneCount}/${prog.total})`}
-          </span>
-        )}
+        {prog && (() => { const b = progressBadge(prog, r.status); return <span style={b.style}>{b.text}</span> })()}
         {r.masuk_gudang ? (
           <span style={{ fontSize: '11px', color: '#137333', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
             ✓ Di Stok Gudang
           </span>
-        ) : r.tukang_at || r.alokasi === 'KE_TUKANG' ? (
+        ) : r.tukang_at || String(r.alokasi || '').toUpperCase() === 'KE_TUKANG' ? (
           <span style={{ fontSize: '11px', color: '#1a73e8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
             👷 Ke Tukang (Handover)
           </span>
@@ -100,13 +145,19 @@ export function renderCell(h, r, rawVal, ctx) {
           <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600, whiteSpace: 'nowrap' }}>
             ⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah
           </span>
-        ) : (
+        ) : null}
+        {alokasiAsing && (
+          <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 600, whiteSpace: 'nowrap' }} title="Nilai alokasi dari data lama — ditampilkan apa adanya">
+            📌 Alokasi: {alokasiAsing}
+          </span>
+        )}
+        {!r.masuk_gudang && !r.tukang_at && String(r.alokasi || '').toUpperCase() !== 'KE_TUKANG' && !['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '9px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>LANGKAH 2 — ALOKASI</span>
+            <span style={{ fontSize: '9px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>TUJUAN SETELAH DITERIMA</span>
             <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={() => onMoveToWarehouse(r)}
+                onClick={() => ctx.onMoveToWarehouse(r)}
                 style={{
                   background: '#e6f4ea',
                   color: '#137333',
@@ -118,13 +169,13 @@ export function renderCell(h, r, rawVal, ctx) {
                   cursor: 'pointer',
                   width: 'fit-content'
                 }}
-                title="Tambah stok barang ke modul Materials"
+                title="Tambah stok barang yang sudah diterima ke modul Materials"
               >
                 📦 Masuk Stok Gudang
               </button>
               <button
                 type="button"
-                onClick={() => onSendToTukang(r)}
+                onClick={() => ctx.onSendToTukang(r)}
                 style={{
                   background: '#e8f0fe',
                   color: '#1a73e8',
@@ -136,7 +187,7 @@ export function renderCell(h, r, rawVal, ctx) {
                   cursor: 'pointer',
                   width: 'fit-content'
                 }}
-                title="Serah terima langsung ke tukang — masuk modul Handover"
+                title="Buat antrean serah terima ke tukang — belum dikonfirmasi sampai serah terima fisik dicatat"
               >
                 👷 Serah Terima ke Tukang
               </button>
@@ -172,17 +223,32 @@ export function renderCell(h, r, rawVal, ctx) {
   return null
 }
 
-// --- Aksi per baris (desktop) ---
+// --- Aksi per baris (desktop): Terima Barang + Hapus ---
+// Satu pintu input penerimaan: tombol membuka modal ReceiptForm (per item).
+// Label "Lihat Barang" dipakai bila semua item sudah lengkap & nota bukan
+// kendala (untuk sekadar meninjau rincian/qty).
 export function rowActions(r, ctx) {
-  const { title, page, onDelete } = ctx
+  const { title, page, onDelete, setReceiptRow, H } = ctx
+  const prog = H.receivingProgress(r.id, isReceivingKendala(r.status))
+  const done = !!(prog && prog.allDone && !prog.kendala)
   return (
     <td style={{ textAlign: 'center' }}>
-      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'center', alignItems: 'stretch', width: '120px', margin: '0 auto' }}>
+        <button
+          type="button"
+          onClick={() => setReceiptRow(r)}
+          data-testid={`btn-terima-${r.id}`}
+          style={{ background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 8px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', width: '100%' }}
+          title={done ? 'Lihat rincian barang penerimaan ini' : 'Terima barang — isi jumlah datang per item'}
+        >
+          {done ? '📦 Lihat Barang' : '📦 Terima Barang'}
+        </button>
         <button
           type="button"
           className="btn-delete"
           onClick={() => onDelete(page, r)}
           title={`Hapus ${title}`}
+          style={{ width: '100%' }}
         >
           Hapus
         </button>
@@ -191,92 +257,22 @@ export function rowActions(r, ctx) {
   )
 }
 
-// --- Baris perluasan: Langkah 1 — cek fisik item (qty diterima per barang) ---
-export function rowExpand(r, ctx) {
-  const { H, columns, expandedReceiving, setExpandedReceiving, onUpdateReceivingQty, onMarkReceivingItemReceived } = ctx
-  const { receivingItemsForReceiving, itemReceiveStatus, itemBadgeStyle } = H
-  if (!(receivingItemsForReceiving(r.id).length > 0)) return null
-  return (
-    <tr>
-      <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#1f3a34' }}>
-            📦 Langkah 1 — Cek Fisik Item (isi qty diterima, status Parsial/Lengkap dihitung otomatis)
-          </div>
-          <button
-            type="button"
-            onClick={() => setExpandedReceiving(expandedReceiving === r.id ? null : r.id)}
-            style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
-          >
-            {expandedReceiving === r.id ? '▲ Tutup item' : `▼ Lihat ${receivingItemsForReceiving(r.id).length} item`}
-          </button>
-        </div>
-        {expandedReceiving === r.id && (
-          <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
-                <th style={{ padding: '6px 8px', width: '40px' }}>No</th>
-                <th style={{ padding: '6px 8px' }}>Nama Item</th>
-                <th style={{ padding: '6px 8px', width: '110px' }}>Qty Dipesan (PR)</th>
-                <th style={{ padding: '6px 8px', width: '110px' }}>Qty Diterima</th>
-                <th style={{ padding: '6px 8px', width: '70px' }}>Satuan</th>
-                <th style={{ padding: '6px 8px', width: '170px' }}>Status Fisik</th>
-                <th style={{ padding: '6px 8px', width: '110px', textAlign: 'center' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receivingItemsForReceiving(r.id).map((it, i) => {
-                const st = itemReceiveStatus(it)
-                return (
-                  <tr key={it.id} style={{ borderBottom: '1px solid #e1e7e4' }}>
-                    <td style={{ padding: '6px 8px' }}>{i + 1}</td>
-                    <td style={{ padding: '6px 8px', fontWeight: 600 }}>{it.item_name}</td>
-                    <td style={{ padding: '6px 8px' }}>{st.ordered !== null ? `${st.ordered} ${it.unit || ''}` : '—'}</td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        value={it.quantity_received ?? ''}
-                        placeholder="0"
-                        onChange={e => onUpdateReceivingQty(it, e.target.value)}
-                        style={{ width: '70px', padding: '3px 6px', fontSize: '11px', borderRadius: '4px', border: '1px solid #cbd8d4' }}
-                      />
-                    </td>
-                    <td style={{ padding: '6px 8px' }}>{it.unit || '—'}</td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', whiteSpace: 'nowrap', ...itemBadgeStyle(st.key) }}>
-                        {st.text}
-                      </span>
-                    </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => onMarkReceivingItemReceived(it)}
-                        style={{ background: st.key === 'PARSIAL' ? '#b45309' : '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}
-                        title="Simpan qty & konfirmasi penerimaan fisik"
-                      >
-                        {st.key === 'PARSIAL' ? '✓ Update Terima' : '✓ Cek Fisik'}
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </td>
-    </tr>
-  )
-}
+// --- Baris perluasan: DIHAPUS (t_5196b689) ---
+// Panel "Langkah 1 — Cek Fisik Item" + toggle "Lihat X item" + tabel qty
+// inline sudah digantikan modal Terima Barang. rowExpand sengaja TIDAK
+// diekspor lagi supaya tidak ada tampilan lama yang tersisa desktop/mobile.
+// Fungsi pencatatan qty dipindah ke ReceiptForm (submit tunggal).
 
 // --- Kartu mobile ---
 export function mobileCard(r, ctx) {
-  const { H, page, onDelete, onUpdateReceivingQty, onMarkReceivingItemReceived,
-          onMoveToWarehouse, onSendToTukang } = ctx
-  const { receivingProgress, receivingItemsForReceiving, itemReceiveStatus, itemBadgeStyle } = H
-  const prog = receivingProgress(r.id)
+  const { H, page, onDelete, setReceiptRow } = ctx
+  const { receivingProgress, receivingItemsForReceiving } = H
+  const prog = receivingProgress(r.id, isReceivingKendala(r.status))
   const pn = parseReceivingNote(r.note)
   const href = notaHref(pn.notaUrl)
+  const ring = itemRingkas(receivingItemsForReceiving(r.id))
+  const done = !!(prog && prog.allDone && !prog.kendala)
+  const alokasiAsing = unknownAlokasi(r)
   return (
     <>
       <div className="mobile-card-header">
@@ -288,20 +284,7 @@ export function mobileCard(r, ctx) {
           <span className={`badge ${isReceivingKendala(r.status) ? 'status-REJECTED' : 'status-APPROVED'}`} style={{ fontSize: '10px' }}>
             {prettyReceivingStatus(r.status)}
           </span>
-          {prog && (
-            <span style={{
-              fontSize: '9px',
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '8px',
-              whiteSpace: 'nowrap',
-              ...(prog.allDone
-                ? { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
-                : { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' })
-            }}>
-              {prog.allDone ? `✓ LENGKAP (${prog.doneCount}/${prog.total})` : `⏳ PARSIAL (${prog.doneCount}/${prog.total})`}
-            </span>
-          )}
+          {prog && (() => { const b = progressBadge(prog, r.status); return <span style={{ ...b.style, fontSize: '9px', borderRadius: '8px' }}>{b.text}</span> })()}
         </div>
       </div>
       <div className="mobile-card-body">
@@ -314,6 +297,10 @@ export function mobileCard(r, ctx) {
         <div className="mobile-card-row">
           <span className="mobile-label">Tgl Terima:</span>
           <span className="mobile-val">{format(r.received_date)}</span>
+        </div>
+        <div className="mobile-card-row">
+          <span className="mobile-label">Barang:</span>
+          <span className="mobile-val">{ring.count ? `${ring.count} item — ${ring.ringkas}` : 'Belum ada rincian'}</span>
         </div>
         {pn.nominal !== null && (
           <div className="mobile-card-row">
@@ -340,64 +327,42 @@ export function mobileCard(r, ctx) {
             <b>Catatan:</b> {pn.extra}
           </div>
         )}
-        {receivingItemsForReceiving(r.id).length > 0 && (
-          <div className="mobile-card-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-            <span className="mobile-label">Item (Langkah 1 — Cek Fisik):</span>
-            <div className="mobile-items-box" style={{ width: '100%' }}>
-              {receivingItemsForReceiving(r.id).map(it => {
-                const st = itemReceiveStatus(it)
-                return (
-                  <div key={it.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingBottom: '8px', marginBottom: '8px', borderBottom: '1px dashed #d5e0dc' }}>
-                    <span style={{ fontWeight: 600 }}>• {it.item_name}</span>
-                    <span style={{ fontSize: '11px', color: '#556b65' }}>Dipesan: {st.ordered ?? '—'} {it.unit || ''} · Diterima: {st.rec} {it.unit || ''}</span>
-                    <span style={{ width: 'fit-content', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', ...itemBadgeStyle(st.key) }}>
-                      {st.text}
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '3px' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        value={it.quantity_received ?? ''}
-                        placeholder="0"
-                        onChange={e => onUpdateReceivingQty(it, e.target.value)}
-                        style={{ width: '65px', padding: '3px 6px', fontSize: '11px', borderRadius: '4px', border: '1px solid #cbd8d4' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => onMarkReceivingItemReceived(it)}
-                        style={{ background: st.key === 'PARSIAL' ? '#b45309' : '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '10px', fontWeight: 600 }}
-                      >
-                        {st.key === 'PARSIAL' ? '✓ Update' : '✓ Cek Fisik'}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+        {alokasiAsing && (
+          <div className="mobile-card-row">
+            <span className="mobile-label">Alokasi:</span>
+            <span className="mobile-val">📌 {alokasiAsing}</span>
           </div>
         )}
       </div>
       <div className="mobile-card-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button
+          type="button"
+          onClick={() => setReceiptRow(r)}
+          data-testid={`btn-terima-mobile-${r.id}`}
+          style={{ width: '100%', background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '6px', padding: '9px', fontSize: '12px', fontWeight: 700 }}
+        >
+          {done ? '📦 Lihat Barang' : '📦 Terima Barang'}
+        </button>
         {r.masuk_gudang ? (
           <span style={{ fontSize: '12px', color: '#137333', fontWeight: 700 }}>✓ Di Stok Gudang</span>
-        ) : r.tukang_at || r.alokasi === 'KE_TUKANG' ? (
+        ) : r.tukang_at || String(r.alokasi || '').toUpperCase() === 'KE_TUKANG' ? (
           <span style={{ fontSize: '12px', color: '#1a73e8', fontWeight: 700 }}>👷 Ke Tukang (Handover)</span>
         ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
           <span style={{ fontSize: '11px', color: '#b45309', fontWeight: 600 }}>⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah</span>
         ) : (
           <>
-            <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>LANGKAH 2 — ALOKASI AKHIR</span>
+            <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>TUJUAN SETELAH DITERIMA</span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
-                onClick={() => onMoveToWarehouse(r)}
+                onClick={() => ctx.onMoveToWarehouse(r)}
                 style={{ flex: 1, background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6', borderRadius: '6px', padding: '8px', fontSize: '11px', fontWeight: 700 }}
               >
                 📦 Masuk Stok Gudang
               </button>
               <button
                 type="button"
-                onClick={() => onSendToTukang(r)}
+                onClick={() => ctx.onSendToTukang(r)}
                 style={{ flex: 1, background: '#e8f0fe', color: '#1a73e8', border: '1px solid #d2e3fc', borderRadius: '6px', padding: '8px', fontSize: '11px', fontWeight: 700 }}
               >
                 👷 Serah ke Tukang
@@ -410,5 +375,24 @@ export function mobileCard(r, ctx) {
         </button>
       </div>
     </>
+  )
+}
+
+// --- Modal Terima Barang (dirender shell lewat dispatcher) ---
+// ctx.receiptRow = baris Purchase yang dipilih (null = modal tertutup).
+export function receiptForm(ctx) {
+  const { receiptRow, setReceiptRow, H, say, refresh } = ctx
+  if (!receiptRow) return null
+  const prId = receiptRow.purchase_request_id
+  return (
+    <ReceiptForm
+      receiving={receiptRow}
+      items={H.receivingItemsForReceiving(receiptRow.id)}
+      prItems={prId ? H.prItemsForPr(prId) : []}
+      orderedFor={H.orderedQtyFor}
+      say={say}
+      refresh={refresh}
+      close={() => setReceiptRow(null)}
+    />
   )
 }

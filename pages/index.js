@@ -594,57 +594,13 @@ export default function App() {
   }
 
   // ============================================================
-  // LANGKAH 1 — CEK FISIK item receiving (qty terima + catatan).
-  // Fungsi ini TIDAK membuat tiket handover: alokasi akhir (Gudang/Tukang)
-  // dilakukan terpisah di Langkah 2 pada level penerimaan (moveToWarehouse /
-  // sendToTukang). Barang yang dicek bisa saja dialokasikan ke Gudang,
-  // jadi jangan pernah auto-insert ke tabel handovers di sini.
+  // CATATAN (t_5196b689): fungsi legacy "Langkah 1 — Cek Fisik"
+  // (markReceivingItemReceived) dan updateReceivingQty (mutation per
+  // keystroke) SUDAH DIHAPUS. Seluruh input qty penerimaan kini lewat SATU
+  // form "Terima Barang" (modules/receivings/receiptForm.jsx +
+  // receiptSave.js) yang tervalidasi, submit tunggal, dan anti-dobel.
+  // Alokasi akhir (Gudang/Tukang) tetap di moveToWarehouse/sendToTukang.
   // ============================================================
-  async function markReceivingItemReceived(recItem) {
-    if (!supabase) return
-    const now = new Date().toISOString()
-    const qtyInput = Number(recItem.quantity_received || 0)
-    // Qty yang dipakai: isian user bila diisi, kalau kosong pakai qty yang dipesan di PR
-    const prItemForQty = (rows.pr_items || []).find(p => p.id === recItem.pr_item_id)
-    const orderedQty = Number(prItemForQty?.quantity || 0)
-    const qtyFinal = qtyInput > 0 ? qtyInput : orderedQty
-
-    if (!(qtyFinal > 0)) {
-      setNotice(`Isi dulu jumlah barang yang benar-benar diterima untuk "${recItem.item_name}" sebelum cek fisik.`)
-      return
-    }
-
-    try {
-      const { error: riErr } = await supabase.from('receiving_items')
-        .update({ quantity_received: qtyFinal, note: `DITERIMA ${now.slice(0, 10)}` })
-        .eq('id', recItem.id)
-      if (riErr) { setNotice(`Gagal update item: ${riErr.message}`); return }
-
-      const unit = recItem.unit || ''
-      if (orderedQty > 0 && qtyFinal < orderedQty) {
-        setNotice(`Cek fisik "${recItem.item_name}": PARSIAL — diterima ${qtyFinal} ${unit} dari ${orderedQty} dipesan (sisa ${orderedQty - qtyFinal}). Alokasi akhir dilakukan di Langkah 2 pada baris penerimaan.`)
-      } else {
-        setNotice(`Cek fisik "${recItem.item_name}": LENGKAP — diterima ${qtyFinal} ${unit}${orderedQty > 0 ? ` dari ${orderedQty} dipesan` : ''}. Lanjutkan alokasi akhir (Ke Gudang / Ke Tukang) di Langkah 2.`)
-      }
-      loadAll()
-    } catch (err) {
-      setNotice(`Terjadi kesalahan saat memproses penerimaan item: ${err.message}`)
-      loadAll()
-    }
-  }
-
-  // Update qty terima (dipakai di modul Receiving saat user isi qty)
-  async function updateReceivingQty(recItem, newQty) {
-    if (!supabase) return
-    const qty = Number(newQty)
-    if (!isFinite(qty) || qty < 0) return
-    setRows(prev => ({
-      ...prev,
-      receiving_items: (prev.receiving_items || []).map(x => x.id === recItem.id ? { ...x, quantity_received: qty } : x)
-    }))
-    const { error } = await supabase.from('receiving_items').update({ quantity_received: qty }).eq('id', recItem.id)
-    if (error) { setNotice(`Gagal update qty: ${error.message}`); loadAll() }
-  }
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
@@ -807,8 +763,6 @@ export default function App() {
             onApproveItem={approveItem}
             onFinishPr={finishPr}
             onMarkPrItemOrdered={markPrItemOrdered}
-            onMarkReceivingItemReceived={markReceivingItemReceived}
-            onUpdateReceivingQty={updateReceivingQty}
             onDelete={deleteItem}
             setPage={setPage}
           />

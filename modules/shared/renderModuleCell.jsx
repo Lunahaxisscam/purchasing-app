@@ -89,3 +89,10 @@ export function renderModuleMobileCard(page, r, ctx) {
   const m = MODULES[page]
   return (m && m.mobileCard) ? m.mobileCard(r, ctx) : null
 }
+
+// Modal khusus modul (mis. form Terima Barang di Purchase). null = tidak ada.
+// Dipanggil SEKALI per render halaman (bukan per baris).
+export function renderModuleModal(page, ctx) {
+  const m = MODULES[page]
+  return (m && m.receiptForm) ? m.receiptForm(ctx) : null
+}

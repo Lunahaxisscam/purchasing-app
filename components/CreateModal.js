@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { labels, normalizeStatus, formatNominalInput, prefixForCategory } from '../lib/constants' 
+import React, { useState, useMemo, useRef } from 'react'
+import { labels, normalizeStatus, formatNominalInput, prefixForCategory, parseHandoverNote } from '../lib/constants' 
 import { renderCreateForm } from '../modules/shared/renderCreateForm'
 import { dispatchSave } from '../modules/shared/saveDispatcher'
 
@@ -7,14 +7,14 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
   const isEdit = !!editRow
   // Nomor PR berikutnya dihitung dari SEMUA PR (bukan hasil filter), dan selalu
   // lebih besar dari nomor tertinggi yang sudah ada agar tidak pernah dobel
-  // walaupun ada PR yang dihapus.
-  const nextPrNum = (() => {
+  // walaupun ada PR yang dihapus (dimemoize agar tidak reduce berulang saat render form).
+  const nextPrNum = useMemo(() => {
     const maxNum = (allRequestsFull || []).reduce((max, p) => {
       const n = parseInt(String(p.pr_number || '').replace(/^\D+/, ''), 10)
       return isFinite(n) && n > max ? n : max
     }, 0)
     return 'PR-' + String(maxNum + 1).padStart(3, '0')
-  })()
+  }, [allRequestsFull])
 
   // Kode material mengikuti KATEGORI (PLY/HPL/WPC/HWF/KEL/ALM/BHP).
   // Preview di form dihitung dari data yang sudah dimuat; kode final dihitung
@@ -75,16 +75,26 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     delivery_note: '',
     invoice_no: '',
     pr_id: '',
-    receiving_id: '',
+    // Prefill mode EDIT Handover (fitur bukti foto 15 Okt 2026): tanpa ini,
+    // edit handover jatuh ke INSERT dengan receiving_id kosong → gagal
+    // (kolom handovers.receiving_id NOT NULL). Foto bukti TIDAK di-prefill ke
+    // form.bukti_foto — undefined = "belum disentuh", save.js mempertahankan
+    // foto lama dari note; yang di-prefill hanya teks catatannya.
+    receiving_id: (isEdit && page === 'handovers') ? (editRow?.receiving_id || '') : '',
     receiving_status: 'NORMAL',
     received_date: new Date().toISOString().slice(0, 10),
     nominal: '',
     nota_link: '',
-    received_by: '',
-    handover_status: 'CONFIRMED',
-    handover_date: new Date().toISOString().slice(0, 10)
+    received_by: (isEdit && page === 'handovers') ? (editRow?.received_by || '') : '',
+    handover_status: (isEdit && page === 'handovers') ? (editRow?.status || 'CONFIRMED') : 'CONFIRMED',
+    handover_date: (isEdit && page === 'handovers')
+      ? (editRow?.handover_date || new Date().toISOString().slice(0, 10))
+      : new Date().toISOString().slice(0, 10),
+    notes: (isEdit && page === 'handovers') ? parseHandoverNote(editRow?.note).extra : (editRow?.notes || '')
   })
   const [saving, setSaving] = useState(false)
+  // Ref guard anti-dobel (lihat komentar di save()) — instan, tidak menunggu render.
+  const savingRef = useRef(false)
   const [materialSearch, setMaterialSearch] = useState('')
 
   // State untuk Item Material di PR (1 pengadaan bisa banyak item)
@@ -203,20 +213,29 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
   // dipanggil lewat dispatcher modules/shared/saveDispatcher.js.
   // Menambah/mengubah cara simpan satu modul = cukup edit folder modul itu.
   // Shell ini hanya menyediakan state form + ctx (kontrak dijaga Tech Lead).
+  //
+  // ANTI DOBEL (audit t_905e0e5a G13): state `saving` saja tidak cukup —
+  // dua Enter cepat sebelum render ulang bisa lolos. Ref guard menutup
+  // jendela itu; tombol submit juga disabled saat menyimpan.
   // ============================================================
   async function save(e) {
     e.preventDefault()
-    if (saving) return
+    if (savingRef.current || saving) return
+    savingRef.current = true
     setSaving(true)
 
-    const { handled } = await dispatchSave(page, {
-      page, form, isEdit, editRow, editItems, prItemsList,
-      nextPrNum, allMaterials, allVendors,
-      say, close, refresh, setSaving
-    })
-    if (!handled) {
-      setSaving(false)
-      say(`Modul ${page} tidak didukung untuk penyimpanan.`)
+    try {
+      const { handled } = await dispatchSave(page, {
+        page, form, isEdit, editRow, editItems, prItemsList,
+        nextPrNum, allMaterials, allVendors,
+        say, close, refresh, setSaving
+      })
+      if (!handled) {
+        setSaving(false)
+        say(`Modul ${page} tidak didukung untuk penyimpanan.`)
+      }
+    } finally {
+      savingRef.current = false
     }
   }
 

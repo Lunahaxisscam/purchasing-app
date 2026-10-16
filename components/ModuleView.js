@@ -19,7 +19,8 @@ import {
   renderModuleDesktopRow,
   renderModuleRowActions,
   renderModuleRowExpand,
-  renderModuleMobileCard
+  renderModuleMobileCard,
+  renderModuleModal
 } from '../modules/shared/renderModuleCell'
 
 // ============================================================
@@ -35,7 +36,7 @@ import {
 // Shell ini hanya perlu disentuh bila mengubah kontrak bersama (mis. prop baru
 // dari pages/index.js) — perubahan itu harus lewat Tech Lead (docs/owners.md).
 // ============================================================
-export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived, onUpdateReceivingQty, onDelete, setPage }) {
+export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onDelete, setPage }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
@@ -50,7 +51,10 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const [handoverFilter, setHandoverFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedApproval, setExpandedApproval] = useState(null)
-  const [expandedReceiving, setExpandedReceiving] = useState(null)
+  // Panel legacy "Langkah 1 — Cek Fisik" DIHAPUS (t_5196b689): penggantinya
+  // state receiptRow — baris Purchase yang form Terima Barang-nya dibuka.
+  // null = modal tertutup. Tidak ada state perluasan receiving lagi.
+  const [receiptRow, setReceiptRow] = useState(null)
   // ============================================================
   // ACUAN HARGA MATERIAL (t_090127ad — arahan DAT)
   // ============================================================
@@ -143,6 +147,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     setSortDir('asc')
     setOpenNoteId(null)
     setListLimit(PAGE_SIZE)
+    // t_5196b689: pindah modul — tutup form Terima Barang supaya state baris
+    // dari modul lain tidak bocor.
+    setReceiptRow(null)
     // t_090127ad: pindah modul — tutup rincian acuan & bersihkan form manual
     // (prototype sesi) supaya state tidak bocor antar modul.
     setExpandedAcuan(null)
@@ -218,6 +225,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   // Modul TIDAK boleh menambah/mengubah isi ctx — kontrak ini dijaga Tech Lead.
   const ctx = {
     H, columns, page, title, rows,
+    // say/refresh: dipakai modal modul (mis. Terima Barang) untuk umpan balik
+    // & memuat ulang data setelah simpan — nilai yang sama seperti ke CreateModal.
+    say, refresh,
     allProjects, allMaterials, allVendors, allRequests, allReceivings,
     projectFilter, setProjectFilter,
     receivingFilter, setReceivingFilter,
@@ -229,7 +239,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     listLimit, setListLimit,
     openNoteId, setOpenNoteId,
     expandedApproval, setExpandedApproval,
-    expandedReceiving, setExpandedReceiving,
+    // Form Terima Barang (t_5196b689): baris Purchase terpilih + penutup.
+    receiptRow, setReceiptRow,
     // Acuan harga material (t_090127ad): state expand + prototype form manual.
     expandedAcuan, setExpandedAcuan,
     acuanEntries, acuanForm, setAcuanForm, acuanFormError,
@@ -238,8 +249,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     setEditRow,
     onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang,
     onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem,
-    onFinishPr, onMarkPrItemOrdered, onMarkReceivingItemReceived,
-    onUpdateReceivingQty, onDelete, setPage
+    onFinishPr, onMarkPrItemOrdered, onDelete, setPage
   }
 
   return (
@@ -415,6 +425,12 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           <div className="panel empty">{emptyMessage}</div>
         )}
       </div>
+
+      {/* ===== MODAL KHUSUS MODUL (mis. Terima Barang di Purchase) =====
+          Dirender lewat dispatcher; modul tanpa modal mengembalikan null.
+          Form Terima Barang = SATU pintu input qty (pengganti panel legacy
+          "Langkah 1 — Cek Fisik" yang sudah dihapus di t_5196b689). */}
+      {renderModuleModal(page, ctx)}
 
       {/* ===== DAFTAR RINGKAS + SHOW MORE (Arahan DAT t_cf05c96f) =====
           Footer bersama di bawah tabel desktop & kartu mobile. Muncul hanya

@@ -70,7 +70,17 @@ export const modules = [
     label: 'Purchase',
     adminOnly: false,
     source: 'module',
-    files: ['modules/receivings/view.jsx', 'modules/receivings/form.jsx', 'modules/receivings/save.js']
+    files: [
+      'modules/receivings/view.jsx',
+      'modules/receivings/form.jsx',
+      'modules/receivings/save.js',
+      // Form "Terima Barang" (t_5196b689): satu pintu input qty penerimaan
+      // (logika murni, simpan idempoten, komponen modal).
+      'modules/receivings/receiptLogic.js',
+      'modules/receivings/receiptSave.js',
+      'modules/receivings/receiptForm.jsx',
+      'scripts/receipt-flow-test/run.py'
+    ]
   },
   {
     id: 'handovers',

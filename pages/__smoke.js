@@ -93,8 +93,6 @@ export default function SmokePage() {
               onApproveItem={noop}
               onFinishPr={noop}
               onMarkPrItemOrdered={noop}
-              onMarkReceivingItemReceived={noop}
-              onUpdateReceivingQty={noop}
               onDelete={noop}
               setPage={noop}
             />

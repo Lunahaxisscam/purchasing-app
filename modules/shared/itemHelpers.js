@@ -8,22 +8,58 @@
 // ============================================================
 
 export function makeItemHelpers({ allPrItems = [], allVendors = [], allMaterials = [], allReceivingItems = [], allRequests = [] }) {
-  const prItemsForPr = (prId) => (allPrItems || []).filter(it => it.pr_id === prId)
-  const vendorName = (vendorId) => ((allVendors || []).find(v => v.id === vendorId) || {}).name || ''
-  const approvalItems = (approval) => prItemsForPr(approval.purchase_request_id)
-  const receivingItemsForReceiving = (recId) => (allReceivingItems || []).filter(it => it.receiving_id === recId)
+  // Indeks Map O(1) untuk lookup instan antar-relasi pengadaan
+  const prMap = new Map()
+  const prItemById = new Map()
+  for (const it of (allPrItems || [])) {
+    if (it.id) prItemById.set(it.id, it)
+    if (it.pr_id) {
+      let list = prMap.get(it.pr_id)
+      if (!list) {
+        list = []
+        prMap.set(it.pr_id, list)
+      }
+      list.push(it)
+    }
+  }
+
+  const recMap = new Map()
+  for (const it of (allReceivingItems || [])) {
+    if (it.receiving_id) {
+      let list = recMap.get(it.receiving_id)
+      if (!list) {
+        list = []
+        recMap.set(it.receiving_id, list)
+      }
+      list.push(it)
+    }
+  }
+
+  const vendorMap = new Map((allVendors || []).map(v => [v.id, v]))
+  const materialMap = new Map((allMaterials || []).map(m => [m.id, m]))
+  const reqMap = new Map((allRequests || []).map(r => [r.id, r]))
+
+  const prItemsForPr = (prId) => prMap.get(prId) || []
+  const vendorName = (vendorId) => vendorMap.get(vendorId)?.name || ''
+  const approvalItems = (approval) => prItemsForPr(approval?.purchase_request_id)
+  const receivingItemsForReceiving = (recId) => recMap.get(recId) || []
 
   // --- Poin 2: progres penerimaan (parsial vs lengkap) ---
   const orderedQtyFor = (it) => {
-    const prItem = (allPrItems || []).find(p => p.id === it.pr_item_id)
+    const prItem = prItemById.get(it?.pr_item_id)
     const n = Number(prItem?.quantity)
     return isFinite(n) && n > 0 ? n : null
   }
 
+  // Status qty per item. PENTING (audit t_905e0e5a G1): rec > ordered TIDAK
+  // lagi dilaporkan "LENGKAP" — diberi key OVER agar over-receipt terlihat,
+  // bukan diterima diam-diam. Over-receipt dicegah di form Terima Barang
+  // (receiptLogic) sampai ada kebijakan eksplisit.
   const itemReceiveStatus = (it) => {
     const rec = Number(it.quantity_received || 0)
     const ordered = orderedQtyFor(it)
     if (!(rec > 0)) return { key: 'BELUM', rec, ordered, text: `Belum Diterima (0 / ${ordered || 0})` }
+    if (ordered !== null && rec > ordered) return { key: 'OVER', rec, ordered, text: `⚠ Melebihi pesanan (${rec} / ${ordered} — lebih ${rec - ordered})` }
     if (ordered === null || rec >= ordered) return { key: 'LENGKAP', rec, ordered: ordered === null ? rec : ordered, text: `✓ Lengkap (${rec} / ${ordered === null ? rec : ordered})` }
     return { key: 'PARSIAL', rec, ordered, text: `⏳ Parsial (${rec} / ${ordered} — Sisa ${ordered - rec})` }
   }
@@ -34,7 +70,7 @@ export function makeItemHelpers({ allPrItems = [], allVendors = [], allMaterials
       ? { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' }
       : { background: '#f3f5f6', color: '#556260', border: '1px solid #d6dcde' }
 
-  const receivingProgress = (recId) => {
+  const receivingProgress = (recId, kendala) => {
     const items = receivingItemsForReceiving(recId)
     if (!items.length) return null
     const statuses = items.map(itemReceiveStatus)
@@ -44,7 +80,10 @@ export function makeItemHelpers({ allPrItems = [], allVendors = [], allMaterials
       doneCount,
       total: statuses.length,
       allDone: doneCount === statuses.length,
-      anyReceived: statuses.some(s => s.rec > 0)
+      anyReceived: statuses.some(s => s.rec > 0),
+      // Dimensi qty ≠ dimensi status nota (audit G9): nota kendala (Retur/
+      // Refund) dengan qty penuh TIDAK boleh tampil hijau "LENGKAP".
+      kendala: !!kendala
     }
   }
 
@@ -70,7 +109,7 @@ export function makeItemHelpers({ allPrItems = [], allVendors = [], allMaterials
         return { text, qty: q || '—' }
       })
     }
-    const pr = (allRequests || []).find(p => p.id === approval.purchase_request_id)
+    const pr = reqMap.get(approval.purchase_request_id)
     const s = String(pr?.materials_summary || '').trim()
     if (!s) return []
     // Data lama: ringkasan "4 Lembar Triplek" — pisahkan qty utk kolom QTY.
@@ -97,7 +136,7 @@ export function makeItemHelpers({ allPrItems = [], allVendors = [], allMaterials
         const supplier = String(it.supplier_category || '').trim()
         const vendor = vendorName(it.vendor_id)
         // Estimasi harga: dari pr_items.estimated_price; fallback ke harga acuan material.
-        const mat = (allMaterials || []).find(m => m.id === it.material_id)
+        const mat = materialMap.get(it.material_id)
         const rawPrice = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
           ? it.estimated_price
           : (mat ? mat.harga_acuan : null)
