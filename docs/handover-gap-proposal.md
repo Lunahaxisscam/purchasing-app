@@ -35,6 +35,22 @@ DAT sebelum eksekusi.**
    pilih barang dari penerimaan, isi jumlah diserahkan KALI INI (parsial),
    pilih penerima (boleh beberapa), lihat sisa belum diserahkan tanpa hitung
    ganda. Entri hidup di memori sesi, **tidak menulis DB/note**.
+8. **Purchase — larangan bulk utk multi-item (arahan DAT 16 Okt, diperluas dari
+   screenshot acceptance):** dropdown status parent & tombol bulk
+   (Masuk Stok Gudang / Serah Terima ke Tukang) DIHAPUS utk nota multi-item —
+   diganti ringkasan READ-ONLY turunan item:
+   - `Belum diterima (0/N)` utk qty 0 semua (bukan "PARSIAL (0/2)"),
+   - `Diterima sebagian (x/y)` utk 1 barang parsial,
+   - `Sebagian — n dari N barang mulai diterima` utk multi-item,
+   - `✓ Lengkap (N/N)`, `⚠ Melebihi pesanan`, kendala nota (amber).
+   Handler lama (`moveToWarehouse`/`sendToTukang`/`updateReceivingStatus`) diberi
+   guard identik supaya tidak ada bypass lewat payload. Nota ≤1 item yang sudah
+   ada jumlah diterima masih boleh memakai aksi tujuan (keterbatasan skema);
+   dropdown yang tersisa DILABELI "Status Nota" (dimensi nota terpisah).
+   Qty 0 / rusak tidak pernah masuk stok/handover. Kondisi & tujuan per barang
+   tetap divalidasi penuh di form Terima Barang dan diblok saat submit
+   (schemaBlocks) sampai `receiving_events`/`handover_items` disetujui — TIDAK
+   ada ilusi tersimpan.
 
 ## 2. Gap skema yang tersisa (butuh keputusan DAT)
 
@@ -45,6 +61,7 @@ DAT sebelum eksekusi.**
 | H3 | Beberapa penerima per handover | Hanya satu `received_by` per header | `handover_items.penerima` atau tabel penerima |
 | H4 | Sumber angka per item | `receiving_items.quantity_received` kumulatif termasuk rusak; belum ada event `datang/rusak/tujuan` (usulan `receiving_events` di `docs/receipt-flow-contract.md`) | `receiving_events` dulu (parent), lalu `handover_items` merujuk event |
 | H5 | Validasi qty saat konfirmasi fisik | Saat ini konfirmasi menulis `diserahkan_at` tanpa validasi rincian qty (belum ada rincian) | setelah H1: validasi Σqty ≤ tersedia |
+| H6 | **Kondisi & tujuan per barang pada Purchase multi-item** (2 Triplek beda kondisi/tujuan; satu item boleh sebagian rusak & sebagian baik, tujuan split) | Nota multi-item hanya bisa disimpan sebagai qty datang kumulatif; kondisi/tujuan diblok dengan pesan gap (nol tulisan) — sesuai arahan "jangan memberi ilusi berhasil" | `receiving_events` (per event: qty_datang/qty_rusak/tujuan WS-Tukang/retur) — lihat §3 `docs/receipt-flow-contract.md` |
 
 ## 3. Proposal minimal (selaras §H audit t_905e0e5a — BELUM dieksekusi)
 
