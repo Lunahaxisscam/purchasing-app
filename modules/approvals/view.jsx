@@ -14,17 +14,14 @@ import React from 'react'
 import { format } from '../../lib/constants'
 
 // --- Filter tabs ---
+// Urutan tab (arahan DAT t_0a35264f): antrean "⏳ Menunggu" SELALU di posisi
+// pertama dan aktif secara default (state awal approvalFilter='PENDING' di
+// ModuleView.js). Riwayat tetap bisa dibuka eksplisit lewat tab-nya; data
+// tidak pernah dihapus. "Semua" dipindah ke akhir karena bukan antrean kerja.
 export function filters(ctx) {
   const { rows, approvalFilter, setApprovalFilter } = ctx
   return (
     <div className="filter-tabs">
-      <button
-        type="button"
-        className={`pill ${approvalFilter === 'all' ? 'active' : ''}`}
-        onClick={() => setApprovalFilter('all')}
-      >
-        Semua ({rows.length})
-      </button>
       <button
         type="button"
         className={`pill ${approvalFilter === 'PENDING' ? 'active' : ''}`}
@@ -53,6 +50,13 @@ export function filters(ctx) {
         onClick={() => setApprovalFilter('REJECTED')}
       >
         ✕ Ditolak ({rows.filter(r => r.status === 'REJECTED').length})
+      </button>
+      <button
+        type="button"
+        className={`pill ${approvalFilter === 'all' ? 'active' : ''}`}
+        onClick={() => setApprovalFilter('all')}
+      >
+        Semua ({rows.length})
       </button>
     </div>
   )

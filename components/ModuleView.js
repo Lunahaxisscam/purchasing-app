@@ -36,7 +36,11 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const [projectFilter, setProjectFilter] = useState('active')
   const [receivingFilter, setReceivingFilter] = useState('all')
   const [prFilter, setPrFilter] = useState('all')
-  const [approvalFilter, setApprovalFilter] = useState('all')
+  // Antrean Approval default "Menunggu" (PENDING) — arahan DAT (t_0a35264f):
+  // modul Approval yang baru dibuka TIDAK lagi menampilkan riwayat APPROVED
+  // lebih dulu. Riwayat (Disetujui/Revisi/Ditolak/Semua) tetap bisa dibuka
+  // eksplisit lewat tab-nya masing-masing.
+  const [approvalFilter, setApprovalFilter] = useState('PENDING')
   const [materialFilter, setMaterialFilter] = useState('all')
   const [vendorFilter, setVendorFilter] = useState('all')
   const [handoverFilter, setHandoverFilter] = useState('all')
@@ -54,6 +58,10 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     setSortKey(null)
     setSortDir('asc')
     setOpenNoteId(null)
+    // Arahan DAT (t_0a35264f): setiap pindah modul lalu masuk/buka ulang
+    // Approval, antrean SELALU kembali ke "Menunggu" (PENDING) — bukan filter
+    // terakhir yang dipakai. Modul lain mempertahankan filter terakhirnya.
+    if (page === 'approvals') setApprovalFilter('PENDING')
   }, [page])
 
   function toggleSort(key) {
@@ -88,6 +96,13 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
 
   const columns = headersFor(page, displayRows)
   const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'handovers', 'projects', 'past_projects'].includes(page)
+
+  // Empty state jelas per konteks — arahan DAT (t_0a35264f): antrean Approval
+  // "Menunggu" yang kosong TIDAK boleh fallback menampilkan data APPROVED;
+  // tampilkan pesan tegas bahwa tidak ada yang perlu disetujui.
+  const emptyMessage = page === 'approvals' && approvalFilter === 'PENDING'
+    ? 'Tidak ada pengajuan yang perlu disetujui.'
+    : 'Belum ada data.'
 
   // Konteks bersama untuk semua modul: helper, state UI, dan callback halaman.
   // Modul TIDAK boleh menambah/mengubah isi ctx — kontrak ini dijaga Tech Lead.
@@ -218,7 +233,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
             ) : (
               <tr>
                 <td colSpan={columns.length + (hasDeleteAction || page === 'approvals' ? 1 : 0)} className="empty">
-                  Belum ada data.
+                  {emptyMessage}
                 </td>
               </tr>
             )}
@@ -264,7 +279,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
             </div>
           )})
         ) : (
-          <div className="panel empty">Belum ada data.</div>
+          <div className="panel empty">{emptyMessage}</div>
         )}
       </div>
 
