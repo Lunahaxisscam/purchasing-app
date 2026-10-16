@@ -27,8 +27,10 @@ Guard 3 lapis untuk menu/halaman/data:
    "khusus administrator" (pola sama dengan Planning/Finance/Settings).
    `role` berasal dari tabel `profiles` via sesi Supabase yang terverifikasi.
 3. **Data**: satu-satunya mutasi modul adalah INSERT Master Project, lewat
-   klien Supabase sesi user — **RLS `projects` di DB adalah pembatas
-   terakhir** (user non-admin yang memaksa payload tetap ditolak DB).
+   klien Supabase sesi user. **CATATAN RUN 51 (verifikasi independen):
+   pembatas terakhir di level DB BELUM berfungsi** — lihat bagian
+   "Temuan keamanan live" di bawah. Guard yang benar-benar aktif saat ini
+   adalah menu + render; lapisan data dijabarkan jujur di bawah.
    Tidak ada API route baru di `pages/api/` untuk modul ini; JSON/CSV/PDF
    sepenuhnya client-side (tidak ada endpoint ekspor untuk dijaga).
 
@@ -83,6 +85,37 @@ Supabase/localStorage lalu mengaku "source menyimpan" (fake persistent).
   (t_bb379b0d) memakai RAB final existing; modul ini tidak menyediakan
   endpoint/field untuk itu dan tidak mengubah sumber finance apa pun.
 
+## Temuan keamanan live (run 51, verifikasi independen — butuh keputusan DAT)
+
+Probe read-only terhadap DB live (anon key dari `.env.local`, klaim JWT
+terverifikasi `role=anon`, ref `wuurovgjflrhczlsbixm`):
+
+- **RLS tidak ditegakkan server-side.** `anon` dapat `SELECT` baris dari
+  `projects`, `profiles` (termasuk kolom `role`), `purchase_requests`,
+  `pr_items`, `receivings`, `handovers`, `vendors`.
+- **`anon` dapat `INSERT` ke `projects`** (terbukti satu baris probe yang
+  langsung dihapus ulang oleh verifikator — tidak ada jejak; baris tersisa
+  dengan kode `ZZPROBE`: 0).
+- Implikasi jujur untuk modul ini: guard **menu** (sidebar) dan **render**
+  (`pages/index.js`) aktif, tetapi "guard data = RLS" **belum** menjadi
+  pembatas terakhir — sebuah klien yang tahu URL+anon key (bisa dibaca
+  siapa pun dari bundle publik) dapat menulis `projects` tanpa sesi admin.
+  Sifat data yang bocor pun lintas-modul, bukan khusus BOQ.
+- **Bukan regresi commit `b2a2a2d`** — kondisi ini pra-eksisting dan
+  menyangkut seluruh app (migrations/ di repo memang belum memuat policy
+  `projects`; konsisten dengan temuan drift repo↔DB audit t_905e0e5a).
+- **Usulan perbaikan (menunggu izin DAT; freeze migrasi tetap berlaku —
+  TIDAK diterapkan dalam commit ini):**
+  1. `ALTER TABLE projects ENABLE ROW LEVEL SECURITY;` + policy
+     select/insert/update/delete untuk `authenticated` (insert/update
+     diperketat ke `profiles.role='admin'`), dan policy yang setara untuk
+     tabel operasional lainnya, dimulai dari `profiles`.
+  2. Sementara RLS belum aktif: jangan pernah mengandalkan guard klien
+     saja untuk data sensitif; pertimbangkan mematikan akses `anon` pada
+     Supabase API untuk tabel internal (dashboard Auth/Policies).
+  3. Setelah RLS aktif, klaim "guard 3 lapis" pada modul ini kembali penuh
+     tanpa perubahan kode aplikasi.
+
 ## Audit numbering (sudah dilakukan, hasil)
 
 - **Master Project**: `kode` diisi **manual oleh admin** di modul Project
@@ -107,5 +140,7 @@ Supabase/localStorage lalu mengaku "source menyimpan" (fake persistent).
 - Tidak ada file source HTML di `public/`; tidak ada iframe; tidak ada
   `dangerouslySetInnerHTML` di modul ini (semua render via React).
 - Tidak menyimpan role di localStorage; guard memakai `profiles.role`
-  (server-verified session) + RLS DB untuk mutasi.
+  (server-verified session). Pembatas data di level DB (RLS) **belum
+  aktif di live DB** — lihat "Temuan keamanan live" di atas beserta
+  usulan perbaikan yang menunggu keputusan DAT.
 - Import JSON: lihat bagian hardening di atas (ukuran/tipe/jumlah/panjang).
