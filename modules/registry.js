@@ -87,7 +87,16 @@ export const modules = [
     label: 'Handover',
     adminOnly: false,
     source: 'module',
-    files: ['modules/handovers/view.jsx', 'modules/handovers/form.jsx', 'modules/handovers/save.js']
+    files: [
+      'modules/handovers/view.jsx',
+      'modules/handovers/form.jsx',
+      'modules/handovers/save.js',
+      // t_b418827b: logika murni (semantik bukti fisik, rincian/legacy label,
+      // prototype per-item) + konfirmasi fisik idempoten (CAS diserahkan_at).
+      'modules/handovers/display.js',
+      'modules/handovers/confirm.js',
+      'scripts/handover-flow-test/run.py'
+    ]
   },
   {
     id: 'past_projects',

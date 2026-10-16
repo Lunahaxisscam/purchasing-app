@@ -64,27 +64,22 @@ __CONSTANTS__
 }
 
 // ================================================================
-// GAP-3: sendToTukang adalah ALUR HEADER-LEVEL — semua item ikut walau
-// sebagian belum diterima / sebagian rusak. Mirror logika pages/index.js:
-//   guard: alokasi==='KE_TUKANG' || tukang_at  → tolak; else insert
-//   handover TANPA rincian item (note hanya teks ringkasan).
+// GAP-3: sendToTukang — alokasi masih HEADER-LEVEL (per-item menunggu
+// skema handover_items), TAPI sejak t_b418827b: note TIDAK lagi memuat
+// daftar qty item (packing dihapus) dan handover masuk antrean DRAFT —
+// konfirmasi fisik terpisah. Mirror EXACT pages/index.js (baris baru).
 // ================================================================
 {
-  // Mirror EXACT dari pages/index.js sendToTukang (baris 256-308):
+  // Mirror EXACT dari pages/index.js sendToTukang (t_b418827b):
   function sendToTukangMirror(receiving, receivingItemsOfRec, actionBusy=false) {
     if (actionBusy) return { blocked: 'busy' }
     if (receiving.masuk_gudang) return { blocked: 'sudah_gudang' }
     if (receiving.alokasi === 'KE_TUKANG' || receiving.tukang_at) return { blocked: 'sudah_tukang' }
-    // items hanya dipakai utk TEKS deskripsi, bukan guard:
-    const itemDesc = receivingItemsOfRec
-      .filter(it => Number(it.quantity_received || 0) > 0)
-      .map(it => `${it.item_name} ${Number(it.quantity_received || 0)} ${it.unit || ''}`.replace(/\s+/g, ' ').trim())
-      .join('; ')
     const handoverRow = {
       receiving_id: receiving.id,
       project_id: receiving.project_id || null,
       status: 'DRAFT',
-      note: `Barang dari penerimaan ${receiving.invoice_no || receiving.delivery_note} dikirim langsung ke tukang.${itemDesc ? ` Item: ${itemDesc}.` : ''}`
+      note: `Barang dari penerimaan ${receiving.invoice_no || receiving.delivery_note} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
     }
     return { ok: true, handoverRow, updatesReceiving: { alokasi: 'KE_TUKANG' } }
   }
@@ -99,64 +94,65 @@ __CONSTANTS__
   check('GAP-3a', 'nota dengan 2 item kosong/parsial tetap lolos guard', true, r1.ok)
   check('GAP-3b', 'handover dibuat tanpa kolom item terstruktur', undefined, r1.handoverRow.items)
   check('GAP-3c', 'item belum diterima ikut diklaim via alokasi nota', 'KE_TUKANG', r1.updatesReceiving.alokasi)
-  // Kontrak DAT: "Handover hanya jumlah baik yang diserahkan" — actual:
-  // seluruh nota pindah status; qty per item tidak dicatat di handover.
+  // t_b418827b: packing qty ke note DIHAPUS (expected lama = ikut teks; actual = tidak).
+  check('GAP-3d', 'note memuat daftar item (packing qty)', true, /Item:/.test(r1.handoverRow.note))
+  // Sisa gap (schema-bound, dilaporkan): alokasi tetap seluruh nota — pemilihan
+  // per item butuh tabel handover_items (menunggu izin DAT).
 }
 
 // ================================================================
-// GAP-4: markHandoverDelivered tanpa guard status — DRAFT lama yang
-// sudah lewat bisa di-CONFIRM ulang; dan CONFIRMED default form
-// (tanpa konfirmasi fisik) tidak bisa dibedakan dari hasil tombol.
-// Mirror pages/index.js baris 312-323.
+// GAP-4: konfirmasi fisik — sejak t_b418827b lewat confirm.js:
+// guard `diserahkan_at` (idempoten/CAS) sehingga re-confirm TIDAK
+// diproses ulang. Validasi rincian qty per item masih menunggu skema.
+// Mirror EXACT modules/handovers/confirm.js.
 // ================================================================
 {
   function markHandoverDeliveredMirror(handover, actionBusy=false) {
-    // actual: tidak ada cek status awal & tidak ada set diserahkan_at guard
     if (!handover) return { error: 'no row' }
-    return { ok: true, update: { status: 'CONFIRMED', diserahkan_at: '2026-10-16T00:00:00Z' } }
+    if (handover.diserahkan_at) return { ok: true, already: true, wrote: false }
+    return { ok: true, already: false, wrote: true, update: { status: 'CONFIRMED', diserahkan_at: '2026-10-16T00:00:00Z' }, cas: 'diserahkan_at IS NULL' }
   }
   const h1 = markHandoverDeliveredMirror({ id: 'h1', status: 'CONFIRMED', diserahkan_at: '2026-10-01T00:00:00Z' })
-  check('GAP-4a', 're-confirm handover CONFIRMED: tetap diproses', true, h1.ok)
+  check('GAP-4a', 're-confirm handover CONFIRMED: tetap diproses', true, h1.wrote)
   const h2 = markHandoverDeliveredMirror({ id: 'h2', status: 'DRAFT' })
   check('GAP-4b', 'confirm DRAFT tanpa validasi rincian qty: lolos', true, h2.ok)
+  // Retry / 2 user: setelah tertanda, panggilan kedua TIDAK menulis ulang.
+  const after = { id: 'h2', status: 'CONFIRMED', diserahkan_at: h2.update.diserahkan_at }
+  const h3 = markHandoverDeliveredMirror(after)
+  check('GAP-4d', 'confirm kedua kali tetap menulis ulang (re-confirm)', true, h3.wrote)
 }
 
 // ================================================================
-// GAP-5: handovers/save.js edit mode UPDATE seluruh payload termasuk
-// receiving_id & project_id & status — payload tampering bisa memindah
-// proyek / mengosongkan FK (mirroring modul code verbatim).
+// GAP-5: handovers/save.js mode EDIT — sejak t_b418827b hanya METADATA
+// (received_by / handover_date / foto / catatan). receiving_id,
+// project_id, status, diserahkan_at TIDAK PERNAH dibaca dari form —
+// payload tampering tidak bisa memindah proyek/source, mengosongkan FK,
+// atau mengubah status. Mirror EXACT payload baru save.js.
 // ================================================================
 {
-  // Mirror EXACT modules/handovers/save.js (data payload):
-  function handoverSaveDataMirror(form, editRow) {
+  // Mirror EXACT modules/handovers/save.js (payload EDIT, t_b418827b):
+  function handoverSaveEditMirror(form, editRow) {
     const fotoBaru = form.bukti_foto
     const fotoLama = parseHandoverNote(editRow?.note).foto
     const foto = fotoBaru !== undefined ? String(fotoBaru || '') : fotoLama
     return {
-      receiving_id: form.receiving_id || null,     // ← ditentukan form, bukan editRow
-      project_id: form.project_id || null,          // ← ditentukan form, bukan editRow
       received_by: form.received_by,
-      status: form.handover_status || 'CONFIRMED',  // ← bisa diubah bebas
-      handover_date: form.handover_date || new Date().toISOString().slice(0, 10),
+      handover_date: form.handover_date || editRow?.handover_date || '2026-10-16',
       note: buildHandoverNote({ foto, extra: form.notes })
     }
   }
-  // Kasus 1 — payload tampering / select dipindah: source record boleh berubah
-  // (kontrak DAT t_b418827b: purchase/project diturunkan & DIKUNCI dari record sumber).
+  // Kasus 1 — payload tampering / select dipindah: source record TIDAK berubah.
   const editRow = { id: 'h9', receiving_id: 'rec-src', project_id: 'proj-src', status: 'CONFIRMED', note: '[FotoBukti: data:image/png;base64,OLD] teks lama' }
   const form2 = { receiving_id: 'rec-LAIN', project_id: 'proj-LAIN', received_by: 'X', handover_status: 'CONFIRMED', handover_date: '', notes: 'ganti catatan' }
-  const d2 = handoverSaveDataMirror(form2, editRow)
-  check('GAP-5c', 'source bisa dipindah lewat edit (kontrak: terkunci)', 'rec-LAIN', d2.receiving_id)
-  check('GAP-5d', 'project bisa dipindah lewat edit', 'proj-LAIN', d2.project_id)
-  check('GAP-5e', 'status bebas diedit via form (kontrak: via konfirmasi eksplisit)', 'CONFIRMED', d2.status)
-  // Kasus 2 — shell lama (sebelum dirty fix Bamboo): form.receiving_id kosong
-  // → FK dikirim NULL. Dirty fix Bamboo (prefill receiving_id) hanya menutup
-  // jalur modal edit TERBARU; save.js tetap memercayai form untuk field kunci.
-  // (dirty fix juga TIDAK menutup: pindah dropdown = pindah source — Kasus 1.)
+  const d2 = handoverSaveEditMirror(form2, editRow)
+  check('GAP-5c', 'source bisa dipindah lewat edit (kontrak: terkunci)', 'rec-LAIN', ('receiving_id' in d2) ? d2.receiving_id : 'TIDAK-DIKIRIM')
+  check('GAP-5d', 'project bisa dipindah lewat edit', 'proj-LAIN', ('project_id' in d2) ? d2.project_id : 'TIDAK-DIKIRIM')
+  check('GAP-5e', 'status bebas diedit via form (kontrak: via konfirmasi eksplisit)', 'CONFIRMED', ('status' in d2) ? d2.status : 'TIDAK-DIKIRIM')
+  // Kasus 2 — form kosong (jalur shell lama/API): FK TIDAK dikirim NULL.
   const formKosong = { receiving_id: '', project_id: '', received_by: 'X', handover_status: 'DRAFT', handover_date: '', notes: 'catatan' }
-  const d = handoverSaveDataMirror(formKosong, editRow)
-  check('GAP-5a', 'form.kosong → receiving_id terkirim NULL (FK hilang, jalur shell lama/API)', null, d.receiving_id)
-  check('GAP-5b', 'form.kosong → project_id terkirim NULL', null, d.project_id)
+  const d = handoverSaveEditMirror(formKosong, editRow)
+  check('GAP-5a', 'form.kosong → receiving_id terkirim NULL (FK hilang, jalur shell lama/API)', null, ('receiving_id' in d) ? d.receiving_id : 'TIDAK-DIKIRIM')
+  check('GAP-5b', 'form.kosong → project_id terkirim NULL', null, ('project_id' in d) ? d.project_id : 'TIDAK-DIKIRIM')
 }
 
 // ================================================================

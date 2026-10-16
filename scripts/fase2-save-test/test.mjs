@@ -71,7 +71,7 @@ check('kendala = RETUR', rcD?.kendala === 'RETUR')
 check('note dibangun', typeof rcD?.note === 'string' && rcD.note.length > 0)
 check('purchase_request_id terisi', rcD?.purchase_request_id === 'p1')
 
-// 4. Handovers mapping
+// 4. Handovers mapping (t_b418827b: tambah = antrean DRAFT, bukan CONFIRMED)
 console.log('\n4. Handovers mapping')
 reset()
 await dispatchSave('handovers', baseCtx({
@@ -80,8 +80,39 @@ await dispatchSave('handovers', baseCtx({
 }))
 const hD = find('insert', 'handovers')?.data
 check('received_by terisi', hD?.received_by === 'Mandor Joko')
-check('status CONFIRMED', hD?.status === 'CONFIRMED')
+// Jangan klaim CONFIRMED hanya karena dipilih: handover baru masuk antrean.
+check('status DRAFT (antrean Belum Diserahkan)', hD?.status === 'DRAFT')
 check('receiving_id terisi', hD?.receiving_id === 'r1')
+check('project_id terisi', hD?.project_id === 'p1')
+
+// 4b. Handover TANPA penerimaan -> ditolak (link wajib, bukan orphan)
+reset()
+await dispatchSave('handovers', baseCtx({
+  page: 'handovers',
+  form: { receiving_id: '', project_id: 'p1', received_by: 'X', handover_date: '2026-10-15', notes: '' }
+}))
+check('tanpa receiving_id -> TIDAK insert', !find('insert', 'handovers'))
+check('tanpa receiving_id -> pesan jelas', __calls.some(c => c.op === 'say' && /Pilih Penerimaan/.test(c.msg)))
+
+// 4c. Handover EDIT: hanya metadata; FK/status TIDAK dibaca dari form
+// (payload tampering tidak bisa memindah proyek/source atau mengosongkan FK).
+reset()
+await dispatchSave('handovers', baseCtx({
+  page: 'handovers', isEdit: true,
+  editRow: { id: 'h9', receiving_id: 'rec-src', project_id: 'proj-src', status: 'CONFIRMED', note: 'teks lama' },
+  form: { receiving_id: 'rec-LAIN', project_id: 'proj-LAIN', received_by: 'X', handover_status: 'CONFIRMED', handover_date: '2026-10-15', notes: 'ganti catatan' }
+}))
+const hU = find('update', 'handovers')?.data
+check('edit -> UPDATE (bukan insert)', !!hU && !find('insert', 'handovers'))
+check('edit metadata received_by tersimpan', hU?.received_by === 'X')
+check('edit TIDAK mengirim receiving_id (FK terkunci)', hU && !('receiving_id' in hU))
+check('edit TIDAK mengirim project_id (terkunci)', hU && !('project_id' in hU))
+check('edit TIDAK mengirim status (status via konfirmasi fisik)', hU && !('status' in hU))
+check('edit TIDAK mengirim diserahkan_at', hU && !('diserahkan_at' in hU))
+check('edit dengan form kosong TIDAK mengirim FK NULL', (() => {
+  const d = hU || {}
+  return d.receiving_id === undefined && d.project_id === undefined
+})())
 
 // 5. Materials: RPC kode + parser + validasi
 console.log('\n5. Materials alokasi kode & validasi')

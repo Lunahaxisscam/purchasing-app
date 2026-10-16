@@ -57,7 +57,7 @@ purchasing-app/
 │   ├── vendors/                   # view.jsx + form.jsx + save.js  (Vendor)
 │   ├── materials/                 # view.jsx + form.jsx + save.js  (Material + stok BHP)
 │   ├── receivings/                # view.jsx + form.jsx + save.js  (Purchase/Receiving)
-│   ├── handovers/                 # view.jsx + form.jsx + save.js  (Handover)
+│   ├── handovers/                 # view.jsx + form.jsx + save.js + display.js + confirm.js  (Handover)
 │   ├── projects/                  # view.jsx + form.jsx + save.js  (Project + Past Project)
 │   └── ...                        # planning, project-finance, finance, tukang-upah, settings
 ├── lib/constants.js               # Konstanta & util bersama                      [CORE]
@@ -116,6 +116,23 @@ Form "Terima Barang" (`modules/receivings/receiptForm.jsx`) TIDAK lewat
 `modules/receivings/receiptSave.js` (compare-and-swap per item, idempoten) dan
 `loadItemsFromPr()` (nota lama tanpa item → salin item PR qty 0).
 Input qty TIDAK menulis DB saat mengetik — hanya tombol "Simpan Penerimaan".
+
+### Handover — display/confirm (t_b418827b)
+
+- `modules/handovers/display.js` — logika murni: semantik bukti fisik
+  (`isHandoverDelivered`), label "Rincian barang belum tersedia" untuk data
+  tanpa rincian terstruktur, referensi sumber, validasi prototype per-item.
+- `modules/handovers/confirm.js` — konfirmasi fisik idempoten: menulis
+  `diserahkan_at` dengan compare-and-swap (`diserahkan_at IS NULL`); retry/
+  re-confirm tidak menandai dua kali. Dipanggil `pages/index.js`
+  (`onMarkHandoverDelivered`).
+- Kontrak & gap: `docs/handover-gap-proposal.md` (tabel `handover_items`
+  menunggu izin DAT — jangan packing ke note).
+- Purchase (t_b418827b, arahan DAT): dropdown status parent + aksi bulk
+  (Masuk Stok Gudang / Serah ke Tukang) HANYA utk nota ≤1 item dan ada jumlah
+  diterima; nota multi-item memakai ringkasan read-only hasil item
+  (`parentSummary`/`bulkActionState` di `receiptLogic.js`) — kondisi & tujuan
+  per barang menunggu skema.
 
 ### `ctx` yang disediakan shell
 

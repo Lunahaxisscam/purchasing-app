@@ -10,7 +10,8 @@ import TukangUpah from '../components/TukangUpah'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
-import { labels, normalizeStatus, orderSpecFor } from '../lib/constants' 
+import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
+import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants' 
 import { sendPrAlert } from '../lib/telegramAlert'
 
 export default function App() {
@@ -193,6 +194,15 @@ export default function App() {
     const up = String(newStatus || '').toUpperCase()
     const kendala = up === 'RETUR' ? 'RETUR' : (up === 'REFUND' ? 'REFUND' : null)
 
+    // t_b418827b (arahan DAT 16 Okt): status NOTA pada nota multi-item tidak
+    // boleh diubah dari parent (bisa meng-override kondisi barang anak) —
+    // perubahan Retur/Refund menunggu pencatatan per barang (skema).
+    const items = (rows.receiving_items || []).filter(it => it.receiving_id === receiving.id)
+    if (items.length >= 2) {
+      setNotice('Nota multi-item: status Retur/Refund tidak bisa diubah dari daftar — perubahan status dicatat per barang (penyimpanan per barang belum aktif: menunggu persetujuan skema).')
+      return
+    }
+
     setRows(prev => ({
       ...prev,
       receivings: (prev.receivings || []).map(r => r.id === receiving.id ? {
@@ -217,6 +227,12 @@ export default function App() {
   // "→ Ke Gudang": SATU panggilan RPC transaksional (klaim + kredit stok di DB).
   // Guard double-klik via actionBusy; guard sebenarnya (anti dobel) ada di dalam RPC
   // (update ... where masuk_gudang = false) sehingga retry/2 user aman.
+  //
+  // t_b418827b (arahan DAT 16 Okt): BULK DILARANG untuk nota multi-item —
+  // tiap item harus punya kondisi & tujuan sendiri (belum bisa disimpan
+  // granular: menunggu receiving_events). Guard di sini mencegah bypass lewat
+  // handler (UI sudah menyembunyikan tombol). Nota tanpa jumlah diterima juga
+  // ditolak: qty 0 / rusak tidak boleh masuk stok.
   async function moveToWarehouse(receiving) {
     if (!supabase || actionBusy) return
     const label = receiving.invoice_no || receiving.delivery_note || 'Penerimaan'
@@ -224,7 +240,15 @@ export default function App() {
 
     const items = (rows.receiving_items || []).filter(it => it.receiving_id === receiving.id)
     if (!items.length) {
-      setNotice('Penerimaan ini belum punya item — tandai item "Sudah Diterima" dulu sebelum masuk gudang.')
+      setNotice('Penerimaan ini belum punya rincian barang — isi lewat Terima Barang dulu sebelum masuk gudang.')
+      return
+    }
+    if (items.length >= 2) {
+      setNotice('Nota multi-item tidak bisa diproses sekaligus — kondisi & tujuan tiap barang dicatat per barang lewat Terima Barang (penyimpanan per barang belum aktif: menunggu persetujuan skema).')
+      return
+    }
+    if (!items.some(it => Number(it.quantity_received || 0) > 0)) {
+      setNotice('Belum ada jumlah diterima pada nota ini — isi jumlah lewat Terima Barang dulu (0/rusak tidak masuk stok).')
       return
     }
 
@@ -254,19 +278,28 @@ export default function App() {
 
   // "→ Ke Tukang": SATU panggilan RPC transaksional — klaim alokasi dulu, lalu
   // insert handover. Jika dipanggil dua kali (retry/2 user), handover tidak dobel.
+  // t_b418827b: handover yang dibuat masuk antrean "Belum Diserahkan" (DRAFT).
+  // Rincian qty per item TIDAK ditulis ke kolom note (itu "packing" yang
+  // dilarang DAT dan menebak dari quantity_received kumulatif yang bisa
+  // berubah) — rincian menunggu tabel handover_items.
   async function sendToTukang(receiving) {
     if (!supabase || actionBusy) return
     const label = receiving.invoice_no || receiving.delivery_note || 'Penerimaan'
     if (receiving.alokasi === 'KE_TUKANG' || receiving.tukang_at) { setNotice('Barang penerimaan ini sudah dikirim ke tukang.'); return }
+    // t_b418827b (arahan DAT 16 Okt): bulk ke tukang DILARANG untuk nota
+    // multi-item / tanpa jumlah diterima — guard handler mencegah bypass UI.
+    const tukangItems = (rows.receiving_items || []).filter(it => it.receiving_id === receiving.id)
+    if (tukangItems.length >= 2) {
+      setNotice('Nota multi-item tidak bisa diserahkan sekaligus — barang ke tukang dipilih per barang lewat Terima Barang (penyimpanan per barang belum aktif: menunggu persetujuan skema).')
+      return
+    }
+    if (!tukangItems.some(it => Number(it.quantity_received || 0) > 0)) {
+      setNotice('Belum ada jumlah diterima pada nota ini — isi jumlah lewat Terima Barang dulu (0/rusak tidak ikut diserahkan).')
+      return
+    }
     const receiverInput = window.prompt(`Kirim barang dari "${label}" langsung ke tukang?\nMasukkan nama tukang / penerima barang:`, 'Tukang')
     if (receiverInput === null) return
     const receivedBy = receiverInput.trim() || 'Tukang'
-
-    const items = (rows.receiving_items || []).filter(it => it.receiving_id === receiving.id)
-    const itemDesc = items
-      .filter(it => Number(it.quantity_received || 0) > 0)
-      .map(it => `${it.item_name} ${Number(it.quantity_received || 0)} ${it.unit || ''}`.replace(/\s+/g, ' ').trim())
-      .join('; ')
 
     setActionBusy(true)
     try {
@@ -290,7 +323,7 @@ export default function App() {
           received_by: receivedBy,
           handover_date: now.slice(0, 10),
           status: 'DRAFT',
-          note: `Barang dari penerimaan ${label} dikirim langsung ke tukang.${itemDesc ? ` Item: ${itemDesc}.` : ''}`
+          note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
         })
         if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
 
@@ -298,7 +331,7 @@ export default function App() {
         if (error) { setNotice(`Handover dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
       }
 
-      setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk ke modul Handover.`)
+      setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk antrean Handover — tandai "Sudah Diserahkan" setelah serah terima fisik.`)
       loadAll()
     } catch (err) {
       setNotice(`Terjadi kesalahan saat kirim ke tukang: ${err.message}`)
@@ -308,18 +341,19 @@ export default function App() {
     }
   }
 
-  // Handover: tandai "sudah diserahkan". Waktu diserahkan (diserahkan_at) disimpan
-  // untuk report total cost aktual per project — belum ditampilkan di UI.
+  // Handover: tandai "sudah diserahkan" — konfirmasi FISIK eksplisit.
+  // t_b418827b: "Sudah Diserahkan" hanya bermakna bila `diserahkan_at` tertulis
+  // (bukti live A3: CONFIRMED lama tanpa diserahkan_at). Penulisan lewat
+  // modules/handovers/confirm.js: idempoten (guard `diserahkan_at IS NULL`),
+  // tidak bisa re-confirm, dan selalu menulis waktu penyerahan.
   async function markHandoverDelivered(handover) {
     if (!supabase) return
-    const ok = window.confirm('Tandai serah terima ini sebagai SUDAH DISERAHKAN?')
+    if (isHandoverDelivered(handover)) { setNotice('Serah terima ini sudah ditandai diserahkan.'); return }
+    const ok = window.confirm('Tandai serah terima ini sebagai SUDAH DISERAHKAN?\nLakukan hanya setelah barang benar-benar diterima tukang/mandor di lokasi.')
     if (!ok) return
-    const { error } = await supabase.from('handovers').update({
-      status: 'CONFIRMED',
-      diserahkan_at: new Date().toISOString()
-    }).eq('id', handover.id)
-    if (error) { setNotice(`Gagal menandai sudah diserahkan: ${error.message}`); return }
-    setNotice('Serah terima ditandai sudah diserahkan.')
+    const res = await confirmHandoverDelivered({ handover })
+    if (!res.ok) { setNotice(`Gagal menandai sudah diserahkan: ${res.error}`); return }
+    setNotice(res.already ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.' : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat).')
     loadAll()
   }
 

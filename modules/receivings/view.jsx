@@ -21,7 +21,7 @@
 import React from 'react'
 import { format, rupiah, parseReceivingNote, notaHref, prettyReceivingStatus, isReceivingKendala } from '../../lib/constants'
 import ReceiptForm from './receiptForm'
-import { itemRingkas } from './receiptLogic'
+import { itemRingkas, parentSummary, bulkActionState } from './receiptLogic'
 
 // --- Filter tabs ---
 export function filters(ctx) {
@@ -68,23 +68,22 @@ export function header(h) {
   return null
 }
 
-// Badge progres qty yang TIDAK menyamakan dimensi:
-//   - over-receipt (datang > dipesan) → merah "Melebihi pesanan" (audit G1)
-//   - nota kendala (Retur/Refund) dengan qty penuh → jangan hijau "LENGKAP";
-//     dimensi qty vs dimensi status nota dipisah tegas (audit G9).
+// Badge ringkasan parent (READ-ONLY) — DITURUNKAN dari hasil item, bukan
+// dropdown default "Normal". Arahan DAT 16 Okt (t_b418827b):
+//   - Qty 0 = "Belum diterima", BUKAN "Parsial".
+//   - multi-item: "Sebagian", bukan "PARSIAL (0/2)" yang menyesatkan.
+//   - over-receipt tetap merah (audit G1); nota kendala ≠ hijau (audit G9).
+const TONE_STYLE = {
+  red: { background: '#fdecea', color: '#c93b2b', border: '1px solid #f5c6c0' },
+  amber: { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' },
+  green: { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' },
+  muted: { background: '#f3f5f6', color: '#556260', border: '1px solid #d6dcde' }
+}
+
 function progressBadge(prog, status) {
   const base = { fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', width: 'fit-content', whiteSpace: 'nowrap' }
-  const over = prog.statuses.some(s => s.key === 'OVER')
-  if (over) {
-    return { text: `⚠ Melebihi pesanan (${prog.statuses.filter(s => s.key === 'OVER').map(s => `${s.rec}/${s.ordered}`).join(', ')})`, style: { ...base, background: '#fdecea', color: '#c93b2b', border: '1px solid #f5c6c0' } }
-  }
-  if (prog.allDone && prog.kendala) {
-    return { text: `Qty penuh (${prog.doneCount}/${prog.total}) · nota ${prettyReceivingStatus(status)}`, style: { ...base, background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' } }
-  }
-  if (prog.allDone) {
-    return { text: `✓ LENGKAP (${prog.doneCount}/${prog.total})`, style: { ...base, background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' } }
-  }
-  return { text: `⏳ PARSIAL (${prog.doneCount}/${prog.total})`, style: { ...base, background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' } }
+  const s = parentSummary(prog, { kendalaLabel: `nota ${prettyReceivingStatus(status)}` })
+  return { text: s.text, style: { ...base, ...(TONE_STYLE[s.tone] || TONE_STYLE.muted) } }
 }
 
 // Nilai alokasi tak dikenal (mis. 'LANGSUNG_LAPANGAN' di data lama) ditampilkan
@@ -98,11 +97,11 @@ function unknownAlokasi(r) {
 
 // --- Cell tabel desktop ---
 export function renderCell(h, r, rawVal, ctx) {
-  const { H, onReceivingStatusChange } = ctx
-  const { receivingProgress } = H
+  const { H } = ctx
+  const { receivingProgress, receivingItemsForReceiving } = H
 
   if (h === 'items') {
-    const items = H.receivingItemsForReceiving(r.id)
+    const items = receivingItemsForReceiving(r.id)
     const ring = itemRingkas(items)
     if (!ring.count) {
       return <span style={{ fontSize: '11px', color: '#9aa8a4' }}>Belum ada rincian</span>
@@ -118,21 +117,47 @@ export function renderCell(h, r, rawVal, ctx) {
   if (h === 'status') {
     const prog = receivingProgress(r.id, isReceivingKendala(r.status))
     const alokasiAsing = unknownAlokasi(r)
+    const items = receivingItemsForReceiving(r.id)
+    const bulk = bulkActionState(items)
+    // Arahan DAT 16 Okt: dropdown status parent DILARANG utk nota multi-item
+    // (bisa meng-override anak). Utk nota 0/1 item, dropdown tetap ada TAPI
+    // diberi label "Status Nota" — dimensi nota (Normal/Retur/Refund) yang
+    // TERPISAH dari kondisi barang, bukan kondisi barang itu sendiri.
+    const showNotaStatus = items.length <= 1
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-        <select
-          className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
-          value={['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? String(r.status).toUpperCase() : (r.status || 'NORMAL')}
-          onChange={e => onReceivingStatusChange(r, e.target.value)}
-        >
-          {r.status && !['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status).toUpperCase()) && (
-            <option value={r.status} disabled>{prettyReceivingStatus(r.status)} (status lama)</option>
-          )}
-          <option value="NORMAL">✓ Normal</option>
-          <option value="RETUR">⚠️ Retur</option>
-          <option value="REFUND">⚠️ Refund</option>
-        </select>
-        {prog && (() => { const b = progressBadge(prog, r.status); return <span style={b.style}>{b.text}</span> })()}
+        {/* RINGKASAN READ-ONLY hasil item — DITURUNKAN dari item, bukan
+            default "Normal". Kondisi & tujuan diisi per barang di dalam
+            Terima Barang. */}
+        {prog && (() => { const b = progressBadge(prog, r.status); return <span data-testid={`ringkasan-${r.id}`} style={b.style}>{b.text}</span> })()}
+        {!prog && (
+          <span data-testid={`ringkasan-${r.id}`} style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '10px', width: 'fit-content', background: '#f3f5f6', color: '#556260', border: '1px solid #d6dcde' }}>
+            Belum ada rincian barang
+          </span>
+        )}
+        {showNotaStatus ? (
+          <select
+            className={`status-select ${isReceivingKendala(r.status) ? 'status-kendala' : 'status-normal'}`}
+            value={['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? String(r.status).toUpperCase() : (r.status || 'NORMAL')}
+            onChange={e => onReceivingStatusChange(r, e.target.value)}
+            title="Status NOTA (Normal/Retur/Refund) — dimensi terpisah dari kondisi barang"
+          >
+            {r.status && !['NORMAL', 'RETUR', 'REFUND'].includes(String(r.status).toUpperCase()) && (
+              <option value={r.status} disabled>{prettyReceivingStatus(r.status)} (status lama)</option>
+            )}
+            <option value="NORMAL">✓ Nota Normal</option>
+            <option value="RETUR">⚠️ Nota Retur</option>
+            <option value="REFUND">⚠️ Nota Refund</option>
+          </select>
+        ) : (
+          <span
+            data-testid={`nota-info-${r.id}`}
+            style={{ fontSize: '10px', color: '#71817d', lineHeight: 1.4, maxWidth: '200px' }}
+            title="Status nota multi-item diubah lewat tindakan per barang (menunggu persetujuan skema)"
+          >
+            Status nota: <b>{prettyReceivingStatus(r.status)}</b> — perubahan Retur/Refund menunggu pencatatan per barang (menunggu persetujuan skema).
+          </span>
+        )}
         {r.masuk_gudang ? (
           <span style={{ fontSize: '11px', color: '#137333', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
             ✓ Di Stok Gudang
@@ -141,7 +166,7 @@ export function renderCell(h, r, rawVal, ctx) {
           <span style={{ fontSize: '11px', color: '#1a73e8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
             👷 Ke Tukang (Handover)
           </span>
-        ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
+        ) : isReceivingKendala(r.status) ? (
           <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600, whiteSpace: 'nowrap' }}>
             ⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah
           </span>
@@ -151,48 +176,59 @@ export function renderCell(h, r, rawVal, ctx) {
             📌 Alokasi: {alokasiAsing}
           </span>
         )}
-        {!r.masuk_gudang && !r.tukang_at && String(r.alokasi || '').toUpperCase() !== 'KE_TUKANG' && !['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '9px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>TUJUAN SETELAH DITERIMA</span>
-            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => ctx.onMoveToWarehouse(r)}
-                style={{
-                  background: '#e6f4ea',
-                  color: '#137333',
-                  border: '1px solid #ceead6',
-                  borderRadius: '4px',
-                  padding: '4px 7px',
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  width: 'fit-content'
-                }}
-                title="Tambah stok barang yang sudah diterima ke modul Materials"
-              >
-                📦 Masuk Stok Gudang
-              </button>
-              <button
-                type="button"
-                onClick={() => ctx.onSendToTukang(r)}
-                style={{
-                  background: '#e8f0fe',
-                  color: '#1a73e8',
-                  border: '1px solid #d2e3fc',
-                  borderRadius: '4px',
-                  padding: '4px 7px',
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  width: 'fit-content'
-                }}
-                title="Buat antrean serah terima ke tukang — belum dikonfirmasi sampai serah terima fisik dicatat"
-              >
-                👷 Serah Terima ke Tukang
-              </button>
+        {/* TUJUAN per barang: bulk DILARANG utk multi-item (arahan DAT).
+            Hanya nota dengan TEPAT 1 item + sudah ada jumlah diterima yang
+            masih boleh memakai aksi tujuan (keterbatasan skema: tujuan per
+            item belum punya kolom — menunggu receiving_events/handover_items).
+            Item dengan qty 0 / rusak tidak pernah masuk stok/handover. */}
+        {!r.masuk_gudang && !r.tukang_at && String(r.alokasi || '').toUpperCase() !== 'KE_TUKANG' && !isReceivingKendala(r.status) && (
+          bulk.allowed ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '9px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>TUJUAN SETELAH DITERIMA</span>
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => ctx.onMoveToWarehouse(r)}
+                  style={{
+                    background: '#e6f4ea',
+                    color: '#137333',
+                    border: '1px solid #ceead6',
+                    borderRadius: '4px',
+                    padding: '4px 7px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    width: 'fit-content'
+                  }}
+                  title="Tambah stok barang yang sudah diterima ke modul Materials (nota 1 barang)"
+                >
+                  📦 Masuk Stok Gudang
+                </button>
+                <button
+                  type="button"
+                  onClick={() => ctx.onSendToTukang(r)}
+                  style={{
+                    background: '#e8f0fe',
+                    color: '#1a73e8',
+                    border: '1px solid #d2e3fc',
+                    borderRadius: '4px',
+                    padding: '4px 7px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    width: 'fit-content'
+                  }}
+                  title="Buat antrean serah terima ke tukang (nota 1 barang) — belum dikonfirmasi sampai serah terima fisik dicatat"
+                >
+                  👷 Serah Terima ke Tukang
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div data-testid={`tujuan-info-${r.id}`} style={{ fontSize: '10px', color: '#71817d', lineHeight: 1.4, maxWidth: '200px' }}>
+              🎯 Tujuan (Stok Gudang / Tukang) dicatat <b>per barang</b> di dalam <b>Terima Barang</b>. {bulk.reason}
+            </div>
+          )
         )}
       </div>
     )
@@ -270,8 +306,10 @@ export function mobileCard(r, ctx) {
   const prog = receivingProgress(r.id, isReceivingKendala(r.status))
   const pn = parseReceivingNote(r.note)
   const href = notaHref(pn.notaUrl)
-  const ring = itemRingkas(receivingItemsForReceiving(r.id))
+  const items = receivingItemsForReceiving(r.id)
+  const ring = itemRingkas(items)
   const done = !!(prog && prog.allDone && !prog.kendala)
+  const bulk = bulkActionState(items)
   const alokasiAsing = unknownAlokasi(r)
   return (
     <>
@@ -343,13 +381,15 @@ export function mobileCard(r, ctx) {
         >
           {done ? '📦 Lihat Barang' : '📦 Terima Barang'}
         </button>
+        {/* Kondisi & tujuan per barang diisi DI DALAM Terima Barang — bulk
+            parent hanya utk nota 1 barang (arahan DAT 16 Okt). */}
         {r.masuk_gudang ? (
           <span style={{ fontSize: '12px', color: '#137333', fontWeight: 700 }}>✓ Di Stok Gudang</span>
         ) : r.tukang_at || String(r.alokasi || '').toUpperCase() === 'KE_TUKANG' ? (
           <span style={{ fontSize: '12px', color: '#1a73e8', fontWeight: 700 }}>👷 Ke Tukang (Handover)</span>
-        ) : ['RETUR', 'REFUND'].includes(String(r.status || '').toUpperCase()) ? (
+        ) : isReceivingKendala(r.status) ? (
           <span style={{ fontSize: '11px', color: '#b45309', fontWeight: 600 }}>⚠️ {prettyReceivingStatus(r.status)} — stok tidak ditambah</span>
-        ) : (
+        ) : bulk.allowed ? (
           <>
             <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 700, letterSpacing: '0.04em' }}>TUJUAN SETELAH DITERIMA</span>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -369,6 +409,10 @@ export function mobileCard(r, ctx) {
               </button>
             </div>
           </>
+        ) : (
+          <span data-testid={`tujuan-info-mobile-${r.id}`} style={{ fontSize: '11px', color: '#71817d', lineHeight: 1.45 }}>
+            🎯 Tujuan (Stok Gudang / Tukang) dicatat <b>per barang</b> di dalam <b>Terima Barang</b>. {bulk.reason}
+          </span>
         )}
         <button type="button" className="btn-delete" onClick={() => onDelete(page, r)} style={{ width: '100%' }}>
           Hapus Penerimaan

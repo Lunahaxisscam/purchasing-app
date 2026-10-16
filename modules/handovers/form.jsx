@@ -2,22 +2,26 @@
 // modules/handovers/form.jsx — form Tambah/Edit Handover
 // ============================================================
 // SELURUH blok di file ini diekstrak VERBATIM dari components/CreateModal.js
-// pada Fase 1 modularisasi (perilaku tidak diubah). Field form {label} diubah
-// HANYA di file ini.
+// pada Fase 1 modularisasi (perilaku tidak diubah).
 //
-// Kontrak: formBody(ctx) mengembalikan potongan JSX (fragment) yang dirender
-// shell CreateModal. ctx berisi form, setForm, field, isEdit, editRow, dst.
-// yang disediakan shell — lihat components/CreateModal.js.
-//
-// CATATAN Fase 2 (belum dikerjakan): logika simpan (save) per modul masih di
-// shell CreateModal; pemindahannya direncanakan terpisah agar tidak
-// mencampur refactor struktur dengan perubahan perilaku.
+// REVISI t_b418827b (arahan DAT + screenshot Edit Handover):
+//  - Mode EDIT: input/dropdown Penerimaan (Purchase), Project, dan Status
+//    Serah Terima DIHAPUS dari form. Purchase/project diturunkan dari record
+//    sumber dan ditampilkan sebagai ringkasan READ-ONLY; FK dipertahankan
+//    saat simpan (lihat save.js). Status tidak lagi bisa diedit lewat
+//    dropdown — "Sudah Diserahkan" hanya via aksi konfirmasi fisik.
+//  - Mode TAMBAH (standalone): pemilihan Penerimaan + Project TETAP ada
+//    (link wajib, tidak boleh orphan) — form tambah terpisah dari edit.
+//  - Daftar rincian barang WAJIB terlihat di modal (label "Rincian barang
+//    belum tersedia" untuk data lama — tidak menebak jumlah).
 // ============================================================
 import React from 'react'
 import { HANDOVER_FOTO_MAX_BYTES, dataUrlByteSize, validateHandoverFotoSize, parseHandoverNote } from '../../lib/constants'
+import { sourceRefs, rincianInfo, statusInfo } from './display'
 
 export function formBody(ctx) {
-  const { form, setForm, field, isEdit, editRow, allReceivings, allProjects } = ctx
+  const { form, setForm, field, isEdit, editRow, allReceivings, allRequestsFull = [] } = ctx
+  const allRequests = allRequestsFull
 
   // --- Bukti foto serah terima (fitur 15 Okt 2026) -------------------------
   // File dibaca client-side menjadi data-URL base64 dan disimpan di state form
@@ -61,6 +65,87 @@ export function formBody(ctx) {
     setForm({ ...form, bukti_foto: '', bukti_foto_name: '', bukti_foto_error: '' })
   }
 
+  // ============================================================
+  // MODE EDIT — sumber & status read-only (diturunkan dari record).
+  // ============================================================
+  if (isEdit && editRow) {
+    const refs = sourceRefs(editRow, { allReceivings, allRequests })
+    const rinc = rincianInfo(editRow)
+    const st = statusInfo(editRow)
+    return (
+      <>
+        <div data-testid="handover-source-summary" style={{ background: '#f4f8f6', border: '1px solid #d5e0dc', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#1f3a34', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <b>Sumber (tidak bisa diubah di sini)</b>
+          <span>Penerimaan: <b>{refs.receivingLabel || '—'}</b>{refs.prNumber ? <> · PR asal: <b>{refs.prNumber}</b></> : null}</span>
+          <span>Project: <b>{editRow.project_name || '—'}</b></span>
+          <span>Status: <b>{st.delivered ? 'Sudah Diserahkan' : 'Belum Diserahkan'}</b>{st.delivered && st.diserahkanAt ? ` — ${new Date(st.diserahkanAt).toLocaleString('id-ID')}` : ''}</span>
+          {st.legacyNote && <span style={{ color: '#a15309' }}>⚠️ {st.legacyNote}</span>}
+        </div>
+
+        <div data-testid="handover-items-summary" style={{ border: '1px solid #e1e7e4', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#1f3a34' }}>
+          <b>Rincian barang</b>
+          {rinc.available ? (
+            <ul style={{ margin: '5px 0 0 18px', padding: 0 }}>
+              {rinc.rows.map((row, i) => (
+                <li key={i}>{row.name} — {row.qty}{row.unit ? ` ${row.unit}` : ''} ({row.qtyLabel})</li>
+              ))}
+            </ul>
+          ) : (
+            <div style={{ marginTop: '4px' }}>
+              <b data-testid="handover-rincian-unavailable">{rinc.label}</b>
+              {rinc.notice && <div className="muted" style={{ fontSize: '11px', marginTop: '3px' }}>{rinc.notice}</div>}
+            </div>
+          )}
+        </div>
+
+        {field('received_by', 'Diterima Oleh (Mandor / Tukang Lapangan)', 'text', true)}
+        {field('handover_date', 'Tanggal Serah Terima', 'date', false)}
+        <label>Bukti Foto Serah Terima (opsional, maks 2MB)
+          <input
+            type="file"
+            accept="image/*"
+            onChange={pilihFoto}
+          />
+          <span style={{ fontSize: '11px', color: '#71817d', fontWeight: 500 }}>
+            Maksimal 2MB (JPG/PNG). Foto bukti akan tampil di tabel Handover.
+          </span>
+        </label>
+        {fotoError && (
+          <p className="error" role="alert" style={{ margin: 0 }}>{fotoError}</p>
+        )}
+        {fotoTersimpan && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f4f8f6', border: '1px solid #d5e0dc', borderRadius: '8px', padding: '8px 10px' }}>
+            <img
+              src={fotoTersimpan}
+              alt="Pratinjau bukti foto"
+              style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd8d4', flexShrink: 0 }}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#1f3a34', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fotoNama || 'foto-bukti'}>
+                📷 {fotoNama || 'Foto bukti tersimpan'}
+              </span>
+              <button
+                type="button"
+                className="outline"
+                onClick={hapusFoto}
+                style={{ width: 'fit-content', fontSize: '11px', padding: '3px 10px' }}
+              >
+                Hapus Foto
+              </button>
+            </div>
+          </div>
+        )}
+        {field('notes', 'Catatan Serah Terima', 'text', false)}
+      </>
+    )
+  }
+
+  // ============================================================
+  // MODE TAMBAH (standalone) — sumber wajib dipilih (link, bukan orphan).
+  // ============================================================
+  const recSelected = (allReceivings || []).find(r => r.id === form.receiving_id)
+  const rincBaru = form.receiving_id ? rincianInfo({ receiving_id: form.receiving_id }) : null
+
   return (
     <>
       <label>Penerimaan (Purchase)
@@ -79,28 +164,25 @@ export function formBody(ctx) {
             </option>
           ))}
         </select>
+        <span style={{ fontSize: '11px', color: '#71817d', fontWeight: 500 }}>
+          Handover harus terhubung ke penerimaan asalnya — pilih penerimaan yang barangnya diserahkan ke tukang.
+        </span>
       </label>
-      <label>Project (otomatis dari penerimaan, bisa diubah)
-        <select
-          value={form.project_id}
-          onChange={e => setForm({ ...form, project_id: e.target.value })}
-          required
-        >
-          <option value="">-- Pilih Project --</option>
-          {allProjects.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.kode ? `[${p.kode}] ` : ''}{p.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      {recSelected && (
+        <div data-testid="handover-create-source-summary" style={{ background: '#f4f8f6', border: '1px solid #d5e0dc', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#1f3a34' }}>
+          Project: <b>{recSelected.project_name || '—'}</b>
+          {recSelected.purchase_request_id && (allRequests || []).some(p => p.id === recSelected.purchase_request_id) && (
+            <> · PR asal: <b>{(allRequests || []).find(p => p.id === recSelected.purchase_request_id)?.pr_number || '—'}</b></>
+          )}
+        </div>
+      )}
+      {rincBaru && (
+        <div data-testid="handover-create-items-summary" style={{ border: '1px solid #e1e7e4', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#1f3a34' }}>
+          <b>Rincian barang:</b> <span data-testid="handover-create-rincian-unavailable">{rincBaru.label}</span>
+          <div className="muted" style={{ fontSize: '11px', marginTop: '3px' }}>{rincBaru.notice}</div>
+        </div>
+      )}
       {field('received_by', 'Diterima Oleh (Mandor / Tukang Lapangan)', 'text', true)}
-      <label>Status Serah Terima
-        <select value={form.handover_status || 'CONFIRMED'} onChange={e => setForm({ ...form, handover_status: e.target.value })}>
-          <option value="CONFIRMED">CONFIRMED (Sudah Diserahkan)</option>
-          <option value="DRAFT">DRAFT</option>
-        </select>
-      </label>
       {field('handover_date', 'Tanggal Serah Terima', 'date', false)}
       <label>Bukti Foto Serah Terima (opsional, maks 2MB)
         <input

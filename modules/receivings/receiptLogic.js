@@ -191,3 +191,42 @@ export function itemRingkas(items) {
     : names.join(', ')
   return { count: list.length, names, ringkas }
 }
+
+// ============================================================
+// RINGKASAN PARENT (READ-ONLY) — arahan DAT 16 Okt (t_b418827b).
+// ============================================================
+// Kondisi parent HARUS diturunkan dari hasil item, BUKAN dropdown "Normal"
+// default. Qty 0 = "Belum diterima" (bukan "Parsial"). Ringkasan ini hanya
+// untuk DIBACA — tidak bisa meng-override kondisi/tujuan anak.
+//   prog = receivingProgress(...) dari modules/shared/itemHelpers.js
+//   opts.kendalaLabel = label status nota kendala (RETUR/REFUND) bila ada
+export function parentSummary(prog, opts = {}) {
+  if (!prog || !prog.total) return { key: 'KOSONG', text: 'Belum ada rincian barang', tone: 'muted' }
+  const statuses = prog.statuses || []
+  const over = statuses.filter(s => s.key === 'OVER')
+  if (over.length) {
+    const list = over.map(s => `${s.rec}/${s.ordered}`).join(', ')
+    return { key: 'OVER', text: `⚠ Melebihi pesanan (${list})`, tone: 'red' }
+  }
+  const total = prog.total
+  if (!prog.anyReceived) return { key: 'BELUM', text: `Belum diterima (0/${total})`, tone: 'muted' }
+  if (prog.allDone && prog.kendala) {
+    return { key: 'KENDALA', text: `Lengkapi jumlah (${total}/${total}) · ${opts.kendalaLabel || 'nota perlu tindakan'}`, tone: 'amber' }
+  }
+  if (prog.allDone) return { key: 'LENGKAP', text: `✓ Lengkap (${total}/${total})`, tone: 'green' }
+  const received = statuses.filter(s => s.rec > 0).length
+  return { key: 'SEBAGIAN', text: `Sebagian (${received}/${total} barang mulai diterima)`, tone: 'amber' }
+}
+
+// Baris parent masih boleh memakai aksi BULK (Masuk Stok Gudang / Serah ke
+// Tukang)? Arahan DAT: BULK DILARANG untuk nota multi-item — tiap item harus
+// punya kondisi/tujuan sendiri. Bulk juga tidak boleh untuk nota tanpa item
+// atau tanpa satupun jumlah diterima (0/rusak tidak masuk stok/handover).
+export function bulkActionState(items) {
+  const list = items || []
+  if (!list.length) return { allowed: false, reason: 'Nota belum punya rincian barang.' }
+  if (list.length >= 2) return { allowed: false, reason: 'Nota multi-item: tujuan dicatat per barang (belum bisa disimpan — menunggu persetujuan skema).' }
+  const anyReceived = list.some(it => Number(it.quantity_received || 0) > 0)
+  if (!anyReceived) return { allowed: false, reason: 'Belum ada jumlah diterima — isi lewat Terima Barang dulu.' }
+  return { allowed: true, reason: '' }
+}

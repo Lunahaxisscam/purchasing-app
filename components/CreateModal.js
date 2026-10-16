@@ -86,13 +86,15 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     // (kolom handovers.receiving_id NOT NULL). Foto bukti TIDAK di-prefill ke
     // form.bukti_foto — undefined = "belum disentuh", save.js mempertahankan
     // foto lama dari note; yang di-prefill hanya teks catatannya.
+    // t_b418827b: receiving_id hanya KONTEKS prefill; save.js mode edit TIDAK
+    // membacanya dari form (FK dikunci dari editRow). Status handover tidak
+    // lagi diedit dari form (handover_status tidak ada — konfirmasi fisik).
     receiving_id: (isEdit && page === 'handovers') ? (editRow?.receiving_id || '') : '',
     receiving_status: 'NORMAL',
     received_date: new Date().toISOString().slice(0, 10),
     nominal: '',
     nota_link: '',
     received_by: (isEdit && page === 'handovers') ? (editRow?.received_by || '') : '',
-    handover_status: (isEdit && page === 'handovers') ? (editRow?.status || 'CONFIRMED') : 'CONFIRMED',
     handover_date: (isEdit && page === 'handovers')
       ? (editRow?.handover_date || new Date().toISOString().slice(0, 10))
       : new Date().toISOString().slice(0, 10),

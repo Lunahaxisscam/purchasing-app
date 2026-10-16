@@ -44,11 +44,24 @@ const mock = {
   ],
   receivings: [
     { id: 'rc1', invoice_no: 'INV-1', project_name: '[99] Baroni', status: 'NORMAL', received_date: '2026-10-04', note: 'nominal: 450.000 | nota: https://drive.google.com/x | extra', purchase_request_id: 'r1' },
-    { id: 'rc2', invoice_no: 'INV-2', project_name: '[83] Mabes', status: 'RETUR', received_date: '2026-10-05', note: '', purchase_request_id: 'r2' }
+    { id: 'rc2', invoice_no: 'INV-2', project_name: '[83] Mabes', status: 'RETUR', received_date: '2026-10-05', note: '', purchase_request_id: 'r2' },
+    // rc3: kasus DAT 16 Okt — 2 item qty 0 (belum ada jumlah diterima).
+    // Ringkasan parent harus "Belum diterima (0/2)", BUKAN "PARSIAL (0/2)";
+    // dropdown status parent + tombol bulk (stok/tukang) TIDAK boleh tampil.
+    { id: 'rc3', invoice_no: 'INV-3', project_name: '[99] Baroni', status: 'NORMAL', received_date: null, note: '', purchase_request_id: 'r1', alokasi: 'LANGSUNG_LAPANGAN' }
   ],
   handovers: [
-    { id: 'h1', project_name: '[99] Baroni', received_by: 'Mandor Joko', status: 'CONFIRMED', handover_date: '2026-10-06', note: '' },
-    { id: 'h2', project_name: '[83] Mabes', received_by: 'Mandor Tono', status: 'DRAFT', handover_date: '2026-10-07', note: 'x' }
+    // h1: bukti fisik ada (diserahkan_at) -> "Sudah Diserahkan" + rincian terstruktur.
+    { id: 'h1', project_name: '[99] Baroni', received_by: 'Mandor Joko', status: 'CONFIRMED', handover_date: '2026-10-06', diserahkan_at: '2026-10-06T09:00:00Z', note: '',
+      receiving_id: 'rc1', items: [
+        { item_name: 'Triplek 9mm', qty_diserahkan: 3, satuan: 'Lembar' },
+        { item_name: 'Lem Fox', qty_diserahkan: 1, satuan: 'Kaleng' }
+      ] },
+    // h2: status lama CONFIRMED TANPA diserahkan_at + tanpa rincian -> label
+    // "Rincian barang belum tersedia" + catatan status lama (data live A3).
+    { id: 'h2', project_name: '[83] Mabes', received_by: 'Mandor Tono', status: 'CONFIRMED', handover_date: '2026-10-07', diserahkan_at: null, note: 'x', receiving_id: 'rc2' },
+    // h3: antrean belum diserahkan (DRAFT) dari alur Ke Tukang.
+    { id: 'h3', project_name: '[99] Baroni', received_by: 'Tukang', status: 'DRAFT', handover_date: '2026-10-08', diserahkan_at: null, note: 'Barang dari penerimaan rc1 dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.', receiving_id: 'rc1' }
   ],
   pr_items: [
     { id: 'pi1', pr_id: 'r1', material_id: 'm1', item_name: 'Triplek 9mm', kode: 'PLY-0001', unit: 'Lembar', quantity: 4, status: 'PENDING_APPROVAL', supplier_category: 'Plywood & Board', vendor_id: 'v1', estimated_price: 120000, sort_order: 0 },
@@ -56,7 +69,10 @@ const mock = {
   ],
   receiving_items: [
     { id: 'ri1', receiving_id: 'rc1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', quantity_received: 3 },
-    { id: 'ri2', receiving_id: 'rc2', pr_item_id: 'pi2', item_name: 'Lem Fox', unit: 'Kaleng', quantity_received: 2 }
+    { id: 'ri2', receiving_id: 'rc2', pr_item_id: 'pi2', item_name: 'Lem Fox', unit: 'Kaleng', quantity_received: 2 },
+    // rc3: 2 item (kasus DAT) — qty 0 semua, belum ada jumlah diterima.
+    { id: 'ri3', receiving_id: 'rc3', pr_item_id: 'pi1', item_name: 'Triplek (SF - 9mm)', unit: 'Lembar', quantity_received: 0 },
+    { id: 'ri4', receiving_id: 'rc3', pr_item_id: 'pi2', item_name: 'Triplek (Polos - 9mm - BBCC)', unit: 'Lembar', quantity_received: 0 }
   ]
 }
 

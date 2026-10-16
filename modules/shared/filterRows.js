@@ -3,7 +3,7 @@
 // Logika filter baris per modul — diekstrak VERBATIM dari ModuleView.js.
 // Fungsi murni: tidak menyentuh state React.
 // ============================================================
-import { normalizeStatus, isReceivingKendala, isStokMenipis } from '../../lib/constants'
+import { normalizeStatus, isReceivingKendala, isStokMenipis, isHandoverDelivered } from '../../lib/constants'
 
 export function filterRows({
   page,
@@ -50,8 +50,10 @@ export function filterRows({
     if (vendorFilter === 'HAS_PHONE') displayRows = rows.filter(r => !!r.phone)
     else if (vendorFilter === 'HAS_CONTACT') displayRows = rows.filter(r => !!r.contact)
   } else if (page === 'handovers') {
-    if (handoverFilter === 'CONFIRMED') displayRows = rows.filter(r => r.status === 'CONFIRMED' || r.status === 'SELESAI')
-    else if (handoverFilter === 'DRAFT') displayRows = rows.filter(r => r.status !== 'CONFIRMED' && r.status !== 'SELESAI')
+    // t_b418827b: "Sudah Diserahkan" = bukti fisik (`diserahkan_at`), BUKAN
+    // status CONFIRMED (bisa berasal dari data lama tanpa konfirmasi fisik).
+    if (handoverFilter === 'CONFIRMED') displayRows = rows.filter(isHandoverDelivered)
+    else if (handoverFilter === 'DRAFT') displayRows = rows.filter(r => !isHandoverDelivered(r))
   }
   return displayRows
 }

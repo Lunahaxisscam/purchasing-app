@@ -9,6 +9,7 @@ import path from 'node:path'
 const SB = process.cwd()
 const L = await import(pathToFileURL(path.join(SB, 'dist/modules/receivings/receiptLogic.mjs')).href)
 const S = await import(pathToFileURL(path.join(SB, 'dist/modules/receivings/receiptSave.mjs')).href)
+const { makeItemHelpers } = await import(pathToFileURL(path.join(SB, 'dist/modules/shared/itemHelpers.mjs')).href)
 // PENTING: mock harus dari dist/ — modul terkompilasi mengimpor dist/lib/…,
 // jadi instance yang sama harus dipakai test (bukan salinan di root sandbox).
 const mock = await import(pathToFileURL(path.join(SB, 'dist/lib/supabaseClient.mjs')).href)
@@ -168,6 +169,144 @@ console.log('\nA5. Rencana simpan: hanya item terisi; prevCum = snapshot')
   check('A5d itemRingkas count', r.count === 4)
   check('A5e itemRingkas 2 nama + "lainnya"', r.ringkas === 'Triplek, Cat +2 lainnya')
   check('A5f itemRingkas kosong', L.itemRingkas([]).count === 0)
+}
+
+// ---------- A6: ringkasan parent READ-ONLY + gate bulk (arahan DAT 16 Okt) ----------
+console.log('\nA6. Ringkasan parent diturunkan dari item (bukan dropdown Normal); bulk dilarang multi-item')
+{
+  // Helper receivingProgress dari itemHelpers (dibangun di atas fixture yang sama)
+  const H = makeItemHelpers({ allPrItems: PR_ITEMS, allReceivingItems: [
+    { id: 'ri1', receiving_id: 'recA', pr_item_id: 'pi1', item_name: 'Triplek 9mm', quantity_received: 10, unit: 'Lembar' },
+    { id: 'ri2', receiving_id: 'recA', pr_item_id: 'pi2', item_name: 'Cat Duco', quantity_received: 0, unit: 'Kaleng' },
+    { id: 'ri3', receiving_id: 'recA', pr_item_id: 'pi3', item_name: 'Paku 2in', quantity_received: null, unit: 'Kg' }
+  ] })
+
+  // multi-item: sebagian sudah diterima, sebagian 0 -> "Sebagian", BUKAN "PARSIAL (0/2)"
+  const prog = H.receivingProgress('recA')
+  const s = L.parentSummary(prog)
+  check('A6a multi-item sebagian -> key SEBAGIAN', s.key === 'SEBAGIAN', `key=${s.key}`)
+  check('A6b teks tidak menyebut PARSIAL menyesatkan', !/PARSIAL/.test(s.text), s.text)
+  check('A6c teks menyebut jumlah barang mulai diterima (1/3)', /Sebagian \(1\/3/.test(s.text), s.text)
+
+  // semua 0 -> "Belum diterima (0/N)" — bukan "Parsial"
+  const H0 = makeItemHelpers({ allPrItems: PR_ITEMS, allReceivingItems: [
+    { id: 'x1', receiving_id: 'recB', pr_item_id: 'pi1', item_name: 'A', quantity_received: 0, unit: 'X' },
+    { id: 'x2', receiving_id: 'recB', pr_item_id: 'pi2', item_name: 'B', quantity_received: 0, unit: 'X' }
+  ] })
+  const s0 = L.parentSummary(H0.receivingProgress('recB'))
+  check('A6d qty 0 semua -> BELUM (0/2)', s0.key === 'BELUM', `key=${s0.key}`)
+  check('A6e teks "Belum diterima (0/2)"', s0.text === 'Belum diterima (0/2)', s0.text)
+  check('A6f TIDAK disebut Parsial', !/Parsial/i.test(s0.text), s0.text)
+
+  // lengkap semua -> LENGKAP hijau
+  const HL = makeItemHelpers({ allPrItems: PR_ITEMS, allReceivingItems: [
+    { id: 'y1', receiving_id: 'recC', pr_item_id: 'pi1', item_name: 'A', quantity_received: 10, unit: 'X' },
+    { id: 'y2', receiving_id: 'recC', pr_item_id: 'pi2', item_name: 'B', quantity_received: 4, unit: 'X' }
+  ] })
+  const sL = L.parentSummary(HL.receivingProgress('recC'))
+  check('A6g lengkap semua -> LENGKAP', sL.key === 'LENGKAP', `key=${sL.key}`)
+
+  // lengkap tapi nota kendala -> amber, bukan hijau (audit G9)
+  const sK = L.parentSummary(HL.receivingProgress('recC', true), { kendalaLabel: 'nota Retur' })
+  check('A6h lengkap + kendala -> amber', sK.key === 'KENDALA', `key=${sK.key}`)
+  check('A6i teks kendala menyebut nota', /nota Retur/.test(sK.text), sK.text)
+
+  // over-receipt -> merah
+  const HO = makeItemHelpers({ allPrItems: PR_ITEMS, allReceivingItems: [
+    { id: 'z1', receiving_id: 'recD', pr_item_id: 'pi1', item_name: 'A', quantity_received: 12, unit: 'X' }
+  ] })
+  const sO = L.parentSummary(HO.receivingProgress('recD'))
+  check('A6j over-receipt -> OVER merah', sO.key === 'OVER', `key=${sO.key}`)
+
+  // tanpa item -> KOSONG
+  const sN = L.parentSummary(null)
+  check('A6k tanpa item -> KOSONG', sN.key === 'KOSONG', `key=${sN.key}`)
+
+  // ---- gate bulk ----
+  const two = [
+    { id: 'ri1', quantity_received: 10 },
+    { id: 'ri2', quantity_received: 0 }
+  ]
+  const g2 = L.bulkActionState(two)
+  check('A6l 2 item -> bulk DILARANG', g2.allowed === false, `allowed=${g2.allowed}`)
+  check('A6m alasan multi-item jelas', /per barang|multi-item/i.test(g2.reason), g2.reason)
+
+  const one0 = [{ id: 'ri1', quantity_received: 0 }]
+  const g1a = L.bulkActionState(one0)
+  check('A6n 1 item qty 0 -> bulk DILARANG (0 tidak masuk stok/handover)', g1a.allowed === false, `allowed=${g1a.allowed}`)
+
+  const one1 = [{ id: 'ri1', quantity_received: 3 }]
+  const g1b = L.bulkActionState(one1)
+  check('A6o 1 item sudah diterima -> bulk boleh', g1b.allowed === true, `allowed=${g1b.allowed}`)
+
+  const none = L.bulkActionState([])
+  check('A6p tanpa item -> bulk DILARANG', none.allowed === false, `allowed=${none.allowed}`)
+
+  // null dianggap 0 (data lama)
+  const oneNull = [{ id: 'ri1', quantity_received: null }]
+  check('A6q 1 item NULL -> bulk DILARANG', L.bulkActionState(oneNull).allowed === false)
+}
+
+// ---------- A7: EVIDENCE DAT — 2 triplek beda kondisi & tujuan + retry isolasi ----------
+console.log('\nA7. Bukti kasus DAT: 2 Triplek beda kondisi/tujuan (parsial, rusak sebagian) + retry tidak mengubah item lain')
+{
+  // Nota: 2 item "Triplek" berbeda spesifikasi.
+  //  - T1 (SF 9mm): dipesan 10. Datang 6, rusak 2 -> baik 4 (split: WS 1, Tukang 3 → Pak Joko)
+  //  - T2 (Polos 9mm BBCC): dipesan 4. Datang 3, rusak 0 -> baik 3 (semua WS)
+  const rows2 = L.buildRows([
+    { id: 't1', receiving_id: 'rec2T', pr_item_id: 'pi1', item_name: 'Triplek (SF - 9mm)', unit: 'Lembar', quantity_received: 0 },
+    { id: 't2', receiving_id: 'rec2T', pr_item_id: 'pi2', item_name: 'Triplek (Polos - 9mm - BBCC)', unit: 'Lembar', quantity_received: 0 }
+  ], orderedFor)
+
+  const e1 = { ...L.emptyEntry(), datang: '6', rusak: '2', ws: '1', tukang: '3', penerima: 'Pak Joko' }
+  const e2 = { ...L.emptyEntry(), datang: '3', rusak: '0', ws: '3' }
+  const v1 = L.validateItem(rows2[0], e1)
+  const v2 = L.validateItem(rows2[1], e2)
+  check('A7a T1 valid (parsial 6/10, rusak 2, split WS1+Tukang3)', v1.valid, JSON.stringify(v1.errors))
+  check('A7b T1 baik = 6-2 = 4', v1.computed.baik === 4, `baik=${v1.computed.baik}`)
+  check('A7c T1 tujuan = 4 (WS1+Tukang3, tidak melebihi baik)', v1.computed.tujuan === 4, `tujuan=${v1.computed.tujuan}`)
+  check('A7d T2 valid (parsial 3/4, semua WS)', v2.valid, JSON.stringify(v2.errors))
+  check('A7e T2 baik = 3', v2.computed.baik === 3, `baik=${v2.computed.baik}`)
+
+  const form2 = L.validateForm(rows2, { t1: e1, t2: e2 })
+  check('A7f form valid utk 2 item beda kondisi', form2.valid, JSON.stringify(form2.globalErrors))
+  // Rusak & tujuan per item tetap diblok skema (jujur: tidak ada ilusi berhasil).
+  check('A7g rusak T1 memblokir simpan (schemaBlock)', form2.schemaBlocks.some(b => /Rusak 2/.test(b)))
+  check('A7h tujuan T1 memblokir simpan (schemaBlock)', form2.schemaBlocks.some(b => /Tujuan per item/.test(b) && /SF - 9mm/.test(b)))
+  check('A7i recordable = false (bukan ilusi tersimpan)', form2.recordable === false, `recordable=${form2.recordable}`)
+
+  // Tanpa rusak & tanpa tujuan (kasus paling sederhana): masih bisa disimpan
+  // ke skema kini — hanya qty datang kumulatif.
+  const e1s = { ...L.emptyEntry(), datang: '6' }
+  const e2s = { ...L.emptyEntry(), datang: '3' }
+  const form2s = L.validateForm(rows2, { t1: e1s, t2: e2s })
+  check('A7j tanpa rusak/tujuan -> recordable (qty datang saja)', form2s.recordable === true, `recordable=${form2s.recordable}`)
+  const plan = L.buildSavePlan(rows2, { t1: e1s, t2: e2s })
+  check('A7k plan hanya 2 item terisi, T1 6 T2 3', plan.length === 2 && plan[0].newCum === 6 && plan[1].newCum === 3, JSON.stringify(plan))
+  check('A7l retry: prevCum snapshot per item (isolasi)', plan[0].prevCum === 0 && plan[1].prevCum === 0)
+
+  // Retry skenario: T1 sudah tersimpan 6; form lama masih snapshot 0.
+  // CAS: update T1 dengan prevCum 0 TIDAK boleh menimpa (konflik), T2 tetap 0.
+  mock.__reset({ rows: [{ id: 't1', receiving_id: 'rec2T', quantity_received: 6 }, { id: 't2', receiving_id: 'rec2T', quantity_received: 0 }] })
+  const stalePlan = L.buildSavePlan(rows2, { t1: e1s, t2: e2s }) // prevCum dari rows2 = 0 (stale)
+  const r1 = await S.saveReceipt({ receiving: { id: 'rec2T', received_date: '2026-10-16' }, plan: stalePlan })
+  check('A7m retry dgn snapshot lama -> KONFLIK (tidak dobel)', r1.ok === false, `ok=${r1.ok} reason=${r1.reason}`)
+  check('A7n T1 tetap 6 (tidak jadi 12)', mock.__state.rows.get('t1').quantity_received === 6, `t1=${mock.__state.rows.get('t1').quantity_received}`)
+  check('A7o T2 tetap 0 (item lain TIDAK berubah)', mock.__state.rows.get('t2').quantity_received === 0, `t2=${mock.__state.rows.get('t2').quantity_received}`)
+  check('A7p nol tulisan saat konflik', mock.__callsOf('update', 'receiving_items').length === 0, `updates=${mock.__callsOf('update', 'receiving_items').length}`)
+
+  // Submit ulang dari form yang di-reload (snapshot baru 6): T2 saja yang berubah.
+  const rows2b = L.buildRows([
+    { id: 't1', receiving_id: 'rec2T', pr_item_id: 'pi1', item_name: 'Triplek (SF - 9mm)', unit: 'Lembar', quantity_received: 6 },
+    { id: 't2', receiving_id: 'rec2T', pr_item_id: 'pi2', item_name: 'Triplek (Polos - 9mm - BBCC)', unit: 'Lembar', quantity_received: 0 }
+  ], orderedFor)
+  const plan2 = L.buildSavePlan(rows2b, { t1: { ...L.emptyEntry(), datang: '' }, t2: { ...L.emptyEntry(), datang: '3' } })
+  check('A7q plan reload hanya T2 (T1 tidak disentuh)', plan2.length === 1 && plan2[0].itemId === 't2' && plan2[0].newCum === 3, JSON.stringify(plan2))
+  const r2 = await S.saveReceipt({ receiving: { id: 'rec2T', received_date: '2026-10-16' }, plan: plan2 })
+  check('A7r simpan T2 sukses', r2.ok === true, JSON.stringify(r2))
+  check('A7s T1 tetap 6 (isolasi item lain)', mock.__state.rows.get('t1').quantity_received === 6)
+  check('A7t T2 = 3', mock.__state.rows.get('t2').quantity_received === 3)
+  check('A7u tepat SATU update (hanya T2)', mock.__callsOf('update', 'receiving_items').length === 1, `updates=${mock.__callsOf('update', 'receiving_items').length}`)
 }
 
 console.log('\n=== B. SIMPAN IDEMPOTEN (receiptSave.js + mock CAS) ===\n')

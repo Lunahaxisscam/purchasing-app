@@ -270,5 +270,47 @@ console.log('\nC8. Old-data: nota tanpa item -> Muat item dari PR; tanpa PR -> p
   check('C8g tanpa PR -> TIDAK ada tombol muat', !doc2.querySelector('[data-testid="btn-load-from-pr"]'))
 }
 
+// ---------- C9: parent summary READ-ONLY + gate bulk (DAT 16 Okt) ----------
+console.log('\nC9. Daftar Purchase: ringkasan parent read-only (bukan dropdown Normal); bulk dilarang multi-item')
+{
+  // Nota 2 item qty 0 (kasus screenshot DAT): PARSIAL(0/2) lama -> sekarang
+  // "Belum diterima (0/2)", tanpa dropdown status, tanpa tombol bulk.
+  const R = [
+    { id: 'rcm', purchase_request_id: 'pr1', project_id: 'p1', project_name: '[99] Baroni', status: 'NORMAL', received_date: null, delivery_note: 'SJ-M', invoice_no: 'INV-M', note: '', alokasi: null, masuk_gudang: false, tukang_at: null }
+  ]
+  const RI = [
+    { id: 'm1', receiving_id: 'rcm', pr_item_id: 'pi1', item_name: 'Triplek (SF - 9mm)', unit: 'Lembar', quantity_received: 0 },
+    { id: 'm2', receiving_id: 'rcm', pr_item_id: 'pi2', item_name: 'Triplek (Polos - 9mm - BBCC)', unit: 'Lembar', quantity_received: 0 }
+  ]
+  const { document: doc } = mount(R, RI)
+  await tick()
+  const text = doc.body.textContent || ''
+  const dtab = doc.querySelector('.desktop-table-view')
+  // Baris multi-item (rcm): semua pengecekan DAT di-scope ke baris ini.
+  const rows = [...(dtab?.querySelectorAll('tbody tr') || [])]
+  const rowMulti = rows.find(tr => /INV-M/.test(tr.textContent))
+  const rt = rowMulti ? rowMulti.textContent : ''
+  check('C9a baris multi-item: TIDAK ada dropdown status', !!rowMulti && !rowMulti.querySelector('select'))
+  check('C9b ringkasan "Belum diterima (0/2)" tampil', /Belum diterima \(0\/2\)/.test(rt), rt.slice(0, 200))
+  check('C9c TIDAK ada "PARSIAL (0/2)" menyesatkan', !/PARSIAL/.test(rt))
+  check('C9d bulk Masuk Stok Gudang TIDAK tampil utk multi-item', !/Masuk Stok Gudang/.test(rt))
+  check('C9e bulk Serah Terima ke Tukang TIDAK tampil utk multi-item', !/Serah Terima ke Tukang/.test(rt))
+  check('C9f info tujuan per barang tampil', /per barang/.test(rt), rt.slice(0, 300))
+  check('C9f2 info status nota read-only tampil utk multi-item', !!rowMulti?.querySelector('[data-testid="nota-info-rcm"]'))
+  // tombol Terima Barang tetap ada (satu pintu input)
+  check('C9g tombol Terima Barang tetap ada', !!btnTerima(doc, 'rcm'))
+
+  // 1 item sudah diterima penuh -> bulk boleh (keterbatasan skema: hanya 1 item)
+  const R1 = [{ ...R[0], id: 'rc1i', invoice_no: 'INV-1I' }]
+  const RI1 = [{ id: 's1', receiving_id: 'rc1i', pr_item_id: 'pi1', item_name: 'Thiner', unit: 'Liter', quantity_received: 10 }]
+  const { document: doc2 } = mount(R1, RI1)
+  await tick()
+  const t2 = doc2.querySelector('.desktop-table-view')?.textContent || ''
+  check('C9h 1 item lengkap -> ringkasan LENGKAP', /Lengkap \(1\/1\)/.test(t2))
+  check('C9i 1 item -> bulk boleh (Masuk Stok Gudang tampil)', /Masuk Stok Gudang/.test(t2))
+  // 1 item: dropdown status NOTA tetap ada (dimensi nota terpisah, label jelas)
+  check('C9j 1 item -> dropdown "Nota Normal" ada (bukan kondisi barang)', /Nota Normal/.test(t2))
+}
+
 console.log(`\nrender_test: ${pass}/${pass + fail} lulus${fail ? ' — GAGAL: ' + failures.join(' | ') : ''}`)
 process.exit(fail ? 1 : 0)
