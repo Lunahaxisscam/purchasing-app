@@ -12,7 +12,7 @@ export function StoreLink({ value }) {
       target="_blank"
       rel="noopener noreferrer"
       title={v}
-      style={{ color: '#1a73e8', textDecoration: 'underline', display: 'inline-block', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
+      style={{ color: 'var(--olive-700)', textDecoration: 'underline', display: 'inline-block', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
     >
       {v.replace(/^https?:\/\//i, '')}
     </a>
@@ -26,7 +26,7 @@ export function WaContact({ value }) {
   const digits = v.replace(/\D/g, '')
   if (digits.length < 8) return <>{format(value)}</>
   return (
-    <a href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer" style={{ color: '#1a73e8', textDecoration: 'underline' }}>
+    <a href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--olive-700)', textDecoration: 'underline' }}>
       {v}
     </a>
   )

@@ -54,6 +54,7 @@ export default function Sidebar({ page, setPage, session, logout, role = 'user' 
           {visibleSections.map((sec, sIdx) => (
             <div key={sIdx} className="nav-group">
               {sIdx > 0 && <div className="nav-divider" />}
+              {sec.label && <div className="nav-group-label">{sec.label}</div>}
               {sec.items.map(([id, name]) => (
                 <button
                   key={id}
@@ -69,7 +70,7 @@ export default function Sidebar({ page, setPage, session, logout, role = 'user' 
         </nav>
         <div className="account">
           <small>{session?.user?.email}</small>
-          <small style={{ display: 'block', marginTop: '2px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: '10px', color: role === 'admin' ? '#f3c969' : '#9ab4ad' }}>
+          <small style={{ display: 'block', marginTop: '2px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: '10px', color: role === 'admin' ? 'var(--accent-gold)' : '#a9ad96' }}>
             {role === 'admin' ? '★ Admin' : 'User'}
           </small>
           <button type="button" onClick={logout}>Keluar</button>

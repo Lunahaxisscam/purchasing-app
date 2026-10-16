@@ -642,7 +642,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
           style={{ marginBottom: '16px', padding: '12px 16px' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-            <span style={{ fontWeight: 700, fontSize: '13px', color: '#2b453e' }}>
+            <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--olive-700)' }}>
               🗓️ Filter Periode
             </span>
             <div className="filter-tabs" style={{ marginTop: 0 }}>
@@ -669,7 +669,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
             </div>
             {periodMode === 'custom' && (
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#556b65' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
                   Dari Tanggal
                   <input
                     type="date"
@@ -678,7 +678,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     style={{ width: 'auto', padding: '6px 10px', fontSize: '12.5px', marginLeft: '6px' }}
                   />
                 </label>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#556b65' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
                   Sampai Tanggal
                   <input
                     type="date"
@@ -691,7 +691,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
             )}
           </div>
           {periodMode === 'custom' && period.pendingCustom && (
-            <div style={{ marginTop: '8px', fontSize: '12px', color: '#92400e', fontWeight: 600 }}>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--warn)', fontWeight: 600 }}>
               Lengkapi Dari Tanggal &amp; Sampai Tanggal (rentang valid) untuk mengaktifkan periode kustom — sementara ini data ditampilkan penuh.
             </div>
           )}
@@ -715,10 +715,10 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
         </div>
         <div className="card" title="Total Project Margin = Σ (Revenue − Actual Material − Actual Tukang) seluruh proyek — gross profit murni, tanpa petty cash/operasional">
           <span>📈 Total Project Margin</span>
-          <strong style={{ fontSize: '22px', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>
+          <strong style={{ fontSize: '22px', color: opsC.totalGross < 0 ? 'var(--danger)' : 'var(--ok)' }}>
             {opsC.projectRows.length ? rupiah(opsC.totalGross) : '—'}
           </strong>
-          <small style={{ fontWeight: 700, color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>
+          <small style={{ fontWeight: 700, color: opsC.totalGross < 0 ? 'var(--danger)' : 'var(--ok)' }}>
             {opsC.projectRows.length ? `${persen(opsC.totalGrossPct)} margin kotor` : 'belum ada data proyek'}
           </small>
         </div>
@@ -735,10 +735,10 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
         </div>
         <div className="card" title="Net Margin Perusahaan = Total Project Margin (Gross Profit semua proyek) − Beban Operasional WS">
           <span>🏦 Net Margin Perusahaan</span>
-          <strong style={{ fontSize: '22px', color: opsC.net === null ? '#9aa8a4' : (opsC.net < 0 ? '#b91c1c' : '#0d6e38') }}>
+          <strong style={{ fontSize: '22px', color: opsC.net === null ? 'var(--text-muted)' : (opsC.net < 0 ? 'var(--danger)' : 'var(--ok)') }}>
             {opsC.net === null ? '—' : rupiah(opsC.net)}
           </strong>
-          <small style={{ fontWeight: 700, color: opsC.net === null ? '#9aa8a4' : (opsC.net < 0 ? '#b91c1c' : '#0d6e38') }}>
+          <small style={{ fontWeight: 700, color: opsC.net === null ? 'var(--text-muted)' : (opsC.net < 0 ? 'var(--danger)' : 'var(--ok)') }}>
             {opsC.net === null
               ? 'menunggu pos umum Operasional WS di Drive'
               : `${persen(opsC.netPct)} net margin · Gross ${rupiah(opsC.totalGross)} − OPEX ${rupiah(opsC.opexCumulative)}`}
@@ -798,23 +798,23 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
       </div>
 
       {view === 'drive' && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', padding: '8px 14px', background: '#f0f7f4', borderRadius: 'var(--radius-sm)', border: '1px solid #cce3d8', marginBottom: '14px', fontSize: '12px', color: '#173d36' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', padding: '8px 14px', background: '#eef0e6', borderRadius: 'var(--radius-sm)', border: '1px solid var(--olive-200)', marginBottom: '14px', fontSize: '12px', color: 'var(--olive-600)' }}>
           <div>
             {refreshing ? (
-              <span style={{ fontWeight: 600, color: '#137333' }}>
+              <span style={{ fontWeight: 600, color: 'var(--ok)' }}>
                 ⏳ Permintaan sinkronisasi sedang diproses daemon (maksimal ±45 detik)…
               </span>
             ) : sync?.last_synced_at ? (
               <span>
                 Google Sheets <b>REKAP COST 2026</b> · Terakhir disinkronkan: <b>{formatDateTime(sync.last_synced_at)}</b> ({timeAgo(sync.last_synced_at)})
-                {sync.last_message ? <span style={{ color: '#556b65' }}> · {sync.last_message}</span> : null}
+                {sync.last_message ? <span style={{ color: 'var(--text-muted)' }}> · {sync.last_message}</span> : null}
               </span>
             ) : (
-              <span style={{ color: '#556b65' }}>Belum pernah disinkronkan dari Google Drive.</span>
+              <span style={{ color: 'var(--text-muted)' }}>Belum pernah disinkronkan dari Google Drive.</span>
             )}
           </div>
           {sync?.last_status === 'ERROR' && (
-            <span style={{ color: '#b91c1c', fontWeight: 700 }}>
+            <span style={{ color: 'var(--danger)', fontWeight: 700 }}>
               ⚠️ Sync gagal: {sync.last_message || 'Terjadi kesalahan'}
             </span>
           )}
@@ -822,7 +822,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
       )}
 
       {driveError && (
-        <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b', marginBottom: '14px' }}>
+        <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425', marginBottom: '14px' }}>
           {driveError}
         </div>
       )}
@@ -835,10 +835,10 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
           {opsC.periodOn && (
             <div
               data-testid="period-indicator"
-              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '12px', padding: '9px 14px', background: '#eef6fb', border: '1px solid #bcd9f0', borderRadius: 'var(--radius-sm)', fontSize: '12.5px', fontWeight: 700, color: '#1d5a8a' }}
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '12px', padding: '9px 14px', background: 'var(--olive-50)', border: '1px solid var(--olive-200)', borderRadius: 'var(--radius-sm)', fontSize: '12.5px', fontWeight: 700, color: 'var(--olive-700)' }}
             >
               <span>🗓️ Menampilkan data periode: {opsC.periodLabel}</span>
-              <span style={{ fontWeight: 500, color: '#41729a' }}>
+              <span style={{ fontWeight: 500, color: 'var(--olive-500)' }}>
                 · Biaya Periode (Penerimaan + Tukang): {rupiah(opsC.totalPeriod)}
                 {opsC.periodMaterialUnclassified > 0
                   ? ` (termasuk ${rupiah(opsC.periodMaterialUnclassified)} penerimaan tanpa proyek)`
@@ -870,20 +870,20 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     <td><b>{r.kode}</b></td>
                     <td style={{ whiteSpace: 'normal', maxWidth: '240px', fontWeight: 600 }}>
                       {r.name}
-                      <div style={{ fontSize: '11px', color: '#9aa8a4' }}>{r.status}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.status}</div>
                     </td>
                     <td style={{ textAlign: 'right' }}>{r.revenue > 0 ? rupiah(r.revenue) : '—'}</td>
                     <td style={{ textAlign: 'right' }}>{r.material > 0 ? rupiah(r.material) : '—'}</td>
                     <td style={{ textAlign: 'right' }}>{r.labor > 0 ? rupiah(r.labor) : '—'}</td>
                     {opsC.periodOn && (
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: r.periodTotal > 0 ? '#1d5a8a' : '#9aa8a4' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: r.periodTotal > 0 ? 'var(--olive-700)' : 'var(--text-muted)' }}>
                         {r.periodTotal > 0 ? rupiah(r.periodTotal) : '—'}
                       </td>
                     )}
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.gross < 0 ? '#b91c1c' : '#0d6e38' }}>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.gross < 0 ? 'var(--danger)' : 'var(--ok)' }}>
                       {rupiah(r.gross)}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.marginPct === null ? '#9aa8a4' : (r.gross < 0 ? '#b91c1c' : '#0d6e38') }}>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.marginPct === null ? 'var(--text-muted)' : (r.gross < 0 ? 'var(--danger)' : 'var(--ok)') }}>
                       {r.marginPct === null ? '—' : persen(r.marginPct)}
                     </td>
                   </tr>
@@ -895,18 +895,18 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
               </tbody>
               {opsC.projectRows.length > 0 && (
                 <tfoot>
-                  <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                  <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                     <td colSpan={2} style={{ textAlign: 'right' }}>TOTAL</td>
                     <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalRevenue)}</td>
                     <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalMaterial)}</td>
                     <td style={{ textAlign: 'right' }}>{rupiah(opsC.totalLabor)}</td>
                     {opsC.periodOn && (
-                      <td style={{ textAlign: 'right', color: opsC.totalPeriod > 0 ? '#1d5a8a' : '#9aa8a4' }}>
+                      <td style={{ textAlign: 'right', color: opsC.totalPeriod > 0 ? 'var(--olive-700)' : 'var(--text-muted)' }}>
                         {opsC.totalPeriod > 0 ? rupiah(opsC.totalPeriod) : '—'}
                       </td>
                     )}
-                    <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(opsC.totalGross)}</td>
-                    <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? '#b91c1c' : '#0d6e38' }}>{persen(opsC.totalGrossPct)}</td>
+                    <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? 'var(--danger)' : 'var(--ok)' }}>{rupiah(opsC.totalGross)}</td>
+                    <td style={{ textAlign: 'right', color: opsC.totalGross < 0 ? 'var(--danger)' : 'var(--ok)' }}>{persen(opsC.totalGrossPct)}</td>
                   </tr>
                 </tfoot>
               )}
@@ -940,7 +940,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <td className="muted">
                     {opsC.net === null
                       ? <>Baris pos umum belum tersedia — Net Margin Perusahaan belum bisa dihitung. Tambahkan baris <code>operasional ws</code> di REKAP COST 2026, lalu sync ulang.</>
-                      : <>{rupiah(opsC.totalGross)} (Gross Profit semua proyek) − {rupiah(opsC.opexCumulative)} (Operasional WS) = <b style={{ color: opsC.net < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(opsC.net)}</b> ({persen(opsC.netPct)})</>}
+                      : <>{rupiah(opsC.totalGross)} (Gross Profit semua proyek) − {rupiah(opsC.opexCumulative)} (Operasional WS) = <b style={{ color: opsC.net < 0 ? 'var(--danger)' : 'var(--ok)' }}>{rupiah(opsC.net)}</b> ({persen(opsC.netPct)})</>}
                   </td>
                 </tr>
               </tbody>
@@ -965,16 +965,16 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <div className="mobile-card-row"><span className="mobile-label">Material:</span><span className="mobile-val">{r.material > 0 ? rupiah(r.material) : '—'}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Tukang:</span><span className="mobile-val">{r.labor > 0 ? rupiah(r.labor) : '—'}</span></div>
                   {opsC.periodOn && (
-                    <div className="mobile-card-row"><span className="mobile-label">Biaya Periode:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.periodTotal > 0 ? '#1d5a8a' : '#9aa8a4' }}>{r.periodTotal > 0 ? rupiah(r.periodTotal) : '—'}</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Biaya Periode:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.periodTotal > 0 ? 'var(--olive-700)' : 'var(--text-muted)' }}>{r.periodTotal > 0 ? rupiah(r.periodTotal) : '—'}</span></div>
                   )}
-                  <div className="mobile-card-row"><span className="mobile-label">Gross Profit:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.gross < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(r.gross)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Gross Profit:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.gross < 0 ? 'var(--danger)' : 'var(--ok)' }}>{rupiah(r.gross)}</span></div>
                 </div>
               </div>
             )) : <div className="panel empty">Belum ada data margin proyek.</div>}
             {opsC.periodOn && (
-              <div className="panel" style={{ fontWeight: 700, color: '#1d5a8a' }}>
+              <div className="panel" style={{ fontWeight: 700, color: 'var(--olive-700)' }}>
                 🗓️ Menampilkan data periode: {opsC.periodLabel}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontWeight: 600, color: '#41729a' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontWeight: 600, color: 'var(--olive-500)' }}>
                   <span>Biaya Periode (Penerimaan + Tukang):</span><span>{rupiah(opsC.totalPeriod)}</span>
                 </div>
               </div>
@@ -986,7 +986,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
                 <span>Operasional WS:</span><span>{opsC.opexCumulative === null ? '—' : rupiah(opsC.opexCumulative)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontWeight: 800, color: opsC.net === null ? '#9aa8a4' : (opsC.net < 0 ? '#b91c1c' : '#0d6e38') }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontWeight: 800, color: opsC.net === null ? 'var(--text-muted)' : (opsC.net < 0 ? 'var(--danger)' : 'var(--ok)') }}>
                 <span>Net Margin Perusahaan:</span><span>{opsC.net === null ? '—' : rupiah(opsC.net)}</span>
               </div>
             </div>
@@ -997,7 +997,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
       {view === 'closing' ? (
         <>
           {closingError && (
-            <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
+            <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425' }}>
               {closingError}
             </div>
           )}
@@ -1023,15 +1023,15 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     <tr key={p.id}>
                       <td>
                         <div style={{ fontWeight: 700 }}>{p.kode || '—'}</div>
-                        <div style={{ fontSize: '12px', color: '#556b65', whiteSpace: 'normal', maxWidth: '170px' }}>{p.name || '—'}</div>
-                        <div style={{ fontSize: '11px', color: '#9aa8a4', marginTop: '2px' }}>{p.status || '—'}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'normal', maxWidth: '170px' }}>{p.name || '—'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{p.status || '—'}</div>
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{row.revenue > 0 ? rupiah(row.revenue) : '—'}</td>
                       <td style={{ textAlign: 'right' }}>
                         {row.revenue > 0 ? (
                           <>
                             <div style={{ fontWeight: 600 }}>{rupiah(row.target)}</div>
-                            <div style={{ fontSize: '11px', color: row.underBudget ? '#137333' : '#b91c1c', fontWeight: 700 }}>
+                            <div style={{ fontSize: '11px', color: row.underBudget ? 'var(--ok)' : 'var(--danger)', fontWeight: 700 }}>
                               {row.underBudget ? '✓ HEMAT' : '⚠ OVER-BUDGET'}
                             </div>
                           </>
@@ -1039,20 +1039,20 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ fontWeight: 700 }}>{rupiah(row.total)}</div>
-                        <div style={{ fontSize: '11px', color: '#71817d' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           Mat {rupiah(row.material)} · PC {rupiah(row.petty)} · Tukang {rupiah(row.labor)}
                         </div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 700, color: row.margin < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(row.margin)}</div>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: row.margin < 0 ? '#b91c1c' : '#0d6e38' }}>{persen(row.marginPct)}</div>
+                        <div style={{ fontWeight: 700, color: row.margin < 0 ? 'var(--danger)' : 'var(--ok)' }}>{rupiah(row.margin)}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: row.margin < 0 ? 'var(--danger)' : 'var(--ok)' }}>{persen(row.marginPct)}</div>
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{persen(row.laborRatio)}</td>
                       <td style={{ textAlign: 'center' }}>
                         {row.closed ? (
                           <div>
                             <span className="badge status-APPROVED" style={{ fontSize: '10px' }}>🔒 TERKUNCI</span>
-                            <div style={{ fontSize: '10px', color: '#9aa8a4', margin: '4px 0' }}>{formatDateTime(row.closed.closed_at)}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '4px 0' }}>{formatDateTime(row.closed.closed_at)}</div>
                             {/* Sprint 1 — cetak dokumen resmi utk proyek yang sudah closed */}
                             <button
                               type="button"
@@ -1104,7 +1104,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     <div className="mobile-card-row"><span className="mobile-label">Revenue:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{row.revenue > 0 ? rupiah(row.revenue) : '—'}</span></div>
                     <div className="mobile-card-row"><span className="mobile-label">Budget 70%:</span><span className="mobile-val">{row.revenue > 0 ? rupiah(row.target) : '—'}</span></div>
                     <div className="mobile-card-row"><span className="mobile-label">Cost Kumulatif:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{rupiah(row.total)}</span></div>
-                    <div className="mobile-card-row"><span className="mobile-label">Margin:</span><span className="mobile-val" style={{ fontWeight: 700, color: row.margin < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(row.margin)} ({persen(row.marginPct)})</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Margin:</span><span className="mobile-val" style={{ fontWeight: 700, color: row.margin < 0 ? 'var(--danger)' : 'var(--ok)' }}>{rupiah(row.margin)} ({persen(row.marginPct)})</span></div>
                     <div className="mobile-card-row"><span className="mobile-label">Labor Ratio:</span><span className="mobile-val">{persen(row.laborRatio)}</span></div>
                   </div>
                   {!row.closed && (
@@ -1159,23 +1159,23 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     <tr key={c.id}>
                       <td>
                         <div style={{ fontWeight: 700 }}>{c.project_no || '—'}</div>
-                        <div style={{ fontSize: '12px', color: '#556b65', whiteSpace: 'normal', maxWidth: '170px' }}>{c.project_name || '—'}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'normal', maxWidth: '170px' }}>{c.project_name || '—'}</div>
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{rupiah(c.revenue || 0)}</td>
                       <td style={{ textAlign: 'right' }}>{rupiah(c.target_budget || 0)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ fontWeight: 700 }}>{rupiah(c.total_cost || 0)}</div>
-                        <div style={{ fontSize: '11px', color: hemat ? '#137333' : '#b91c1c', fontWeight: 700 }}>{hemat ? '✓ HEMAT' : '⚠ OVER-BUDGET'}</div>
+                        <div style={{ fontSize: '11px', color: hemat ? 'var(--ok)' : 'var(--danger)', fontWeight: 700 }}>{hemat ? '✓ HEMAT' : '⚠ OVER-BUDGET'}</div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 700, color: Number(c.margin_nominal) < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(c.margin_nominal || 0)}</div>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: Number(c.margin_nominal) < 0 ? '#b91c1c' : '#0d6e38' }}>{persen(c.margin_percentage || 0)}</div>
+                        <div style={{ fontWeight: 700, color: Number(c.margin_nominal) < 0 ? 'var(--danger)' : 'var(--ok)' }}>{rupiah(c.margin_nominal || 0)}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: Number(c.margin_nominal) < 0 ? 'var(--danger)' : 'var(--ok)' }}>{persen(c.margin_percentage || 0)}</div>
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{persen(c.labor_ratio || 0)}</td>
                       <td style={{ fontSize: '12px' }}>
                         <div style={{ fontWeight: 600 }}>{formatDateTime(c.closed_at)}</div>
-                        <div style={{ fontSize: '11px', color: '#9aa8a4' }}>oleh {c.closed_by || '—'}</div>
-                        {c.notes && <div style={{ fontSize: '11px', color: '#556b65', whiteSpace: 'normal', maxWidth: '220px', marginTop: '2px' }}>📝 {c.notes}</div>}
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>oleh {c.closed_by || '—'}</div>
+                        {c.notes && <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'normal', maxWidth: '220px', marginTop: '2px' }}>📝 {c.notes}</div>}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         {/* Sprint 1 — One-Click Cetak Laporan Closing Proyek Resmi */}
@@ -1216,7 +1216,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <div className="mobile-card-body">
                     <div className="mobile-card-row"><span className="mobile-label">Revenue:</span><span className="mobile-val">{rupiah(c.revenue || 0)}</span></div>
                     <div className="mobile-card-row"><span className="mobile-label">Cost:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{rupiah(c.total_cost || 0)}</span></div>
-                    <div className="mobile-card-row"><span className="mobile-label">Margin:</span><span className="mobile-val" style={{ fontWeight: 700, color: Number(c.margin_nominal) < 0 ? '#b91c1c' : '#0d6e38' }}>{rupiah(c.margin_nominal || 0)} ({persen(c.margin_percentage || 0)})</span></div>
+                    <div className="mobile-card-row"><span className="mobile-label">Margin:</span><span className="mobile-val" style={{ fontWeight: 700, color: Number(c.margin_nominal) < 0 ? 'var(--danger)' : 'var(--ok)' }}>{rupiah(c.margin_nominal || 0)} ({persen(c.margin_percentage || 0)})</span></div>
                     <div className="mobile-card-row"><span className="mobile-label">Labor Ratio:</span><span className="mobile-val">{persen(c.labor_ratio || 0)}</span></div>
                     {c.notes && <div className="mobile-card-row"><span className="mobile-label">Catatan:</span><span className="mobile-val">{c.notes}</span></div>}
                   </div>
@@ -1267,7 +1267,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
               </tbody>
               {driveRows.length > 0 && (
                 <tfoot>
-                  <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                  <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                     <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL</td>
                     <td style={{ textAlign: 'right' }}>{rupiah(driveTotals.cumulative)}</td>
                     <td></td>
@@ -1319,7 +1319,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                     <td style={{ textAlign: 'right' }}>{p.prCount}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.est > 0 ? rupiah(p.est) : '—'}</td>
                     <td style={{ textAlign: 'right' }}>{p.hasReal ? rupiah(p.real) : '—'}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: diff === null ? '#9aa8a4' : (diff > 0 ? '#b91c1c' : '#0d6e38') }}>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: diff === null ? 'var(--text-muted)' : (diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>
                       {diff === null ? '—' : rupiah(diff)}
                     </td>
                   </tr>
@@ -1351,7 +1351,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <td>{p.status}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.est > 0 ? rupiah(p.est) : '—'}</td>
                   <td style={{ textAlign: 'right' }}>{p.real !== null ? rupiah(p.real) : '—'}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: p.diff === null ? '#9aa8a4' : (p.diff > 0 ? '#b91c1c' : '#0d6e38') }}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>
                     {p.diff === null ? '—' : rupiah(p.diff)}
                   </td>
                 </tr>
@@ -1379,7 +1379,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                 <div className="mobile-card-body">
                   <div className="mobile-card-row"><span className="mobile-label">Estimasi:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{p.est > 0 ? rupiah(p.est) : '—'}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Purchase Riil:</span><span className="mobile-val">{p.hasReal ? rupiah(p.real) : '—'}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: diff === null ? '#9aa8a4' : (diff > 0 ? '#b91c1c' : '#0d6e38') }}>{diff === null ? '—' : rupiah(diff)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: diff === null ? 'var(--text-muted)' : (diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>{diff === null ? '—' : rupiah(diff)}</span></div>
                 </div>
               </div>
             )
@@ -1398,7 +1398,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                 <div className="mobile-card-row"><span className="mobile-label">Judul:</span><span className="mobile-val">{p.title}</span></div>
                 <div className="mobile-card-row"><span className="mobile-label">Estimasi:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{p.est > 0 ? rupiah(p.est) : '—'}</span></div>
                 <div className="mobile-card-row"><span className="mobile-label">Purchase Riil:</span><span className="mobile-val">{p.real !== null ? rupiah(p.real) : '—'}</span></div>
-                <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: p.diff === null ? '#9aa8a4' : (p.diff > 0 ? '#b91c1c' : '#0d6e38') }}>{p.diff === null ? '—' : rupiah(p.diff)}</span></div>
+                <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>{p.diff === null ? '—' : rupiah(p.diff)}</span></div>
               </div>
             </div>
           )) : <div className="panel empty">Belum ada data pengadaan.</div>
@@ -1597,13 +1597,13 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
               <button type="button" className="icon" onClick={() => setClosingModal(null)}>×</button>
             </div>
 
-            <div className="panel" style={{ padding: '14px 18px', marginBottom: '14px', background: closingModal.underBudget ? '#f0f9f2' : '#fdf2f2', borderColor: closingModal.underBudget ? '#bce1ce' : '#fca5a5' }}>
-              <b style={{ color: closingModal.underBudget ? '#137333' : '#b91c1c', fontSize: '14px' }}>
+            <div className="panel" style={{ padding: '14px 18px', marginBottom: '14px', background: closingModal.underBudget ? '#eef4ee' : '#fdf2f2', borderColor: closingModal.underBudget ? 'var(--ok-border)' : 'var(--danger-border)' }}>
+              <b style={{ color: closingModal.underBudget ? 'var(--ok)' : 'var(--danger)', fontSize: '14px' }}>
                 {closingModal.underBudget
                   ? '✓ HEMAT — Cost kumulatif berada DI BAWAH Budget Target 70%'
                   : '⚠ OVER-BUDGET — Cost kumulatif MELEBIHI Budget Target 70%'}
               </b>
-              <div style={{ fontSize: '12px', color: '#556b65', marginTop: '4px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
                 Cost Kumulatif {rupiah(closingModal.total)} vs Budget 70% {rupiah(closingModal.target)}
               </div>
             </div>
@@ -1615,18 +1615,18 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(closingModal.revenue)}</td>
                 </tr>
                 <tr>
-                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>a. Material Cost <small>(Bakpau — COST ITEMS)</small></td>
+                  <td style={{ paddingLeft: '26px', color: 'var(--text-muted)' }}>a. Material Cost <small>(Bakpau — COST ITEMS)</small></td>
                   <td style={{ textAlign: 'right' }}>{rupiah(closingModal.material)}</td>
                 </tr>
                 <tr>
-                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>b. Petty Cash <small>(Bakpau — PETTY CASH)</small></td>
+                  <td style={{ paddingLeft: '26px', color: 'var(--text-muted)' }}>b. Petty Cash <small>(Bakpau — PETTY CASH)</small></td>
                   <td style={{ textAlign: 'right' }}>{rupiah(closingModal.petty)}</td>
                 </tr>
                 <tr>
-                  <td style={{ paddingLeft: '26px', color: '#556b65' }}>c. Biaya Tukang <small>(Brokoli / Budgeting)</small></td>
+                  <td style={{ paddingLeft: '26px', color: 'var(--text-muted)' }}>c. Biaya Tukang <small>(Brokoli / Budgeting)</small></td>
                   <td style={{ textAlign: 'right' }}>{rupiah(closingModal.labor)}</td>
                 </tr>
-                <tr style={{ background: '#f7faf9' }}>
+                <tr style={{ background: 'var(--olive-50)' }}>
                   <td style={{ fontWeight: 700 }}>COST KUMULATIF (a + b + c)</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(closingModal.total)}</td>
                 </tr>
@@ -1634,9 +1634,9 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <td style={{ fontWeight: 600 }}>Budget Target (70% × Revenue)</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{rupiah(closingModal.target)}</td>
                 </tr>
-                <tr style={{ background: closingModal.margin < 0 ? '#fdf2f2' : '#f0f9f2' }}>
+                <tr style={{ background: closingModal.margin < 0 ? '#fdf2f2' : '#eef4ee' }}>
                   <td style={{ fontWeight: 700 }}>MARGIN / LABA KOTOR</td>
-                  <td style={{ textAlign: 'right', fontWeight: 800, color: closingModal.margin < 0 ? '#b91c1c' : '#0d6e38' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 800, color: closingModal.margin < 0 ? 'var(--danger)' : 'var(--ok)' }}>
                     {rupiah(closingModal.margin)} ({persen(closingModal.marginPct)})
                   </td>
                 </tr>

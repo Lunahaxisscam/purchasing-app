@@ -169,7 +169,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
       {/* Toolbar: pilih proyek on-going */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
-          <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#3b504b' }}>
+          <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#3d4435' }}>
             Proyek On-Going ({activeProjects.length})
             <select
               value={projectId}
@@ -201,7 +201,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
       </div>
 
       {error && (
-        <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
+        <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425' }}>
           Gagal memuat sebagian data: {error}
         </div>
       )}
@@ -230,10 +230,10 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
             </div>
             <div className="card" title="Project Margin (Gross Profit) = Revenue − Actual Material − Actual Tukang — murni, tanpa petty cash/operasional">
               <span>📈 Project Margin (Gross Profit)</span>
-              <strong style={{ fontSize: '22px', color: summary.marginPct === null ? '#9aa8a4' : (summary.margin < 0 ? '#b91c1c' : '#0d6e38') }}>
+              <strong style={{ fontSize: '22px', color: summary.marginPct === null ? 'var(--text-muted)' : (summary.margin < 0 ? 'var(--danger)' : 'var(--ok)') }}>
                 {summary.marginPct === null ? '—' : rupiah(summary.margin)}
               </strong>
-              <small style={{ fontWeight: 700, color: summary.marginPct === null ? '#9aa8a4' : (summary.margin < 0 ? '#b91c1c' : '#0d6e38') }}>
+              <small style={{ fontWeight: 700, color: summary.marginPct === null ? 'var(--text-muted)' : (summary.margin < 0 ? 'var(--danger)' : 'var(--ok)') }}>
                 {summary.marginPct === null ? '' : persen(summary.marginPct)}
               </small>
             </div>
@@ -271,10 +271,10 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
                         {summary.revenue > 0 ? (
                           <>
                             <b>{rupiah(summary.target)}</b>
-                            <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 700, color: summary.underBudget ? '#137333' : '#b91c1c' }}>
+                            <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 700, color: summary.underBudget ? 'var(--ok)' : 'var(--danger)' }}>
                               {summary.underBudget ? '✓ HEMAT' : '⚠ OVER-BUDGET'}
                             </span>
-                            <div style={{ fontSize: '11px', color: '#71817d', marginTop: '2px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                               total cost saat ini {rupiah(summary.total)} (Material + Tukang)
                             </div>
                           </>
@@ -328,7 +328,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
                         <td style={{ fontWeight: 600 }}>{pl.area || '—'}</td>
                         <td style={{ whiteSpace: 'normal', maxWidth: '240px' }}>
                           <div style={{ fontWeight: 600 }}>{pl.item_name || '—'}</div>
-                          {pl.spec && <div style={{ fontSize: '11px', color: '#71817d', marginTop: '2px' }}>{pl.spec}</div>}
+                          {pl.spec && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{pl.spec}</div>}
                         </td>
                         <td>{pl.worker_name || '—'}</td>
                         <td style={{ textTransform: 'capitalize' }}>{pl.worker_type || 'borongan'}</td>
@@ -338,7 +338,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
                             {pl.status || 'Perencanaan'}
                           </span>
                           {Number(pl.progress) > 0 && (
-                            <div style={{ fontSize: '11px', color: '#71817d', marginTop: '2px' }}>{pl.progress}%</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{pl.progress}%</div>
                           )}
                         </td>
                       </tr>
@@ -350,7 +350,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
                   </tbody>
                   {laborRows.length > 0 && (
                     <tfoot>
-                      <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                         <td colSpan={4} style={{ textAlign: 'right' }}>TOTAL ESTIMASI UPAH</td>
                         <td style={{ textAlign: 'right' }}>{rupiah(summary.labor)}</td>
                         <td></td>
@@ -432,7 +432,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
                         <td><span className={`badge status-${p.status}`} style={{ fontSize: '11px' }}>{p.status}</span></td>
                         <td style={{ textAlign: 'right' }}>{p.est > 0 ? rupiah(p.est) : '—'}</td>
                         <td style={{ textAlign: 'right' }}>{p.real !== null ? rupiah(p.real) : '—'}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: p.diff === null ? '#9aa8a4' : (p.diff > 0 ? '#b91c1c' : '#0d6e38') }}>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>
                           {p.diff === null ? '—' : rupiah(p.diff)}
                         </td>
                       </tr>
@@ -444,7 +444,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
                   </tbody>
                   {materialPrRows.length > 0 && (
                     <tfoot>
-                      <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                         <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL</td>
                         <td style={{ textAlign: 'right' }}>{materialPrTotals.est > 0 ? rupiah(materialPrTotals.est) : '—'}</td>
                         <td style={{ textAlign: 'right' }}>{materialPrTotals.real > 0 ? rupiah(materialPrTotals.real) : '—'}</td>
@@ -477,7 +477,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans })
                       <div className="mobile-card-row"><span className="mobile-label">Status:</span><span className="mobile-val">{p.status}</span></div>
                       <div className="mobile-card-row"><span className="mobile-label">Estimasi:</span><span className="mobile-val">{p.est > 0 ? rupiah(p.est) : '—'}</span></div>
                       <div className="mobile-card-row"><span className="mobile-label">Purchase Riil:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{p.real !== null ? rupiah(p.real) : '—'}</span></div>
-                      <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: p.diff === null ? '#9aa8a4' : (p.diff > 0 ? '#b91c1c' : '#0d6e38') }}>{p.diff === null ? '—' : rupiah(p.diff)}</span></div>
+                      <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>{p.diff === null ? '—' : rupiah(p.diff)}</span></div>
                     </div>
                   </div>
                 )) : <div className="panel empty">Belum ada Purchase Request untuk proyek ini.</div>}

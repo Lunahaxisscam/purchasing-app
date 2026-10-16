@@ -26,10 +26,10 @@ const STATUS_ID = 'tukang_upah'
 // Warna badge status batch (mengikuti konvensi sheet: Lunas / Berjalan / catatan)
 function batchStatusStyle(status) {
   const s = String(status || '').toLowerCase()
-  if (s.includes('lunas')) return { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
-  if (s.includes('berjalan')) return { background: '#e8f0fe', color: '#1a56c4', border: '1px solid #c6dafc' }
-  if (s.includes('balanced')) return { background: '#e6f4ea', color: '#137333', border: '1px solid #ceead6' }
-  return { background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6' }
+  if (s.includes('lunas')) return { background: 'var(--ok-tint)', color: 'var(--ok)', border: '1px solid var(--ok-border)' }
+  if (s.includes('berjalan')) return { background: '#eef0e6', color: 'var(--olive-700)', border: '1px solid var(--olive-200)' }
+  if (s.includes('balanced')) return { background: 'var(--ok-tint)', color: 'var(--ok)', border: '1px solid var(--ok-border)' }
+  return { background: 'var(--warn-tint)', color: 'var(--warn)', border: '1px solid var(--warn-border)' }
 }
 
 // Status panjang dari sheet diringkas untuk badge; teks lengkap via tooltip (title).
@@ -54,7 +54,7 @@ function fmtRp(v) {
 // Sel teks panjang: dibungkus div ellipsis (lihat catatan UI di atas).
 function EllipCell({ text, wide = false, small = false, muted = false }) {
   const cls = `cell-ellip${wide ? ' cell-ellip-wide' : ''}${small ? ' cell-ellip-sm' : ''}`
-  const style = muted ? { fontSize: '12px', color: '#556b65' } : undefined
+  const style = muted ? { fontSize: '12px', color: 'var(--text-muted)' } : undefined
   return <div className={cls} style={style} title={text || ''}>{text || '—'}</div>
 }
 
@@ -230,7 +230,7 @@ export default function TukangUpah() {
       {/* Toolbar: pilih tukang + refresh dari Drive */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
-          <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#3b504b' }}>
+          <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#3d4435' }}>
             Pilih Tukang ({rows.length} tersedia)
             <select
               value={tukangKey}
@@ -279,12 +279,12 @@ export default function TukangUpah() {
       </div>
 
       {sync?.last_status === 'ERROR' && (
-        <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
+        <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425' }}>
           ⚠️ Sync terakhir gagal: {sync.last_message || 'Terjadi kesalahan'}
         </div>
       )}
       {error && (
-        <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
+        <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425' }}>
           Gagal memuat data: {error}
         </div>
       )}
@@ -319,7 +319,7 @@ export default function TukangUpah() {
             </div>
             <div className="card" title="Sisa saldo berjalan tukang (hak − kasbon + pelunasan)">
               <span>⚖️ Sisa Saldo Berjalan</span>
-              <strong style={{ fontSize: '22px', color: saldo === null ? '#9aa8a4' : (saldo < 0 ? '#b91c1c' : '#0d6e38') }}>
+              <strong style={{ fontSize: '22px', color: saldo === null ? 'var(--text-muted)' : (saldo < 0 ? 'var(--danger)' : 'var(--ok)') }}>
                 {saldo === null ? '—' : fmtRp(saldo)}
               </strong>
               <small>
@@ -354,12 +354,12 @@ export default function TukangUpah() {
                     <td><EllipCell text={b.proyek} wide muted /></td>
                     <td style={{ textAlign: 'right' }}>{fmtRp(b.total_upah)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtRp(b.total_kasbon)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: (b.sisa_bersih || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: (b.sisa_bersih || 0) < 0 ? 'var(--danger)' : 'var(--ok)' }}>
                       {fmtRp(b.sisa_bersih)}
                     </td>
                     <td style={{ textAlign: 'right' }}>{fmtRp(b.pelunasan)}</td>
                     <td><EllipCell text={b.metode} small /></td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: (b.saldo_berjalan || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: (b.saldo_berjalan || 0) < 0 ? 'var(--danger)' : 'var(--ok)' }}>
                       {fmtRp(b.saldo_berjalan)}
                     </td>
                     <td style={{ textAlign: 'center' }}>
@@ -378,7 +378,7 @@ export default function TukangUpah() {
               </tbody>
               {tukang.total_row && (
                 <tfoot>
-                  <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                  <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                     <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL KESELURUHAN BATCH</td>
                     <td style={{ textAlign: 'right' }}>{fmtRp(tukang.total_row.total_upah)}</td>
                     <td style={{ textAlign: 'right' }}>{fmtRp(tukang.total_row.total_kasbon)}</td>
@@ -422,10 +422,10 @@ export default function TukangUpah() {
                   {b.proyek && <div className="mobile-card-row"><span className="mobile-label">Proyek:</span><span className="mobile-val">{b.proyek}</span></div>}
                   <div className="mobile-card-row"><span className="mobile-label">Upah:</span><span className="mobile-val">{fmtRp(b.total_upah)}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Kasbon:</span><span className="mobile-val">{fmtRp(b.total_kasbon)}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Sisa Hak:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.sisa_bersih || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>{fmtRp(b.sisa_bersih)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Sisa Hak:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.sisa_bersih || 0) < 0 ? 'var(--danger)' : 'var(--ok)' }}>{fmtRp(b.sisa_bersih)}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Pelunasan:</span><span className="mobile-val">{fmtRp(b.pelunasan)}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Metode:</span><span className="mobile-val">{b.metode || '—'}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Saldo:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.saldo_berjalan || 0) < 0 ? '#b91c1c' : '#0d6e38' }}>{fmtRp(b.saldo_berjalan)}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Saldo:</span><span className="mobile-val" style={{ fontWeight: 700, color: (b.saldo_berjalan || 0) < 0 ? 'var(--danger)' : 'var(--ok)' }}>{fmtRp(b.saldo_berjalan)}</span></div>
                 </div>
               </div>
             )) : <div className="panel empty">Belum ada batch cut-off untuk tukang ini.</div>}
@@ -489,7 +489,7 @@ export default function TukangUpah() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                    <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                       <td colSpan={2} style={{ textAlign: 'right' }}>TOTAL ({myProjects.length} proyek)</td>
                       <td style={{ textAlign: 'right' }}>
                         {fmtRp(myProjects.reduce((s, p) => s + (Number(p.total_upah) || 0), 0))}
@@ -543,7 +543,7 @@ export default function TukangUpah() {
                       )}
                     </tbody>
                     <tfoot>
-                      <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                         <td colSpan={4} style={{ textAlign: 'right' }}>TOTAL PROYEK</td>
                         <td style={{ textAlign: 'right' }}>
                           {fmtRp(upahItems.reduce((s, it) => s + (Number(it.upah_rincian) || 0), 0))}
@@ -629,7 +629,7 @@ export default function TukangUpah() {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr style={{ background: '#f7faf9', fontWeight: 800 }}>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
                         <td colSpan={5} style={{ textAlign: 'right' }}>TOTAL KASBON</td>
                         <td style={{ textAlign: 'right' }}>
                           {fmtRp(myKasbon.reduce((s, k) => s + (Number(k.nominal) || 0), 0))}

@@ -299,7 +299,7 @@ export default function Settings({ role = 'user', session }) {
 
       {tab === 'logs' ? (
         <>
-          {logsError && <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>Gagal memuat log: {logsError}</div>}
+          {logsError && <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425' }}>Gagal memuat log: {logsError}</div>}
           <div className="panel table desktop-table-view">
             <table>
               <thead>
@@ -318,7 +318,7 @@ export default function Settings({ role = 'user', session }) {
                   <tr key={l.id}>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <div style={{ fontWeight: 600 }}>{formatDateTime(l.created_at)}</div>
-                      <div style={{ fontSize: '11px', color: '#9aa8a4' }}>{timeAgo(l.created_at)}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{timeAgo(l.created_at)}</div>
                     </td>
                     <td style={{ fontSize: '12.5px', wordBreak: 'break-all' }}>{l.user_email || '—'}</td>
                     <td><span className={actionBadgeClass(l.action)}>{ACTION_LABEL[l.action] || l.action}</span></td>
@@ -355,7 +355,7 @@ export default function Settings({ role = 'user', session }) {
         </>
       ) : (
         <>
-          {usersError && <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>Gagal memuat akun: {usersError}</div>}
+          {usersError && <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425' }}>Gagal memuat akun: {usersError}</div>}
           <div className="panel" style={{ marginBottom: '18px', padding: '16px 22px' }}>
             <p className="muted" style={{ margin: 0 }}>
               Daftar akun aktif beserta rolenya. <b>Admin</b> dapat mengakses seluruh modul termasuk Finance &amp; Settings;
@@ -399,7 +399,7 @@ export default function Settings({ role = 'user', session }) {
                           <span className="muted" style={{ fontSize: '12px' }}>⏳ Memuat…</span>
                         ) : rev && rev.found ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <code style={{ background: '#f3f5f6', padding: '3px 8px', borderRadius: '6px', fontSize: '12px' }}>{rev.password}</code>
+                            <code style={{ background: '#f0f1ea', padding: '3px 8px', borderRadius: '6px', fontSize: '12px' }}>{rev.password}</code>
                             <button type="button" className="icon" title="Sembunyikan" onClick={() => toggleReveal(u)}>🙈</button>
                           </span>
                         ) : rev && !rev.found ? (
@@ -467,7 +467,7 @@ export default function Settings({ role = 'user', session }) {
                       <span className="mobile-val">
                         {rev === 'loading' ? '⏳ Memuat…' : rev && rev.found ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <code style={{ background: '#f3f5f6', padding: '2px 6px', borderRadius: '6px', fontSize: '12px' }}>{rev.password}</code>
+                            <code style={{ background: '#f0f1ea', padding: '2px 6px', borderRadius: '6px', fontSize: '12px' }}>{rev.password}</code>
                             <button type="button" className="icon" onClick={() => toggleReveal(u)}>🙈</button>
                           </span>
                         ) : rev && !rev.found ? (
@@ -522,7 +522,7 @@ export default function Settings({ role = 'user', session }) {
               Akun langsung aktif (email terkonfirmasi otomatis). Password tercatat dan bisa dilihat admin lewat tombol 👁 Lihat di tabel.
             </p>
             {addError && (
-              <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b', margin: 0 }}>{addError}</div>
+              <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425', margin: 0 }}>{addError}</div>
             )}
             <label>Email
               <input
@@ -577,7 +577,7 @@ export default function Settings({ role = 'user', session }) {
               Password baru langsung aktif untuk login akun ini, dan tercatat supaya admin bisa melihatnya lewat tombol 👁 Lihat.
             </p>
             {pwError && (
-              <div className="notice" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b', margin: 0 }}>{pwError}</div>
+              <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425', margin: 0 }}>{pwError}</div>
             )}
             <label>Password Baru (min. 8 karakter)
               <input

@@ -1,32 +1,67 @@
 /* ========================================================
    NOIR LIVING — PURCHASING APP (DESIGN SYSTEM 2026)
-   Forest Green (#102b27) & Warm Sand Accent (#d6c29f)
+   Forest Green (#3f4433) & Warm Sand Accent (#d9dcc4)
    Clean Modern Dashboard with Soft Elevations & Micro-interactions
    ======================================================== */
 
 :root {
-  --primary: #173d36;
-  --primary-hover: #1f4e46;
-  --primary-active: #102b27;
-  --sidebar-bg: #102b27;
-  --sidebar-nav-hover: #1b433c;
-  --sidebar-nav-active: #22534a;
-  --accent-gold: #d6c29f;
-  --accent-gold-hover: #e5d4b5;
-  --bg-app: #f8faf9;
+  /* ---- Noir Living brand palette (olive / sage / ivory) ----
+     Nilai hex di bawah adalah hasil sampling screenshot referensi DAT
+     (banner olive #969b7c, ivory #fcfcf8, charcoal #20251f). Ini BUKAN
+     klaim warna brand resmi — hanya acuan visual implementasi.          */
+  --olive-900: #2b2f22;
+  --olive-800: #3f4433;   /* sidebar / permukaan gelap */
+  --olive-700: #4b523a;   /* hover / aktif gelap       */
+  --olive-600: #5c6349;   /* tombol & teks putih (kontras 6.3:1, AA) */
+  --olive-500: #7a8064;   /* aksen sekunder            */
+  --olive-400: #969b7c;   /* banner olive (dekoratif; jangan untuk teks kecil di atasnya) */
+  --olive-200: #d5d9ce;
+  --olive-100: #e5e6dd;
+  --olive-50:  #f1f2eb;   /* header tabel / latar lembut */
+  --ivory:     #fcfcf8;   /* latar aplikasi (tidak putih silau) */
+  --ivory-2:   #f6f6ef;
+  --sand:      #cbb288;   /* aksen hangat (champagne) */
+  --sand-soft: #f3efe4;
+
+  /* Alias lama dipertahankan agar JSX/komponen lain tidak pecah. */
+  --primary: var(--olive-600);
+  --primary-hover: var(--olive-700);
+  --primary-active: var(--olive-800);
+  --sidebar-bg: var(--olive-800);
+  --sidebar-nav-hover: var(--olive-700);
+  --sidebar-nav-active: var(--olive-600);
+  --accent-gold: #d9dcc4;
+  --accent-gold-hover: #e7e9d6;
+  --bg-app: var(--ivory);
   --card-bg: #ffffff;
-  --border-light: #e6ece9;
-  --border-subtle: #dbe4e0;
-  --text-main: #142320;
-  --text-muted: #6b7e79;
+  --border-light: #e5e6e1;
+  --border-subtle: #d5d9ce;
+  --text-main: #20251f;
+  --text-muted: #60664d;
+
+  /* Token semantik status (error/success/warning/info) — tidak pernah
+     disampaikan lewat warna saja (selalu ada teks/label). */
+  --ok: #1b6348;
+  --ok-tint: #e7f2ec;
+  --ok-border: #bfdccd;
+  --warn: #945719;
+  --warn-tint: #fdf5e8;
+  --warn-border: #f0dcb4;
+  --danger: #9e2a2b;
+  --danger-tint: #fbeceb;
+  --danger-border: #eec3c1;
+  --info: var(--olive-700);
+  --info-tint: #eef0e6;
+  --info-border: #d5d9ce;
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
-  --shadow-sm: 0 1px 2px rgba(16, 43, 39, 0.04);
-  --shadow-md: 0 4px 12px -2px rgba(16, 43, 39, 0.06), 0 2px 4px -1px rgba(16, 43, 39, 0.03);
-  --shadow-lg: 0 12px 28px -6px rgba(16, 43, 39, 0.1), 0 4px 10px -2px rgba(16, 43, 39, 0.04);
-  --shadow-modal: 0 24px 48px -12px rgba(16, 43, 39, 0.25), 0 8px 16px -4px rgba(16, 43, 39, 0.1);
+  --shadow-sm: 0 1px 2px rgba(63, 68, 51, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(63, 68, 51, 0.06), 0 2px 4px -1px rgba(63, 68, 51, 0.03);
+  --shadow-lg: 0 12px 28px -6px rgba(63, 68, 51, 0.1), 0 4px 10px -2px rgba(63, 68, 51, 0.04);
+  --shadow-modal: 0 24px 48px -12px rgba(63, 68, 51, 0.25), 0 8px 16px -4px rgba(63, 68, 51, 0.1);
   --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
@@ -54,11 +89,11 @@ body {
   background: rgba(0, 0, 0, 0.03);
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd8d3;
+  background: #d5d9ce;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #aabeb7;
+  background: #b3b79c;
 }
 
 /* Base Form Elements */
@@ -74,7 +109,7 @@ button {
   background: var(--primary);
   color: white;
   padding: 10px 16px;
-  font-weight: 650;
+  font-weight: 600;
   font-size: 13.5px;
   letter-spacing: 0.01em;
   box-shadow: var(--shadow-sm);
@@ -87,7 +122,7 @@ button {
 button:hover:not(:disabled) {
   background: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(23, 61, 54, 0.18);
+  box-shadow: 0 3px 8px rgba(92, 99, 73, 0.18);
 }
 
 button:active:not(:disabled) {
@@ -111,7 +146,7 @@ button:disabled {
 /* Sidebar Navigation */
 aside {
   background: var(--sidebar-bg);
-  color: #dce6e3;
+  color: #e6e7dc;
   width: 254px;
   padding: 24px 14px;
   display: flex;
@@ -132,8 +167,8 @@ aside {
   display: grid;
   place-items: center;
   background: var(--accent-gold);
-  color: #173d36;
-  font-weight: 850;
+  color: #5c6349;
+  font-weight: 800;
   font-family: var(--font-heading);
   border-radius: var(--radius-md);
   width: 36px;
@@ -147,12 +182,12 @@ aside {
   font-size: 13.5px;
   letter-spacing: 1.2px;
   font-weight: 800;
-  color: #f4f8f7;
+  color: #f4f3ea;
 }
 
 .brand small {
   display: block;
-  color: #9ab4ad;
+  color: #a9ad96;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -167,9 +202,9 @@ nav {
 
 nav button {
   background: transparent;
-  color: #c4d4cf;
+  color: #c9cbb8;
   text-align: left;
-  font-weight: 550;
+  font-weight: 500;
   padding: 10px 14px;
   border-radius: var(--radius-md);
   font-size: 13px;
@@ -200,7 +235,7 @@ nav .active {
 .account small {
   display: block;
   word-break: break-word;
-  color: #9cb1ab;
+  color: #a9ad96;
   font-size: 12px;
   margin-bottom: 10px;
 }
@@ -269,7 +304,7 @@ h1 {
 }
 
 .outline:hover:not(:disabled) {
-  background: #f4f8f6;
+  background: #f1f2eb;
   border-color: var(--primary);
   color: var(--primary);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
@@ -352,7 +387,7 @@ h1 {
   font-family: var(--font-heading);
   margin: 0 0 6px;
   font-size: 18px;
-  font-weight: 750;
+  font-weight: 700;
   color: var(--text-main);
 }
 
@@ -380,19 +415,19 @@ table {
 }
 
 thead {
-  background: #f7faf9;
+  background: #f1f2eb;
   border-bottom: 1px solid var(--border-light);
 }
 
 th {
   text-align: left;
-  color: #556b65;
+  color: #60664d;
   font-weight: 700;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 13px 16px;
-  background: #f7faf9;
+  background: #f1f2eb;
 }
 
 th[cursor="pointer"], th.sortable {
@@ -402,14 +437,14 @@ th[cursor="pointer"], th.sortable {
 
 th[cursor="pointer"]:hover {
   color: var(--primary);
-  background: #eef4f1;
+  background: #eef0e6;
 }
 
 td {
   padding: 13px 16px;
-  border-bottom: 1px solid #edf2ef;
+  border-bottom: 1px solid #edeee5;
   white-space: nowrap;
-  color: #1e2e2b;
+  color: #2b3127;
 }
 
 tbody tr {
@@ -417,7 +452,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background-color: #f6faf8;
+  background-color: #f6f6ef;
 }
 
 tbody tr:last-child td {
@@ -436,7 +471,7 @@ tbody tr:last-child td {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 20%, #1c453e 0%, #0d211e 100%);
+  background: radial-gradient(circle at 50% 20%, #4b523a 0%, #2b2f22 100%);
   padding: 20px;
 }
 
@@ -469,7 +504,7 @@ tbody tr:last-child td {
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: #3b504b;
+  color: #3d4435;
 }
 
 /* Inputs & Form Fields */
@@ -486,12 +521,12 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(23, 61, 54, 0.12);
+  box-shadow: 0 0 0 3px rgba(92, 99, 73, 0.12);
 }
 
 .error {
   margin: 0;
-  color: #dc2626;
+  color: #9e2a2b;
   font-size: 13px;
   font-weight: 600;
 }
@@ -500,7 +535,7 @@ input:focus, select:focus, textarea:focus {
 .modal {
   position: fixed !important;
   inset: 0 !important;
-  background: rgba(10, 26, 23, 0.6) !important;
+  background: rgba(43, 47, 34, 0.6) !important;
   backdrop-filter: blur(5px) !important;
   -webkit-backdrop-filter: blur(5px) !important;
   display: flex !important;
@@ -538,7 +573,7 @@ input:focus, select:focus, textarea:focus {
   background: white;
   padding: 8px 0 14px;
   z-index: 10;
-  border-bottom: 1px solid #eef2f0;
+  border-bottom: 1px solid #eef0e6;
   margin-top: -10px;
 }
 
@@ -552,7 +587,7 @@ input:focus, select:focus, textarea:focus {
 
 .icon {
   background: transparent;
-  color: #556b65;
+  color: #60664d;
   font-size: 24px;
   padding: 4px 8px;
   box-shadow: none;
@@ -561,7 +596,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .icon:hover {
-  background: #f0f4f2;
+  background: #eff0e8;
   color: var(--text-main);
   transform: none;
   box-shadow: none;
@@ -573,7 +608,7 @@ input:focus, select:focus, textarea:focus {
   background: white;
   padding: 14px 0 4px;
   z-index: 10;
-  border-top: 1px solid #eef2f0;
+  border-top: 1px solid #eef0e6;
   justify-content: flex-end;
   gap: 10px;
 }
@@ -584,7 +619,7 @@ input:focus, select:focus, textarea:focus {
   border-radius: 20px;
   font-size: 12.5px;
   font-weight: 700;
-  border: 1px solid #d5dedb;
+  border: 1px solid #d5d9ce;
   cursor: pointer;
   background-color: #fff;
   width: auto;
@@ -594,25 +629,25 @@ input:focus, select:focus, textarea:focus {
 
 .status-select:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(23, 61, 54, 0.15);
+  box-shadow: 0 0 0 3px rgba(92, 99, 73, 0.15);
 }
 
 .status-select.status-NOT_START {
-  background: #f3f5f6;
-  color: #525a65;
-  border-color: #d6dcde;
+  background: #f0f1ea;
+  color: #4b523a;
+  border-color: #d5d9ce;
 }
 
 .status-select.status-ON_GOING {
-  background: #e8f7ee;
-  color: #0d6e38;
-  border-color: #b7e4c7;
+  background: #e7f2ec;
+  color: #1b6348;
+  border-color: #bfdccd;
 }
 
 .status-select.status-DONE {
-  background: #e8f1fc;
-  color: #1765c9;
-  border-color: #bcd6f8;
+  background: #eef0e6;
+  color: #4b523a;
+  border-color: #d5d9ce;
 }
 
 /* Filter Tabs / Pills */
@@ -624,20 +659,20 @@ input:focus, select:focus, textarea:focus {
 }
 
 .pill {
-  background: #edf2f0;
-  color: #2b453e;
-  border: 1px solid #d4deda;
+  background: #eef0e6;
+  color: #4b523a;
+  border: 1px solid #d5d9ce;
   border-radius: 24px;
   padding: 6px 13px;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
   box-shadow: none;
 }
 
 .pill:hover {
-  background: #e1e9e6;
-  border-color: #c0cfca;
+  background: #e2e3d6;
+  border-color: #c3c7b0;
   transform: none;
   box-shadow: none;
 }
@@ -646,7 +681,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--primary) !important;
   color: white !important;
   border-color: var(--primary) !important;
-  box-shadow: 0 2px 5px rgba(23, 61, 54, 0.2);
+  box-shadow: 0 2px 5px rgba(92, 99, 73, 0.2);
 }
 
 .toolbar-actions {
@@ -674,9 +709,9 @@ input:focus, select:focus, textarea:focus {
 
 
 .notice {
-  background: #edf7f2;
-  color: #0e5e34;
-  border: 1px solid #bce1ce;
+  background: #eaf2ec;
+  color: #1b6348;
+  border: 1px solid #bfdccd;
   padding: 12px 18px;
   border-radius: var(--radius-md);
   margin-bottom: 22px;
@@ -688,77 +723,77 @@ input:focus, select:focus, textarea:focus {
 /* Action Buttons */
 .btn-delete {
   background: #fff;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  color: #9e2a2b;
+  border: 1px solid #eec3c1;
   padding: 6px 12px;
   border-radius: var(--radius-md);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
 
 .btn-delete:hover {
-  background: #fef2f2;
-  border-color: #dc2626;
-  color: #991b1b;
+  background: #fbeceb;
+  border-color: #9e2a2b;
+  color: #8a2425;
 }
 
 .btn-file {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #f0f7f4;
-  color: #173d36;
-  border: 1px solid #c2dbd1;
+  background: #eef0e6;
+  color: #5c6349;
+  border: 1px solid #cfd3bd;
   padding: 5px 10px;
   border-radius: var(--radius-sm);
   font-size: 11.5px;
-  font-weight: 650;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .btn-file:hover {
-  background: #d8ece3;
-  border-color: #173d36;
+  background: #dfe3d2;
+  border-color: #5c6349;
 }
 
 /* Kendala & Warehouse Status */
 .status-kendala {
-  background: #fef2f2 !important;
-  color: #b91c1c !important;
-  border: 1px solid #fecaca !important;
+  background: #fbeceb !important;
+  color: #9e2a2b !important;
+  border: 1px solid #eec3c1 !important;
   font-weight: 700 !important;
 }
 
 .status-kendala:hover {
-  background: #fee2e2 !important;
-  border-color: #ef4444 !important;
+  background: #fbeceb !important;
+  border-color: #b34a4a !important;
 }
 
 .status-normal {
-  background: #f0f7f4;
-  color: #173d36;
-  border: 1px solid #c2dbd1;
+  background: #eef0e6;
+  color: #5c6349;
+  border: 1px solid #cfd3bd;
 }
 
 .status-gudang {
-  background: #edf7f2 !important;
-  color: #0e5e34 !important;
-  border: 1px solid #bce1ce !important;
+  background: #eaf2ec !important;
+  color: #1b6348 !important;
+  border: 1px solid #bfdccd !important;
   font-weight: 700 !important;
 }
 
 .status-gudang:hover {
-  background: #d7efe3 !important;
-  border-color: #0e5e34 !important;
+  background: #dfe6d6 !important;
+  border-color: #1b6348 !important;
 }
 
 /* Material Picker Box */
 .material-picker-box {
-  background: #f9fbfa;
-  border: 1px solid #dbe2df;
+  background: #fbfbf6;
+  border: 1px solid #d5d9ce;
   border-radius: var(--radius-md);
   padding: 14px;
   margin: 10px 0;
@@ -770,46 +805,46 @@ input:focus, select:focus, textarea:focus {
   padding: 4px 9px;
   border-radius: 20px;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: 0.02em;
   border: 1px solid transparent;
   white-space: nowrap;
 }
 
 .badge.status-APPROVED {
-  background: #e8f7ee;
-  color: #0d6e38;
-  border-color: #b7e4c7;
+  background: #e7f2ec;
+  color: #1b6348;
+  border-color: #bfdccd;
 }
 
 .badge.status-DRAFT {
-  background: #f3f5f6;
-  color: #556260;
-  border-color: #d6dcde;
+  background: #f0f1ea;
+  color: #4b523a;
+  border-color: #d5d9ce;
 }
 
 .badge.status-PENDING {
-  background: #fef6e7;
-  color: #a15309;
-  border-color: #fcdfa6;
+  background: #fdf5e8;
+  color: #945719;
+  border-color: #f0dcb4;
 }
 
 .badge.status-REJECTED {
-  background: #fee2e2;
-  color: #991b1b;
-  border-color: #fca5a5;
+  background: #fbeceb;
+  color: #8a2425;
+  border-color: #eec3c1;
 }
 
 .badge.status-REVISI {
-  background: #fef3c7;
-  color: #92400e;
-  border-color: #fde68a;
+  background: #fdf5e8;
+  color: #945719;
+  border-color: #f0dcb4;
 }
 
 .badge.badge-item-approved {
-  background: #e8f1fc;
-  color: #1765c9;
-  border-color: #bcd6f8;
+  background: #eef0e6;
+  color: #4b523a;
+  border-color: #d5d9ce;
 }
 
 /* Icon Buttons (Edit / Delete) */
@@ -828,11 +863,11 @@ input:focus, select:focus, textarea:focus {
 .btn-edit {
   background: #fff;
   color: var(--primary);
-  border: 1px solid #cbd6d2;
+  border: 1px solid #cfd3bd;
 }
 
 .btn-edit:hover {
-  background: #eef5f2;
+  background: #eef0e6;
   border-color: var(--primary);
 }
 
@@ -843,19 +878,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 .btn-finish {
-  background: #15803d;
+  background: #1b6348;
   color: #fff;
-  border: 1px solid #15803d;
+  border: 1px solid #1b6348;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: 650;
+  font-weight: 600;
   font-size: 12px;
   padding: 6px 12px;
 }
 
 .btn-finish:hover {
-  background: #166534;
-  border-color: #166534;
+  background: #175640;
+  border-color: #175640;
 }
 
 /* Priority Dots */
@@ -868,19 +903,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 .prio-normal {
-  background: radial-gradient(circle at 35% 30%, #90bbf8, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: radial-gradient(circle at 35% 30%, #a9ad96, #5c6349);
+  box-shadow: 0 0 0 3px rgba(92, 99, 73, 0.12);
 }
 
 .prio-urgent {
-  background: radial-gradient(circle at 35% 30%, #fca5a5, #dc2626);
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  background: radial-gradient(circle at 35% 30%, #eec3c1, #9e2a2b);
+  box-shadow: 0 0 0 3px rgba(158, 42, 43, 0.15);
 }
 
 .prio-header {
   width: 9px;
   height: 9px;
-  background: #cbd8d3;
+  background: #d5d9ce;
   box-shadow: none;
 }
 
@@ -938,12 +973,12 @@ table.requests-table td {
 
 /* PR master-detail: tiap item satu baris — Qty / Item / Vendor sejajar */
 table.requests-table tr.pr-item-row > td {
-  border-bottom: 1px dashed #e6ecea;
+  border-bottom: 1px dashed #e5e6e1;
   vertical-align: middle;
 }
 
 table.requests-table tr.pr-item-row:last-child > td {
-  border-bottom: 1px solid #edf2ef;
+  border-bottom: 1px solid #edeee5;
 }
 
 table.requests-table td.pr-item-qty {
@@ -975,7 +1010,7 @@ table.requests-table .pr-title-cell {
 table.requests-table td.pr-item-price {
   white-space: nowrap !important;
   font-weight: 600;
-  color: #137333;
+  color: #1b6348;
 }
 
 table.approvals-table {
@@ -1037,15 +1072,15 @@ td .cell-name {
   min-width: 9px;
   border-radius: 50%;
   padding: 0;
-  background: #dfe6e3;
-  border: 1px solid #cbd8d4;
+  background: #e5e6dd;
+  border: 1px solid #d5d9ce;
   box-shadow: none;
   flex: 0 0 auto;
 }
 .note-dot-on {
-  background: radial-gradient(circle at 35% 30%, #ffd77a, #e8a020);
-  border-color: #d99414;
-  box-shadow: 0 0 0 3px rgba(232, 160, 32, 0.15);
+  background: radial-gradient(circle at 35% 30%, #d9b877, #b98a2e);
+  border-color: #b98a2e;
+  box-shadow: 0 0 0 3px rgba(185, 138, 46, 0.15);
 }
 
 .dialog-wide {
@@ -1054,8 +1089,8 @@ td .cell-name {
 
 .note-pop {
   margin-top: 4px;
-  background: #fffbe8;
-  border: 1px solid #f2d98c;
+  background: #fdf8ea;
+  border: 1px solid #f0dcb4;
   border-radius: var(--radius-sm);
   padding: 6px 9px;
   font-size: 11.5px;
@@ -1063,7 +1098,7 @@ td .cell-name {
   white-space: normal;
   overflow-wrap: break-word;
   max-width: 240px;
-  color: #5f4a10;
+  color: #6b4a12;
   font-weight: 500;
 }
 
@@ -1132,8 +1167,8 @@ textarea {
     display: grid;
     place-items: center;
     background: var(--accent-gold);
-    color: #173d36;
-    font-weight: 850;
+    color: #5c6349;
+    font-weight: 800;
     font-family: var(--font-heading);
     border-radius: var(--radius-sm);
     width: 32px;
@@ -1152,7 +1187,7 @@ textarea {
 
   .mobile-brand small {
     display: block;
-    color: #9ab4ad;
+    color: #a9ad96;
     font-size: 11px;
     font-weight: 600;
     margin-top: 1px;
@@ -1177,7 +1212,7 @@ textarea {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(10, 26, 23, 0.65);
+    background: rgba(43, 47, 34, 0.65);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     z-index: 150;
@@ -1256,7 +1291,7 @@ textarea {
     font-weight: 700 !important;
     border-radius: var(--radius-md) !important;
     justify-content: center !important;
-    box-shadow: 0 2px 6px rgba(23, 61, 54, 0.2) !important;
+    box-shadow: 0 2px 6px rgba(92, 99, 73, 0.2) !important;
   }
 
   /* Horizontal Swipe for Filter Tabs */
@@ -1284,9 +1319,9 @@ textarea {
     gap: 6px;
     font-size: 11.5px;
     font-weight: 600;
-    color: #4b615b;
-    background: #eef5f2;
-    border: 1px solid #d0e0da;
+    color: #60664d;
+    background: #eef0e6;
+    border: 1px solid #d5d9ce;
     border-radius: var(--radius-sm);
     padding: 7px 12px;
     margin-bottom: 10px;
@@ -1375,7 +1410,7 @@ textarea {
     justify-content: space-between;
     align-items: flex-start;
     gap: 10px;
-    border-bottom: 1px solid #edf2ef;
+    border-bottom: 1px solid #edeee5;
     padding-bottom: 10px;
   }
   .mobile-card-title {
@@ -1418,8 +1453,8 @@ textarea {
     font-size: 13px;
   }
   .mobile-items-box {
-    background: #f7faf9;
-    border: 1px solid #e2ebe7;
+    background: #f1f2eb;
+    border: 1px solid #e5e6e1;
     border-radius: var(--radius-sm);
     padding: 8px 10px;
     width: 100%;
@@ -1427,21 +1462,21 @@ textarea {
     line-height: 1.45;
   }
   .mobile-item-line {
-    color: #173d36;
+    color: #5c6349;
     margin-bottom: 3px;
     font-weight: 500;
   }
   .mobile-card-note {
-    background: #fffbe8;
-    border: 1px solid #f2d98c;
+    background: #fdf8ea;
+    border: 1px solid #f0dcb4;
     border-radius: var(--radius-sm);
     padding: 8px 10px;
     font-size: 12px;
     line-height: 1.4;
-    color: #5f4a10;
+    color: #6b4a12;
   }
   .mobile-card-actions {
-    border-top: 1px solid #edf2ef;
+    border-top: 1px solid #edeee5;
     padding-top: 10px;
   }
   .mobile-action-grid-3 {
@@ -1451,7 +1486,7 @@ textarea {
     width: 100%;
   }
   .btn-mobile-approve {
-    background: #16a34a !important;
+    background: #1b6348 !important;
     color: white !important;
     padding: 10px 4px !important;
     font-size: 12.5px !important;
@@ -1459,10 +1494,10 @@ textarea {
     border-radius: var(--radius-md) !important;
     border: 0 !important;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25);
+    box-shadow: 0 1px 3px rgba(27, 99, 72, 0.25);
   }
   .btn-mobile-reject {
-    background: #dc2626 !important;
+    background: #9e2a2b !important;
     color: white !important;
     padding: 10px 4px !important;
     font-size: 12.5px !important;
@@ -1470,10 +1505,10 @@ textarea {
     border-radius: var(--radius-md) !important;
     border: 0 !important;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.25);
+    box-shadow: 0 1px 3px rgba(158, 42, 43, 0.25);
   }
   .btn-mobile-revise {
-    background: #d97706 !important;
+    background: #945719 !important;
     color: white !important;
     padding: 10px 4px !important;
     font-size: 12.5px !important;
@@ -1481,7 +1516,7 @@ textarea {
     border-radius: var(--radius-md) !important;
     border: 0 !important;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(217, 119, 6, 0.25);
+    box-shadow: 0 1px 3px rgba(148, 87, 25, 0.25);
   }
 
   /* Dashboard Cards */
@@ -1534,7 +1569,7 @@ textarea {
   background: #fff;
   color: #111;
   padding: 28px 34px;
-  border: 1px solid #e2e8e5;
+  border: 1px solid #e5e6e1;
   border-radius: 6px;
   font-size: 13px;
   line-height: 1.5;
@@ -1553,8 +1588,8 @@ textarea {
   width: 46px;
   height: 46px;
   border-radius: 10px;
-  background: #0f2e28;
-  color: #f3c969;
+  background: #3f4433;
+  color: #d9dcc4;
   font-weight: 800;
   font-size: 18px;
   letter-spacing: 0.02em;
@@ -1564,7 +1599,7 @@ textarea {
   font-size: 19px;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: #0f2e28;
+  color: #3f4433;
 }
 
 .print-company-sub {
@@ -1574,7 +1609,7 @@ textarea {
 
 .print-kop-line {
   margin-top: 12px;
-  border-bottom: 3px double #0f2e28;
+  border-bottom: 3px double #3f4433;
 }
 
 .print-title {
@@ -1632,7 +1667,7 @@ textarea {
 }
 
 .print-table th {
-  background: #eef3f1;
+  background: #eef0e6;
   font-weight: 800;
   text-align: left;
 }
@@ -1643,15 +1678,15 @@ textarea {
 }
 
 .print-row-total td {
-  background: #f4f7f6;
+  background: #f2f3ea;
 }
 
 .print-row-profit td {
-  background: #f0f9f2;
+  background: #eef4ee;
 }
 
 .print-row-loss td {
-  background: #fdf2f2;
+  background: #fbeceb;
 }
 
 .print-section-title {
@@ -1666,7 +1701,7 @@ textarea {
   min-height: 56px;
   white-space: pre-wrap;
   font-size: 12.5px;
-  background: #fcfdfc;
+  background: #fcfcf8;
 }
 
 .print-sign {
@@ -1801,7 +1836,7 @@ textarea {
    ============================================================ */
 tbody tr.row-stok-menipis,
 tbody tr.row-stok-menipis:hover {
-  background-color: #fff1f1 !important;
+  background-color: #fbeceb !important;
 }
 
 tbody tr.row-stok-menipis > td {
@@ -1824,8 +1859,8 @@ tbody tr.row-stok-menipis > td {
 }
 
 .budget-control-panel.has-anomaly {
-  border: 1.5px solid #fca5a5;
-  background: #fffdfd;
+  border: 1.5px solid #eec3c1;
+  background: #fdfbf9;
 }
 
 /* Revenue & Total Cost Overview Strip */
@@ -1833,8 +1868,8 @@ tbody tr.row-stok-menipis > td {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  background: #f8faf9;
-  border: 1px solid #e2ece7;
+  background: #fcfcf8;
+  border: 1px solid #e5e6e1;
   border-radius: var(--radius-md);
   padding: 12px 16px;
   margin-bottom: 16px;
@@ -1848,17 +1883,17 @@ tbody tr.row-stok-menipis > td {
 
 .budget-overview-label {
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: #60664d;
 }
 
 .budget-overview-val {
   font-family: var(--font-heading);
   font-size: 15.5px;
   font-weight: 800;
-  color: #0f172a;
+  color: #20251f;
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -1868,13 +1903,13 @@ tbody tr.row-stok-menipis > td {
 .budget-overview-val small {
   font-size: 11px;
   font-weight: 600;
-  color: #64748b;
+  color: #60664d;
 }
 
 /* Banner Peringatan Rangkuman Anomali */
 .budget-anomaly-summary-banner {
-  background: #fef2f2;
-  border: 1.5px solid #ef4444;
+  background: #fbeceb;
+  border: 1.5px solid #b34a4a;
   border-radius: var(--radius-md);
   padding: 14px 18px;
   margin-bottom: 16px;
@@ -1893,14 +1928,14 @@ tbody tr.row-stok-menipis > td {
 
 .anomaly-banner-title {
   font-weight: 800;
-  color: #991b1b;
+  color: #8a2425;
   font-size: 13.5px;
   letter-spacing: -0.01em;
 }
 
 .anomaly-banner-subtitle {
   font-size: 12px;
-  color: #b91c1c;
+  color: #9e2a2b;
   margin-top: 2px;
   line-height: 1.35;
 }
@@ -1913,7 +1948,7 @@ tbody tr.row-stok-menipis > td {
 
 .anomaly-item-card {
   background: #ffffff;
-  border: 1px solid #fecaca;
+  border: 1px solid #eec3c1;
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   display: flex;
@@ -1959,49 +1994,49 @@ tbody tr.row-stok-menipis > td {
 }
 
 .budget-card.card-revenue::before {
-  background: linear-gradient(90deg, #173d36, #2d6a5f);
+  background: linear-gradient(90deg, #5c6349, #7a8064);
 }
 
 .budget-card.card-material::before {
-  background: #0284c7;
+  background: #7a8064;
 }
 
 .budget-card.card-material.is-anomaly::before {
-  background: #dc2626;
+  background: #9e2a2b;
 }
 
 .budget-card.card-manpower::before {
-  background: #0d9488;
+  background: #5c6349;
 }
 
 .budget-card.card-manpower.is-anomaly::before {
-  background: #dc2626;
+  background: #9e2a2b;
 }
 
 .budget-card.card-operasional::before {
-  background: #d97706;
+  background: #945719;
 }
 
 .budget-card.card-operasional.is-anomaly::before {
-  background: #dc2626;
+  background: #9e2a2b;
 }
 
 .budget-card.card-margin::before {
-  background: #16a34a;
+  background: #1b6348;
 }
 
 .budget-card.card-margin.is-anomaly::before {
-  background: #dc2626;
+  background: #9e2a2b;
 }
 
 .budget-card.is-anomaly {
-  border-color: #fca5a5;
-  background: #fffafa;
+  border-color: #eec3c1;
+  background: #fdfbf9;
 }
 
 .budget-card.is-on-track {
-  border-color: #b7e4c7;
-  background: #fbfdfc;
+  border-color: #bfdccd;
+  background: #fbfbf6;
 }
 
 .budget-card-header {
@@ -2014,7 +2049,7 @@ tbody tr.row-stok-menipis > td {
 
 .budget-card-title {
   font-size: 11.5px;
-  font-weight: 750;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--text-muted);
@@ -2030,16 +2065,16 @@ tbody tr.row-stok-menipis > td {
 }
 
 .budget-card-nominal.danger-text {
-  color: #b91c1c;
+  color: #9e2a2b;
 }
 
 .budget-card-nominal.success-text {
-  color: #0d6e38;
+  color: #1b6348;
 }
 
 .budget-card-sub {
   font-size: 11px;
-  color: #71817d;
+  color: #60664d;
   line-height: 1.35;
 }
 
@@ -2049,8 +2084,8 @@ tbody tr.row-stok-menipis > td {
   gap: 5px;
   margin: 8px 0;
   padding: 8px 0;
-  border-top: 1px solid #f1f5f3;
-  border-bottom: 1px solid #f1f5f3;
+  border-top: 1px solid #eff0e8;
+  border-bottom: 1px solid #eff0e8;
 }
 
 .budget-detail-row {
@@ -2062,28 +2097,28 @@ tbody tr.row-stok-menipis > td {
 }
 
 .budget-detail-label {
-  color: #64748b;
+  color: #60664d;
   font-weight: 500;
 }
 
 .budget-detail-val {
-  color: #1e293b;
+  color: #2b3127;
   font-weight: 700;
   text-align: right;
 }
 
 .budget-detail-val.danger-text {
-  color: #b91c1c;
+  color: #9e2a2b;
 }
 
 .budget-detail-val.success-text {
-  color: #0d6e38;
+  color: #1b6348;
 }
 
 .budget-progress-track {
   width: 100%;
   height: 6px;
-  background: #eef2f0;
+  background: #eef0e6;
   border-radius: 4px;
   overflow: hidden;
   margin-top: 6px;
@@ -2096,9 +2131,9 @@ tbody tr.row-stok-menipis > td {
 }
 
 @keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
-  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(179, 74, 74, 0.45); }
+  70% { box-shadow: 0 0 0 6px rgba(179, 74, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(179, 74, 74, 0); }
 }
 
 .badge-anomaly-glow {
@@ -2136,3 +2171,214 @@ tbody tr.row-stok-menipis > td {
 }
 
 
+/* ============================================================
+   NOIR LIVING — OLIVE DESIGN SYSTEM v2 (Blossom, t_0b304478)
+   Referensi: screenshot DAT (banner olive #969b7c, ivory #fcfcf8,
+   charcoal #20251f, garis tipis, sudut lembut, angka tabular rata kanan).
+   Blok ini aditif & di-scope agar tidak menabrak JSX worker lain.
+   ============================================================ */
+
+/* --- 1. Angka rupiah: tabular & rata kanan (Pilar 3) ---
+   Semua sel/elemen finansial memakai figur tabular supaya titik ribuan
+   lurus vertikal; teks tetap rata kanan ala UI akuntansi. */
+.num-rupiah,
+.numeric-data,
+.budget-overview-val,
+.budget-card-nominal,
+.budget-detail-val,
+.card strong,
+td.col-nominal,
+td[data-numeric],
+.mobile-val[data-numeric] {
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum";
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+td.col-nominal,
+td[data-numeric] {
+  text-align: right;
+  white-space: nowrap !important;
+}
+
+.rp-prefix {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.9em;
+  margin-right: 2px;
+}
+
+/* --- 2. Tabel: izinkan teks item wrap, angka tetap nowrap ---
+   Menggantikan aturan brute-force lama yang memotong nama material. */
+table td.cell-wrap,
+table td .cell-wrap {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+table th.col-num,
+table td.col-num {
+  text-align: right;
+  white-space: nowrap !important;
+}
+
+/* --- 3. Kolom aksi: micro-action bar horizontal --- */
+.actions-cell {
+  white-space: nowrap;
+  width: 1%;
+}
+.actions-cell .icon-btn,
+.actions-cell .btn-finish {
+  vertical-align: middle;
+}
+.actions-cell .icon-btn + .icon-btn,
+.actions-cell .btn-finish + .icon-btn,
+.actions-cell .icon-btn + .btn-finish {
+  margin-left: 6px;
+}
+
+/* --- 4. Sidebar: label grup & badge admin olive/sand (Pilar 1 & 4) --- */
+.nav-group-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #b7bca4;
+  padding: 14px 14px 4px;
+}
+.nav-group:first-child .nav-group-label { padding-top: 4px; }
+
+/* --- 5. Filter pills: isyarat scroll horizontal di mobile (Pilar 4) --- */
+.filter-tabs-wrapper { position: relative; }
+.filter-tabs-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 6px;
+  width: 26px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(252, 252, 248, 0), rgba(252, 252, 248, 1));
+}
+@media (min-width: 1025px) {
+  .filter-tabs-wrapper::after { display: none; }
+}
+
+/* --- 6. Aksen "Tech Blue" -> olive/forest: link & tombol file --- */
+a { color: var(--olive-700); }
+a:hover { color: var(--olive-600); }
+
+/* --- 7. Banner/hero olive tipis (opsional, TIDAK dipakai di semua modul).
+   Disiapkan agar modul yang butuh kop bisa memakai gaya screenshot DAT
+   tanpa menambah tinggi workspace secara global. --- */
+.brand-banner {
+  background: var(--olive-400);
+  color: #ffffff;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.brand-banner .brand-banner-title { font-weight: 800; font-size: 18px; letter-spacing: -0.01em; }
+.brand-banner .brand-banner-sub { font-size: 11.5px; opacity: 0.9; }
+.brand-banner .rev-badge {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* --- 8. Tombol kontras-aman di atas olive (teks kecil) --- */
+.btn-olive {
+  background: var(--olive-600);
+  color: #fff;
+}
+.btn-olive:hover:not(:disabled) { background: var(--olive-700); }
+.btn-on-olive {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+/* --- 9. Fokus keyboard jelas di seluruh kontrol interaktif (a11y) --- */
+:focus-visible {
+  outline: 2px solid var(--olive-600);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- 10. Touch target minimal 44px di mobile (Pilar 4) --- */
+@media (max-width: 1024px) {
+  .mobile-card-actions button,
+  .mobile-action-grid-3 button,
+  .btn-mobile-approve,
+  .btn-mobile-reject,
+  .btn-mobile-revise,
+  .mobile-card button,
+  .mobile-card a.btn-file {
+    min-height: 44px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .mobile-menu-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .icon-btn,
+  .dialog .icon,
+  .mobile-card .icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* --- 11. Badge: tidak pernah warna-saja — selalu ada ikon/teks --- */
+.badge::before { content: ''; }
+
+
+/* --- 12. Override warna inline lama (mis. "Tech Blue" #1a73e8) TANPA
+   mengedit file JSX worker lain. React menulis style via CSSOM sehingga
+   nilainya terserialisasi sebagai rgb(); kita cocokkan kedua bentuk. --- */
+a[style*="rgb(26, 115, 232)"], a[style*="1a73e8"] { color: var(--olive-700) !important; }
+[style*="color: rgb(19, 115, 51)"], [style*="color:#137333"] { color: var(--ok) !important; }
+[style*="color: rgb(217, 119, 6)"], [style*="color:#d97706"] { color: var(--warn) !important; }
+[style*="color: rgb(180, 83, 9)"], [style*="color:#b45309"] { color: var(--warn) !important; }
+[style*="color: rgb(220, 38, 38)"], [style*="color:#dc2626"] { color: var(--danger) !important; }
+[style*="color: rgb(201, 59, 43)"], [style*="color:#c93b2b"] { color: var(--danger) !important; }
+[style*="color: rgb(2, 132, 199)"], [style*="color:#0284c7"] { color: var(--olive-500) !important; }
+
+
+/* --- 13. Kolom numerik tabel modul: tabular & rata kanan (Pilar 3).
+   Murni CSS — menyasar class yang sudah ada agar tidak perlu mengedit JSX
+   modul milik worker lain. --- */
+table td.pr-item-price,
+table td.pr-item-qty,
+table.requests-table td:nth-child(5),
+table.materials-table td:nth-child(4),
+table.materials-table td:nth-child(6),
+table.materials-table td:nth-child(7),
+table.materials-table td:nth-child(8),
+table.upah-table td.num,
+table.upah-table td.nominal {
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum";
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+table td.pr-item-price,
+table td.pr-item-qty,
+table.materials-table td:nth-child(8),
+table.upah-table td.nominal {
+  text-align: right;
+}
+
+/* --- 14. Header kolom teks item boleh wrap 2 baris (Pilar 2) --- */
+table.requests-table td.pr-title-cell,
+table.requests-table td.pr-item-name,
+table.requests-table td.pr-item-vendor {
+  line-height: 1.4;
+}
