@@ -126,6 +126,29 @@ export const modules = [
     files: ['components/TukangUpah.js']
   },
   {
+    // RAB & BOQ (t_18564dce) — port modul DAT perhitungan-rab-otomatis-2.html.
+    // Halaman source:'core' (dirender pages/index.js, BUKAN tabel ModuleView)
+    // karena UI-nya kalkulator full-page, bukan tabel CRUD. Admin-only:
+    // guard menu (registry adminOnly), guard render (pages/index.js), dan
+    // guard data (insert projects lewat sesi Supabase + RLS). Tidak ada
+    // endpoint/API server baru — semua ekspor (JSON/CSV/PDF) terjadi
+    // client-side di browser admin.
+    id: 'rab_boq',
+    label: 'RAB & BOQ',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/rab-boq/view.jsx',
+      'modules/rab-boq/boqCalc.js',
+      'modules/rab-boq/lib.js',
+      'modules/rab-boq/pdf.js',
+      'modules/rab-boq/csvExport.js',
+      'modules/rab-boq/CreateProjectModal.jsx',
+      'modules/rab-boq/README.md',
+      'scripts/rab-boq-test/run.py'
+    ]
+  },
+  {
     id: 'settings',
     label: 'Settings',
     adminOnly: true,

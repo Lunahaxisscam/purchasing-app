@@ -16,6 +16,8 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     cards.push(['project_finance', '📊 Project Finance', '→'])
     cards.push(['finance', '★ Finance', '→'])
     cards.push(['tukang_upah', '👷 Upah Tukang', '→'])
+    // RAB & BOQ (t_18564dce) — kalkulator BOQ standalone, admin-only.
+    cards.push(['rab_boq', '🧮 RAB & BOQ', '→'])
     cards.push(['settings', '⚙️ Settings', '→'])
   }
   return (

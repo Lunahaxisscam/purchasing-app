@@ -9,6 +9,7 @@ import ProjectFinance from '../components/ProjectFinance'
 import TukangUpah from '../components/TukangUpah'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
+import BoqModule from '../modules/rab-boq/view'
 import { labels, normalizeStatus, orderSpecFor } from '../lib/constants' 
 import { sendPrAlert } from '../lib/telegramAlert'
 
@@ -731,7 +732,7 @@ export default function App() {
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
               disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -765,6 +766,19 @@ export default function App() {
         ) : page === 'tukang_upah' ? (
           role === 'admin' ? (
             <TukangUpah />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'rab_boq' ? (
+          // RAB & BOQ (t_18564dce) — modul admin-only. Guard RENDER di sini:
+          // pengguna biasa yang memaksa page='rab_boq' lewat manipulasi state
+          // tetap mendapat panel "khusus administrator" — role TIDAK dibaca
+          // dari input apapun, hanya dari profiles (server data) di atas.
+          // Menu + kartu dashboard sudah disembunyikan untuk non-admin, dan
+          // seluruh mutasi modul (insert projects) tunduk pada RLS database
+          // sehingga guard ini bukan satu-satunya lapisan.
+          role === 'admin' ? (
+            <BoqModule projects={rows.projects || []} refresh={loadAll} />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
