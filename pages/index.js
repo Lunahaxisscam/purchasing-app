@@ -481,10 +481,10 @@ export default function App() {
 
     if (steps && steps.length) {
       // PR yang pernah direvisi: aktifkan kembali step lama.
+      // t_1fe52e80: TIDAK menyemai note otomatis — catatan hanya milik pengguna.
       const { error: stErr } = await supabase.from('approval_steps').update({
         status: 'PENDING',
-        decided_at: null,
-        note: `Menunggu persetujuan Direksi / PM untuk ${pr.pr_number || 'PR'}`
+        decided_at: null
       }).eq('id', steps[0].id)
       if (stErr) { setNotice(`Gagal mengaktifkan approval: ${stErr.message}`); return }
     } else {
@@ -497,12 +497,13 @@ export default function App() {
         approverId = (profs && profs[0] && profs[0].id) || null
       }
       if (!approverId) { setNotice('Tidak ada profil approver — hubungi administrator.'); return }
+      // t_1fe52e80: approval baru dibuat TANPA note (null) — kolom Catatan
+      // tampil kosong/dash sampai Direksi/PM menuliskan keputusan sendiri.
       const { error: stErr } = await supabase.from('approval_steps').insert({
         purchase_request_id: pr.id,
         approver_id: approverId,
         step_number: 1,
-        status: 'PENDING',
-        note: `Menunggu persetujuan Direksi / PM untuk ${pr.pr_number || 'PR'}`
+        status: 'PENDING'
       })
       if (stErr) { setNotice(`Gagal membuat approval: ${stErr.message}`); return }
     }
