@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Create from './CreateModal'
 import { headersFor, pretty, format, labels } from '../lib/constants'
 import { makeItemHelpers } from '../modules/shared/itemHelpers'
+import { makeAcuanHelpers, validateManualAcuan } from '../modules/materials/acuan'
 import { filterRows } from '../modules/shared/filterRows'
 import { sortRows } from '../modules/shared/sortRows'
 import {
@@ -50,6 +51,79 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedApproval, setExpandedApproval] = useState(null)
   const [expandedReceiving, setExpandedReceiving] = useState(null)
+  // ============================================================
+  // ACUAN HARGA MATERIAL (t_090127ad — arahan DAT)
+  // ============================================================
+  // expandedAcuan : id material yang rincian acuannya terbuka (default
+  //                 SEMUA tertutup — daftar tetap ringkas).
+  // acuanForm     : prototype "Tambah Acuan" (vendor/harga/satuan) yang
+  //                 sedang diisi untuk material tertentu. Entri yang sudah
+  //                 disimpan masuk daftar sumber MANUAL yang HIDUP DI
+  //                 MEMORI SESI (manualAcuanRef) — BUKAN DB: migrasi
+  //                 database dibekukan DAT, jadi penyimpanan permanen
+  //                 belum diimplementasikan & tidak mengaku siap.
+  //                 Data historis read-only; manual terpisah sumbernya.
+  const [expandedAcuan, setExpandedAcuan] = useState(null)
+  const [acuanForm, setAcuanForm] = useState(null)
+  const [acuanFormError, setAcuanFormError] = useState('')
+  const manualAcuanRef = useRef(new Map()) // materialId -> [entri manual]
+  const [manualAcuanTick, setManualAcuanTick] = useState(0) // pemicu re-render
+
+  // Helper acuan (resolver satu sumber utk UI Material & estimator PR)
+  const A = useMemo(() => makeAcuanHelpers({
+    allPrItems, allReceivingItems, allReceivings, allVendors
+  }), [allPrItems, allReceivingItems, allReceivings, allVendors])
+
+  // Semua entri acuan material + entri manual sesi (sumber MANUAL tampil
+  // terpisah setelah MASTER; histori read-only tidak pernah diganggu).
+  const acuanEntries = useMemo(() => (material) => {
+    if (!material?.id) return []
+    const base = A.entriesFor(material)
+    const manual = (manualAcuanRef.current.get(material.id) || []).map(e => ({
+      ...e,
+      key: e.key || `manual-${e.vendorId}-${e.price}`
+    }))
+    // Manual paling akhir (sumber terpisah, paling baru ditambahkan).
+    return [...base, ...manual]
+  }, [A, manualAcuanTick])
+
+  // Submit "Tambah Acuan" (prototype): validasi lokal, tambah ke daftar sesi.
+  // TIDAK menulis ke DB (freeze migrasi) dan TIDAK mengubah harga_acuan master.
+  function submitAcuanManual(r) {
+    if (!acuanForm || acuanForm.materialId !== r.id) return
+    const v = validateManualAcuan(acuanForm)
+    if (!v.ok) { setAcuanFormError(v.error); return }
+    // Nama vendor diambil dari daftar vendor yang tampil di form (unknown
+    // vendor tetap ditampilkan sebagai "Tidak dicatat", tidak dikira-kira).
+    const vendor = (acuanForm.vendorOptions || []).find(x => x.id === acuanForm.vendorId)
+    const list = manualAcuanRef.current.get(r.id) || []
+    manualAcuanRef.current.set(r.id, [...list, {
+      key: `manual-${Date.now()}-${list.length}`,
+      vendorId: acuanForm.vendorId,
+      vendor: vendor?.name || null,
+      price: v.price,
+      unit: acuanForm.satuan,
+      date: null,
+      source: 'MANUAL'
+    }])
+    setAcuanForm(null)
+    setAcuanFormError('')
+    setManualAcuanTick(t => t + 1)
+  }
+
+  const openAcuanForm = (r) => {
+    if (!r?.id) return
+    setAcuanForm({
+      materialId: r.id,
+      vendorId: '',
+      harga: '',
+      // Satuan default mengikuti satuan material (harga per satuan itu).
+      satuan: (r.satuan || r.unit || ''),
+      vendorOptions: allVendors || []
+    })
+    setAcuanFormError('')
+  }
+
   const [openNoteId, setOpenNoteId] = useState(null)
   const [editRow, setEditRow] = useState(null)
   const [sortKey, setSortKey] = useState(null)
@@ -69,6 +143,11 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     setSortDir('asc')
     setOpenNoteId(null)
     setListLimit(PAGE_SIZE)
+    // t_090127ad: pindah modul — tutup rincian acuan & bersihkan form manual
+    // (prototype sesi) supaya state tidak bocor antar modul.
+    setExpandedAcuan(null)
+    setAcuanForm(null)
+    setAcuanFormError('')
     // Arahan DAT (t_0a35264f): setiap pindah modul lalu masuk/buka ulang
     // Approval, antrean SELALU kembali ke "Menunggu" (PENDING) — bukan filter
     // terakhir yang dipakai. Modul lain mempertahankan filter terakhirnya.
@@ -151,6 +230,11 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     openNoteId, setOpenNoteId,
     expandedApproval, setExpandedApproval,
     expandedReceiving, setExpandedReceiving,
+    // Acuan harga material (t_090127ad): state expand + prototype form manual.
+    expandedAcuan, setExpandedAcuan,
+    acuanEntries, acuanForm, setAcuanForm, acuanFormError,
+    onAcuanSubmit: submitAcuanManual,
+    openAcuanForm,
     setEditRow,
     onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang,
     onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem,
