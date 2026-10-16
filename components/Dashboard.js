@@ -18,6 +18,8 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     cards.push(['tukang_upah', '👷 Upah Tukang', '→'])
     // RAB & BOQ (t_18564dce) — kalkulator BOQ standalone, admin-only.
     cards.push(['rab_boq', '🧮 RAB & BOQ', '→'])
+    // Invoice Penjualan (t_ff3a96cf) — shell tahap awal, admin-only.
+    cards.push(['sales_invoice', '🧾 Invoice Penjualan', '→'])
     cards.push(['settings', '⚙️ Settings', '→'])
   }
   return (
