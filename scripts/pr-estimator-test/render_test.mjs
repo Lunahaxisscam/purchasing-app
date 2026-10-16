@@ -150,7 +150,7 @@ console.log('A. Tambah item → estimasi OTOMATIS terisi (atau kosong + label)')
   check('badge sumber ✅ Historis tampil', rowText.includes('Historis'), rowText.slice(0, 160))
   check('vendor referensi "ref: Toko HPL Jaya" tampil', rowText.includes('Toko HPL Jaya'))
   check('tanggal histori 2026-10-12 tampil', rowText.includes('2026-10-12'))
-  const totalText = q(document, '.material-picker-box table').textContent
+  const totalText = q(document, '.material-picker-box').textContent
   check('Total Estimasi terisi (qty 1 × 120.000 = 120.000)', totalText.includes('Total Estimasi') && totalText.includes('120.000'), totalText.slice(-200))
 
   // Material TANPA acuan (Frame Baleno): kosong + label, BUKAN 0
@@ -231,21 +231,30 @@ console.log('\nC. Total Estimasi live — tambah/hapus/ubah qty & acuan')
     click(addBtn); await tick()
   }
   await addMat('HPL-0001', 'mHPL1', 2)   // 2×120.000 = 240.000
-  let totalText = q(document, '.material-picker-box table').textContent
+  let totalText = q(document, '.material-picker-box').textContent
   check('total awal 240.000 (2×120.000)', totalText.includes('240.000'), totalText.slice(-160))
+  // Review run 86: Total Estimasi WAJIB di luar area scroll daftar item —
+  // user tidak boleh harus scroll utk melihat total PR.
+  {
+    const box = q(document, '.material-picker-box')
+    const scrollDiv = [...box.querySelectorAll('div')].find(d => d.style.maxHeight === '240px')
+    const totalRow = [...box.querySelectorAll('tr')].find(tr => tr.textContent.includes('Total Estimasi'))
+    check('Total Estimasi di LUAR scroll container (selalu terlihat)', !!totalRow && !scrollDiv.contains(totalRow),
+      scrollDiv && totalRow ? (scrollDiv.contains(totalRow) ? ' masih di dalam scroll' : ' ok') : ' struktur tak ditemukan')
+  }
   await addMat('HPL-0002', 'mHPL2', 3)   // +3×95.000 = 285.000 → 525.000
-  totalText = q(document, '.material-picker-box table').textContent
+  totalText = q(document, '.material-picker-box').textContent
   check('total 525.000 setelah item kedua', totalText.includes('525.000'), totalText.slice(-160))
   // Ubah qty item pertama 2→5 → 600.000 + 285.000 = 885.000
   // (input number: [0]=Qty picker luar, [1..]=qty per baris item)
   const qtyFirst = qa(document, '.material-picker-box table tbody input[type="number"]')[0]
   inputSet(qtyFirst, '5'); await tick()
-  totalText = q(document, '.material-picker-box table').textContent
+  totalText = q(document, '.material-picker-box').textContent
   check('ubah qty 5: total 885.000 (live update)', totalText.includes('885.000'), totalText.slice(-160))
   // Hapus item pertama (tombol × pertama di baris item) → 285.000
   const delBtn = qa(document, '.material-picker-box table tbody button').find(b => b.textContent.trim() === '×')
   click(delBtn); await tick()
-  totalText = q(document, '.material-picker-box table').textContent
+  totalText = q(document, '.material-picker-box').textContent
   check('hapus item: total 285.000 (update setelah hapus)', totalText.includes('285.000'), totalText.slice(-160))
 }
 

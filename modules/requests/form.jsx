@@ -207,6 +207,9 @@ export function formBody(ctx) {
         </div>
 
         {prItemsList.length > 0 ? (
+          <React.Fragment>
+          {/* Total + warning + disclaimer DI LUAR area scroll — Total Estimasi
+              PR wajib selalu terlihat tanpa scroll daftar item (review run 86). */}
           <div style={{ marginTop: '10px', maxHeight: '240px', overflowY: 'auto' }}>
             <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
               <thead>
@@ -340,18 +343,23 @@ export function formBody(ctx) {
                   </React.Fragment>
                   )
                 })}
-                {/* ===== TOTAL ESTIMASI PR (t_ac0b39c0) ===== */}
-                <tr>
-                  <td colSpan={4} style={{ padding: '6px', textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34' }}>
-                    Total Estimasi:
-                  </td>
-                  <td style={{ padding: '6px', textAlign: 'right', whiteSpace: 'nowrap', borderTop: '2px solid #1f3a34' }}>
-                    <b style={{ fontSize: '12px', color: '#137333' }}>{rupiah(totals?.total ?? 0)}</b>
-                  </td>
-                  <td style={{ borderTop: '2px solid #1f3a34' }} />
-                </tr>
               </tbody>
             </table>
+          </div>
+          {/* ===== TOTAL ESTIMASI PR (t_ac0b39c0) — di luar area scroll ===== */}
+          <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', marginTop: '4px' }}>
+            <tbody>
+            <tr>
+              <td colSpan={4} style={{ padding: '6px', textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34' }}>
+                Total Estimasi:
+              </td>
+              <td style={{ padding: '6px', textAlign: 'right', whiteSpace: 'nowrap', borderTop: '2px solid #1f3a34' }}>
+                <b style={{ fontSize: '12px', color: '#137333' }}>{rupiah(totals?.total ?? 0)}</b>
+              </td>
+              <td style={{ borderTop: '2px solid #1f3a34' }} />
+            </tr>
+            </tbody>
+          </table>
             {/* Label "belum lengkap" — item tanpa acuan TIDAK dihitung 0 */}
             {totals && !totals.complete && (
               <div style={{ marginTop: '6px', background: '#fdf8ea', border: '1px dashed #f0dcb4', borderRadius: '6px', padding: '6px 10px', fontSize: '10.5px', color: '#b45309', fontWeight: 600 }}>
@@ -366,7 +374,7 @@ export function formBody(ctx) {
             <small style={{ display: 'block', color: '#71817d', fontSize: '9.5px', marginTop: '4px' }}>
               Harga estimasi = harga satuan material murni (tanpa ongkir/admin). Sumber acuan belum tersimpan permanen ke DB (lihat catatan pada modul Material).
             </small>
-          </div>
+          </React.Fragment>
         ) : (
           <p className="muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
             💡 Belum ada item. Pilih material di atas lalu "+ Tambah Item", atau import dari Excel.
