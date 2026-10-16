@@ -2362,10 +2362,10 @@ table td.col-num {
 /* --- 4. Sidebar: label grup & badge admin olive/sand (Pilar 1 & 4) --- */
 .nav-group-label {
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 800; /* t_18564dce run 58: heading lebih tebal (feedback DAT) */
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #b7bca4;
+  color: var(--ivory); /* t_18564dce run 58: kontras tinggi di olive-800 (~9.6:1), sebelumnya #b7bca4 (~4.9:1) */
   padding: 14px 14px 4px;
 }
 .nav-group:first-child .nav-group-label { padding-top: 4px; }

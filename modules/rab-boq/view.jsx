@@ -24,7 +24,7 @@ import {
 } from './boqCalc'
 import {
   blankItem, plainChoiceSeed, standardNoteSeed, templates,
-  buildTemplateChoiceSeed, TEMPLATE_NAMES, itemOptionsFor,
+  buildTemplateChoiceSeed, TEMPLATE_NAMES, itemOptionsFor, masterProjectReff,
   incrementReference, todayJakarta
 } from './lib'
 import { buildBoqPdf, downloadBlob } from './pdf'
@@ -36,7 +36,7 @@ const clone = (v) => JSON.parse(JSON.stringify(v))
 function initialMeta() {
   return {
     boqReff: 'BOQ-001',
-    projectReffNo: 'PRJ-001',
+    projectReffNo: '',
     revisionNumber: 'REV00',
     projectName: 'New project',
     clientName: '',
@@ -56,6 +56,21 @@ export default function BoqModule({ projects = [], refresh }) {
   const [meta, setMeta] = useState(initialMeta)
   const [items, setItems] = useState([])
   const [selectedTemplate, setSelectedTemplate] = useState('Preliminary')
+  // t_18564dce run 58 (feedback DAT screenshot 1792153939917): Project Reff No
+  // terikat ke Master Project — pilih dari master, JANGAN free text/dummy.
+  const [selectedProject, setSelectedProject] = useState(null)
+  const [showProjectPicker, setShowProjectPicker] = useState(false)
+  const [projectQuery, setProjectQuery] = useState('')
+  // ===== Status penawaran (run 58 — feedback DAT): PROTOTYPE in-memory.
+  // Persist butuh dukungan DB — freeze migrasi; usulan spec minimal ada di
+  // README modul. Tidak ada klaim tersimpan/autosave; ekspor PDF BUKAN bukti
+  // terkirim — status 'TERKIRIM' hanya dicatat admin setelah pengiriman nyata.
+  const [offerStatus, setOfferStatus] = useState({ status: 'DRAFT' })
+  const [sentVersions, setSentVersions] = useState([])
+  const [showDecisionForm, setShowDecisionForm] = useState(false)
+  const [decisionResult, setDecisionResult] = useState('DISETUJUI')
+  const [decisionBy, setDecisionBy] = useState('')
+  const [decisionNote, setDecisionNote] = useState('')
   const [templateChoices, setTemplateChoices] = useState(() => buildTemplateChoiceSeed())
   const [plainChoices, setPlainChoices] = useState(() => buildTemplateChoiceSeed()['Preliminary'])
   const [plainAdding, setPlainAdding] = useState(false)
@@ -117,7 +132,10 @@ export default function BoqModule({ projects = [], refresh }) {
       noteOptions: clone(noteOptions),
       activeNotes: clone(activeNotes),
       templateChoices: clone(templateChoices),
-      items: clone(items)
+      items: clone(items),
+      // run 58: status penawaran prototype ikut di-backup agar pulih JSON
+      // tidak kehilangan catatan TERKIRIM/DISETUJUI/DITOLAK sesi itu.
+      offerStatus: offerStatus
     }
   }
 
@@ -131,6 +149,87 @@ export default function BoqModule({ projects = [], refresh }) {
       : (name === 'Interior'
         ? 'Interior items are available in the ITEM dropdown'
         : `Work item choices for “${name}” are now displayed`))
+  }
+
+  function pickProject(p) {
+    setSelectedProject(p)
+    setProjectQuery('')
+    setShowProjectPicker(false)
+    setMeta(m => ({
+      ...m,
+      projectReffNo: masterProjectReff(p),
+      projectName: (p && p.name) || m.projectName
+    }))
+    showToast(`Linked to Master Project ${(p && (p.kode ?? p.code)) || ''} — ${(p && p.name) || ''}`)
+  }
+  function clearProjectLink() {
+    setSelectedProject(null)
+    setShowProjectPicker(false)
+    setMeta(m => ({ ...m, projectReffNo: '' }))
+    showToast('Project link cleared')
+  }
+  const filteredProjects = (projects || []).filter(p => {
+    if (!projectQuery.trim()) return true
+    const q = projectQuery.trim().toLowerCase()
+    return String(p.name || '').toLowerCase().includes(q) ||
+      String(p.kode ?? p.code ?? '').toLowerCase().includes(q)
+  })
+  const projectReffComputed = selectedProject ? masterProjectReff(selectedProject) : ''
+  // Guard: ref yang tampil SELALU hasil compute dari master terpilih.
+  useEffect(() => {
+    if (selectedProject) {
+      const ref = masterProjectReff(selectedProject)
+      setMeta(m => (m.projectReffNo === ref ? m : { ...m, projectReffNo: ref }))
+    }
+  }, [selectedProject, projects])
+
+  // ----- status penawaran handlers (run 58 — feedback DAT) -----
+  // Versi = snapshot titik kirim (kecil, in-memory): revision + BOQ reff +
+  // total quotation saat 'Tandai terkirim'. Disetujui mengunci versi tsb;
+  // riwayat kirim terpisah dari meta sehingga revisi lanjut tidak menimpanya.
+  function markSent() {
+    const t = calcTotals({
+      items,
+      marginMode: meta.marginMode,
+      marginRate: meta.marginRate,
+      discountType: meta.discountType,
+      adjustmentEnabled: meta.adjustmentEnabled,
+      taxEnabled: meta.taxEnabled,
+      taxRate: meta.taxRate
+    })
+    const version = {
+      revision: meta.revisionNumber || 'REV00',
+      boqReff: meta.boqReff,
+      grand: rupiahFromK(t.grand),
+      sentAt: todayJakarta(),
+      sentBy: (typeof session !== 'undefined' && session?.user?.email) || 'admin'
+    }
+    setOfferStatus({ status: 'TERKIRIM', ...version, version })
+    setSentVersions(prev => [...prev, version])
+    setShowDecisionForm(false)
+    showToast(`Tercatat TERKIRIM versi ${version.revision} (${version.sentAt}) — pastikan penawaran sudah benar-benar dikirim ke klien`)
+  }
+  function backToDraft() {
+    setOfferStatus({ status: 'DRAFT' })
+    setShowDecisionForm(false)
+    setDecisionNote('')
+    setDecisionBy('')
+    showToast('Status kembali ke draft (prototype in-memory)')
+  }
+  function saveDecision() {
+    const result = decisionResult === 'DITOLAK' ? 'DITOLAK' : 'DISETUJUI'
+    setOfferStatus(s => ({
+      ...s,
+      status: result,
+      decidedAt: todayJakarta(),
+      decidedBy: decisionBy.trim().slice(0, 200),
+      note: decisionNote.trim().slice(0, 2000),
+      version: s.version || null
+    }))
+    setShowDecisionForm(false)
+    showToast(result === 'DISETUJUI'
+      ? 'Disetujui tercatat — versi terkunci (riwayat versi terkirim tidak ditimpa; tidak auto PR/Revenue)'
+      : 'Ditolak tercatat — buat revisi/versi baru lalu kirim ulang')
   }
 
   // ----- item handlers (source body listeners line 1222-1286) -----
@@ -267,7 +366,6 @@ export default function BoqModule({ projects = [], refresh }) {
     setMeta(m => ({
       ...m,
       boqReff: incrementReference(m.boqReff, 'BOQ-001'),
-      projectReffNo: incrementReference(m.projectReffNo, 'PRJ-001'),
       revisionNumber: 'REV00',
       projectName: 'New project',
       clientName: '',
@@ -342,6 +440,13 @@ export default function BoqModule({ projects = [], refresh }) {
         setNoteOptions(opts)
         setActiveNotes(actives)
         setNoteAdding(false)
+        // run 58: pulihkan status penawaran prototype (hanya nilai enum yang
+        // dikenal; tidak pernah menganggap TERKIRIM/DISETUJUI bila file rusak).
+        const os = data.offerStatus
+        const osStatus = os && ['DRAFT', 'TERKIRIM', 'DISETUJUI', 'DITOLAK'].indexOf(os.status) >= 0 ? os.status : 'DRAFT'
+        setOfferStatus(osStatus === 'DRAFT'
+          ? { status: 'DRAFT' }
+          : { status: osStatus, sentAt: str(os.sentAt), sentBy: str(os.sentBy), decidedAt: str(os.decidedAt), decidedBy: str(os.decidedBy), note: str(os.note), version: os.version || null })
         setMeta(m => ({
           ...m,
           boqReff: str(data.boqReff) || 'BOQ-001',
@@ -392,7 +497,12 @@ export default function BoqModule({ projects = [], refresh }) {
     <div className="boq-root">
       <style>{boqScopedCss}</style>
 
-      {/* ===== Toolbar draft/import/export (source utility-bar) ===== */}
+      {/* ===== Toolbar (run 58 — feedback DAT screenshot 1792155471393): hanya
+    Export PDF. Tombol Fill Sample Data / Import JSON / Save as Draft /
+    Download template / Export CSV DIHAPUS dari toolbar beserta helper-nya.
+    DATA-LOSS RISIKO dijelaskan eksplisit di bawah (tidak ada autosave/server);
+    backup JSON masih mungkin via tautan kecil di baris status (bukan toolbar)
+    agar tombol toolbar bersih sesuai arahan DAT tanpa memutus jalur pemulihan. ===== */}
       <div className="boq-utility">
         <div className="boq-utility-copy">
           <strong>Quotation sheet</strong>
@@ -400,16 +510,91 @@ export default function BoqModule({ projects = [], refresh }) {
         </div>
         <div className="boq-header-tools">
           <div className="boq-header-actions">
-            <button type="button" className="boq-btn" onClick={fillSampleData}>Fill Sample Data</button>
-            <button type="button" className="boq-btn" onClick={() => fileRef.current && fileRef.current.click()}>Import JSON</button>
-            <button type="button" className="boq-btn" onClick={saveDraft} title="Download the current session as a JSON file to import later">Save as Draft</button>
-            <button type="button" className="boq-btn" onClick={saveTemplate}>Download template</button>
-            <button type="button" className="boq-btn" onClick={exportCsv}>Export CSV</button>
             <button type="button" className="boq-btn boq-btn-primary" onClick={exportPdf}>Export PDF</button>
           </div>
-          <p className="boq-draft-note">
-            Draft = file JSON di komputer Anda (TIDAK tersimpan di server — backup sebelum menutup tab).
-          </p>
+        </div>
+      </div>
+
+      {/* ===== Status penawaran (run 58 — feedback DAT): alur bisnis
+          Belum dikirim -> Terkirim -> Disetujui/Ditolak. EXPORT PDF BUKAN bukti
+          terkirim: 'Tandai terkirim' dicatat admin EKSPLISIT setelah pengiriman
+          nyata (email/WA di luar sistem) — tidak ada kirim otomatis. Keputusan
+          mencatat tanggal + siapa (eksternal bila ada) + catatan alasan;
+          Disetujui mengunci versi (revisi lanjut = versi baru, riwayat versi
+          terkirim tidak ditimpa). PROTOTYPE: status hanya di memori halaman —
+          snapshot/status BUTUH dukungan DB (freeze migrasi; usulan spec minimal
+          di README modul). Tidak ada klaim tersimpan/autosave. ===== */}
+      <div className="boq-offer-status" data-testid="boq-offer-status">
+        <div className="boq-offer-status-head">
+          <strong>Status penawaran</strong>
+          <span className={'boq-status-badge boq-status-' + (offerStatus.status || 'DRAFT')}>
+            {offerStatus.status === 'TERKIRIM' ? 'Terkirim' : offerStatus.status === 'DISETUJUI' ? 'Disetujui' : offerStatus.status === 'DITOLAK' ? 'Ditolak' : 'Belum dikirim'}
+          </span>
+        </div>
+        <div className="boq-status-meta">
+          {offerStatus.status === 'DRAFT' && <span>Belum dikirim — penawaran masih draft lokal. Ekspor PDF, kirim manual, lalu catat statusnya di sini.</span>}
+          {offerStatus.status === 'TERKIRIM' && (
+            <span>
+              Dikirim {offerStatus.sentAt || '—'} oleh {offerStatus.sentBy || '—'} · versi {offerStatus.version?.revision || meta.revisionNumber}
+              {offerStatus.version?.grand ? ` · total ${offerStatus.version.grand}` : ''} · menunggu keputusan klien.
+            </span>
+          )}
+          {offerStatus.status === 'DISETUJUI' && (
+            <span>
+              ✓ Disetujui {offerStatus.decidedAt || '—'}{offerStatus.decidedBy ? ` oleh (eksternal): ${offerStatus.decidedBy}` : ''} · versi terkunci {offerStatus.version?.revision || meta.revisionNumber} — revisi lanjut dibuat sebagai versi baru, riwayat tidak ditimpa. Status ini TIDAK otomatis membuat PR/Budgeting/Revenue (RAB final existing tetap sumber finance).
+            </span>
+          )}
+          {offerStatus.status === 'DITOLAK' && (
+            <span>
+              ✗ Ditolak {offerStatus.decidedAt || '—'}{offerStatus.decidedBy ? ` oleh (eksternal): ${offerStatus.decidedBy}` : ''}{offerStatus.note ? ` · alasan: ${offerStatus.note}` : ''} · buat revisi/versi baru lalu kirim ulang.
+            </span>
+          )}
+        </div>
+        <div className="boq-status-actions">
+          {offerStatus.status === 'DRAFT' && (
+            <button type="button" className="boq-btn" onClick={markSent}>Tandai terkirim</button>
+          )}
+          {offerStatus.status === 'TERKIRIM' && (
+            <>
+              <button type="button" className="boq-btn boq-btn-primary" onClick={() => setShowDecisionForm(v => !v)}>Catat keputusan</button>
+              <button type="button" className="boq-btn boq-btn-ghost" onClick={backToDraft}>Batalkan (kembali draft)</button>
+            </>
+          )}
+          {(offerStatus.status === 'DISETUJUI' || offerStatus.status === 'DITOLAK') && (
+            <button type="button" className="boq-btn boq-btn-ghost" onClick={backToDraft} title="Prototype: reset status — implementasi final butuh tabel status di DB (freeze migrasi)">Reset status (prototype)</button>
+          )}
+        </div>
+        {showDecisionForm && offerStatus.status === 'TERKIRIM' && (
+          <div className="boq-decision-form">
+            <div className="boq-control-row">
+              <div className="boq-compact-field">
+                <label htmlFor="boq-decision">Keputusan</label>
+                <select id="boq-decision" value={decisionResult} onChange={e => setDecisionResult(e.target.value)}>
+                  <option value="DISETUJUI">Disetujui</option>
+                  <option value="DITOLAK">Ditolak</option>
+                </select>
+              </div>
+              <div className="boq-compact-field">
+                <label htmlFor="boq-decidedBy">Disetujui/ditolak oleh (eksternal)</label>
+                <input id="boq-decidedBy" value={decisionBy} onChange={e => setDecisionBy(e.target.value)} placeholder="Nama klien/pihak eksternal (opsional)" autoComplete="off" />
+              </div>
+            </div>
+            <div className="boq-compact-field">
+              <label htmlFor="boq-decisionNote">{decisionResult === 'DITOLAK' ? 'Alasan penolakan' : 'Catatan keputusan'}</label>
+              <textarea id="boq-decisionNote" value={decisionNote} onChange={e => setDecisionNote(e.target.value)} rows={2} />
+            </div>
+            <div className="boq-decision-actions">
+              <button type="button" className="boq-btn boq-btn-primary" onClick={saveDecision}>Simpan keputusan</button>
+              <button type="button" className="boq-btn boq-btn-ghost" onClick={() => setShowDecisionForm(false)}>Batal</button>
+            </div>
+          </div>
+        )}
+        <div className="boq-status-persist">
+          <span>
+            Data BOQ &amp; status ada di halaman ini saja — <b>TIDAK tersimpan di server</b> (belum ada dukungan DB; freeze migrasi){sentVersions.length > 0 ? ` · riwayat versi terkirim sesi ini: ${sentVersions.length}` : ''}. Backup manual:
+          </span>
+          <button type="button" className="boq-quiet-link" onClick={saveDraft} title="Unduh seluruh isi BOQ (termasuk status penawaran prototype) sebagai file JSON">⬇ Backup JSON</button>
+          <button type="button" className="boq-quiet-link" onClick={() => fileRef.current && fileRef.current.click()} title="Pulihkan dari file JSON hasil Backup">⬆ Pulihkan JSON</button>
         </div>
       </div>
 
@@ -442,8 +627,28 @@ export default function BoqModule({ projects = [], refresh }) {
               <input id="boq-location" placeholder="Project location" value={meta.projectLocation} onChange={e => setMetaField('projectLocation', e.target.value)} autoComplete="off" /></div>
             <div className="boq-field"><label htmlFor="boq-pname">Project Name</label>
               <input id="boq-pname" value={meta.projectName} onChange={e => setMetaField('projectName', e.target.value)} autoComplete="off" /></div>
-            <div className="boq-field"><label htmlFor="boq-prjreff">Project Reff No</label>
-              <input id="boq-prjreff" value={meta.projectReffNo} readOnly aria-readonly="true" /></div>
+            {/* t_18564dce run 58 (feedback DAT screenshot 1792153939917): Project
+                Reff No terikat Master Project — readonly, computed PRJ-<kode master>.
+                Tidak ada free text/dummy; pilih master via panel di bawah ini. */}
+            <div className="boq-field boq-field-reff">
+              <label htmlFor="boq-prjreff">Project Reff No</label>
+              <input id="boq-prjreff" value={meta.projectReffNo} readOnly aria-readonly="true" aria-live="polite" placeholder="Pilih master project" />
+              <div className="boq-reff-link">
+                {selectedProject ? (
+                  <>
+                    <span className="boq-reff-linked" title={`Master Project ${selectedProject.kode ?? selectedProject.code ?? ''} — ${selectedProject.name || ''}`}>
+                      ⧉ Master {String(selectedProject.kode ?? selectedProject.code ?? '')} · {selectedProject.name || ''}
+                    </span>
+                    <button type="button" className="boq-link-btn" onClick={() => setShowProjectPicker(v => !v)}>Ganti</button>
+                    <button type="button" className="boq-link-btn" onClick={clearProjectLink}>Lepas</button>
+                  </>
+                ) : (
+                  <button type="button" className="boq-link-btn" onClick={() => setShowProjectPicker(v => !v)} aria-expanded={showProjectPicker}>
+                    {showProjectPicker ? 'Tutup' : '⌄ Pilih master project…'}
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="boq-field"><label htmlFor="boq-reff">BOQ Reff</label>
               <input id="boq-reff" value={meta.boqReff} readOnly aria-readonly="true" /></div>
             <div className="boq-field"><label htmlFor="boq-date">Quotation Date</label>
@@ -463,6 +668,45 @@ export default function BoqModule({ projects = [], refresh }) {
               ))}
             </div>
           </div>
+
+          {showProjectPicker && (
+            /* t_18564dce run 58 — picker Master Project untuk Project Reff No.
+               Sumber data: rows.projects (tabel projects, server) — bukan input manual.
+               Kode 2-3 digit live (83/99/101/102); query memfilter nama/kode. */
+            <div className="boq-project-picker">
+              <div className="boq-picker-head">
+                <input
+                  className="boq-picker-search"
+                  placeholder="Cari master project (nama / kode)…"
+                  value={projectQuery}
+                  onChange={e => setProjectQuery(e.target.value)}
+                  aria-label="Cari master project"
+                  autoComplete="off"
+                />
+                <span className="boq-picker-count">{filteredProjects.length} project</span>
+              </div>
+              <div className="boq-picker-list" role="listbox" aria-label="Daftar master project">
+                {filteredProjects.length === 0 && (
+                  <div className="boq-picker-empty">Tidak ada master project yang cocok.</div>
+                )}
+                {filteredProjects.map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedProject && selectedProject.id === p.id}
+                    className={'boq-picker-row' + (selectedProject && selectedProject.id === p.id ? ' selected' : '')}
+                    onClick={() => pickProject(p)}
+                  >
+                    <span className="boq-picker-kode">{String(p.kode ?? p.code ?? '')}</span>
+                    <span className="boq-picker-name">{p.name || '(tanpa nama)'}</span>
+                    <span className="boq-picker-status">{p.status || ''}</span>
+                    <span className="boq-picker-ref">{masterProjectReff(p)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {plainPanelVisible && (
             <div className="boq-plain-choices show">
@@ -702,8 +946,9 @@ export default function BoqModule({ projects = [], refresh }) {
 
       {projectModal && (
         <CreateProjectModal
-          boq={{ boqReff: meta.boqReff, projectName: meta.projectName }}
+          boq={{ boqReff: meta.boqReff, projectName: meta.projectName, projectReffNo: meta.projectReffNo }}
           projects={projects}
+          selectedProject={selectedProject}
           refresh={refresh}
           onClose={() => setProjectModal(false)}
         />
@@ -835,6 +1080,43 @@ function ItemRow({ item, index, availableItems, useManual, pricePlaceholder, uni
 const boqScopedCss = `
 .boq-root { --boq-paper:#fcfcf8; --boq-surface:#ffffff; --boq-surface-2:#f1f2eb; --boq-ink:#20251f; --boq-muted:#667064; --boq-line:#d5d9ce; --boq-line-strong:#b9c0b2; --boq-brand:#969b7c; --boq-brand-dark:#60664d; --boq-brand-deep:#3d4435; --boq-brand-soft:#e7e9de; --boq-focus:#71824f; --boq-danger:#a3493f; --boq-shadow:0 22px 60px rgba(38,44,34,.10); --boq-radius:14px; color:var(--boq-ink); }
 .boq-root button { cursor:pointer; }
+/* t_18564dce run 58 (feedback DAT screenshot 1792155666579): global rules
+   "aside{background:var(--sidebar-bg);color:#e6e7dc}" dan rule "header"/
+   "label" di styles/globals.css bocor ke elemen semantik milik modul
+   (<aside class="boq-side"> kartu Settings, <header class="boq-header-actions">,
+   <label> toggle) sehingga teks Settings/Apply markup/Apply PPN/Show in PDF
+   tampak samar (pucat di atas terang). Netralkan SCOPED di .boq-root agar
+   tidak mengubah sidebar asli di luar modul. */
+.boq-root aside.boq-side { background:transparent; color:var(--boq-ink); padding:0; box-shadow:none; width:auto; flex-direction:column; }
+.boq-root aside.boq-side .boq-card { background:var(--boq-surface); color:var(--boq-ink); }
+.boq-root header.boq-header-actions { background:transparent; color:var(--boq-ink); margin-bottom:0; padding:0; }
+/* Tipografi lokal BOQ (feedback DAT): heading jelas, label tegas, helper
+   tetap keterbacaan nyata — tanpa mengubah tipografi global app. */
+.boq-root .boq-controls h2 { font-weight:700; color:var(--boq-ink); }
+.boq-root .boq-toggle-label { color:var(--boq-ink); font-weight:600; }
+.boq-root .boq-toggle-wrap .boq-compact-field label { color:var(--boq-brand-dark); font-weight:600; }
+.boq-root .boq-file-note { color:var(--boq-muted); font-weight:500; }
+/* t_18564dce run 58 (feedback DAT screenshot 1792155471393): toolbar hanya
+   Export PDF — blok status penawaran menggantikan helper draft di utility bar.
+   Status: badge berwarna jelas (Belum dikirim/Terkirim/Disetujui/Ditolak),
+   aksi eksplisit di blok sendiri (bukan di toolbar export), persistensi
+   dijelaskan jujur + backup/pulih JSON kecil (pemulihan data tetap ada). */
+.boq-offer-status { margin:0 0 14px; padding:12px 15px; border:1px solid var(--boq-line); border-left:4px solid var(--boq-brand-dark); border-radius:10px; background:var(--boq-surface-2); }
+.boq-offer-status-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.boq-offer-status-head strong { font-size:12px; font-weight:700; color:var(--boq-ink); letter-spacing:.02em; text-transform:uppercase; }
+.boq-status-badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.boq-status-DRAFT { background:#eceee3; color:#4a5140; border:1px solid #c9cfc0; }
+.boq-status-TERKIRIM { background:#e7edf2; color:#31506b; border:1px solid #b9cbda; }
+.boq-status-DISETUJUI { background:#e2ecdd; color:#2f5233; border:1px solid #b4cbae; }
+.boq-status-DITOLAK { background:#f3e2df; color:#7c3029; border:1px solid #ddb1aa; }
+.boq-status-meta { margin:7px 0 9px; font-size:11.5px; line-height:1.5; color:var(--boq-ink); font-weight:500; }
+.boq-status-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.boq-decision-form { margin-top:10px; padding:10px 11px; border:1px solid var(--boq-line-strong); border-radius:8px; background:var(--boq-surface); }
+.boq-decision-actions { display:flex; gap:8px; margin-top:8px; }
+.boq-status-persist { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; padding-top:9px; border-top:1px dashed var(--boq-line-strong); font-size:10.5px; color:var(--boq-muted); font-weight:500; }
+.boq-quiet-link { min-height:24px; padding:2px 8px; border:0; border-radius:6px; background:transparent; color:var(--boq-brand-dark); font-size:10.5px; font-weight:700; text-decoration:underline; text-underline-offset:2px; }
+.boq-quiet-link:hover { color:var(--boq-brand-deep); background:var(--boq-brand-soft); }
+.boq-quiet-link:focus-visible { outline:2px solid var(--boq-focus); outline-offset:1px; }
 .boq-utility { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:14px; }
 .boq-utility-copy strong { display:block; font-weight:700; font-size:17px; letter-spacing:-.01em; }
 .boq-utility-copy span { color:var(--text-muted); font-size:12px; }
@@ -868,11 +1150,47 @@ const boqScopedCss = `
 .boq-field label, .boq-compact-field label { display:block; margin:0 0 5px; color:var(--text-muted); font-size:10px; font-weight:700; letter-spacing:.055em; text-transform:uppercase; }
 .boq-field input { width:100%; min-height:32px; padding:4px 0; border:0; border-bottom:1px solid transparent; border-radius:0; background:transparent; font-weight:600; }
 .boq-field input:focus { border-bottom-color:var(--boq-focus); outline:none; box-shadow:none; }
+/* t_18564dce run 58: baris tautan Master Project di bawah input Project Reff No.
+   (grid 6 kolom existing dipertahankan — baris link tumbuh ke bawah, bukan
+   menambah kolom, sehingga tidak merusak layout rapat milik source). */
+.boq-field-reff .boq-reff-link { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
+.boq-field-reff .boq-reff-linked { font-size:10px; font-weight:700; color:var(--boq-brand-dark); letter-spacing:.02em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+.boq-link-btn { min-height:24px; padding:2px 8px; border:1px solid var(--boq-line-strong); border-radius:6px; background:var(--boq-surface); color:var(--boq-brand-dark); font-size:10px; font-weight:700; }
+.boq-link-btn:hover { border-color:var(--boq-brand-dark); background:var(--boq-brand-soft); color:var(--boq-brand-deep); }
+.boq-link-btn:focus-visible { outline:2px solid var(--boq-focus); outline-offset:1px; }
+/* Picker Master Project: panel dropdown scoped (data = rows.projects). */
+.boq-project-picker { border-bottom:1px solid var(--boq-line); background:var(--boq-paper); padding:12px 15px; }
+.boq-picker-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.boq-picker-search { flex:1 1 auto; min-width:0; min-height:34px; padding:6px 10px; border:1px solid var(--boq-line-strong); border-radius:7px; background:var(--boq-surface); color:var(--boq-ink); font-size:12px; }
+.boq-picker-search:focus { border-color:var(--boq-focus); outline:none; box-shadow:none; }
+.boq-picker-count { flex:0 0 auto; font-size:10px; font-weight:700; color:var(--boq-muted); text-transform:uppercase; letter-spacing:.05em; }
+.boq-picker-list { max-height:220px; overflow-y:auto; border:1px solid var(--boq-line); border-radius:8px; background:var(--boq-surface); }
+.boq-picker-row { display:grid; grid-template-columns:44px minmax(0,1fr) auto auto; gap:8px; align-items:center; width:100%; text-align:left; padding:8px 10px; border:0; border-bottom:1px solid var(--boq-line); border-radius:0; background:var(--boq-surface); color:var(--boq-ink); font-size:11px; font-weight:600; }
+.boq-picker-row:last-child { border-bottom:0; }
+.boq-picker-row:hover { background:var(--boq-brand-soft); color:var(--boq-brand-deep); }
+.boq-picker-row:focus-visible { outline:2px solid var(--boq-focus); outline-offset:-2px; }
+.boq-picker-row.selected { background:var(--boq-brand-deep); color:#fff; }
+.boq-picker-kode { font-weight:800; font-variant-numeric:tabular-nums; }
+.boq-picker-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.boq-picker-status { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--boq-muted); }
+.boq-picker-row.selected .boq-picker-status { color:#d9dcc4; }
+.boq-picker-ref { font-size:10px; font-weight:700; color:var(--boq-brand-dark); font-variant-numeric:tabular-nums; }
+.boq-picker-row.selected .boq-picker-ref { color:#fff; }
+.boq-picker-empty { padding:12px 10px; font-size:11px; color:var(--boq-muted); }
 .boq-template-strip { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 15px; border-bottom:1px solid var(--boq-line); background:var(--boq-surface-2); }
 .boq-template-label strong { font-size:12px; }
 .boq-templates { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
-.boq-template-pill { padding:6px 10px; border:1px solid var(--boq-line); border-radius:7px; background:var(--boq-surface); font-size:11px; font-weight:700; }
-.boq-template-pill.active { background:var(--boq-brand-deep); border-color:var(--boq-brand-deep); color:#fff; }
+/* t_18564dce run 58 (feedback DAT, screenshot 1792153924456): label template
+   harus TERBACA pada semua state. Bug sebelumnya: global "button { color: white }"
+   (styles/globals.css) menimpa warna teks pill non-aktif -> putih di atas
+   permukaan putih. Fix scoped: warna teks HEX EKSPLISIT (bukan var()) supaya
+   tidak bisa jatuh ke inherit global di environment mana pun — nilai sama
+   dengan token .boq-root (di atas), modul tidak punya tema lain. */
+.boq-template-pill { padding:6px 10px; border:1px solid #b9c0b2; border-radius:7px; background:#ffffff; color:#20251f; font-size:11px; font-weight:700; }
+.boq-template-pill:hover { border-color:#60664d; background:#e7e9de; color:#3d4435; }
+.boq-template-pill:focus-visible { outline:2px solid #71824f; outline-offset:1px; }
+.boq-template-pill.active { background:#3d4435; border-color:#3d4435; color:#ffffff; }
+.boq-template-pill.active:hover { background:#60664d; border-color:#60664d; color:#ffffff; }
 .boq-plain-choices { padding:14px 15px; border-bottom:1px solid var(--boq-line); background:var(--boq-paper); }
 .boq-choice-heading { margin:0 0 10px; color:var(--text-muted); font-size:10px; font-weight:700; letter-spacing:.045em; text-transform:uppercase; }
 .boq-choice-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }

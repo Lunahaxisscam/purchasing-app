@@ -101,6 +101,16 @@ export function incrementReference(value, fallback) {
   return match[1] + String(Number(match[2]) + 1).padStart(Math.max(3, match[2].length), '0')
 }
 
+// masterProjectReff (t_18564dce run 58 — feedback DAT screenshot 1792153939917):
+// Project Reff No modul BOQ DIKATkan ke Master Project — format PRJ-<kode master>
+// (contoh live: PRJ-83 / PRJ-99). Kode master diisi manual & authoritative oleh
+// admin (live DB tidak kontinu: 83/99/101/102), BUKAN tebakan max+1 dari client.
+export function masterProjectReff(p) {
+  var kode = String((p && (p.kode ?? p.code)) || '').trim()
+  if (!kode) return ''
+  return 'PRJ-' + kode.replace(/\s+/g, '')
+}
+
 // Tanggal hari ini zona Asia/Jakarta dalam format YYYY-MM-DD (source line 1554-1557).
 export function todayJakarta() {
   var parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())

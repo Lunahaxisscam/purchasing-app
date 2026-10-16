@@ -4,48 +4,53 @@
 // Cakupan bisnis DAT (t_18564dce): BOQ hanya pintu awal membuat nomor
 // proyek — TIDAK otomatis ke PR/Budgeting/Revenue, TIDAK mengaktifkan
 // penawaran/draft apa pun. Komponen ini:
-//   1. Menampilkan pratinjau kode proyek berikutnya (readonly) — dihitung
-//      dari daftar projects yang dimuat (pattern CreateModal nextPrNum).
-//      ADMIN TETAP BISA MENIMPA dengan kode manual (master projects/kode
-//      di modul Project diisi manual — tidak ada generator server-side).
-//   2. Konfirmasi EXPLISIT dua langkah: modal ringkasan -> konfirmasi
-//      akhir via window.confirm (pattern app: window.confirm sebelum aksi).
-//   3. INSERT ke tabel projects HANYA {kode, name, status NOT_START}
+//   1. KODE PROJECT WAJIB DIISI MANUAL oleh admin — kode master project di
+//      modul Projects bersifat manual/authoritative (live DB tidak kontinu:
+//      83/99/101/102), jadi TIDAK ada tebakan "next number" max+1 dari client
+//      (feedback DAT run 58, screenshot 1792153939917). Satu-satunya bantuan:
+//      cek duplikat real-time terhadap daftar master terbaru. Numbering
+//      otomatis server-side memerlukan RPC/UNIQUE (mutasi schema) — freeze
+//      migrasi berlaku; gap didokumentasikan di README modul.
+//   2. GUARD duplikasi: (a) kode yang diketik belum dipakai master lain;
+//      (b) BOQ ini belum terikat Master Project existing (jangan dobel buat).
+//   3. Konfirmasi EXPLISIT dua langkah: ringkasan mapping Master Project ->
+//      window.confirm (pattern app: confirm sebelum aksi tulis).
+//   4. INSERT ke tabel projects HANYA {kode, code, name, status NOT_START}
 //      (mapping Master Project). Kolom lain tidak disentuh.
-//   4. Gagal/ditolak = tidak ada penulisan apa pun.
+//   5. Gagal/ditolak = tidak ada penulisan apa pun.
 // Keamanan: insert lewat supabase client sesi user (RLS projects berlaku);
 // validasi role sudah dilakukan pages/index.js (halaman admin-only) DAN
 // RLS database tetap pembatas terakhir.
 // ============================================================
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 
-export default function CreateProjectModal({ boq, projects = [], onClose, onDone }) {
-  // Pratinjau kode: nomor berikutnya > max kode angka existing (pattern
-  // nextPrNum di CreateModal). Ini HANYA pratinjau — admin bisa menimpa;
-  // cek duplikat tetap dilakukan saat submit terhadap daftar terbaru.
-  const nextKodePreview = useMemo(() => {
-    const maxNum = (projects || []).reduce((max, p) => {
-      const n = parseInt(String(p.kode ?? p.code ?? '').replace(/^\D+/, ''), 10)
-      return isFinite(n) && n > max ? n : max
-    }, 0)
-    return String(maxNum + 1).padStart(2, '0')
-  }, [projects])
-
+export default function CreateProjectModal({ boq, projects = [], selectedProject = null, onClose, onDone }) {
   const [name, setName] = useState(boq.projectName && boq.projectName !== 'New project' ? boq.projectName : '')
   const [kode, setKode] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const finalKode = (kode || '').trim() || nextKodePreview
-  const duplicate = (projects || []).some(p => String(p.kode ?? p.code ?? '').trim() === finalKode)
+  const finalKode = (kode || '').trim()
+  // Guard duplikasi (a): kode harus terisi DAN belum dipakai master lain.
+  const duplicate = finalKode
+    ? (projects || []).some(p => String(p.kode ?? p.code ?? '').trim() === finalKode)
+    : false
+  // Guard duplikasi (b): BOQ ini sudah terikat Master Project existing ->
+  // jangan membuat proyek baru untuk reff yang sama.
+  const alreadyLinked = !!selectedProject
 
   async function submit(e) {
     e.preventDefault()
     if (saving) return
     setError('')
     const projectName = (name || '').trim()
+    if (alreadyLinked) {
+      setError(`BOQ ini sudah terikat Master Project "${selectedProject.kode ?? selectedProject.code ?? ''} — ${selectedProject.name || ''}". Lepaskan tautan di Project Reff No bila memang ingin membuat proyek yang berbeda.`)
+      return
+    }
     if (!projectName) { setError('Nama project wajib diisi.'); return }
+    if (!finalKode) { setError('Kode project wajib diisi — kode master authoritative, lihat daftar di modul Projects.'); return }
     if (duplicate) { setError(`Kode project "${finalKode}" sudah dipakai project lain. Gunakan kode lain.`); return }
     if (!supabase) { setError('Koneksi database tidak tersedia.'); return }
 
@@ -92,21 +97,30 @@ export default function CreateProjectModal({ boq, projects = [], onClose, onDone
           BOQ ini hanya <b>pintu awal</b> membuat nomor proyek. Proyek dibuat di Master Project dengan
           status <b>Not Start</b> — <b>tidak</b> otomatis membuat PR, Budgeting, atau Revenue.
         </p>
+        {alreadyLinked && (
+          <div className="notice" style={{ background: 'var(--warn-tint, #f6f2e2)', borderColor: 'var(--warn-border, #d8cf9f)', color: '#6b5b1e', margin: 0 }}>
+            ⚠️ BOQ ini sudah terikat Master Project <b>{selectedProject.kode ?? selectedProject.code ?? ''} — {selectedProject.name || ''}</b>.
+            Membuat proyek baru untuk reff yang sama akan dobel — lepaskan tautan (tombol Lepas) bila memang proyeknya berbeda.
+          </div>
+        )}
         {error && (
           <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425', margin: 0 }}>{error}</div>
         )}
-        <label>Kode Project
+        <label>Kode Project (wajib — authoritative, manual)
           <input
             type="text"
             value={kode}
             onChange={e => setKode(e.target.value)}
-            placeholder={`Kosongkan untuk otomatis: ${nextKodePreview}`}
+            placeholder="Sesuai penomoran master (contoh: 103)"
+            required
           />
         </label>
         <div className="muted" style={{ marginTop: '-8px', marginBottom: '6px', fontSize: '12px' }}>
-          Pratinjau berikutnya: <b>{nextKodePreview}</b> (dihitung dari kode project terbesar yang sudah ada).
-          {!duplicate && <span> Belum terpakai.</span>}
-          {duplicate && <span style={{ color: 'var(--danger)' }}> ⚠️ Kode sudah dipakai — pilih kode lain.</span>}
+          Kode master bersifat <b>manual &amp; authoritative</b> (lihat modul Projects — live: 83, 99, 101, 102).
+          {!finalKode && <span> Belum diisi.</span>}
+          {finalKode && !duplicate && <span style={{ color: 'var(--ok, #3d6b3f)' }}> ✓ Kode belum terpakai.</span>}
+          {finalKode && duplicate && <span style={{ color: 'var(--danger)' }}> ⚠️ Kode sudah dipakai — pilih kode lain.</span>}
+          {' '}Penomoran otomatis server-side belum tersedia (butuh RPC/UNIQUE — freeze migrasi; gap di README modul).
         </div>
         <label>Nama Project
           <input
@@ -120,12 +134,19 @@ export default function CreateProjectModal({ boq, projects = [], onClose, onDone
         <label>Referensi BOQ (readonly)
           <input type="text" value={boq.boqReff || '-'} readOnly aria-readonly="true" />
         </label>
+        <label>Project Reff No BOQ (readonly)
+          <input
+            type="text"
+            value={alreadyLinked ? (boq.projectReffNo || '-') : '— menjadi PRJ-<kode> setelah proyek dibuat'}
+            readOnly aria-readonly="true"
+          />
+        </label>
         <label>Status awal (readonly)
           <input type="text" value="Not Start" readOnly aria-readonly="true" />
         </label>
         <div className="actions">
           <button type="button" className="outline" onClick={onClose}>Batal</button>
-          <button disabled={saving}>{saving ? 'Menyimpan…' : 'Buat Project'}</button>
+          <button disabled={saving || alreadyLinked || !finalKode || duplicate}>{saving ? 'Menyimpan…' : 'Buat Project'}</button>
         </div>
       </form>
     </div>
