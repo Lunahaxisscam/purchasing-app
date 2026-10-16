@@ -104,6 +104,11 @@ menampilkan sumber tersimpan, dan metadata sesi tidak diperlukan lagi.
   histori TIDAK mengubah `vendor_id` item.
 - **Total Estimasi ≠ nominal actual**: nilai receiving/budget/finance tidak
   tersentuh fitur ini.
+- **Total Estimasi selalu terlihat**: baris total + label "belum lengkap" +
+  disclaimer dirender DI LUAR area scroll daftar item (temuan review run 86:
+  sebelumnya ikut ter-scroll di dalam kontainer max-height 240px sehingga
+  terpotong saat item banyak — user tidak boleh harus scroll untuk melihat
+  total PR). Di-assert di render_test blok C.
 
 ## File yang berubah
 
