@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Create from './CreateModal'
 import { headersFor, pretty, format, labels } from '../lib/constants'
 import { makeItemHelpers } from '../modules/shared/itemHelpers'
 import { filterRows } from '../modules/shared/filterRows'
 import { sortRows } from '../modules/shared/sortRows'
+import {
+  PAGE_SIZE, limitRows, shownLabel
+} from '../modules/shared/visibleRows'
 import { renderGenericCell } from '../modules/shared/renderGenericCell'
 import {
   renderModuleTableClass,
@@ -51,18 +54,32 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   const [editRow, setEditRow] = useState(null)
   const [sortKey, setSortKey] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
+  // Arahan DAT (t_cf05c96f): daftar modul jangan panjang ke bawah — default
+  // tampil 10 data, sisanya dibuka lewat tombol "Show More" (+10) di bawah
+  // tabel/kartu. Hanya membatasi TAMPILAN: filter/search/sort tetap bekerja
+  // di SELURUH dataset (lihat displayRows & limitRows di bawah), data tidak
+  // diubah, dan ini bukan server pagination.
+  const [listLimit, setListLimit] = useState(PAGE_SIZE)
   const title = labels[page]
 
-  // Reset urutan & popup catatan saat pindah modul (set kolom tiap modul berbeda)
+  // Reset urutan, popup catatan & limit daftar saat pindah modul (set kolom
+  // tiap modul berbeda; limit juga WAJIB kembali ke 10 sesuai arahan DAT)
   useEffect(() => {
     setSortKey(null)
     setSortDir('asc')
     setOpenNoteId(null)
+    setListLimit(PAGE_SIZE)
     // Arahan DAT (t_0a35264f): setiap pindah modul lalu masuk/buka ulang
     // Approval, antrean SELALU kembali ke "Menunggu" (PENDING) — bukan filter
     // terakhir yang dipakai. Modul lain mempertahankan filter terakhirnya.
     if (page === 'approvals') setApprovalFilter('PENDING')
   }, [page])
+
+  // Arahan DAT (t_cf05c96f): limit kembali ke 10 setiap kali filter tab /
+  // pencarian / urutan berubah — pengguna selalu mulai dari potongan awal.
+  useEffect(() => {
+    setListLimit(PAGE_SIZE)
+  }, [projectFilter, receivingFilter, prFilter, approvalFilter, materialFilter, vendorFilter, handoverFilter, searchQuery, sortKey, sortDir])
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
@@ -70,29 +87,43 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   }
 
   // Helper item lintas modul (PR/Approval/Receiving) — modules/shared/itemHelpers.js
-  const H = makeItemHelpers({ allPrItems, allVendors, allMaterials, allReceivingItems, allRequests })
+  const H = useMemo(() => makeItemHelpers({ allPrItems, allVendors, allMaterials, allReceivingItems, allRequests }), [allPrItems, allVendors, allMaterials, allReceivingItems, allRequests])
   const { prItemsForPr } = H
 
-  // Filter baris per modul — modules/shared/filterRows.js
-  let displayRows = filterRows({
+  // Filter & sortir baris per modul (dimemoize agar tidak kalkulasi ulang pada setiap render biasa)
+  const displayRows = useMemo(() => {
+    let list = filterRows({
+      page, rows, allProjects,
+      projectFilter, receivingFilter, prFilter, approvalFilter,
+      materialFilter, vendorFilter, handoverFilter
+    })
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      list = list.filter(row => {
+        return Object.values(row).some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q))
+      })
+    }
+
+    return sortRows(list, {
+      sortKey, sortDir, page,
+      requestItemRows: H.requestItemRows,
+      approvalItemQtys: H.approvalItemQtys
+    })
+  }, [
     page, rows, allProjects,
     projectFilter, receivingFilter, prFilter, approvalFilter,
-    materialFilter, vendorFilter, handoverFilter
-  })
+    materialFilter, vendorFilter, handoverFilter,
+    searchQuery, sortKey, sortDir, H
+  ])
 
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase().trim()
-    displayRows = displayRows.filter(row => {
-      return Object.values(row).some(v => v !== null && v !== undefined && String(v).toLowerCase().includes(q))
-    })
-  }
-
-  // Urutkan berdasar kolom yang diklik (klik ulang untuk balik arah) — modules/shared/sortRows.js
-  displayRows = sortRows(displayRows, {
-    sortKey, sortDir, page,
-    requestItemRows: H.requestItemRows,
-    approvalItemQtys: H.approvalItemQtys
-  })
+  // Arahan DAT (t_cf05c96f): potong TAMPILAN setelah filter+search+sort —
+  // hitungan tab/banner (dari ctx.rows) & hasil pencarian tetap memakai
+  // SELURUH dataset; hanya jumlah baris yang dirender yang dibatasi.
+  const { visible: visibleRows, total: totalRows, shown: shownRows, hasMore } = useMemo(
+    () => limitRows(displayRows, page, listLimit),
+    [displayRows, page, listLimit]
+  )
 
   const columns = headersFor(page, displayRows)
   const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'handovers', 'projects', 'past_projects'].includes(page)
@@ -116,6 +147,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     materialFilter, setMaterialFilter,
     vendorFilter, setVendorFilter,
     handoverFilter, setHandoverFilter,
+    listLimit, setListLimit,
     openNoteId, setOpenNoteId,
     expandedApproval, setExpandedApproval,
     expandedReceiving, setExpandedReceiving,
@@ -204,8 +236,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
             </tr>
           </thead>
           <tbody>
-            {displayRows.length ? (
-              displayRows.map((r, i) => {
+            {visibleRows.length ? (
+              visibleRows.map((r, i) => {
                 // Baris desktop khusus modul (mis. master-detail PR dengan rowSpan).
                 // null = pakai baris generik di bawah.
                 const customRow = renderModuleDesktopRow(page, r, ctx)
@@ -242,8 +274,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
       </div>
       {/* ===== MOBILE CARDS VIEW (Khusus Layar HP <= 900px) ===== */}
       <div className="mobile-cards-view">
-        {displayRows.length ? (
-          displayRows.map((r, i) => {
+        {visibleRows.length ? (
+          visibleRows.map((r, i) => {
             const card = renderModuleMobileCard(page, r, ctx)
             return (
             <div className="mobile-card" key={r.id || i}>
@@ -282,6 +314,35 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           <div className="panel empty">{emptyMessage}</div>
         )}
       </div>
+
+      {/* ===== DAFTAR RINGKAS + SHOW MORE (Arahan DAT t_cf05c96f) =====
+          Footer bersama di bawah tabel desktop & kartu mobile. Muncul hanya
+          bila MASIH ada data yang belum tampil; indikator "Menampilkan X
+          dari Y" memakai total hasil filter (bukan sekadar potongan). */}
+      {hasMore && (
+        <div className="list-show-more">
+          <span className="list-shown-indicator">{shownLabel(shownRows, totalRows)}</span>
+          <div className="list-show-more-actions">
+            <button
+              type="button"
+              className="outline"
+              onClick={() => setListLimit(l => l + PAGE_SIZE)}
+            >
+              ▼ Show More / Tampilkan Lebih Banyak
+            </button>
+            {shownRows > PAGE_SIZE && (
+              <button
+                type="button"
+                className="outline"
+                onClick={() => setListLimit(PAGE_SIZE)}
+                title="Kembali menampilkan 10 data pertama"
+              >
+                ▲ Ringkas
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
     </>
   )
