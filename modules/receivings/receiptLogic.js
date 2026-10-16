@@ -214,8 +214,13 @@ export function parentSummary(prog, opts = {}) {
     return { key: 'KENDALA', text: `Lengkapi jumlah (${total}/${total}) · ${opts.kendalaLabel || 'nota perlu tindakan'}`, tone: 'amber' }
   }
   if (prog.allDone) return { key: 'LENGKAP', text: `✓ Lengkap (${total}/${total})`, tone: 'green' }
+  // Sebagian: bila nota hanya 1 barang dan qty pesanannya diketahui, tampilkan
+  // progres qty barang itu; multi-item tampilkan berapa barang yang mulai datang.
+  if (statuses.length === 1 && statuses[0].ordered !== null) {
+    return { key: 'SEBAGIAN', text: `Diterima sebagian (${statuses[0].rec}/${statuses[0].ordered})`, tone: 'amber' }
+  }
   const received = statuses.filter(s => s.rec > 0).length
-  return { key: 'SEBAGIAN', text: `Sebagian (${received}/${total} barang mulai diterima)`, tone: 'amber' }
+  return { key: 'SEBAGIAN', text: `Sebagian — ${received} dari ${total} barang mulai diterima (jumlah belum lengkap)`, tone: 'amber' }
 }
 
 // Baris parent masih boleh memakai aksi BULK (Masuk Stok Gudang / Serah ke

@@ -186,7 +186,7 @@ console.log('\nA6. Ringkasan parent diturunkan dari item (bukan dropdown Normal)
   const s = L.parentSummary(prog)
   check('A6a multi-item sebagian -> key SEBAGIAN', s.key === 'SEBAGIAN', `key=${s.key}`)
   check('A6b teks tidak menyebut PARSIAL menyesatkan', !/PARSIAL/.test(s.text), s.text)
-  check('A6c teks menyebut jumlah barang mulai diterima (1/3)', /Sebagian \(1\/3/.test(s.text), s.text)
+  check('A6c teks menyebut jumlah barang mulai diterima (1/3)', /Sebagian — 1 dari 3/.test(s.text), s.text)
 
   // semua 0 -> "Belum diterima (0/N)" — bukan "Parsial"
   const H0 = makeItemHelpers({ allPrItems: PR_ITEMS, allReceivingItems: [

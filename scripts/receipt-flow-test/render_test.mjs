@@ -310,6 +310,13 @@ console.log('\nC9. Daftar Purchase: ringkasan parent read-only (bukan dropdown N
   check('C9i 1 item -> bulk boleh (Masuk Stok Gudang tampil)', /Masuk Stok Gudang/.test(t2))
   // 1 item: dropdown status NOTA tetap ada (dimensi nota terpisah, label jelas)
   check('C9j 1 item -> dropdown "Nota Normal" ada (bukan kondisi barang)', /Nota Normal/.test(t2))
+
+  // 1 item PARSIAL -> teks qty per barang, bukan "PARSIAL (0/1)" menyesatkan
+  const RI1p = [{ id: 's1', receiving_id: 'rc1i', pr_item_id: 'pi1', item_name: 'Thiner', unit: 'Liter', quantity_received: 3 }]
+  const { document: doc3 } = mount(R1, RI1p)
+  await tick()
+  const t3 = doc3.querySelector('.desktop-table-view')?.textContent || ''
+  check('C9k 1 item parsial -> "Diterima sebagian (3/10)"', /Diterima sebagian \(3\/10\)/.test(t3), t3.slice(0, 300))
 }
 
 console.log(`\nrender_test: ${pass}/${pass + fail} lulus${fail ? ' — GAGAL: ' + failures.join(' | ') : ''}`)
