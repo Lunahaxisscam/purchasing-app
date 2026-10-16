@@ -48,6 +48,10 @@ tombol `↺ Pakai acuan` mengembalikan harga ke acuan secara eksplisit).
 - Kolom "sumber acuan" yang tampil di daftar form adalah metadata sesi;
   setelah simpan, yang tersimpan hanya harga. **Jangan mengklaim sumber
   tersimpan** sampai skema di bawah disetujui.
+- Badge saat PR di-reopen: item ber-harga tanpa metadata sumber (snapshot
+  tersimpan) berbadge **📌 Tersimpan (snapshot)** — bukan "Belum ada
+  acuan" (harga jelas ada; hanya sumbernya yang tak tercatat). Label
+  "Belum ada acuan" tetap khusus item **tanpa harga** sama sekali.
 
 **Kebutuhan skema yang diusulkan ke DAT (menunggu izin — freeze migrasi
 tetap berlaku; TIDAK dieksekusi):**
@@ -105,9 +109,10 @@ menampilkan sumber tersimpan, dan metadata sesi tidak diperlukan lagi.
 
 - `modules/requests/estimator.js` (baru) — resolver wrapper + eligibility +
   total (dipakai form & save).
-- `modules/requests/form.jsx` — area pemilih (filter kategori + search
-  diperkecil, stack mobile), badge sumber, subtotal per item, Total
-  Estimasi, tombol "Pakai acuan".
+- `modules/requests/form.jsx` — header satu baris Project + Judul
+  Kebutuhan (`.pr-header-row`, desktop 2 kolom 40/60, mobile stack),
+  area pemilih (filter kategori + search diperkecil, stack mobile),
+  badge sumber, subtotal per item, Total Estimasi, tombol "Pakai acuan".
 - `modules/requests/save.js` — gate validasi harga/qty/vendor + penulisan
   `validatedPrice`.
 - `modules/requests/view.jsx` — subtotal snapshot per item + baris Total
