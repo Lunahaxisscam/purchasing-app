@@ -23,6 +23,68 @@ import {
 
 const UNIT_OPTIONS = ['unit', 'm1', 'm2', 'm3', 'ls', 'titik', 'set', 'pcs', 'kg', 'liter']
 
+// ============================================================
+// PATOKAN ANGGARAN 4-PILAR (Noir Living)
+//   Budget Standar  : Material 50% · Upah 25% · Operasional 10% · Target Margin 15%
+//   Budget Custom   : persentase bebas (draft), diterapkan hanya bila VALID.
+// Draft vs Applied: draft = yang sedang diketik user (boleh sementara total >100
+// agar dapat rebalance). Applied = snapshot valid terakhir yang dipakai untuk
+// pagu nominal, deteksi anomali, dan sumber data finance. Tidak ada normalisasi
+// senyap: nilai tidak valid hanya TIDAK diterapkan (bukan di-rescale).
+// ============================================================
+const STANDARD_PERCENTAGES = { material: 50, manpower: 25, operasional: 10, margin: 15 }
+const PCT_FIELDS = [
+  { key: 'material', label: 'Material' },
+  { key: 'manpower', label: 'Upah' },
+  { key: 'operasional', label: 'Operasional' },
+  { key: 'margin', label: 'Target Margin' }
+]
+
+// Bentuk draft (string) dari objek persentase — dipakai untuk nilai input.
+function pctToDraft(p) {
+  return {
+    material: String(p.material),
+    manpower: String(p.manpower),
+    operasional: String(p.operasional),
+    margin: String(p.margin)
+  }
+}
+
+// Validasi draft persentase: tiap field harus finite dan 0..100, TOTAL <= 100.
+// Mengembalikan { valid, fieldsOk, totalOk, total, remaining, errors, values }.
+// values berisi angka tervalidasi (null bila field invalid) — hanya dipakai bila valid.
+function validatePercentDraft(draft) {
+  const values = {}
+  const errors = []
+  let total = 0
+  let fieldsOk = true
+  for (const f of PCT_FIELDS) {
+    const raw = draft ? draft[f.key] : ''
+    const str = String(raw ?? '').trim()
+    const num = str === '' ? NaN : Number(str)
+    if (str === '' || !Number.isFinite(num) || num < 0 || num > 100) {
+      fieldsOk = false
+      errors.push(`${f.label} harus angka 0–100`)
+      values[f.key] = null
+    } else {
+      values[f.key] = num
+      total += num
+    }
+  }
+  const totalRounded = Math.round(total * 100) / 100
+  const totalOk = fieldsOk && totalRounded <= 100
+  const valid = fieldsOk && totalOk
+  return {
+    valid,
+    fieldsOk,
+    totalOk,
+    total: totalRounded,
+    remaining: Math.max(0, Math.round((100 - totalRounded) * 100) / 100),
+    errors,
+    values
+  }
+}
+
 const emptyForm = {
   id: null,
   area: '',
@@ -70,6 +132,12 @@ export default function Planning({ rows, say, setPage, refresh }) {
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [prBusyId, setPrBusyId] = useState(null)
+  const [budgetMode, setBudgetMode] = useState('standard') // 'standard' or 'custom'
+  // Draft = nilai input yang sedang diketik (string, boleh sementara total >100).
+  const [customDraft, setCustomDraft] = useState(() => pctToDraft(STANDARD_PERCENTAGES))
+  // Applied = snapshot VALID terakhir (angka) yang dipakai untuk pagu/anomali.
+  const [appliedPercentages, setAppliedPercentages] = useState(STANDARD_PERCENTAGES)
+  const [customNotApplied, setCustomNotApplied] = useState(false)
 
   // Proyek aktif (belum DONE), urut nomor kode numerik.
   const activeProjects = useMemo(() => {
@@ -162,16 +230,47 @@ export default function Planning({ rows, say, setPage, refresh }) {
     }
   }, [projectPlans])
 
+  // Validasi draft persentase custom (dihitung tiap render draft berubah).
+  // total boleh sementara >100 (draft) agar user dapat rebalance.
+  const customValidation = useMemo(() => validatePercentDraft(customDraft), [customDraft])
+
+  // Sinkronkan draft → applied HANYA bila draft valid (tidak ada normalisasi senyap).
+  // Saat draft invalid (mis. total >100 di tengah rebalance) applied TIDAK berubah,
+  // sehingga pagu nominal/anomali tetap memakai snapshot valid terakhir.
+  useEffect(() => {
+    if (budgetMode !== 'custom') return
+    if (customValidation.valid) {
+      setAppliedPercentages(customValidation.values)
+      setCustomNotApplied(false)
+    } else {
+      setCustomNotApplied(true)
+    }
+  }, [budgetMode, customValidation.valid, customDraft]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Kalkulasi pagu anggaran historis Noir Living & perbandingan Pagu vs Realisasi Riil
   const budget = useMemo(() => {
     const revenueVal = Number(activeCost?.revenue)
     const revenue = !isNaN(revenueVal) && revenueVal > 0 ? revenueVal : 0
 
-    // 1. Plafon 4-Pilar (Patokan Historis DAT / Noir Living)
-    const budgetMaterial = Math.round(revenue * 0.50)
-    const budgetManpower = Math.round(revenue * 0.25)
-    const budgetOperasional = Math.round(revenue * 0.10)
-    const targetMargin = Math.round(revenue * 0.15)
+    // Mode custom berlaku walau revenue belum tersedia (pagu nominal pending).
+    // Persentase yang DITERAPKAN: custom memakai snapshot valid terakhir;
+    // standar memakai patokan fixed 50/25/10/15. TIDAK fallback diam-diam.
+    const useCustom = budgetMode === 'custom'
+    const applied = useCustom ? appliedPercentages : STANDARD_PERCENTAGES
+    const pctMaterial = applied.material
+    const pctManpower = applied.manpower
+    const pctOperasional = applied.operasional
+    const pctMargin = applied.margin
+
+    // Total persentase yang benar-benar DITERAPKAN (selalu <= 100).
+    const totalCustomPct = pctMaterial + pctManpower + pctOperasional + pctMargin
+    const isExceedingLimit = useCustom && !customValidation.valid
+
+    // 1. Plafon 4-Pilar (Patokan Historis DAT / Noir Living) atau Custom
+    const budgetMaterial = Math.round(revenue * (pctMaterial / 100))
+    const budgetManpower = Math.round(revenue * (pctManpower / 100))
+    const budgetOperasional = Math.round(revenue * (pctOperasional / 100))
+    const targetMargin = Math.round(revenue * (pctMargin / 100))
 
     // 2. Realisasi Riil
     const matVal = Number(activeCost?.cumulative_cost)
@@ -295,6 +394,15 @@ export default function Planning({ rows, say, setPage, refresh }) {
       budgetManpower,
       budgetOperasional,
       targetMargin,
+      
+      // Custom Budget Mode Info
+      useCustom,
+      appliedPercentages,
+      draftPercentages: customDraft,
+      customValidation,
+      customNotApplied,
+      totalCustomPct,
+      isExceedingLimit,
 
       // Realisasi Riil
       realMaterial,
@@ -339,7 +447,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
       costSummary: activeCost
     }
-  }, [activeCost, stats.labor, costError])
+  }, [activeCost, stats.labor, costError, budgetMode, appliedPercentages, customValidation, customDraft, customNotApplied])
 
   // Sinkronkan ke stats untuk kompatibilitas penuh dengan pemanggilan legacy
   Object.assign(stats, budget)
@@ -378,6 +486,27 @@ export default function Planning({ rows, say, setPage, refresh }) {
       if (name === 'status' && value === 'Selesai') form.progress = '100'
       return { ...m, form }
     })
+  }
+
+  // Update DRAFT persentase (string) — tidak menyentuh applied secara langsung.
+  // Applied disinkronkan oleh efek saat draft valid; nilai invalid ditandai.
+  function updateCustomPercentage(field, value) {
+    setCustomDraft(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Pindah mode anggaran. Kembali ke Standar → applied direset ke patokan fixed.
+  // Pindah ke Custom → draft dipulihkan dari snapshot applied terakhir.
+  function changeBudgetMode(mode) {
+    if (mode === budgetMode) return
+    if (mode === 'standard') {
+      setBudgetMode('standard')
+      setAppliedPercentages(STANDARD_PERCENTAGES)
+      setCustomDraft(pctToDraft(STANDARD_PERCENTAGES))
+      setCustomNotApplied(false)
+    } else {
+      setBudgetMode('custom')
+      setCustomDraft(pctToDraft(appliedPercentages))
+    }
   }
 
   async function savePlan(e) {
@@ -602,17 +731,38 @@ export default function Planning({ rows, say, setPage, refresh }) {
         {/* Header Panel */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid var(--border-light)' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#142320', fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🎯 Kontrol Anggaran &amp; Pagu Historis</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#142320', fontFamily: 'var(--font-heading)' }}>
+                🎯 Kontrol Anggaran &amp; Pagu Historis
               </h3>
-              <span className="badge" style={{ background: '#e6ece9', color: '#2d4a43', fontSize: '11px', fontWeight: 650 }}>
-                Patokan: Material 50% · Upah 25% · Ops 10% · Margin 15%
+              <span className="badge" style={{ background: '#e6ece9', color: '#2d4a43', fontSize: '10.5px', fontWeight: 650 }}>
+                Patokan: Material {budget.appliedPercentages.material}% · Upah {budget.appliedPercentages.manpower}% · Ops {budget.appliedPercentages.operasional}% · Margin {budget.appliedPercentages.margin}%
               </span>
             </div>
-            <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#6b7e79' }}>
-              Perbandingan Pagu Historis vs Pengeluaran Riil di lapangan untuk proyek <strong>{project ? (project.kode ? `[${project.kode}] ${project.name}` : project.name) : '—'}</strong>
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: budgetMode === 'standard' ? '#e6ece9' : '#f3f4f6', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="budgetMode"
+                  value="standard"
+                  checked={budgetMode === 'standard'}
+                  onChange={() => changeBudgetMode('standard')}
+                  style={{ margin: 0 }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#1f2937' }}>🔸 Budget Standar</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: budgetMode === 'custom' ? '#e6ece9' : '#f3f4f6', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="budgetMode"
+                  value="custom"
+                  checked={budgetMode === 'custom'}
+                  onChange={() => changeBudgetMode('custom')}
+                  style={{ margin: 0 }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#1f2937' }}>🔸 Budget Custom</span>
+              </label>
+            </div>
           </div>
 
           <div>
@@ -637,6 +787,82 @@ export default function Planning({ rows, say, setPage, refresh }) {
             )}
           </div>
         </div>
+
+        {/* ============================================================
+            PANEL ATUR PERSENTASE ANGGARAN (khusus Budget Custom)
+            Tampil TEPAT di bawah saklar mode — 4 input jelas + total/sisa.
+            ============================================================ */}
+        {budget.useCustom && (
+          <div className="budget-pct-panel">
+            <div className="budget-pct-panel-head">
+              <span className="budget-pct-panel-title">⚙️ Atur persentase anggaran</span>
+              <span className="budget-pct-panel-hint">
+                Draft perubahan <em>Belum tersimpan permanen</em> — hanya berlaku di sesi ini.
+              </span>
+            </div>
+
+            <div className="budget-pct-grid">
+              {PCT_FIELDS.map(f => {
+                const invalidField = budget.customValidation.values[f.key] === null
+                return (
+                  <label key={f.key} className="budget-pct-field">
+                    <span className="budget-pct-field-label">{f.label} (%)</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      inputMode="numeric"
+                      aria-label={`Persentase ${f.label}`}
+                      value={budget.draftPercentages[f.key]}
+                      onChange={(e) => updateCustomPercentage(f.key, e.target.value)}
+                      className="custom-pct-input"
+                      style={{
+                        border: invalidField ? '2px solid #ef4444' : '1px solid #cbd5e1'
+                      }}
+                    />
+                  </label>
+                )
+              })}
+            </div>
+
+            <div className="budget-pct-footer">
+              <span className="budget-pct-total">
+                Total: <strong style={{ color: budget.customValidation.totalOk ? '#047857' : '#b91c1c' }}>{budget.customValidation.total}%</strong> / 100%
+              </span>
+              <span className="budget-pct-sisa">
+                Sisa: <strong>{budget.customValidation.remaining}%</strong>
+              </span>
+              <span
+                className="budget-pct-status"
+                style={{
+                  background: budget.customValidation.valid ? '#ecfdf5' : '#fef2f2',
+                  color: budget.customValidation.valid ? '#047857' : '#b91c1c',
+                  borderColor: budget.customValidation.valid ? '#d1fae5' : '#fecaca'
+                }}
+              >
+                {budget.customValidation.valid
+                  ? '✓ Diterapkan'
+                  : (budget.customValidation.totalOk
+                    ? `⚠️ ${budget.customValidation.errors[0] || 'Nilai tidak valid'}`
+                    : '⚠️ Total melebihi 100% — belum diterapkan')}
+              </span>
+            </div>
+
+            {!budget.customValidation.valid && (
+              <div className="budget-pct-warn">
+                Perubahan belum diterapkan. Pagu &amp; deteksi anomali masih memakai alokasi valid terakhir
+                {' '}(Material {budget.appliedPercentages.material}% · Upah {budget.appliedPercentages.manpower}% ·
+                {' '}Ops {budget.appliedPercentages.operasional}% · Margin {budget.appliedPercentages.margin}%).
+              </div>
+            )}
+            {budget.revenue <= 0 && (
+              <div className="budget-pct-pending">
+                ℹ️ Nilai kontrak (revenue) belum tersedia — pagu nominal menunggu. Persentase tetap dapat diatur sekarang.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Ringkasan Kontrak & Total Realisasi Biaya (Overview Strip) */}
         <div className="budget-overview-strip">
@@ -744,8 +970,14 @@ export default function Planning({ rows, say, setPage, refresh }) {
           <div className={`budget-card card-material ${budget.isMaterialOver ? 'is-anomaly' : (budget.revenue > 0 ? 'is-on-track' : '')}`}>
             <div>
               <div className="budget-card-header">
-                <span className="budget-card-title">1. Material (50% max)</span>
-                <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '10px', fontWeight: 700 }}>50% Max</span>
+                <span className="budget-card-title">1. Material</span>
+                {budget.useCustom ? (
+                  <span className="badge" style={{ background: budget.customNotApplied ? '#fef3c7' : '#e0f2fe', color: budget.customNotApplied ? '#b45309' : '#0369a1', fontSize: '10px', fontWeight: 700 }} title="Persentase diterapkan (atur di panel atas)">
+                    {budget.appliedPercentages.material}% Diterapkan
+                  </span>
+                ) : (
+                  <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '10px', fontWeight: 700 }}>50% Max</span>
+                )}
               </div>
               <div>
                 <div className="budget-card-nominal">
@@ -811,8 +1043,14 @@ export default function Planning({ rows, say, setPage, refresh }) {
           <div className={`budget-card card-manpower ${budget.isLaborOver ? 'is-anomaly' : (budget.revenue > 0 ? 'is-on-track' : '')}`}>
             <div>
               <div className="budget-card-header">
-                <span className="budget-card-title">2. Manpower (25% max)</span>
-                <span className="badge" style={{ background: '#f0fdfa', color: '#0f766e', fontSize: '10px', fontWeight: 700 }}>25% Max</span>
+                <span className="budget-card-title">2. Manpower</span>
+                {budget.useCustom ? (
+                  <span className="badge" style={{ background: budget.customNotApplied ? '#fef3c7' : '#f0fdfa', color: budget.customNotApplied ? '#b45309' : '#0f766e', fontSize: '10px', fontWeight: 700 }} title="Persentase diterapkan (atur di panel atas)">
+                    {budget.appliedPercentages.manpower}% Diterapkan
+                  </span>
+                ) : (
+                  <span className="badge" style={{ background: '#f0fdfa', color: '#0f766e', fontSize: '10px', fontWeight: 700 }}>25% Max</span>
+                )}
               </div>
               <div>
                 <div className={`budget-card-nominal ${budget.isLaborOver ? 'danger-text' : ''}`}>
@@ -882,8 +1120,14 @@ export default function Planning({ rows, say, setPage, refresh }) {
           <div className={`budget-card card-operasional ${budget.isOperasionalOver ? 'is-anomaly' : (budget.revenue > 0 ? 'is-on-track' : '')}`}>
             <div>
               <div className="budget-card-header">
-                <span className="budget-card-title">3. Operasional (10% max)</span>
-                <span className="badge" style={{ background: '#fef3c7', color: '#b45309', fontSize: '10px', fontWeight: 700 }}>10% Max</span>
+                <span className="budget-card-title">3. Operasional</span>
+                {budget.useCustom ? (
+                  <span className="badge" style={{ background: '#fef3c7', color: '#b45309', fontSize: '10px', fontWeight: 700 }} title="Persentase diterapkan (atur di panel atas)">
+                    {budget.appliedPercentages.operasional}% Diterapkan
+                  </span>
+                ) : (
+                  <span className="badge" style={{ background: '#fef3c7', color: '#b45309', fontSize: '10px', fontWeight: 700 }}>10% Max</span>
+                )}
               </div>
               <div>
                 <div className={`budget-card-nominal ${budget.isOperasionalOver ? 'danger-text' : ''}`}>
@@ -949,8 +1193,14 @@ export default function Planning({ rows, say, setPage, refresh }) {
           <div className={`budget-card card-margin ${budget.isMarginThin ? 'is-anomaly' : (budget.revenue > 0 ? 'is-on-track' : '')}`}>
             <div>
               <div className="budget-card-header">
-                <span className="budget-card-title">4. Target Margin (15%)</span>
-                <span className="badge" style={{ background: '#dcfce7', color: '#15803d', fontSize: '10px', fontWeight: 700 }}>15% Min</span>
+                <span className="budget-card-title">4. Target Margin</span>
+                {budget.useCustom ? (
+                  <span className="badge" style={{ background: budget.customNotApplied ? '#fef3c7' : '#dcfce7', color: budget.customNotApplied ? '#b45309' : '#15803d', fontSize: '10px', fontWeight: 700 }} title="Persentase diterapkan (atur di panel atas)">
+                    {budget.appliedPercentages.margin}% Diterapkan
+                  </span>
+                ) : (
+                  <span className="badge" style={{ background: '#dcfce7', color: '#15803d', fontSize: '10px', fontWeight: 700 }}>15% Min</span>
+                )}
               </div>
               <div>
                 <div className="budget-card-nominal" style={{ color: budget.revenue > 0 ? '#0d6e38' : 'inherit' }}>
@@ -1011,16 +1261,16 @@ export default function Planning({ rows, say, setPage, refresh }) {
           </div>
         </div>
 
-        {/* Footer Ringkasan Patokan Historis */}
+        {/* Footer Ringkasan Patokan Historis (data finance) */}
         <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ fontSize: '11.5px', color: '#71817d' }}>
-            <strong>Komposisi Pagu Total (100%):</strong> Material 50% ({budget.revenue > 0 ? rupiah(budget.budgetMaterial) : '50%'}) + Upah 25% ({budget.revenue > 0 ? rupiah(budget.budgetManpower) : '25%'}) + Ops 10% ({budget.revenue > 0 ? rupiah(budget.budgetOperasional) : '10%'}) + Margin 15% ({budget.revenue > 0 ? rupiah(budget.targetMargin) : '15%'}) = <strong>{budget.revenue > 0 ? rupiah(budget.revenue) : '100%'}</strong>
+            <strong>Komposisi Pagu Total (100%):</strong> Material {budget.appliedPercentages.material}% ({budget.revenue > 0 ? rupiah(budget.budgetMaterial) : `${budget.appliedPercentages.material}%`}) + Upah {budget.appliedPercentages.manpower}% ({budget.revenue > 0 ? rupiah(budget.budgetManpower) : `${budget.appliedPercentages.manpower}%`}) + Ops {budget.appliedPercentages.operasional}% ({budget.revenue > 0 ? rupiah(budget.budgetOperasional) : `${budget.appliedPercentages.operasional}%`}) + Margin {budget.appliedPercentages.margin}% ({budget.revenue > 0 ? rupiah(budget.targetMargin) : `${budget.appliedPercentages.margin}%`}) = <strong>{budget.revenue > 0 ? rupiah(budget.revenue) : '100%'}</strong>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '11px', fontWeight: 650, flexWrap: 'wrap' }}>
-            <span style={{ color: budget.revenue > 0 && budget.isMaterialOver ? '#dc2626' : '#0284c7' }}>● Material 50% {budget.revenue > 0 ? (budget.isMaterialOver ? '(Over)' : '(Aman)') : '(—)'}</span>
-            <span style={{ color: budget.revenue > 0 && budget.isLaborOver ? '#dc2626' : '#0d9488' }}>● Upah 25% {budget.revenue > 0 ? (budget.isLaborOver ? '(Over)' : '(Aman)') : '(—)'}</span>
-            <span style={{ color: budget.revenue > 0 && budget.isOperasionalOver ? '#dc2626' : '#d97706' }}>● Ops 10% {budget.revenue > 0 ? (budget.isOperasionalOver ? '(Over)' : '(Aman)') : '(—)'}</span>
-            <span style={{ color: budget.revenue > 0 && budget.isMarginThin ? '#dc2626' : '#16a34a' }}>● Margin 15% {budget.revenue > 0 ? (budget.isMarginThin ? '(Tipis)' : '(Aman)') : '(—)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isMaterialOver ? '#dc2626' : '#0284c7' }}>● Material {budget.appliedPercentages.material}% {budget.revenue > 0 ? (budget.isMaterialOver ? '(Over)' : '(Aman)') : '(—)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isLaborOver ? '#dc2626' : '#0d9488' }}>● Upah {budget.appliedPercentages.manpower}% {budget.revenue > 0 ? (budget.isLaborOver ? '(Over)' : '(Aman)') : '(—)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isOperasionalOver ? '#dc2626' : '#d97706' }}>● Ops {budget.appliedPercentages.operasional}% {budget.revenue > 0 ? (budget.isOperasionalOver ? '(Over)' : '(Aman)') : '(—)'}</span>
+            <span style={{ color: budget.revenue > 0 && budget.isMarginThin ? '#dc2626' : '#16a34a' }}>● Margin {budget.appliedPercentages.margin}% {budget.revenue > 0 ? (budget.isMarginThin ? '(Tipis)' : '(Aman)') : '(—)'}</span>
           </div>
         </div>
       </div>
