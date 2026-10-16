@@ -2448,3 +2448,42 @@ table.requests-table td.pr-item-vendor {
     min-height: 44px;
   }
 }
+
+/* ========================================================
+   TOMBOL PRINT TEMPLATE PENGADAAN (Arahan DAT t_bb0929f6)
+   Baris sendiri, rata kanan, tepat di atas baris search /
+   "+ Tambah Purchase Request" pada modul Purchase Request.
+   Anchor bergaya tombol (rule `button` tidak berlaku ke <a>).
+   ======================================================== */
+.print-template-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 14px;
+}
+
+.btn-print-template {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .print-template-row {
+    margin: 0 0 12px;
+  }
+  .btn-print-template {
+    width: 100%;
+    /* Touch target 44px (standar a11y mobile) */
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}

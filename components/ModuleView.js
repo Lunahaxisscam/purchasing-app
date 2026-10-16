@@ -162,6 +162,23 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     <>
       {/* Banner modul (mis. peringatan stok BHP menipis di Materials) */}
       {renderModuleBanner(page, ctx)}
+      {/* Tombol cetak template manual tim lapangan — form kosong 2 halaman A4
+          (BUKAN cetak PR terpilih, BUKAN trigger pembuatan PR).
+          Posisi sesuai anotasi screenshot DAT: rata kanan, tepat di atas baris
+          search / + Tambah Purchase Request, dekat tombol Perbarui. */}
+      {page === 'requests' && (
+        <div className="print-template-row">
+          <a
+            className="outline btn-print-template"
+            href="/print/form-pengadaan-lapangan-template.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Buka Form Pengadaan Lapangan (PDF 2 halaman A4) untuk di-preview / cetak"
+          >
+            Print Template Pengadaan
+          </a>
+        </div>
+      )}
       {/* Feedback DAT: toolbar Vendor tampil BERSIH — teks counter
           "{n} data tersedia" dan container filter kosong tidak dirender
           (filter pills Vendor sudah dihapus di modules/vendors/view.jsx).
