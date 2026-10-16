@@ -10,6 +10,8 @@
 //   E) Perbarui (re-render data baru) -> filter aktif dipertahankan
 //   F) Keputusan approval -> baris keluar dari antrean, hitungan konsisten
 //   G) Regresi modul lain (filter default & empty state generik)
+//   H) CATATAN (t_1fe52e80): approval baru tanpa note, legacy auto-seed
+//      exact-pattern tampil dash, catatan pengguna TIDAK pernah disembunyikan
 // Dijalankan oleh run.py di sandbox (mock supabase, tanpa DB).
 // ============================================================
 import { createRequire } from 'node:module'
@@ -65,9 +67,12 @@ const noopProps = {
   onUpdateReceivingQty: noop, onDelete: noop, setPage: noop
 }
 
-// 3 approval: 1 PENDING + 1 APPROVED + 1 REJECTED (mixed statuses)
+// 4 approval: 1 PENDING baru (tanpa note) + 1 PENDING legacy (auto-seed) +
+// 1 APPROVED + 1 REJECTED (mixed statuses). t_1fe52e80: approval baru dibuat
+// TANPA note (null) — teks "Menunggu persetujuan..." hanya ada di data legacy.
 const APPROVALS = [
-  { id: 'a1', pr_number: 'PR-010', project_name: '[101] Aan - BSD', title: 'Kabinet Atas & Meja Rias', purchase_request_id: 'r10', step_number: 1, status: 'PENDING', note: 'Menunggu persetujuan Direksi / PM untuk PR-010', decided_at: null },
+  { id: 'a1', pr_number: 'PR-010', project_name: '[101] Aan - BSD', title: 'Kabinet Atas & Meja Rias', purchase_request_id: 'r10', step_number: 1, status: 'PENDING', note: null, decided_at: null },
+  { id: 'a4', pr_number: 'PR-012', project_name: '[55] Gudang Lama', title: 'Pintu & Kusen', purchase_request_id: 'r12', step_number: 1, status: 'PENDING', note: 'Menunggu persetujuan Direksi / PM untuk PR-012', decided_at: null },
   { id: 'a2', pr_number: 'PR-001', project_name: '[101] Aan - BSD', title: 'Lemari & Credenza', purchase_request_id: 'r1', step_number: 1, status: 'APPROVED', note: 'Disetujui oleh Direksi / PM', decided_at: '2026-10-15T09:00:00Z' },
   { id: 'a3', pr_number: 'PR-005', project_name: '[83] Mabes', title: 'Finishing dapur', purchase_request_id: 'r5', step_number: 1, status: 'REJECTED', note: 'Harga vendor terlalu tinggi', decided_at: '2026-10-14T08:00:00Z' }
 ]
@@ -113,15 +118,15 @@ console.log('A. Default antrean — tab pertama "⏳ Menunggu" aktif, riwayat ti
   const ui = mount('approvals', APPROVALS, { allPrItems: PR_ITEMS, allRequests: [] })
   const doc = document
   const pills = pillLabels(doc)
-  check('tab pertama = "⏳ Menunggu (1)"', pills[0] === '⏳ Menunggu (1)', JSON.stringify(pills))
-  check('tab aktif = "⏳ Menunggu (1)"', activePill(doc) === '⏳ Menunggu (1)', activePill(doc) || '')
+  check('tab pertama = "⏳ Menunggu (2)"', pills[0] === '⏳ Menunggu (2)', JSON.stringify(pills))
+  check('tab aktif = "⏳ Menunggu (2)"', activePill(doc) === '⏳ Menunggu (2)', activePill(doc) || '')
   check('urutan tab: Menunggu → Disetujui → Revisi → Ditolak → Semua',
-    pills.join(' | ') === '⏳ Menunggu (1) | ✓ Disetujui (1) | ✎ Revisi (0) | ✕ Ditolak (1) | Semua (3)', JSON.stringify(pills))
+    pills.join(' | ') === '⏳ Menunggu (2) | ✓ Disetujui (1) | ✎ Revisi (0) | ✕ Ditolak (1) | Semua (4)', JSON.stringify(pills))
   const rows = desktopRows(doc)
-  check('hanya 1 baris (PENDING) tampil di default', rows.length === 1, `rows=${rows.length}`)
-  check('baris yang tampil = PR-010 (bukan riwayat APPROVED)', bodyText(doc).includes('PR-010') && !rows.some(r => r.textContent.includes('PR-001') || r.textContent.includes('PR-005')), rows.map(r => r.textContent.slice(0, 40)).join(' ;; '))
+  check('hanya 2 baris (PENDING) tampil di default', rows.length === 2, `rows=${rows.length}`)
+  check('baris yang tampil = PR-010 & PR-012 (bukan riwayat APPROVED)', bodyText(doc).includes('PR-010') && bodyText(doc).includes('PR-012') && !rows.some(r => r.textContent.includes('PR-001') || r.textContent.includes('PR-005')), rows.map(r => r.textContent.slice(0, 40)).join(' ;; '))
   check('tombol aksi Setujui/Tolak/Revisi tersedia di antrean', bodyText(doc).includes('✓ Setujui') && bodyText(doc).includes('✕ Tolak') && bodyText(doc).includes('✎ Revisi'))
-  check('counter "1 data tersedia" konsisten', bodyText(doc).includes('1 data tersedia'))
+  check('counter "2 data tersedia" konsisten', bodyText(doc).includes('2 data tersedia'))
   ui.unmount()
 }
 
@@ -156,10 +161,10 @@ console.log('\nC. Riwayat Disetujui/Revisi/Ditolak/Semua tetap bisa diakses eksp
   clickPill('✕ Ditolak')
   check('tab "✕ Ditolak" menampilkan PR-005', desktopRows(doc).some(r => r.textContent.includes('PR-005')))
   clickPill('Semua')
-  check('tab "Semua" menampilkan 3 baris (tidak ada data terhapus)', desktopRows(doc).length === 3, `rows=${desktopRows(doc).length}`)
-  check('tab "Semua" aktif di posisi terakhir', pillLabels(doc)[4] === 'Semua (3)' && activePill(doc) === 'Semua (3)')
+  check('tab "Semua" menampilkan 4 baris (tidak ada data terhapus)', desktopRows(doc).length === 4, `rows=${desktopRows(doc).length}`)
+  check('tab "Semua" aktif di posisi terakhir', pillLabels(doc)[4] === 'Semua (4)' && activePill(doc) === 'Semua (4)')
   clickPill('⏳ Menunggu')
-  check('kembali ke antrean: hanya PENDING tampil', desktopRows(doc).length === 1 && bodyText(doc).includes('PR-010'))
+  check('kembali ke antrean: hanya PENDING tampil', desktopRows(doc).length === 2 && bodyText(doc).includes('PR-010'))
   ui.unmount()
 }
 
@@ -180,8 +185,8 @@ console.log('\nD. Masuk ulang modul — antrean reset ke Menunggu')
   // Pindah ke modul lain lalu masuk Approval lagi
   renderPage('vendors', [{ id: 'v1', name: 'TB Sumber Jaya', phone: '0812', contact: 'x', supplier_category: 'Plywood & Board', store_link: '' }])
   renderPage('approvals', APPROVALS)
-  check('setelah masuk ulang, tab aktif kembali "⏳ Menunggu (1)"', activePill(document) === '⏳ Menunggu (1)', activePill(document) || '')
-  check('antrean Menunggu tampil (bukan riwayat)', desktopRows(document).length === 1 && bodyText(document).includes('PR-010'))
+  check('setelah masuk ulang, tab aktif kembali "⏳ Menunggu (2)"', activePill(document) === '⏳ Menunggu (2)', activePill(document) || '')
+  check('antrean Menunggu tampil (bukan riwayat)', desktopRows(document).length === 2 && bodyText(document).includes('PR-010'))
   // Modul lain juga reset saat dibuka ulang (perilaku lama tetap)
   renderPage('vendors', [{ id: 'v1', name: 'TB Sumber Jaya', phone: '0812', contact: 'x', supplier_category: 'Plywood & Board', store_link: '' }])
   check('modul lain (vendors) tidak terpengaruh perubahan Approval', pillLabels(document).length === 0 || !bodyText(document).includes('⏳ Menunggu'))
@@ -194,21 +199,21 @@ console.log('\nE. Perbarui (data baru via props) — filter aktif dipertahankan'
   const ui = mount('approvals', APPROVALS, { allPrItems: PR_ITEMS, allRequests: [] })
   const doc = document
   // User di tab Semua, lalu tombol "↻ Perbarui" di header memuat ulang data (loadAll)
-  const semua = Array.from(doc.querySelectorAll('.toolbar .filter-tabs .pill')).find(p => p.textContent.trim() === 'Semua (3)')
+  const semua = Array.from(doc.querySelectorAll('.toolbar .filter-tabs .pill')).find(p => p.textContent.trim() === 'Semua (4)')
   act(() => { semua.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
-  check('pra-syarat: tab "Semua" aktif', activePill(doc) === 'Semua (3)')
+  check('pra-syarat: tab "Semua" aktif', activePill(doc) === 'Semua (4)')
   // loadAll() selesai -> setRows dengan data refresh (status sama + 1 pengajuan baru)
-  const refreshed = [...APPROVALS, { id: 'a4', pr_number: 'PR-011', project_name: '[83] Mabes', title: 'Meja kerja', purchase_request_id: 'r11', step_number: 1, status: 'PENDING', note: null, decided_at: null }]
+  const refreshed = [...APPROVALS, { id: 'a5', pr_number: 'PR-011', project_name: '[83] Mabes', title: 'Meja kerja', purchase_request_id: 'r11', step_number: 1, status: 'PENDING', note: null, decided_at: null }]
   ui.rerender({ rows: refreshed })
-  check('setelah refresh, tab tetap "Semua (4)" (filter dipertahankan)', activePill(doc) === 'Semua (4)', activePill(doc) || '')
-  check('data hasil refresh tampil (4 baris)', desktopRows(doc).length === 4, `rows=${desktopRows(doc).length}`)
+  check('setelah refresh, tab tetap "Semua (5)" (filter dipertahankan)', activePill(doc) === 'Semua (5)', activePill(doc) || '')
+  check('data hasil refresh tampil (5 baris)', desktopRows(doc).length === 5, `rows=${desktopRows(doc).length}`)
   // Sama untuk tab antrean: refresh tidak melempar user kembali/default lain
   ui.rerender({ rows: APPROVALS, allPrItems: PR_ITEMS })
   const menunggu = Array.from(doc.querySelectorAll('.toolbar .filter-tabs .pill')).find(p => p.textContent.trim().startsWith('⏳ Menunggu'))
   act(() => { menunggu.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
   ui.rerender({ rows: refreshed, allPrItems: PR_ITEMS })
-  check('refresh saat di antrean: tetap di "⏳ Menunggu (2)"', activePill(doc) === '⏳ Menunggu (2)', activePill(doc) || '')
-  check('2 PENDING tampil setelah refresh', desktopRows(doc).length === 2)
+  check('refresh saat di antrean: tetap di "⏳ Menunggu (3)"', activePill(doc) === '⏳ Menunggu (3)', activePill(doc) || '')
+  check('3 PENDING tampil setelah refresh', desktopRows(doc).length === 3)
   ui.unmount()
 }
 
@@ -221,9 +226,10 @@ console.log('\nF. Keputusan approval — baris keluar dari antrean, hitungan kon
   // -> setRows: approval_steps PR-010 jadi APPROVED (baris keluar dari antrean)
   const decided = APPROVALS.map(a => a.id === 'a1' ? { ...a, status: 'APPROVED', decided_at: '2026-10-16T10:00:00Z' } : a)
   ui.rerender({ rows: decided })
-  check('tab antrean jadi "⏳ Menunggu (0)"', activePill(doc) === '⏳ Menunggu (0)', activePill(doc) || '')
-  check('baris PR-010 keluar dari antrean', desktopRows(doc).length === 0)
-  check('empty state tegas muncul (bukan fallback riwayat)', bodyText(doc).includes('Tidak ada pengajuan yang perlu disetujui.'))
+  check('tab antrean jadi "⏳ Menunggu (1)"', activePill(doc) === '⏳ Menunggu (1)', activePill(doc) || '')
+  check('baris PR-010 keluar dari antrean', !desktopRows(doc).some(r => r.textContent.includes('PR-010')))
+  check('PR-012 masih di antrean (data legacy tidak dihapus)', desktopRows(doc).some(r => r.textContent.includes('PR-012')))
+  check('empty state TIDAK muncul (masih ada 1 pending)', !bodyText(doc).includes('Tidak ada pengajuan yang perlu disetujui.'))
   check('hitungan Disetujui naik jadi 2', pillLabels(doc).some(p => p === '✓ Disetujui (2)'), JSON.stringify(pillLabels(doc)))
   check('riwayat masih utuh di tab Disetujui (2 baris)', (() => {
     const pill = Array.from(doc.querySelectorAll('.toolbar .filter-tabs .pill')).find(p => p.textContent.trim() === '✓ Disetujui (2)')
@@ -255,6 +261,74 @@ console.log('\nG. Regresi modul lain — default filter & empty state tidak beru
   act(() => { semua.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
   check('approvals tab Semua kosong: "Belum ada data." (bukan pesan antrean)', bodyText(document).includes('Belum ada data.'))
   uiApp.unmount()
+}
+
+// ---------- SKENARIO H: catatan — t_1fe52e80 ----------
+console.log('\nH. CATATAN — approval baru null, legacy auto-seed dash, catatan pengguna utuh')
+{
+  const ui = mount('approvals', APPROVALS, { allPrItems: PR_ITEMS, allRequests: [] })
+  const doc = document
+  const clickPill = (label) => {
+    const pill = Array.from(doc.querySelectorAll('.toolbar .filter-tabs .pill')).find(p => p.textContent.trim().startsWith(label))
+    act(() => { pill.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
+  }
+
+  // H.1 — Approval baru (a1, note null): kolom Catatan desktop tampil dash,
+  //       BUKAN teks "Menunggu persetujuan...".
+  const rowBaru = desktopRows(doc).find(r => r.textContent.includes('PR-010'))
+  check('H.1a kolom Catatan approval baru = dash "—"', !!rowBaru && Array.from(rowBaru.querySelectorAll('td')).map(td => td.textContent.trim()).includes('—'), rowBaru ? JSON.stringify(Array.from(rowBaru.querySelectorAll('td')).map(td => td.textContent.trim().slice(0, 24))) : 'baris PR-010 tidak ketemu')
+  check('H.1b teks auto "Menunggu persetujuan" TIDAK tampil di antrean', !bodyText(doc).includes('Menunggu persetujuan Direksi'))
+
+  // H.2 — Legacy auto-seed (a4): teks exact-pattern tampil dash, baris tetap ada.
+  const rowLegacy = desktopRows(doc).find(r => r.textContent.includes('PR-012'))
+  check('H.2a baris legacy PR-012 TETAP tampil di antrean (tidak ada penghapusan data)', !!rowLegacy)
+  check('H.2b kolom Catatan legacy = dash "—"', !!rowLegacy && Array.from(rowLegacy.querySelectorAll('td')).map(td => td.textContent.trim()).includes('—'), rowLegacy ? JSON.stringify(Array.from(rowLegacy.querySelectorAll('td')).map(td => td.textContent.trim().slice(0, 24))) : 'baris PR-012 tidak ketemu')
+
+  // H.3 — Catatan keputusan pengguna tetap tampil utuh.
+  clickPill('✓ Disetujui')
+  const rowSetuju = desktopRows(doc).find(r => r.textContent.includes('PR-001'))
+  check('H.3 catatan keputusan pengguna tampil utuh di desktop', !!rowSetuju && rowSetuju.textContent.includes('Disetujui oleh Direksi / PM'), rowSetuju ? rowSetuju.textContent.slice(0, 80) : 'tidak ketemu')
+
+  // H.4 — Catatan penolakan (REJECTED, punya decided_at) tetap tampil meski
+  //       teksnya mengandung kata "Menunggu" — kata saja tidak menyembunyikan.
+  clickPill('✕ Ditolak')
+  const rowTolak = desktopRows(doc).find(r => r.textContent.includes('PR-005'))
+  check('H.4 catatan pengguna yg mengandung kata "Menunggu" TIDAK disembunyikan', !!rowTolak && rowTolak.textContent.includes('Harga vendor terlalu tinggi'), rowTolak ? rowTolak.textContent.slice(0, 80) : 'tidak ketemu')
+
+  // H.5 — Kartu mobile: approval baru & legacy pending = TANPA blok Catatan
+  //       (desain antrean mobile BitDev: blok dash hanya untuk riwayat);
+  //       keduanya harus tampil IDENTIK — legacy tidak diistimewakan.
+  clickPill('⏳ Menunggu')
+  const cards = Array.from(doc.querySelectorAll('.mobile-cards-view .mobile-card'))
+  const cardBaru = cards.find(c => c.textContent.includes('PR-010'))
+  const cardLegacy = cards.find(c => c.textContent.includes('PR-012'))
+  const catatanBaru = cardBaru?.querySelector('.mobile-card-note')
+  const catatanLegacy = cardLegacy?.querySelector('.mobile-card-note')
+  check('H.5a kartu mobile approval baru TIDAK punya blok Catatan', !!cardBaru && !catatanBaru, catatanBaru ? catatanBaru.textContent : 'ok')
+  check('H.5b kartu mobile legacy pending = persis seperti approval baru (tanpa blok Catatan, bukan teks auto)', !!cardLegacy && !catatanLegacy, catatanLegacy ? catatanLegacy.textContent : 'ok')
+
+  // H.5c — Riwayat (sudah diputuskan) tanpa catatan TETAP tampil dash di mobile
+  //        (perilaku lama dipertahankan; hanya pending yang sengaja polos).
+  ui.unmount()
+  const ui2 = mount('approvals', [{ ...APPROVALS.find(a => a.id === 'a2'), note: null }], { allPrItems: [], allRequests: [] })
+  clickPill('✓ Disetujui')
+  const cardRiwayat = Array.from(doc.querySelectorAll('.mobile-cards-view .mobile-card'))[0]
+  const blokRiwayat = cardRiwayat?.querySelector('.mobile-card-note')
+  check('H.5c kartu mobile riwayat tanpa catatan = blok dash "—" (perilaku lama utuh)', !!blokRiwayat && blokRiwayat.textContent.includes('—'), blokRiwayat ? blokRiwayat.textContent : 'tidak ada blok')
+  ui2.unmount()
+
+  // H.6 — Helper deteksi legacy (unit langsung dari modules/approvals/view).
+  const { isLegacyAutoNote, displayNote } = await import(pathToFileURL(path.join(SB, 'dist/modules/approvals/view.mjs')).href)
+  check('H.6a isLegacyAutoNote: legacy exact-pattern = true', isLegacyAutoNote({ note: 'Menunggu persetujuan Direksi / PM untuk PR-012', step_number: 1, decided_at: null }) === true)
+  check('H.6b isLegacyAutoNote: catatan pengguna mengandung frasa = false (jangan sembunyikan)', isLegacyAutoNote({ note: 'Masih Menunggu persetujuan Direksi / PM untuk PR-012, mohon cepat', step_number: 1, decided_at: null }) === false)
+  check('H.6c isLegacyAutoNote: exact match tapi sudah diputuskan (decided_at) = false', isLegacyAutoNote({ note: 'Menunggu persetujuan Direksi / PM untuk PR-001', step_number: 1, decided_at: '2026-10-15T09:00:00Z' }) === false)
+  check('H.6d isLegacyAutoNote: exact match tapi step_number != 1 = false', isLegacyAutoNote({ note: 'Menunggu persetujuan Direksi / PM untuk PR-002', step_number: 2, decided_at: null }) === false)
+  check('H.6e displayNote: approval baru null -> null (dash)', displayNote({ note: null, step_number: 1, decided_at: null }) === null)
+  check('H.6f displayNote: catatan pengguna -> utuh apa adanya', displayNote({ note: 'Tolong cek ulang qty', step_number: 1, decided_at: null }) === 'Tolong cek ulang qty')
+  check('H.6g isLegacyAutoNote: whitespace berbeda pada pola sama (trim) = true', isLegacyAutoNote({ note: '  Menunggu persetujuan Direksi / PM untuk PR-003  ', step_number: 1, decided_at: null }) === true)
+  check('H.6h isLegacyAutoNote: "PR" tanpa nomor (fallback template lama) = true', isLegacyAutoNote({ note: 'Menunggu persetujuan Direksi / PM untuk PR', step_number: 1, decided_at: null }) === true)
+
+  ui.unmount()
 }
 
 console.log(`\n=== HASIL: ${pass} LULUS, ${fail} GAGAL ===`)

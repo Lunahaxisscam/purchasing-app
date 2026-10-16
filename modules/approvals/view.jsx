@@ -13,6 +13,57 @@
 import React from 'react'
 import { format } from '../../lib/constants'
 
+// ============================================================
+// CATATAN APPROVAL — aturan render (t_1fe52e80)
+// ============================================================
+// Kolom/note card "Catatan" HANYA berisi catatan yang benar-benar diketik
+// pengguna. Approval baru dibuat TANPA note (null) — teks "Menunggu
+// persetujuan..." tidak pernah disemai lagi (pages/index.js finishPr sudah
+// berhenti menyemai). Untuk data lama yang pernah disemai otomatis oleh
+// versi aplikasi sebelumnya, teks tsb digantikan dash "—" saat render
+// (TIDAK ada mutasi DB). Deteksi legacy dilakukan dua lapis agar catatan
+// pengguna yang KEBETULAN mengandung frasa yang sama tidak pernah
+// disembunyikan:
+//   1) TEKS: harus sama persis dengan satu pola auto-generate yang dikenal
+//      (setelah trim). Pola dijaga ketat — menambah pola baru di sini hanya
+//      jika pola itu memang lahir dari kode auto-generate.
+//   2) METADATA: baris approval harus berasal dari jalur auto-seed, yaitu
+//      step pertama yang dibuat finishPr (step_number === 1) dan BELUM
+//      diputuskan (decided_at kosong). Catatan keputusan (selalu punya
+//      decided_at) tidak pernah memenuhi syarat, apa pun teksnya.
+// Keterbatasan (didokumentasikan, tidak ada cleanup palsu): bila pengguna
+// lama sengaja mengetik teks yang 100% identik dengan pola auto pada step-1
+// yang masih pending, teksnya ikut tampil sebagai dash — kasus ini tidak
+// bisa dibedakan dari luar tanpa kolom provenance di DB (tidak ada migrasi).
+// ============================================================
+
+// Pola teks auto-generate yang pernah dipakai aplikasi saat membuat/
+// mengaktifkan approval step (exact match setelah trim). SATU-SATUNYA sumber
+// pola: template literal di finishPr() pages/index.js sebelum t_1fe52e80.
+const LEGACY_AUTO_NOTE_PATTERNS = [
+  /^Menunggu persetujuan Direksi \/ PM untuk .*$/ // `Menunggu persetujuan Direksi / PM untuk ${pr.pr_number || 'PR'}`
+]
+
+// True bila note adalah sisa auto-seed legacy yang aman diganti dash.
+export function isLegacyAutoNote(r) {
+  const note = typeof r?.note === 'string' ? r.note.trim() : null
+  if (!note) return false
+  // Lapis 2 (metadata): hanya step-1 yang belum diputuskan yang pernah
+  // di-seed otomatis. Catatan keputusan tidak pernah lolos gerbang ini.
+  if (r.step_number !== 1 || r.decided_at) return false
+  // Lapis 1 (teks): exact match ke pola yang dikenal.
+  return LEGACY_AUTO_NOTE_PATTERNS.some(re => re.test(note))
+}
+
+// Teks catatan siap render: null/'' -> null (dash oleh format()),
+// sisa auto-seed legacy -> null, catatan pengguna -> utuh apa adanya.
+export function displayNote(r) {
+  if (isLegacyAutoNote(r)) return null
+  const note = r?.note
+  if (note === null || note === undefined || note === '') return null
+  return note
+}
+
 // --- Filter tabs ---
 // Urutan tab (arahan DAT t_0a35264f): antrean "⏳ Menunggu" SELALU di posisi
 // pertama dan aktif secara default (state awal approvalFilter='PENDING' di
@@ -86,6 +137,16 @@ export function renderCell(h, r, rawVal, ctx) {
             {q}
           </span>
         )) : <span className="muted" style={{ fontSize: '12px' }}>—</span>}
+      </div>
+    )
+  }
+  // Kolom Catatan (t_1fe52e80): hanya catatan pengguna; sisa auto-seed legacy
+  // tampil dash. Null/'' dirender dash via format() — konsisten dgn modul lain.
+  if (h === 'note') {
+    const note = displayNote(r)
+    return (
+      <div style={{ whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: 1.4, fontSize: '12px' }}>
+        {format(note)}
       </div>
     )
   }
@@ -271,12 +332,14 @@ export function mobileCard(r, ctx) {
             }) : <span className="muted">—</span>}
           </div>
         </div>
-        {r.note && (
+        {/* Catatan (t_1fe52e80): hanya catatan pengguna yang tampil. Sisa
+            auto-seed legacy & pending tanpa catatan sama-sama tampil dash. */}
+        {displayNote(r) && (
           <div className="mobile-card-note">
-            <b>Catatan:</b> {r.note}
+            <b>Catatan:</b> {displayNote(r)}
           </div>
         )}
-        {!r.note && r.status !== 'PENDING' && (
+        {!displayNote(r) && r.status !== 'PENDING' && (
           <div className="mobile-card-note">
             <b>Catatan:</b> —
           </div>
