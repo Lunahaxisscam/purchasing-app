@@ -2382,3 +2382,13 @@ table.requests-table td.pr-item-name,
 table.requests-table td.pr-item-vendor {
   line-height: 1.4;
 }
+
+
+/* --- 15. Override BACKGROUND inline off-palette (progress bar WBS dsb.)
+   di file modul milik worker lain, tanpa mengedit JSX mereka. --- */
+[style*="background: rgb(19, 115, 51)"], [style*="background:#137333"] { background: var(--ok) !important; }
+[style*="background: rgb(26, 86, 196)"], [style*="background:#1a56c4"] { background: var(--olive-700) !important; }
+[style*="background: rgb(2, 132, 199)"], [style*="background:#0284c7"] { background: var(--olive-500) !important; }
+[style*="background: rgb(220, 38, 38)"], [style*="background:#dc2626"] { background: var(--danger) !important; }
+[style*="background: rgb(230, 244, 234)"], [style*="background:#e6f4ea"] { background: var(--ok-tint) !important; }
+[style*="background: rgb(206, 234, 214)"], [style*="background:#ceead6"] { background: var(--ok-border) !important; }
