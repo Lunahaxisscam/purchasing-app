@@ -152,7 +152,9 @@ export function AcuanRincian({ entries, formManual, onManualChange, onManualSubm
                   {e.date ? format(String(e.date).slice(0, 10)) : <span className="muted">—</span>}
                 </td>
                 <td style={{ padding: '4px 8px' }}>
-                  <span className="acuan-badge acuan-badge-historis" title="Harga terealisasi dari pembelian yang benar-benar diterima (harga satuan material, tanpa ongkir/admin)">✅ Historis</span>
+                  {e.source === 'HISTORIS' && (
+                    <span className="acuan-badge acuan-badge-historis" title="Harga terealisasi dari pembelian yang benar-benar diterima (harga satuan material, tanpa ongkir/admin)">✅ Historis</span>
+                  )}
                   {e.source === 'MASTER' && (
                     <span className="acuan-badge acuan-badge-master" title="Acuan harga yang sudah ada di master material (tanpa tanggal/vendor)">📍 Master</span>
                   )}

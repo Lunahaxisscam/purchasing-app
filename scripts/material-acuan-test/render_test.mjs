@@ -282,6 +282,19 @@ console.log('\nD. Resolver acuan: histori benar, unknown vendor, satuan beda, re
   // Material tanpa satuan sama sekali (data lama) — tidak crash
   const noUnitMat = A.entriesFor({ id: 'mX', satuan: null, unit: null, harga_acuan: null })
   check('resolver data lama tanpa satuan: aman (0 entri)', noUnitMat.length === 0)
+
+  // Render positif badge HISTORIS (review run 64): entri historis nyata
+  // WAJIB berbadge "✅ Historis" agar tidak salah dibaca sbg master/manual.
+  const { document: docH } = mount('materials', [MAT_HIST])
+  await tick()
+  const btnH = toggleByName(docH, 'Material Histori Lengkap')
+  click(btnH); await tick()
+  const textH = expandRows(docH)[0]?.textContent || ''
+  check('render HISTORIS: badge "✅ Historis" tampil utk entri pembelian terealisasi', textH.includes('Historis'), textH.slice(0, 160))
+  check('render HISTORIS: vendor + harga + tanggal tampil',
+    textH.includes('Toko Baroni Jaya') && textH.includes('Rp 120.000') && textH.includes('2026-10-12'))
+  check('render HISTORIS: TIDAK ada badge Master/Manual (sumber murni)',
+    !textH.includes('Master') && !textH.includes('belum tersimpan'))
 }
 
 // ---------- E. PROTOTYPE TAMBAH ACUAN (interaktif) ----------
@@ -295,6 +308,10 @@ console.log('\nE. Prototype "Tambah Acuan": validasi & entri manual belum tersim
   let expandText = expandRows(document)[0]?.textContent || ''
   check('rincian sebelum manual: ada entri MASTER 150.000', expandText.includes('Rp 150.000') && expandText.includes('Master'), expandText.slice(0, 150))
   check('rincian sebelum manual: badge MASTER "tanpa tanggal"', expandText.includes('Master'))
+  // Negatif per-sumber (review run 64): expand yg HANYA berisi MASTER tidak boleh
+  // menampilkan badge "Historis" — data non-pembelian jangan tampak sbg histori terealisasi.
+  check('rincian MASTER-only TIDAK menampilkan teks "Historis" (sumber tidak dicampur)',
+    !expandText.includes('Historis'), expandText.slice(0, 160))
 
   // Klik "Tambah Acuan" -> form muncul
   const addBtn = [...expandRows(document)[0].querySelectorAll('button')].find(b => b.textContent.includes('Tambah Acuan'))
@@ -330,6 +347,14 @@ console.log('\nE. Prototype "Tambah Acuan": validasi & entri manual belum tersim
   check('peringatan "belum tersimpan" tampil di rincian', expandText.includes('belum tersimpan'))
   check('entri manual TIDAK mengubah entri MASTER (dua sumber tampil)', expandText.includes('Master'))
   check('entri manual tidak diberi tanggal palsu', (expandText.match(/—/g) || []).length >= 1)
+  // Negatif per-sumber pada expand campuran (review run 64): baris MANUAL dan
+  // baris MASTER masing-masing TIDAK boleh menampilkan badge "Historis".
+  const acuanRows = [...(expandRows(document)[0]?.querySelectorAll('.acuan-table tbody tr') || [])]
+  const rowManual = acuanRows.find(r => r.textContent.includes('Rp 25.500'))
+  const rowMaster = acuanRows.find(r => r.textContent.includes('Rp 150.000'))
+  check('baris MANUAL tidak menampilkan "Historis" (sumber terpisah)', !!rowManual && !rowManual.textContent.includes('Historis'), rowManual?.textContent.slice(0, 140))
+  check('baris MASTER tidak menampilkan "Historis" (sumber terpisah)', !!rowMaster && !rowMaster.textContent.includes('Historis'), rowMaster?.textContent.slice(0, 140))
+  check('baris manual tetap berbadge "Manual — belum tersimpan"', !!rowManual && rowManual.textContent.includes('belum tersimpan'))
 }
 
 // ---------- F. DATA LAMA & ROBUSTNESS ----------
