@@ -2707,6 +2707,14 @@ tr.acuan-expand-row > td {
   color: var(--warn);
   border: 1px solid var(--warn-border);
 }
+/* Estimasi PR terdahulu (P1 t_e88c28fb): netral abu-abu — BUKAN hijau.
+   Estimasi yang barangnya sudah diterima bukan harga beli aktual; warna
+   sukses hanya utk harga aktual terverifikasi (kategori HISTORIS). */
+.acuan-badge-estimate {
+  background: #f3f5f6;
+  color: #556260;
+  border: 1px solid #d6dcde;
+}
 
 @media (max-width: 1024px) {
   .acuan-toggle {

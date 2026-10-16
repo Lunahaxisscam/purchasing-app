@@ -28,12 +28,23 @@ const MAT_MASTER = { id: 'mMASTER', kode: 'HPL-9002', name: 'Material Master', c
 const MAT_KOSONG = { id: 'mKOSONG', kode: 'HPL-9003', name: 'Material Kosong', category: 'HPL & Edging', satuan: 'Lembar', harga_acuan: null }
 const MAT_SATUAN = { id: 'mUNIT', kode: 'HPL-9004', name: 'Material Satuan Beda', category: 'HPL & Edging', satuan: 'Lembar', harga_acuan: null }
 const MAT_HIST_V2 = { id: 'mH2', kode: 'HPL-9005', name: 'Histori dua vendor', category: 'HPL & Edging', satuan: 'Lembar', harga_acuan: null }
+// P1 t_e88c28fb — actual ≠ estimated & pemisahan kategori:
+const MAT_ACTUAL = { id: 'mACT', kode: 'HPL-9006', name: 'Material Harga Aktual', category: 'HPL & Edging', satuan: 'Lembar', harga_acuan: null }
+const MAT_EST_ONLY = { id: 'mEST', kode: 'HPL-9007', name: 'Material Estimasi Saja', category: 'HPL & Edging', satuan: 'Lembar', harga_acuan: null }
+const MAT_MASTER_EST = { id: 'mMEST', kode: 'HPL-9008', name: 'Material Master + Estimasi', category: 'HPL & Edging', satuan: 'Lembar', harga_acuan: 160000 }
+const MAT_QZERO = { id: 'mQZ', kode: 'HPL-9009', name: 'Material Qty Nol', category: 'HPL & Edging', satuan: 'Lembar', harga_acuan: null }
 
 const PR_ITEMS = [
-  { id: 'pi1', pr_id: 'prA', material_id: 'mHIST', unit: 'Lembar', quantity: 10, status: 'ORDERED', vendor_id: 'v1', estimated_price: 120000 },
+  // P1: satu-satunya item ber-HISTORIS (harga aktual 120.000 ≠ estimasi 130.000)
+  { id: 'piAct', pr_id: 'prA', material_id: 'mACT', unit: 'Lembar', quantity: 10, status: 'ORDERED', vendor_id: 'v1', estimated_price: 130000, price_actual: 120000 },
+  // Item tanpa kolom aktual (estimasi 999.000) + satuan Dus ≠ Lembar → NO_ENTRY utk mUNIT
   { id: 'pi2', pr_id: 'prA', material_id: 'mUNIT', unit: 'Dus', quantity: 2, status: 'ORDERED', vendor_id: 'v2', estimated_price: 999000 },
-  { id: 'pi3', pr_id: 'prA', material_id: 'mH2', unit: 'Lembar', quantity: 4, status: 'ORDERED', vendor_id: 'v2', estimated_price: 200000, sort_order: 2 },
-  { id: 'pi4', pr_id: 'prB', material_id: 'mH2', unit: 'Lembar', quantity: 6, status: 'ORDERED', vendor_id: 'v1', estimated_price: 150000, sort_order: 0 }
+  { id: 'pi3', pr_id: 'prA', material_id: 'mH2', unit: 'Lembar', quantity: 4, status: 'ORDERED', vendor_id: 'v2', estimated_price: 200000, price_actual: 200000, sort_order: 2 },
+  { id: 'pi4', pr_id: 'prB', material_id: 'mH2', unit: 'Lembar', quantity: 6, status: 'ORDERED', vendor_id: 'v1', estimated_price: 150000, price_actual: 150000, sort_order: 0 },
+  // P1: estimasi saja (barang diterima) → PR_ESTIMATE; master+estimasi; qty nol
+  { id: 'piEst', pr_id: 'prA', material_id: 'mEST', unit: 'Lembar', quantity: 3, status: 'ORDERED', vendor_id: 'v2', estimated_price: 250000 },
+  { id: 'piMest', pr_id: 'prA', material_id: 'mMEST', unit: 'Lembar', quantity: 2, status: 'ORDERED', vendor_id: 'v1', estimated_price: 180000 },
+  { id: 'piQz', pr_id: 'prA', material_id: 'mQZ', unit: 'Lembar', quantity: 3, status: 'ORDERED', vendor_id: 'v1', estimated_price: 300000 }
 ]
 const RECEIVINGS = [
   { id: 'rc1', vendor_id: 'v1', status: 'NORMAL', received_date: '2026-10-12', created_at: '2026-10-12T02:00:00Z' },
@@ -42,26 +53,54 @@ const RECEIVINGS = [
   { id: 'rc4', vendor_id: 'v1', status: 'NORMAL', received_date: '2026-10-15', created_at: '2026-10-15T02:00:00Z' }
 ]
 const RECEIVING_ITEMS = [
-  { id: 'ri1', receiving_id: 'rc1', pr_item_id: 'pi1', quantity_received: 10 },
+  { id: 'ri1', receiving_id: 'rc1', pr_item_id: 'piAct', quantity_received: 10 },
   { id: 'ri2', receiving_id: 'rc2', pr_item_id: 'pi2', quantity_received: 2 },
   { id: 'ri3', receiving_id: 'rc3', pr_item_id: 'pi3', quantity_received: 4 },
-  { id: 'ri4', receiving_id: 'rc4', pr_item_id: 'pi4', quantity_received: 6 }
+  { id: 'ri4', receiving_id: 'rc4', pr_item_id: 'pi4', quantity_received: 6 },
+  { id: 'riEst', receiving_id: 'rc3', pr_item_id: 'piEst', quantity_received: 3 },
+  { id: 'riMest', receiving_id: 'rc4', pr_item_id: 'piMest', quantity_received: 2 },
+  { id: 'riQz', receiving_id: 'rc4', pr_item_id: 'piQz', quantity_received: 0 }
 ]
 
 const E = est.makePrEstimator({ allPrItems: PR_ITEMS, allReceivingItems: RECEIVING_ITEMS, allReceivings: RECEIVINGS, allVendors: VENDORS })
 
-// --- 1. estimateFor: histori > master > none; vendor diprioritaskan ---
-console.log('1. estimateFor — histori terbaru, prioritas vendor, fallback master')
+// --- 1. estimateFor: histori(aktual) > master > estimasi PR > none ---
+console.log('1. estimateFor — aktual > master > estimasi PR; prioritas vendor hanya utk aktual')
 {
-  const e1 = E.estimateFor(MAT_HIST)
-  check('MAT_HIST: status OK, sumber HISTORIS', e1.status === 'OK' && e1.source === 'HISTORIS', JSON.stringify(e1))
-  check('MAT_HIST: harga 120.000, vendor Toko Baroni Jaya, tgl 2026-10-12',
-    e1.price === 120000 && e1.vendor === 'Toko Baroni Jaya' && String(e1.date).startsWith('2026-10-12'))
-  check('MAT_HIST: unit mengikuti satuan material (Lembar)', e1.unit === 'Lembar')
+  const e1 = E.estimateFor(MAT_ACTUAL)
+  check('MAT_ACTUAL: status OK, sumber HISTORIS (harga aktual)', e1.status === 'OK' && e1.source === 'HISTORIS', JSON.stringify(e1))
+  check('MAT_ACTUAL: harga 120.000 AKTUAL — BUKAN estimasi 130.000', e1.price === 120000, String(e1.price))
+  check('MAT_ACTUAL: vendor Toko Baroni Jaya, tgl 2026-10-12',
+    e1.vendor === 'Toko Baroni Jaya' && String(e1.date).startsWith('2026-10-12'))
+  check('MAT_ACTUAL: unit mengikuti satuan material (Lembar)', e1.unit === 'Lembar')
 
-  // Histori dua vendor: terbaru = v1 (2026-10-15, 150.000) → tanpa vendor pakai terbaru
+  // P1 (b): estimasi PR terdahulu yang diterima — kategori PR_ESTIMATE,
+  // BUKAN HISTORIS (qty_received>0 tidak membuktikan harga aktual).
+  const est1 = E.estimateFor(MAT_EST_ONLY)
+  check('MAT_EST_ONLY: sumber PR_ESTIMATE — bukan "Historis"', est1.status === 'OK' && est1.source === 'PR_ESTIMATE', JSON.stringify(est1))
+  check('MAT_EST_ONLY: harga 250.000 dari estimated_price', est1.price === 250000)
+  check('MAT_EST_ONLY: TIDAK berkategori HISTORIS', est1.source !== 'HISTORIS')
+
+  // P1: vendor rencana beli TIDAK mempromosikan estimasi sbg "pembelian
+  // vendor itu" — prioritas vendor hanya menyaring kategori HISTORIS.
+  const estByV2 = E.estimateFor(MAT_EST_ONLY, { vendorId: 'v2' })
+  check('MAT_EST_ONLY @v2: tetap PR_ESTIMATE (estimasi ≠ pembelian vendor)', estByV2.source === 'PR_ESTIMATE', JSON.stringify(estByV2))
+
+  // P1 (c): total invoice [Nominal] bukan unit price — tidak ada skenario
+  // harga aktual dari nota total di resolver (test render material-acuan).
+  // Di sini: MASTER menang atas PR_ESTIMATE saat keduanya ada.
+  const mest = E.estimateFor(MAT_MASTER_EST)
+  check('MAT_MASTER_EST: MASTER 160.000 menang atas estimasi 180.000', mest.source === 'MASTER' && mest.price === 160000, JSON.stringify(mest))
+  const mestList = E.entriesFor(MAT_MASTER_EST)
+  check('MAT_MASTER_EST urutan: MASTER dulu, PR_ESTIMATE kedua', mestList[0]?.source === 'MASTER' && mestList[1]?.source === 'PR_ESTIMATE', JSON.stringify(mestList.map(e => e.source)))
+
+  // P1: qty_received = 0 — estimasi tidak menjadi acuan apa pun.
+  const qz = E.estimateFor(MAT_QZERO)
+  check('MAT_QZERO: qty 0 → NO_ENTRY, price null (BUKAN harga aktual)', qz.status === 'NO_ENTRY' && qz.price === null, JSON.stringify(qz))
+
+  // Histori dua vendor (keduanya harga aktual): terbaru = v1 (2026-10-15)
   const latest = E.estimateFor(MAT_HIST_V2)
-  check('MAT_H2 tanpa vendor: histori TERBARU (150.000 dari v1, 15 Okt)', latest.price === 150000 && latest.vendor === 'Toko Baroni Jaya')
+  check('MAT_H2 tanpa vendor: histori AKTUAL TERBARU (150.000 dari v1, 15 Okt)', latest.price === 150000 && latest.vendor === 'Toko Baroni Jaya')
   const byV2 = E.estimateFor(MAT_HIST_V2, { vendorId: 'v2' })
   check('MAT_H2 vendor v2: HISTORIS v2 (200.000, 14 Okt) diprioritaskan', byV2.price === 200000 && byV2.vendor === 'TB Makmur Sentosa')
   const byUnknown = E.estimateFor(MAT_HIST_V2, { vendorId: 'vNOPE' })

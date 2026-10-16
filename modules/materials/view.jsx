@@ -19,16 +19,22 @@
 // - sebagai gantinya, di bawah NAMA ada tombol "+ Acuan Harga" (collapse
 //   "▲ Tutup Acuan") yang membuka rincian per vendor: Vendor | Harga per
 //   satuan | Tanggal | Sumber (Historis/Manual).
-// - Sumber:
-//     • HISTORIS — harga TEREALISASI dari pembelian nyata (receiving_items
-//       qty>0 → pr_items → receivings), harga satuan murni material
-//       (pr_items.estimated_price), bukan [Nominal] nota (bisa mengandung
-//       ongkir/admin), bukan estimasi PR yang belum diterima, dan hanya
-//       material yang BENAR-BENAR terlink via pr_item_id (bukan nama mirip).
+// - Sumber (P1 t_e88c28fb — label harga AKTUAL vs ESTIMASI dipisah):
+//     • HISTORIS — harga beli AKTUAL TERVERIFIKASI dari nota/purchase line
+//       valid (kolom actual pr_items; skema existing belum punya — kategori
+//       ini kosong sampai skema actual disetujui DAT). TIDAK PERNAH memakai
+//       estimated_price.
+//     • PR_ESTIMATE — estimasi PR terdahulu (pr_items.estimated_price) yang
+//       barangnya sudah diterima. Barang diterima TIDAK membuktikan
+//       estimasi = harga beli aktual; kategori TERPISAH berbadge jujur,
+//       tidak dipromosikan jadi aktual/trealisasi.
 //     • MASTER — harga_acuan existing di master material (TANPA tanggal &
 //       vendor; nilai lama tidak diberi sejarah palsu).
 //     • MANUAL — PROTOTYPE (state sesi, BELUM TERSIMPAN ke DB; migrasi DB
 //       dibekukan DAT). Ditandai jelas di UI + docs/material-acuan-policy.md.
+//   Semua entri tetap butuh penerimaan nyata (qty>0, bukan Retur/Refund/
+//   Rusak) dan material yang BENAR-BENAR terlink via pr_item_id (bukan
+//   nama mirip); harga total invoice [Nominal] tidak dipakai sbg unit price.
 // - Default SEMUA baris TERTUTUP: daftar tetap ringkas; expand TIDAK
 //   mengubah jumlah parent / tidak me-reset Show More (state terpisah di
 //   shell, baris expand dirender di luar limit — lihat ModuleView.js).
@@ -153,10 +159,13 @@ export function AcuanRincian({ entries, formManual, onManualChange, onManualSubm
                 </td>
                 <td style={{ padding: '4px 8px' }}>
                   {e.source === 'HISTORIS' && (
-                    <span className="acuan-badge acuan-badge-historis" title="Harga terealisasi dari pembelian yang benar-benar diterima (harga satuan material, tanpa ongkir/admin)">✅ Historis</span>
+                    <span className="acuan-badge acuan-badge-historis" title="Harga beli AKTUAL terverifikasi dari nota/purchase line valid (harga satuan material, tanpa ongkir/admin)">✅ Historis (pembelian)</span>
                   )}
                   {e.source === 'MASTER' && (
                     <span className="acuan-badge acuan-badge-master" title="Acuan harga yang sudah ada di master material (tanpa tanggal/vendor)">📍 Master</span>
+                  )}
+                  {e.source === 'PR_ESTIMATE' && (
+                    <span className="acuan-badge acuan-badge-estimate" title="Estimasi harga di PR terdahulu yang barangnya sudah diterima — BUKAN harga beli aktual (nota bisa berbeda); jangan dipakai sebagai harga pembelian nyata">⚠️ Estimasi PR terdahulu — bukan harga beli</span>
                   )}
                   {e.source === 'MANUAL' && (
                     <span className="acuan-badge acuan-badge-manual" title="Entri manual sesi ini — BELUM TERSIMPAN (pembekuan migrasi DB)">✍️ Manual — belum tersimpan</span>

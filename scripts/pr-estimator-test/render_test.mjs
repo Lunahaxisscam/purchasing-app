@@ -69,11 +69,15 @@ const MATERIALS = [
   { id: 'mBHP1', kode: 'BHP-0001', name: 'Lem Fox', category: 'Bahan Habis Pakai', qty: 0, satuan: 'Kaleng', harga_acuan: null }
 ]
 const PROJECTS = [{ id: 'p83', kode: '83', name: 'Mabes', status: 'ON_GOING' }]
-// Histori pembelian terealisasi:
-//   mHPL1 @ vHPL 120.000/Lembar (12 Okt) — via PR lama prOLD + receiving rcOLD
-//   mALM1 @ vendor HPL? TIDAK — item PR lama per Dus vs master Meter → bukan histori
+// P1 t_e88c28fb — pemisahan harga AKTUAL vs ESTIMASI:
+//   piOld1 (mHPL1): kolom price_actual TERISI 115.000 ≠ estimated 120.000
+//   → satu-satunya fixture berkategori HISTORIS (harga aktual terverifikasi).
+//   piOld2 (mALM1): hanya estimated_price 700.000 — kategori PR_ESTIMATE
+//   (unit Dus ≠ Meter, jadi tak relevan utk mALM1 sama sekali).
+// Histori:
+//   mHPL1 @ vHPL aktual 115.000/Lembar (12 Okt) — via PR lama prOLD + rcOLD
 const PR_ITEMS = [
-  { id: 'piOld1', pr_id: 'prOLD', material_id: 'mHPL1', item_name: 'HPL Cip buruf putih', kode: 'HPL-0001', unit: 'Lembar', quantity: 5, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'vHPL', estimated_price: 120000, sort_order: 0 },
+  { id: 'piOld1', pr_id: 'prOLD', material_id: 'mHPL1', item_name: 'HPL Cip buruf putih', kode: 'HPL-0001', unit: 'Lembar', quantity: 5, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'vHPL', estimated_price: 120000, price_actual: 115000, sort_order: 0 },
   { id: 'piOld2', pr_id: 'prOLD', material_id: 'mALM1', item_name: 'Frame Baleno', kode: 'ALM-0015', unit: 'Dus', quantity: 2, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'vHPL', estimated_price: 700000, sort_order: 1 }
 ]
 const RECEIVINGS = [
@@ -145,13 +149,13 @@ console.log('A. Tambah item → estimasi OTOMATIS terisi (atau kosong + label)')
   click(addBtn); await tick()
 
   const priceInput = qa(document, '.material-picker-box table tbody input[type="text"]')[0]
-  check('item HPL-0001 (ada histori): estimasi otomatis terisi "120.000"', priceInput?.value === '120.000', `got "${priceInput?.value}"`)
+  check('item HPL-0001 (harga aktual): estimasi otomatis terisi "115.000"', priceInput?.value === '115.000', `got "${priceInput?.value}"`)
   const rowText = priceInput.closest('tr').textContent
-  check('badge sumber ✅ Historis tampil', rowText.includes('Historis'), rowText.slice(0, 160))
+  check('badge sumber ✅ Historis (pembelian) tampil (harga aktual, P1)', rowText.includes('Historis'), rowText.slice(0, 160))
   check('vendor referensi "ref: Toko HPL Jaya" tampil', rowText.includes('Toko HPL Jaya'))
   check('tanggal histori 2026-10-12 tampil', rowText.includes('2026-10-12'))
   const totalText = q(document, '.material-picker-box').textContent
-  check('Total Estimasi terisi (qty 1 × 120.000 = 120.000)', totalText.includes('Total Estimasi') && totalText.includes('120.000'), totalText.slice(-200))
+  check('Total Estimasi terisi (qty 1 × 115.000 = 115.000)', totalText.includes('Total Estimasi') && totalText.includes('115.000'), totalText.slice(-200))
 
   // Material TANPA acuan (Frame Baleno): kosong + label, BUKAN 0
   inputSet(searchInput, 'Frame Baleno'); await tick()
@@ -163,7 +167,7 @@ console.log('A. Tambah item → estimasi OTOMATIS terisi (atau kosong + label)')
   const boxText = q(document, '.material-picker-box').textContent
   check('label "Belum ada acuan" tampil', boxText.includes('Belum ada acuan'))
   check('Total "belum lengkap" + 1 item belum ada harga', boxText.includes('BELUM LENGKAP') && boxText.includes('1 item belum punya harga'), boxText.slice(-260))
-  check('total tetap 120.000 (item tanpa harga TIDAK dihitung 0)', boxText.includes('120.000'))
+  check('total tetap 115.000 (item tanpa harga TIDAK dihitung 0)', boxText.includes('115.000'))
 
   // Material dengan MASTER harga_acuan
   inputSet(searchInput, 'HPL-0002'); await tick()
@@ -194,10 +198,10 @@ console.log('\nB. Ganti vendor → recalc bila belum manual; override dipertahan
   const sels = detailRow.querySelectorAll('select')
   // sels[0]=Kategori, sels[1]=Vendor
   const vendorSelect = sels[1]
-  // Pilih vendor Plywood (tidak punya histori item ini) → fallback histori terbaru tetap 120.000
+  // Pilih vendor Plywood (tidak punya histori item ini) → fallback histori terbaru tetap 115.000
   selectSet(vendorSelect, 'vPLY'); await tick()
   const priceAfter = detailRow.querySelector('input[type="text"]')
-  check('ganti vendor tanpa histori vendor: fallback histori terbaru 120.000', priceAfter.value === '120.000', `got "${priceAfter.value}"`)
+  check('ganti vendor tanpa histori vendor: fallback harga aktual terbaru 115.000', priceAfter.value === '115.000', `got "${priceAfter.value}"`)
 
   // User override → 100.000; lalu ganti vendor lagi → TIDAK ditimpa
   inputSet(priceAfter, '100.000'); await tick()
@@ -211,8 +215,8 @@ console.log('\nB. Ganti vendor → recalc bila belum manual; override dipertahan
   const useBtn = [...detailRow.querySelectorAll('button')].find(b => b.textContent.includes('Pakai acuan'))
   check('tombol ↺ Pakai acuan tersedia', !!useBtn)
   click(useBtn); await tick()
-  check('Pakai acuan: kembali ke histori vendor vHPL 120.000 + badge Historis',
-    priceAfter.value === '120.000' && detailRow.textContent.includes('Historis'), priceAfter.value)
+  check('Pakai acuan: kembali ke harga aktual vHPL 115.000 + badge Historis',
+    priceAfter.value === '115.000' && detailRow.textContent.includes('Historis'), priceAfter.value)
 }
 
 // ---------- C. TOTAL LIVE: tambah/hapus/ubah qty ----------
@@ -230,9 +234,9 @@ console.log('\nC. Total Estimasi live — tambah/hapus/ubah qty & acuan')
     if (qty !== undefined) { inputSet(qtyInput, String(qty)); await tick() }
     click(addBtn); await tick()
   }
-  await addMat('HPL-0001', 'mHPL1', 2)   // 2×120.000 = 240.000
+  await addMat('HPL-0001', 'mHPL1', 2)   // 2×115.000 = 230.000
   let totalText = q(document, '.material-picker-box').textContent
-  check('total awal 240.000 (2×120.000)', totalText.includes('240.000'), totalText.slice(-160))
+  check('total awal 230.000 (2×115.000)', totalText.includes('230.000'), totalText.slice(-160))
   // Review run 86: Total Estimasi WAJIB di luar area scroll daftar item —
   // user tidak boleh harus scroll utk melihat total PR.
   {
@@ -242,15 +246,15 @@ console.log('\nC. Total Estimasi live — tambah/hapus/ubah qty & acuan')
     check('Total Estimasi di LUAR scroll container (selalu terlihat)', !!totalRow && !scrollDiv.contains(totalRow),
       scrollDiv && totalRow ? (scrollDiv.contains(totalRow) ? ' masih di dalam scroll' : ' ok') : ' struktur tak ditemukan')
   }
-  await addMat('HPL-0002', 'mHPL2', 3)   // +3×95.000 = 285.000 → 525.000
+  await addMat('HPL-0002', 'mHPL2', 3)   // +3×95.000 = 285.000 → 515.000
   totalText = q(document, '.material-picker-box').textContent
-  check('total 525.000 setelah item kedua', totalText.includes('525.000'), totalText.slice(-160))
-  // Ubah qty item pertama 2→5 → 600.000 + 285.000 = 885.000
+  check('total 515.000 setelah item kedua', totalText.includes('515.000'), totalText.slice(-160))
+  // Ubah qty item pertama 2→5 → 575.000 + 285.000 = 860.000
   // (input number: [0]=Qty picker luar, [1..]=qty per baris item)
   const qtyFirst = qa(document, '.material-picker-box table tbody input[type="number"]')[0]
   inputSet(qtyFirst, '5'); await tick()
   totalText = q(document, '.material-picker-box').textContent
-  check('ubah qty 5: total 885.000 (live update)', totalText.includes('885.000'), totalText.slice(-160))
+  check('ubah qty 5: total 860.000 (live update)', totalText.includes('860.000'), totalText.slice(-160))
   // Hapus item pertama (tombol × pertama di baris item) → 285.000
   const delBtn = qa(document, '.material-picker-box table tbody button').find(b => b.textContent.trim() === '×')
   click(delBtn); await tick()

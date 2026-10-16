@@ -15,31 +15,57 @@ Tampilannya dipindah menjadi **rincian expandable di bawah nama material**:
 
 ## Sumber data (skema existing — TANPA migrasi DB)
 
+**P1 t_e88c28fb — harga AKTUAL ≠ estimasi PR.** Barang yang sudah diterima
+(`qty_received > 0`) TIDAK membuktikan `pr_items.estimated_price` = harga
+beli aktual — nota bisa berbeda dari estimasi, dan `vendor_id` pada PR hanya
+rencana beli (bukan bukti supplier aktual). Label **HISTORIS PEMBELIAN
+hanya untuk harga satuan aktual terverifikasi dari nota/purchase line
+valid**. Karena skema `pr_items` existing belum punya kolom harga aktual
+(dicek read-only), entri dari penerimaan tampil sebagai kategori
+terpisah **"Estimasi PR terdahulu"** — tidak dipromosikan jadi aktual agar
+tidak terjadi loop `estimated → "historic" → estimasi palsu`.
+
 | Sumber | Arti | Dari mana | Tanggal |
 |---|---|---|---|
-| `HISTORIS` | Harga TEREALISASI pembelian nyata | `receiving_items` (qty diterima > 0) → `pr_items` (`material_id`, `vendor_id`, `estimated_price`, `unit`) → `receivings` (`vendor_id`, `received_date`) | `received_date` |
+| `HISTORIS` | Harga beli **AKTUAL** terverifikasi (nota/purchase line valid) | kolom harga aktual `pr_items` (`price_actual`/`actual_price`/… — **belum ada** di skema existing) lewat `receiving_items` (qty diterima > 0, bukan Retur/Refund/Rusak) | `received_date` |
 | `MASTER` | Acuan yang sudah ada di master material | `materials.harga_acuan` | **—** (tidak di-invent) |
+| `PR_ESTIMATE` | **Estimasi PR terdahulu** yang barangnya sudah diterima — BUKAN harga beli | `pr_items.estimated_price` (kolom existing) lewat `receiving_items` valid | `received_date` |
 | `MANUAL` | Entri "Tambah Acuan" (prototype) | state sesi (memori) | **—** (belum tersimpan) |
+
+Urutan tampil & prioritas (resolver `modules/materials/acuan.js`):
+**HISTORIS → MASTER → PR_ESTIMATE → MANUAL**. Estimasi PR terdahulu sengaja
+di bawah MASTER; ia fallback terakhir dan selalu berbadge
+**"⚠️ Estimasi PR terdahulu — bukan harga beli"** (netral abu-abu, bukan
+hijau sukses).
 
 Aturan mutlak yang dijaga resolver (`modules/materials/acuan.js`):
 
 1. **Hanya pembelian terealisasi** — item penerimaan yang benar-benar diterima
    (`quantity_received > 0`) dan penerimaan bukan Retur/Refund/Rusak.
-   Estimasi PR yang belum diterima BUKAN histori.
+   Estimasi PR yang belum diterima BUKAN histori — dan estimasi yang sudah
+   diterima TETAP estimasi (`PR_ESTIMATE`), bukan harga pembelian aktual.
 2. **Relasi FK, bukan nama** — `receiving_items.pr_item_id → pr_items.id` dan
    `pr_items.material_id → materials.id`. Produk "nama mirip" tidak mungkin
    tercampur.
-3. **Harga satuan murni material** — dari `pr_items.estimated_price`.
-   `[Nominal]` di note receivings sengaja TIDAK dipakai (itu total nota yang
-   bisa mengandung ongkir/admin).
+3. **Harga satuan murni material — aktual dulu, estimasi dilabeli eksplisit**
+   — harga satuan aktual dibaca dari kolom harga aktual `pr_items`
+   (`actualPurchasePrice`); bila kolom aktual tidak tersedia, yang bisa
+   dibaca hanya `pr_items.estimated_price` dan entri WAJIB berkategori
+   `PR_ESTIMATE` (bukan HISTORIS). `[Nominal]` di note receivings sengaja
+   TIDAK dipakai dan TIDAK menjadi fallback "harga aktual" (itu total nota
+   yang bisa mengandung ongkir/admin — total invoice ≠ unit price).
 4. **Satuan tanpa konversi** — entri historis hanya dihitung bila satuan item
    PR sama dengan satuan master material (per Meter ≠ per Pcs tanpa faktor
    valid yang tersimpan).
 5. **Data lama jujur** — `harga_acuan` existing tampil sebagai sumber MASTER
    TANPA tanggal & vendor yang dikarang.
 6. **Data historis read-only** — UI tidak pernah menulis/mengubah sumber
-   HISTORIS/MASTER.
+   HISTORIS/MASTER/PR_ESTIMATE. Provenance bacaan skema dipertahankan:
+   entri membawa `provenance: 'actual' | 'unknown'` — `unknown` bila harga
+   yang terbaca masih estimasi (kolom actual belum ada); sumber tidak pernah
+   diklaim lebih pasti daripada skema yang ada.
 7. Vendor penerimaan kosong tampil "Tidak dicatat" — tidak dikira-kira.
+   Vendor referensi PR/estimasi TIDAK dianggap supplier aktual.
 
 ## Keterbatasan prototype MANUAL (WAJIB dibaca)
 
@@ -74,6 +100,24 @@ create table material_price_refs (
 
 Setelah izin diberi, resolver tinggal menambah pembacaan tabel ini (sumber
 MANUAL jadi persisten) tanpa mengubah UI.
+
+**Kebutuhan skema untuk HISTORIS AKTUAL (P1 t_e88c28fb — usulan ke DAT,
+menunggu izin, belum dieksekusi):** kategori `HISTORIS` di atas butuh kolom
+harga satuan aktual hasil penerimaan. Tanpa kolom itu, yang bisa dibaca
+resolver dari skema existing hanya estimasi PR (kategori `PR_ESTIMATE`).
+Usulan minimal (salah satu bentuk, menunggu keputusan DAT):
+
+```sql
+-- Opsional A: kolom aktual di baris item PR (diisi dari nota saat receiving)
+alter table pr_items add column price_actual numeric check (price_actual is null or price_actual > 0);
+-- Opsional B: ledger harga aktual per material+vendor (lanjutan tabel MANUAL di atas)
+```
+
+Setelah skema actual disetujui, resolver otomatis mengisi kategori
+`HISTORIS` (bacaan `actualPurchasePrice` sudah menerima kolom
+`price_actual`/`actual_price`/…) — TANPA mengubah UI, dan `PR_ESTIMATE`
+tetap tampil terpisah apa adanya. Tidak ada migrasi/penulisan finance live
+yang dieksekusi sebelum izin.
 
 ## File yang berubah
 

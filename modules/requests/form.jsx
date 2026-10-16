@@ -35,7 +35,7 @@ import { rupiah } from '../../lib/constants'
 
 // Sumber harga item PR utk form: estimasi harga yang DIKETIK USER = sumber
 // "Manual"; yang terisi otomatis memakai sumber acuan dari resolver
-// (HISTORIS/MASTER) — metadata disimpan di field est_* pada item.
+// (HISTORIS/MASTER/PR_ESTIMATE) — metadata disimpan di field est_* pada item.
 function sourceLabelFor(it) {
   if (it.est_manual) {
     return (
@@ -46,8 +46,8 @@ function sourceLabelFor(it) {
   }
   if (it.est_source === 'HISTORIS') {
     return (
-      <span className="acuan-badge acuan-badge-historis" title="Harga terealisasi dari pembelian yang benar-benar diterima (satuan sama, tanpa ongkir/admin)">
-        ✅ Historis
+      <span className="acuan-badge acuan-badge-historis" title="Harga beli AKTUAL terverifikasi dari nota/purchase line valid (satuan sama, tanpa ongkir/admin)">
+        ✅ Historis (pembelian)
       </span>
     )
   }
@@ -55,6 +55,16 @@ function sourceLabelFor(it) {
     return (
       <span className="acuan-badge acuan-badge-master" title="Acuan harga dari master material (tanpa tanggal/vendor)">
         📍 Master
+      </span>
+    )
+  }
+  if (it.est_source === 'PR_ESTIMATE') {
+    // P1 t_e88c28fb: harga dari estimasi PR terdahulu (barangnya sudah
+    // diterima) TIDAK boleh berlabel "Historis/Terealisasi" — barang
+    // diterima tidak membuktikan estimasi = harga beli aktual.
+    return (
+      <span className="acuan-badge acuan-badge-estimate" title="Harga dari estimasi PR terdahulu yang barangnya sudah diterima — BUKAN harga beli aktual (nota bisa berbeda)">
+        ⚠️ Estimasi PR terdahulu
       </span>
     )
   }
@@ -325,6 +335,11 @@ export function formBody(ctx) {
                         {it.est_source === 'HISTORIS' && it.est_price_per !== null && digits && Number(digits) !== it.est_price_per && (
                           <span style={{ fontSize: '10px', color: '#b45309' }}>
                             harga acuan terakhir {rupiah(it.est_price_per)}/{it.est_unit || it.satuan || ''}
+                          </span>
+                        )}
+                        {it.est_source === 'PR_ESTIMATE' && it.est_vendor && (
+                          <span style={{ fontSize: '10px', color: '#556260' }}>
+                            vendor referensi PR — belum tentu supplier aktual
                           </span>
                         )}
                         {vendorNotEligible && (

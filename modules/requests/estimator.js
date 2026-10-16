@@ -6,10 +6,18 @@
 // agar angka acuan konsisten di seluruh aplikasi. Tidak ada sumber lain.
 //
 // SUMBER (skema existing — TANPA migrasi DB, freeze DAT tetap berlaku):
-//   1. HISTORIS — harga TEREALISASI pembelian nyata (receiving_items qty>0
-//      → pr_items → receivings), satuan sama, tanpa ongkir/admin.
+//   1. HISTORIS — harga beli AKTUAL TERVERIFIKASI (nota/purchase line
+//      valid) dari receiving_items qty>0 → pr_items → receivings,
+//      satuan sama, tanpa ongkir/admin. (P1 t_e88c28fb: kolom harga
+//      aktual tidak ada di skema existing — kategori ini hanya terisi
+//      begitu skema actual tersedia; TIDAK pernah memakai estimated_price.)
 //   2. MASTER   — materials.harga_acuan existing (tanpa tanggal/vendor).
-//   3. MANUAL   — di konteks PR, "manual" = harga yang DIKETIK USER di form
+//   3. PR_ESTIMATE — harga dari estimasi PR terdahulu yang barangnya
+//      sudah diterima. BUKAN harga pembelian aktual (t_e88c28fb):
+//      barang diterima TIDAK membuktikan estimasi = harga beli, dan
+//      vendor referensi PR bukan bukti actual supplier. HANYA dipakai
+//      sbg fallback paling akhir & SELALU berlabel "Estimasi PR terdahulu".
+//   4. MANUAL   — di konteks PR, "manual" = harga yang DIKETIK USER di form
 //      (pr_items.estimated_price). Entri "Tambah Acuan" prototype modul
 //      Material (memori sesi, belum tersimpan) SENGAJA tidak dipakai di sini
 //      — estimator hanya memakai sumber yang benar-benar tersimpan.
@@ -21,7 +29,9 @@
 //   - Vendor rencana beli dipilih → entri HISTORIS vendor itu (satuan sama)
 //     diprioritaskan; jika vendor belum dipilih → acuan terbaru yang valid
 //     + vendor sumber ditampilkan. Vendor referensi TIDAK otomatis menjadi
-//     vendor pesanan.
+//     vendor pesanan. Prioritas vendor hanya menyaring kategori HISTORIS
+//     (harga aktual) — TIDAK pernah mempromosikan estimasi PR sebagai
+//     "pembelian dari vendor itu" (P1 t_e88c28fb).
 //   - Input user (override) tidak pernah ditimpa diam-diam; ganti vendor
 //     hanya menghitung ulang bila harga belum milik user.
 //   - Satuan beda tidak dikonversi tanpa faktor valid (unit mismatch =
@@ -134,11 +144,20 @@ export function makePrEstimator({ allPrItems = [], allReceivingItems = [], allRe
    * Acuan terbaik utk satu material.
    * @param material  baris master material (butuh .id)
    * @param opts.vendorId  vendor rencana beli (opsional) — HISTORIS vendor
-   *   itu diprioritaskan (material+unit sudah dijaga resolver).
+   *   itu diprioritaskan (material+unit sudah dijaga resolver). P1
+   *   t_e88c28fb: prioritas vendor HANYA berlaku utk kategori HISTORIS
+   *   (harga aktual) — estimasi PR tidak pernah mewakili "pembelian dari
+   *   vendor itu".
    * Return { status, price, source, vendor, date, unit }:
    *   status 'OK'               — ada acuan (price bisa > 0)
    *   status 'NO_ENTRY'         — belum ada acuan (JANGAN dianggap 0)
    *   status 'UNKNOWN_MATERIAL' — material tidak ada di master (data lama)
+   * source:
+   *   'HISTORIS'    — harga beli AKTUAL terverifikasi (satu-satunya sumber
+   *                    yang boleh berlabel "Historis/Terealisasi")
+   *   'MASTER'      — acuan master material (tanpa tanggal/vendor)
+   *   'PR_ESTIMATE' — harga estimasi PR terdahulu (fallback paling akhir;
+   *                    WAJIB ditampilkan sbg estimasi, BUKAN harga beli)
    * price null pada NO_ENTRY/UNKNOWN_MATERIAL — penelepon wajib memperlakukan
    * null sebagai "Belum ada acuan", bukan 0.
    */
@@ -147,21 +166,24 @@ export function makePrEstimator({ allPrItems = [], allReceivingItems = [], allRe
     const unit = materialUnit(material)
     const entries = A.entriesFor(material)
 
-    // 1) Prioritas: HISTORIS dari vendor terpilih (satuan sama — dijaga resolver).
+    // 1) Prioritas: HISTORIS (harga aktual) dari vendor terpilih (satuan
+    //    sama — dijaga resolver). P1 t_e88c28fb: vendor HANYA memfilter
+    //    kategori aktual; estimasi PR tidak jadi "pembelian vendor itu".
     let pick = null
     if (vendorId) {
       const vName = A.vendorById.get(vendorId)?.name || null
       if (vName) pick = entries.find(e => e.source === 'HISTORIS' && e.vendor === vName) || null
     }
-    // 2) Acuan terbaru yang valid: histori terbaru, lalu master.
+    // 2) Acuan terbaik yang valid: histori aktual terbaru → master →
+    //    estimasi PR terdahulu (kategori paling akhir, diberi label jujur).
     if (!pick) pick = A.bestEntry(material)
 
     if (!pick || validPrice(pick.price) === null) return { ...NO_ENTRY, unit }
     return {
       status: 'OK',
       price: pick.price,
-      source: pick.source,   // 'HISTORIS' | 'MASTER'
-      vendor: pick.vendor,   // null utk MASTER / histori tanpa vendor
+      source: pick.source,   // 'HISTORIS' | 'MASTER' | 'PR_ESTIMATE'
+      vendor: pick.vendor,   // null utk MASTER / PR_ESTIMATE / histori tanpa vendor
       date: pick.date,
       unit: pick.unit || unit
     }

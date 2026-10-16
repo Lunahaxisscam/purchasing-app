@@ -10,13 +10,26 @@ t_090127ad) agar sumber harga konsisten antar modul.
 
 ## Sumber harga acuan (urutan prioritas)
 
+**P1 t_e88c28fb — harga AKTUAL ≠ estimasi PR:** label "Historis/Terealisasi"
+hanya untuk harga satuan **aktual terverifikasi** dari nota/purchase line
+valid. Barang yang sudah diterima TIDAK membuat `pr_items.estimated_price`
+menjadi harga beli aktual, dan vendor referensi PR bukan bukti supplier
+aktual. Estimasi PR terdahulu yang barangnya sudah diterima tampil sebagai
+kategori **PR_ESTIMATE** ("Estimasi PR terdahulu") — kategori terpisah,
+tidak dipromosikan jadi aktual.
+
 1. **HISTORIS vendor terpilih** — bila vendor rencana beli dipilih, harga
-   terealisasi pembelian nyata dari vendor itu (material + **satuan sama**,
-   dijaga resolver; tanpa ongkir/admin; bukan `[Nominal]` nota).
-2. **HISTORIS terbaru** — bila vendor belum dipilih: histori terbaru yang
-   valid (vendor sumber **ditampilkan sebagai referensi**, bukan diset
-   diam-diam sebagai vendor pesanan).
-3. **MASTER** — `materials.harga_acuan` existing (tanpa tanggal/vendor).
+   beli **aktual terverifikasi** dari vendor itu (material + **satuan sama**,
+   dijaga resolver; tanpa ongkir/admin; bukan `[Nominal]` nota). Skema
+   `pr_items` existing belum punya kolom harga aktual — kategori ini baru
+   terisi setelah skema actual disetujui DAT (tidak pernah memakai
+   `estimated_price`).
+2. **MASTER** — `materials.harga_acuan` existing (tanpa tanggal/vendor).
+3. **PR_ESTIMATE (fallback terakhir)** — harga estimasi PR terdahulu yang
+   barangnya sudah diterima. Selalu berbadge
+   **"⚠️ Estimasi PR terdahulu"** (bukan "Historis") dan, bila ada vendor
+   referensi, diberi catatan "vendor referensi PR — belum tentu supplier
+   aktual". Tidak pernah mewakili "pembelian dari vendor terpilih".
 4. **Tidak ada sumber** → input dibiarkan **kosong + label
    "Belum ada acuan"**. TIDAK PERNAH diisi 0 palsu, dan Total Estimasi
    diberi label **"belum lengkap"** dengan daftar item yang belum punya
@@ -58,9 +71,13 @@ tetap berlaku; TIDAK dieksekusi):**
 
 ```sql
 -- Snapshot per item PR agar sumber acuan ikut tersimpan & audit-able.
-alter table pr_items add column price_source text;        -- 'HISTORIS' | 'MASTER' | 'MANUAL'
+alter table pr_items add column price_source text;        -- 'HISTORIS' | 'MASTER' | 'PR_ESTIMATE' | 'MANUAL'
 alter table pr_items add column price_ref_vendor_id uuid references vendors(id);
 alter table pr_items add column price_ref_date date;
+-- P1 t_e88c28fb: satu-satunya jalur label "Historis/Terealisasi" adalah
+-- harga satuan AKTUAL terverifikasi dari nota/purchase line valid —
+-- kolom harga aktual di baris item PR (lihat docs/material-acuan-policy.md).
+alter table pr_items add column price_actual numeric check (price_actual is null or price_actual > 0);
 ```
 
 Setelah izin diberi: form mengisi kolom ini saat simpan, daftar/detail

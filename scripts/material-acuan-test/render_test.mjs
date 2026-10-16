@@ -82,16 +82,31 @@ const MAT_MASTER_ONLY = { id: 'mMASTER', kode: 'HPL-9002', name: 'Material Maste
 const MAT_KOSONG = { id: 'mKOSONG', kode: 'HPL-9003', name: 'Material Tanpa Acuan', category: 'HPL & Edging', qty: 0, satuan: 'Lembar', harga_acuan: null }
 const MAT_NAMA_MIRIP = { id: 'mMIRIP', kode: 'HPL-9004', name: 'Material Histori Lengkap (duplikat nama beda ID)', category: 'HPL & Edging', qty: 0, satuan: 'Lembar', harga_acuan: null }
 const MAT_SATUAN_BEDA = { id: 'mUNIT', kode: 'HPL-9005', name: 'Material Satuan Beda', category: 'HPL & Edging', qty: 0, satuan: 'Lembar', harga_acuan: null }
+// P1 t_e88c28fb — pemisahan harga AKTUAL vs ESTIMASI:
+const MAT_ACTUAL = { id: 'mACTUAL', kode: 'HPL-9006', name: 'Material Harga Aktual', category: 'HPL & Edging', qty: 0, satuan: 'Lembar', harga_acuan: null }
+const MAT_QTYZERO = { id: 'mQZERO', kode: 'HPL-9007', name: 'Material Qty Nol', category: 'HPL & Edging', qty: 0, satuan: 'Lembar', harga_acuan: null }
+const MAT_INVOICE = { id: 'mINVOICE', kode: 'HPL-9008', name: 'Material Total Invoice', category: 'HPL & Edging', qty: 0, satuan: 'Lembar', harga_acuan: null }
 
 const REQUESTS = [
   { id: 'pr1', pr_number: 'PR-001', title: 'PR histori', status: 'DRAFT', priority: 'NORMAL', project_id: 'p1', project_name: '[99] Baroni', materials_summary: '', notes: '', created_at: '2026-10-01T00:00:00Z' }
 ]
 
 const PR_ITEMS = [
-  // Item historis VALID: material MAT_HIST, harga satuan 120.000 per Lembar
+  // Item historis VALID: material MAT_HIST, harga satuan 120.000 per Lembar.
+  // P1 t_e88c28fb: fixture TANPA kolom harga aktual → kategori PR_ESTIMATE
+  // (estimasi PR terdahulu — BUKAN harga pembelian aktual).
   { id: 'pi1', pr_id: 'pr1', material_id: 'mHIST', item_name: 'Material Histori Lengkap', kode: 'HPL-9001', unit: 'Lembar', quantity: 10, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'v1', estimated_price: 120000, sort_order: 0 },
-  // Item harga 250.000 tapi BELUM diterima (estimasi PR — bukan histori)
+  // Item P1 (a) — harga AKTUAL terverifikasi ≠ estimasi: actual 115.000,
+  // estimated 120.000 → entri harus HISTORIS dgn harga 115.000.
+  { id: 'piActual', pr_id: 'pr1', material_id: 'mACTUAL', item_name: 'Material Harga Aktual', kode: 'HPL-9006', unit: 'Lembar', quantity: 4, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'v1', estimated_price: 120000, price_actual: 115000, sort_order: 3 },
+  // Item P1 (b) — qty_received>0 TIDAK cukup utk jadi harga aktual:
+  // hanya estimated_price 250.000, kolom aktual kosong → PR_ESTIMATE.
   { id: 'pi2', pr_id: 'pr1', material_id: 'mMIRIP', item_name: 'Material Histori Lengkap (duplikat nama beda ID)', kode: 'HPL-9004', unit: 'Lembar', quantity: 5, status: 'APPROVED', supplier_category: 'HPL & Edging', vendor_id: 'v2', estimated_price: 250000, sort_order: 1 },
+  // Item P1 (c) — total invoice ([Nominal] nota) BUKAN unit price:
+  // nota total 1.250.000 (incl. ongkir) tidak boleh jadi harga aktual.
+  { id: 'piInvoice', pr_id: 'pr1', material_id: 'mINVOICE', item_name: 'Material Total Invoice', kode: 'HPL-9008', unit: 'Lembar', quantity: 5, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'v2', estimated_price: 240000, sort_order: 4 },
+  // P1 ordering — mBOTH: estimasi 180.000 diterima, material punya MASTER 160.000
+  { id: 'piBoth', pr_id: 'pr1', material_id: 'mBOTH', item_name: 'Material Master + Estimasi', kode: 'HPL-9009', unit: 'Lembar', quantity: 2, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'v1', estimated_price: 180000, sort_order: 5 },
   // Item satuan BEDA: per Dus (tidak boleh jadi histori per Lembar)
   { id: 'pi3', pr_id: 'pr1', material_id: 'mUNIT', item_name: 'Material Satuan Beda', kode: 'HPL-9005', unit: 'Dus', quantity: 2, status: 'ORDERED', supplier_category: 'HPL & Edging', vendor_id: 'v2', estimated_price: 999000, sort_order: 2 }
 ]
@@ -103,7 +118,9 @@ const RECEIVINGS = [
   { id: 'rc2', purchase_request_id: 'pr1', vendor_id: 'v2', status: 'RETUR', received_date: '2026-10-13', delivery_note: 'SJ-2', invoice_no: 'INV-2', note: '[Nominal: Rp 1.250.000]', created_at: '2026-10-13T02:00:00Z' },
   // Penerimaan tanpa vendor: item pi2 juga diterima di sini (NORMAL) -> MAT_MIRIP
   // histori valid TANPA vendor -> harus tampil "Tidak dicatat", bukan vendor dikira-kira
-  { id: 'rc3', purchase_request_id: 'pr1', vendor_id: null, status: 'NORMAL', received_date: '2026-10-14', delivery_note: 'SJ-3', invoice_no: 'INV-3', note: '[Nominal: Rp 1.250.000]', created_at: '2026-10-14T02:00:00Z' }
+  { id: 'rc3', purchase_request_id: 'pr1', vendor_id: null, status: 'NORMAL', received_date: '2026-10-14', delivery_note: 'SJ-3', invoice_no: 'INV-3', note: '[Nominal: Rp 1.250.000]', created_at: '2026-10-14T02:00:00Z' },
+  // Penerimaan normal utk item P1: qty nol (b) & nota total invoice (c)
+  { id: 'rc4', purchase_request_id: 'pr1', vendor_id: 'v1', status: 'NORMAL', received_date: '2026-10-15', delivery_note: 'SJ-4', invoice_no: 'INV-4', note: '[Nominal: Rp 300.000]', created_at: '2026-10-15T02:00:00Z' }
 ]
 
 const RECEIVING_ITEMS = [
@@ -112,6 +129,17 @@ const RECEIVING_ITEMS = [
   { id: 'ri2', receiving_id: 'rc2', pr_item_id: 'pi2', item_name: 'Material Histori Lengkap (duplikat nama beda ID)', unit: 'Lembar', quantity_received: 0, note: null, created_at: '2026-10-13T02:00:00Z' },
   { id: 'ri3', receiving_id: 'rc2', pr_item_id: 'pi2', item_name: 'Material Histori Lengkap (duplikat nama beda ID)', unit: 'Lembar', quantity_received: 5, note: null, created_at: '2026-10-13T02:00:00Z' },
   { id: 'ri4', receiving_id: 'rc3', pr_item_id: 'pi2', item_name: 'Material Histori Lengkap (duplikat nama beda ID)', unit: 'Lembar', quantity_received: 5, note: null, created_at: '2026-10-14T02:00:00Z' },
+  // P1 (a): item harga aktual diterima di penerimaan rc1
+  { id: 'riActual', receiving_id: 'rc1', pr_item_id: 'piActual', item_name: 'Material Harga Aktual', unit: 'Lembar', quantity_received: 4, note: null, created_at: '2026-10-12T02:00:00Z' },
+  // P1 (b): qty diterima 0 utk item MAT_QTYZERO (estimasi 300.000) — TIDAK
+  // boleh jadi acuan sama sekali (qty received > 0 prasyarat, bukan bukti harga)
+  { id: 'riQ0', receiving_id: 'rc4', pr_item_id: 'piQ0', item_name: 'Material Qty Nol', unit: 'Lembar', quantity_received: 0, note: null, created_at: '2026-10-15T02:00:00Z' },
+  // P1 (c): item nota total 1.250.000 diterima penuh — total invoice bukan unit price
+  // (di rc4 NORMAL — kategori sengaja dipisah dari RETUR rc2)
+  { id: 'riInvoice', receiving_id: 'rc4', pr_item_id: 'piInvoice', item_name: 'Material Total Invoice', unit: 'Lembar', quantity_received: 5, note: null, created_at: '2026-10-15T02:00:00Z' },
+  // P1 ordering: item mBOTH (estimasi 180.000) diterima — materialnya juga
+  // punya harga_acuan MASTER 160.000 → MASTER harus tampil di atas estimasi
+  { id: 'riBoth', receiving_id: 'rc4', pr_item_id: 'piBoth', item_name: 'Material Master + Estimasi', unit: 'Lembar', quantity_received: 2, note: null, created_at: '2026-10-15T02:00:00Z' },
   // pr_item_id tidak dikenal (item PR lama sudah terhapus) — diabaikan
   { id: 'ri5', receiving_id: 'rc1', pr_item_id: 'piGONE', item_name: 'Item PR hilang', unit: 'Pcs', quantity_received: 3, note: null, created_at: '2026-10-12T02:00:00Z' }
 ]
@@ -229,20 +257,44 @@ console.log('\nD. Resolver acuan: histori benar, unknown vendor, satuan beda, re
   const A = acuanMod.makeAcuanHelpers({
     allPrItems: PR_ITEMS, allReceivingItems: RECEIVING_ITEMS, allReceivings: RECEIVINGS, allVendors: VENDORS
   })
-  // MAT_HIST: 1 entri historis 120.000 dari v1 (Nominal nota 1.300.000 TIDAK dipakai)
+  // MAT_HIST: item pi1 diterima (rc1, NORMAL) TAPI hanya estimated_price —
+  // P1 t_e88c28fb: kategori PR_ESTIMATE (estimasi PR terdahulu, bukan harga beli)
   const h = A.entriesFor(MAT_HIST)
   check('MAT_HIST: tepat 1 entri', h.length === 1, JSON.stringify(h))
-  check('MAT_HIST: sumber HISTORIS', h[0]?.source === 'HISTORIS')
+  check('MAT_HIST: sumber PR_ESTIMATE (estimasi diterima BUKAN harga aktual)', h[0]?.source === 'PR_ESTIMATE', String(h[0]?.source))
+  check('MAT_HIST: TIDAK berlabel HISTORIS (qty_received>0 ≠ bukti harga aktual)', h[0]?.source !== 'HISTORIS')
+  check('MAT_HIST: provenance unknown (kolom aktual tidak ada di skema)', h[0]?.provenance === 'unknown', String(h[0]?.provenance))
   check('MAT_HIST: vendor Toko Baroni Jaya', h[0]?.vendor === 'Toko Baroni Jaya')
   check('MAT_HIST: harga 120.000 (estimated_price, BUKAN [Nominal] 1.300.000)', h[0]?.price === 120000, String(h[0]?.price))
   check('MAT_HIST: tanggal 2026-10-12', String(h[0]?.date || '').startsWith('2026-10-12'), String(h[0]?.date))
   check('MAT_HIST: unit Lembar', h[0]?.unit === 'Lembar')
+
+  // P1 (a) — actual ≠ estimated: harga AKTUAL 115.000 menang & berkategori
+  // HISTORIS; estimasi 120.000 tidak pernah bocor jadi label pembelian aktual.
+  const act = A.entriesFor(MAT_ACTUAL)
+  check('MAT_ACTUAL: tepat 1 entri', act.length === 1, JSON.stringify(act))
+  check('MAT_ACTUAL: sumber HISTORIS (harga aktual terverifikasi)', act[0]?.source === 'HISTORIS')
+  check('MAT_ACTUAL: harga 115.000 (price_actual, BUKAN estimated 120.000)', act[0]?.price === 115000, String(act[0]?.price))
+  check('MAT_ACTUAL: provenance actual', act[0]?.provenance === 'actual')
+
+  // P1 (b) — qty_received = 0: estimasi 300.000 TIDAK menjadi acuan apa pun
+  // (penerimaan fisik tetap prasyarat; qty nol bukan bukti harga).
+  const qz = A.entriesFor(MAT_QTYZERO)
+  check('MAT_QTYZERO: qty 0 → tanpa entri (qty received bukan cukup utk harga aktual)', qz.length === 0, JSON.stringify(qz))
+
+  // P1 (c) — total invoice [Nominal] 1.250.000 TIDAK pernah jadi unit price;
+  // tanpa kolom aktual, entri tetap PR_ESTIMATE dgn estimated_price 240.000.
+  const inv = A.entriesFor(MAT_INVOICE)
+  check('MAT_INVOICE: entri dari estimated_price (kategori PR_ESTIMATE)', inv.length === 1 && inv[0]?.source === 'PR_ESTIMATE', JSON.stringify(inv))
+  check('MAT_INVOICE: harga 240.000 — BUKAN total nota 1.250.000', inv[0]?.price === 240000, String(inv[0]?.price))
+  check('MAT_INVOICE: [Nominal] nota tidak dipakai sbg harga aktual', inv[0]?.price !== 1250000)
 
   // MAT_MIRIP: ri3 (retur) diabaikan; ri4 (normal, tanpa vendor) masuk
   const m = A.entriesFor(MAT_NAMA_MIRIP)
   check('MAT_MIRIP: hanya penerimaan NORMAL yang masuk (retur diabaikan)', m.length === 1, JSON.stringify(m))
   check('MAT_MIRIP: vendor unknown -> "Tidak dicatat" (null), bukan dikira-kira', m[0]?.vendor === null)
   check('MAT_MIRIP: harga 250.000 dari estimated_price', m[0]?.price === 250000)
+  check('MAT_MIRIP: estimasi diterima tetap PR_ESTIMATE (P1)', m[0]?.source === 'PR_ESTIMATE')
 
   // MAT_SATUAN_BEDA: item PR per Dus, material per Lembar -> TIDAK jadi histori
   const u = A.entriesFor(MAT_SATUAN_BEDA)
@@ -259,11 +311,18 @@ console.log('\nD. Resolver acuan: histori benar, unknown vendor, satuan beda, re
   check('MAT_MASTER: TANPA tanggal (tidak di-invent)', mo[0]?.date === null)
   check('MAT_MASTER: TANPA vendor (tidak di-invent)', mo[0]?.vendor === null)
 
-  // bestEntry: histori > master > null
-  check('bestEntry MAT_HIST = histori', A.bestEntry(MAT_HIST)?.source === 'HISTORIS')
+  // bestEntry: histori(aktual) > master > estimasi PR terdahulu > null
+  check('bestEntry MAT_HIST = PR_ESTIMATE (satu-satunya entri, dilabeli jujur)', A.bestEntry(MAT_HIST)?.source === 'PR_ESTIMATE')
+  check('bestEntry MAT_ACTUAL = HISTORIS', A.bestEntry(MAT_ACTUAL)?.source === 'HISTORIS')
   check('bestEntry MAT_MASTER = master', A.bestEntry(MAT_MASTER_ONLY)?.source === 'MASTER')
   check('bestEntry MAT_KOSONG = null', A.bestEntry(MAT_KOSONG) === null)
   check('bestEntry material tanpa id = null (data lama aman)', A.bestEntry({}) === null)
+  // P1: MASTER harus di atas PR_ESTIMATE saat keduanya ada (estimasi tidak
+  // menutupi acuan yang lebih kuat).
+  const MAT_BOTH = { id: 'mBOTH', kode: 'HPL-9009', name: 'Material Master + Estimasi', category: 'HPL & Edging', qty: 0, satuan: 'Lembar', harga_acuan: 160000 }
+  const bE = A.entriesFor(MAT_BOTH)
+  check('MAT_BOTH: MASTER tampil sebelum PR_ESTIMATE (estimasi bukan prioritas)', bE[0]?.source === 'MASTER' && bE[1]?.source === 'PR_ESTIMATE', JSON.stringify(bE.map(e => e.source)))
+  check('MAT_BOTH bestEntry = MASTER (bukan estimasi PR)', A.bestEntry(MAT_BOTH)?.source === 'MASTER')
 
   // Validasi manual
   const vOk = acuanMod.validateManualAcuan({ vendorId: 'v1', harga: '25.000', satuan: 'Meter' })
@@ -283,18 +342,30 @@ console.log('\nD. Resolver acuan: histori benar, unknown vendor, satuan beda, re
   const noUnitMat = A.entriesFor({ id: 'mX', satuan: null, unit: null, harga_acuan: null })
   check('resolver data lama tanpa satuan: aman (0 entri)', noUnitMat.length === 0)
 
-  // Render positif badge HISTORIS (review run 64): entri historis nyata
-  // WAJIB berbadge "✅ Historis" agar tidak salah dibaca sbg master/manual.
+  // Render badge P1: entri estimasi-terdahulu WAJIB berbadge jujur
+  // "Estimasi PR terdahulu — bukan harga beli", TIDAK pernah "✅ Historis".
   const { document: docH } = mount('materials', [MAT_HIST])
   await tick()
   const btnH = toggleByName(docH, 'Material Histori Lengkap')
   click(btnH); await tick()
   const textH = expandRows(docH)[0]?.textContent || ''
-  check('render HISTORIS: badge "✅ Historis" tampil utk entri pembelian terealisasi', textH.includes('Historis'), textH.slice(0, 160))
-  check('render HISTORIS: vendor + harga + tanggal tampil',
+  check('render: badge "Estimasi PR terdahulu — bukan harga beli" tampil', textH.includes('Estimasi PR terdahulu'), textH.slice(0, 200))
+  check('render: TIDAK berlabel "✅ Historis (pembelian)" (estimasi tak dipromosikan)', !textH.includes('Historis (pembelian)'), textH.slice(0, 160))
+  check('render: vendor + harga + tanggal tampil',
     textH.includes('Toko Baroni Jaya') && textH.includes('Rp 120.000') && textH.includes('2026-10-12'))
-  check('render HISTORIS: TIDAK ada badge Master/Manual (sumber murni)',
+  check('render: TIDAK ada badge Master/Manual (sumber murni)',
     !textH.includes('Master') && !textH.includes('belum tersimpan'))
+
+  // Render positif HISTORIS (harga aktual): kategori pembelian aktual
+  // tetap berbadge hijau "✅ Historis (pembelian)".
+  const { document: docA } = mount('materials', [MAT_ACTUAL])
+  await tick()
+  const btnA = toggleByName(docA, 'Material Harga Aktual')
+  click(btnA); await tick()
+  const textA = expandRows(docA)[0]?.textContent || ''
+  check('render AKTUAL: badge "✅ Historis (pembelian)" tampil', textA.includes('Historis (pembelian)'), textA.slice(0, 200))
+  check('render AKTUAL: harga 115.000 (bukan estimasi 120.000)', textA.includes('Rp 115.000'), textA.slice(0, 200))
+  check('render AKTUAL: tanpa badge estimasi', !textA.includes('Estimasi PR terdahulu'))
 }
 
 // ---------- E. PROTOTYPE TAMBAH ACUAN (interaktif) ----------
