@@ -58,6 +58,18 @@ function sourceLabelFor(it) {
       </span>
     )
   }
+  // Item ber-harga tanpa metadata sumber = snapshot tersimpan yang di-reopen
+  // (metadata sumber belum tersimpan — skema price_* menunggu keputusan DAT).
+  // BUKAN "Belum ada acuan": harganya jelas ada, hanya sumbernya yang tak
+  // tercatat. Jangan mengklaim sumber spesifik.
+  const hasSavedPrice = it.estimated_price !== null && it.estimated_price !== undefined && String(it.estimated_price) !== ''
+  if (hasSavedPrice) {
+    return (
+      <span className="acuan-badge" style={{ background: '#eef4f0', color: '#33544a', border: '1px solid #cfe0d6' }} title="Harga tersimpan (snapshot) — metadata sumber acuan belum tersimpan (menunggu keputusan skema)">
+        📌 Tersimpan (snapshot)
+      </span>
+    )
+  }
   return (
     <span className="acuan-badge" style={{ background: '#f3f5f6', color: '#556260', border: '1px solid #d6dcde' }} title="Belum ada sumber harga valid">
       Belum ada acuan
@@ -87,21 +99,34 @@ export function formBody(ctx) {
 
   return (
     <>
-      <label>Project
-        <select
-          value={form.project_id}
-          onChange={e => setForm({ ...form, project_id: e.target.value })}
-          required
-        >
-          <option value="">-- Pilih Project --</option>
-          {allProjects.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.kode ? `[${p.kode}] ` : ''}{p.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {field('title', 'Judul Kebutuhan', 'text', true)}
+      {/* Header form SATU BARIS desktop (steer DAT t_ac0b39c0): Project (kiri
+          ~40%) + Judul Kebutuhan (kanan ~60%) — tetap DUA field terpisah,
+          tidak digabung input. Mobile (<=640px) stack agar readable. */}
+      <div className="pr-header-row">
+        <label style={{ margin: 0 }}>Project
+          <select
+            value={form.project_id}
+            onChange={e => setForm({ ...form, project_id: e.target.value })}
+            required
+          >
+            <option value="">-- Pilih Project --</option>
+            {allProjects.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.kode ? `[${p.kode}] ` : ''}{p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ margin: 0 }}>
+          Judul Kebutuhan
+          <input
+            type="text"
+            value={form.title || ''}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            required
+          />
+        </label>
+      </div>
       <label>Prioritas
         <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
           <option value="NORMAL">Standard</option>

@@ -5,6 +5,7 @@
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
+import fs from 'node:fs'
 
 const require = createRequire(import.meta.url)
 const SB = process.cwd()
@@ -103,6 +104,32 @@ function mountForm({ editRow = null, editItems = [] } = {}) {
 
 const q = (document, sel) => document.querySelector(sel)
 const qa = (document, sel) => [...document.querySelectorAll(sel)]
+
+// ---------- A0. LAYOUT HEADER SATU BARIS (steer DAT — Project + Judul) ----------
+console.log('A0. Header form satu baris: Project ~40% + Judul Kebutuhan ~60% (desktop), stack mobile')
+{
+  notices = []
+  const { document } = mountForm()
+  const row = q(document, '.pr-header-row')
+  check('.pr-header-row ada (Project + Judul satu baris)', !!row)
+  const labels = row ? qa(row, 'label').map(l => (l.childNodes[0]?.textContent || '').trim()) : []
+  check('dua label: Project & Judul Kebutuhan (dua field terpisah)', labels.length === 2 && labels[0] === 'Project' && labels[1].startsWith('Judul Kebutuhan'), labels.join(' | '))
+  const css = fs.readFileSync('/home/ubuntu/purchasing-app/styles/globals.css', 'utf8')
+  const block = css.match(/\.pr-header-row\s*{[^}]+}/)
+  check('grid desktop 2 kolom 2fr/3fr (40%/60%)', !!block && block[0].includes('minmax(0, 2fr)') && block[0].includes('minmax(0, 3fr)'), block ? block[0] : 'block hilang')
+  const mq = css.match(/@media \(max-width: 640px\)\s*{[^@]*?\.pr-header-row\s*{[^}]+}/)
+  check('media query ≤640px stack 1 kolom', !!mq && mq[0].includes('1fr'), mq ? mq[0].slice(-80) : 'media query hilang')
+  const sel = row && row.querySelector('select')
+  const inp = row && row.querySelector('input[type="text"]')
+  check('Project <select> required & Judul <input> required', sel?.required === true && inp?.required === true)
+  // Edit prefill: judul tersimpan masuk ke input satu baris
+  const { document: d2 } = mountForm({ editRow: { id: 'prX', pr_number: 'PR-099', title: 'PR snapshot', project_id: 'p83', status: 'DRAFT', priority: 'NORMAL', notes: '' } })
+  const inp2 = q(d2, '.pr-header-row input[type="text"]')
+  const sel2 = q(d2, '.pr-header-row select')
+  check('edit: prefill judul & project di baris yang sama', inp2?.value === 'PR snapshot' && sel2?.value === 'p83', `judul="${inp2?.value}" project="${sel2?.value}"`)
+  inputSet(inp2, 'Judul baru edit'); await tick()
+  check('edit: judul bisa diketik (onChange hidup)', inp2.value === 'Judul baru edit')
+}
 
 // ---------- A. AUTO-FILL SAAT ITEM DITAMBAHKAN (steer 1) ----------
 console.log('A. Tambah item → estimasi OTOMATIS terisi (atau kosong + label)')
@@ -297,6 +324,7 @@ console.log('\nF. Edit PR: harga tersimpan dipertahankan (snapshot), bukan histo
   check('edit: harga tersimpan 90.000 dipertahankan (bukan histori 120.000)', inputs[0]?.value === '90.000', `got "${inputs[0]?.value}"`)
   const boxText = q(document, '.material-picker-box').textContent
   check('edit: item tanpa harga (Handle) tetap "Belum ada acuan"', boxText.includes('Belum ada acuan'))
+  check('edit: item berharga tersimpan berbadge "Tersimpan (snapshot)" — bukan "Belum ada acuan"', boxText.includes('Tersimpan (snapshot)'), boxText.slice(0, 200))
   // Tambah item baru di mode edit → auto-fill jalan utk item baru
   const searchInput = q(document, '.material-picker-box input[type="text"]')
   const sel = qa(document, '.material-picker-box select')[1]

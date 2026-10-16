@@ -2748,3 +2748,19 @@ tr.pr-est-total-row td {
   }
   .pr-picker-row-3 button { width: 100%; }
 }
+
+/* Header form PR satu baris desktop (steer DAT t_ac0b39c0): Project (kiri
+   ~40%) + Judul Kebutuhan (kanan ~60%), tetap dua field terpisah.
+   Mobile (<=640px): stack vertikal agar readable / tanpa horizontal scroll. */
+.pr-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 12px;
+  align-items: end;
+}
+@media (max-width: 640px) {
+  .pr-header-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
