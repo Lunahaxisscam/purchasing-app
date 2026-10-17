@@ -52,7 +52,17 @@ check("C2 ada cabang page === 'rap'", /page === 'rap' \?/.test(index))
   check('C4 fallback non-admin "khusus administrator"', /khusus administrator/.test(block))
   check('C5 RapModule dirender dengan projects + say + setPage', /<RapModule/.test(block) && /projects=/.test(block) && /say=/.test(block))
 }
-check("C6 'rap' dikecualikan dari tombol Perbarui global", /'rap', 'settings'\]/.test(index))
+// C6 — diperbarui saat integrasi t_35cd0354: dulu assertion mencari literal
+// "'rap', 'settings']" (dua entri bersebelahan). Setelah modul rap_compare /
+// crm masuk, 'rap' tidak lagi bersebelahan dengan 'settings', padahal
+// perilakunya tetap benar: 'rap' tetap dikecualikan dari tombol Perbarui
+// global. Assertion diubah menjadi uji KEANGGOTAAN daftar exclude (bukan
+// literal bersebelahan) — tidak ada pengecualian yang dilonggarkan.
+{
+  const mEx = index.match(/!\[([^\]]*)\]\.includes\(page\)/)
+  const excluded = mEx ? mEx[1] : ''
+  check("C6 'rap' dikecualikan dari tombol Perbarui global", /'rap'/.test(excluded), excluded)
+}
 check('C7 tidak menulis DB dari shell untuk RAP', !/from\('rap/i.test(index))
 
 console.log('\n=== D. SMOKE BUILD MERENDER RAP (pages/__smoke.js) ===')

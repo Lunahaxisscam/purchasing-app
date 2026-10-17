@@ -221,7 +221,18 @@ function cardChanges(base = resolveBase()) {
   let tracked = []
   let untracked = []
   try {
-    tracked = execSync(`git -C ${REPO} diff --name-only ${base} --`, { encoding: 'utf8' })
+    // t_35cd0354 (integrasi): di branch integrasi, diff `base..HEAD` memuat
+    // file kartu LAIN (S1..S7) sehingga assertion kepemilikan C7 mustahil
+    // lulus. Karena itu batas atas diambil dari commit TERAKHIR yang
+    // menyentuh folder kartu ini (`scripts/marketing/`), bukan HEAD. Di
+    // branch kartu tunggal nilainya identik dengan HEAD, jadi tidak ada
+    // assertion yang dilonggarkan — hanya cakupan diff yang dipersempit ke
+    // commit milik kartu ini.
+    const tip = execSync(
+      `git -C ${REPO} log --format=%H -n 1 -- scripts/marketing/`,
+      { encoding: 'utf8' }
+    ).split('\n').map(s => s.trim()).filter(Boolean)[0] || 'HEAD'
+    tracked = execSync(`git -C ${REPO} diff --name-only ${base} ${tip} --`, { encoding: 'utf8' })
       .split('\n').map(s => s.trim()).filter(Boolean)
     untracked = execSync(`git -C ${REPO} ls-files --others --exclude-standard`, { encoding: 'utf8' })
       .split('\n').map(s => s.trim()).filter(Boolean)
