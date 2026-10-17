@@ -590,7 +590,14 @@ console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak d
     // ac71191 (bukan akibat kartu S4); didaftarkan eksplisit, bukan
     // dilonggarkan — daftar tetap enumeratif per pemilik kartu.
     'modules/rap/view.jsx', 'modules/rap/model.js',
-    'modules/rap/budgetingBridge.js', 'modules/rap/store.js'
+    'modules/rap/budgetingBridge.js', 'modules/rap/store.js',
+    // t_94e9bfaa (S5/7): lapisan reminder/readiness memiliki endpoint
+    // sendiri (pages/api/reminders.js) dan seluruh logikanya di
+    // scripts/reminders/ (tidak masuk pemeriksaan kode karena di bawah
+    // scripts/). Hanya SATU file .js non-scripts/ yang ditambahkan kartu S5,
+    // dan itu endpoint miliknya sendiri — tidak ada file modul S1/S2 yang
+    // dilonggarkan, kontrak actions.js/logic.js handover tetap terkunci.
+    'pages/api/reminders.js'
   ]
   const codeChanges = changed.filter(f => /\.(js|jsx)$/.test(f) && !f.startsWith('scripts/'))
   check('perubahan kode hanya di file yang dimiliki kartu S1/S2',
