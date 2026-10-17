@@ -8,6 +8,7 @@ import Module from '../components/ModuleView'
 import Create from '../components/CreateModal'
 import PurchasePage from '../modules/receivings/page'
 import RapModule from '../modules/rap/view'
+import SalesInvoiceModule from '../modules/sales-invoice/view'
 
 // ------------------------------------------------------------
 // GUARD PRODUKSI (temuan audit Brooklyn #A.2):
@@ -60,6 +61,15 @@ const mock = {
     // cangkang otomatis dari Approval (belum dibeli) — TIDAK boleh tampil di
     // tab mana pun; barangnya tetap muncul di tab Siap Dibeli.
     { id: 'rc3', invoice_no: null, project_name: '[99] Baroni', status: 'NORMAL', received_date: null, note: 'Dibuat otomatis dari PR (barang disetujui).', purchase_request_id: 'r1', project_id: 'p1' }
+  ],
+  // Invoice Penjualan (t_22865fc4) — dipakai HANYA oleh rute /__smoke.
+  // Satu draf (tanpa nomor) + satu terbit + satu terkirim + satu lunas,
+  // supaya semua cabang aksi status ikut ter-render saat build.
+  sales_invoices: [
+    { id: 'si_d', status: 'DRAFT', invoice_no: null, customer_name: 'Draf Co', project_name: 'Fit-Out Draf', nominal: 1000000, tax_rate: 0, tax_amount: 0, grand_total: 1000000, issue_date: '2026-10-17', due_date: '', project_issued: false, project_code: null, sent_at: null, sent_channel: '', paid_amount: null, payment_ref: '' },
+    { id: 'si_t', status: 'TERBIT', invoice_no: 'INV/NL/2026/10/001', customer_name: 'Terbit Co', project_name: 'Fit-Out Terbit', project_code: '106', project_issued: true, nominal: 2000000, tax_rate: 11, tax_amount: 220000, grand_total: 2220000, issue_date: '2026-10-17', due_date: '2026-10-31', sent_at: null, sent_channel: '', paid_amount: null, payment_ref: '' },
+    { id: 'si_k', status: 'TERKIRIM', invoice_no: 'INV/NL/2026/10/002', customer_name: 'Kirim Co', project_name: 'Fit-Out Kirim', project_code: '107', project_issued: true, nominal: 3000000, tax_rate: 0, tax_amount: 0, grand_total: 3000000, issue_date: '2026-10-17', due_date: '2026-10-31', sent_at: '2026-10-18T02:00:00Z', sent_channel: 'WhatsApp', paid_amount: null, payment_ref: '' },
+    { id: 'si_l', status: 'LUNAS', invoice_no: 'INV/NL/2026/10/003', customer_name: 'Lunas Co', project_name: 'Fit-Out Lunas', project_code: '108', project_issued: true, nominal: 4000000, tax_rate: 0, tax_amount: 0, grand_total: 4000000, issue_date: '2026-10-17', due_date: '2026-10-31', sent_at: '2026-10-18T02:00:00Z', sent_channel: 'Email', paid_amount: 4000000, paid_at: '2026-10-20', payment_ref: 'TRF-1', payment_verified_by: 'admin-mock' }
   ],
   handovers: [
     // h1: bukti fisik ada (diserahkan_at) -> "Sudah Diserahkan" + rincian terstruktur.
@@ -159,6 +169,17 @@ export default function SmokePage() {
           say={noop}
           setPage={noop}
           session={null}
+        />
+      </section>
+      {/* Modul Invoice Penjualan (t_22865fc4): halaman sendiri. Dirender dengan
+          props invoices (mode props) supaya tidak memanggil API saat SSR —
+          data mock ini HANYA hidup di rute /__smoke (ENABLE_SMOKE=1). */}
+      <section id="mod-sales-invoice">
+        <SalesInvoiceModule
+          invoices={mock.sales_invoices}
+          projects={mock.projects}
+          allProjects={mock.projects}
+          say={noop}
         />
       </section>
       {/* Form tambah/edit per modul (data mock) */}

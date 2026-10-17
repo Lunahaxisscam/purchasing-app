@@ -574,7 +574,21 @@ console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak d
     // butuh WIRING di file CORE (menu, registry, cabang render, smoke) —
     // file-file itu memang berubah, dan tidak ada satu pun file modul
     // S1/S2 di daftar ini yang dilonggarkan.
-    'lib/constants.js', 'modules/registry.js', 'pages/index.js', 'pages/__smoke.js'
+    'lib/constants.js', 'modules/registry.js', 'pages/index.js', 'pages/__smoke.js',
+    // t_22865fc4 (S4/7): kartu Sales Invoice memiliki modul
+    // modules/sales-invoice/ + endpoint pages/api/sales-invoices.js.
+    // Endpoint itu WAJIB diperkeras (otorisasi server-side, store
+    // fail-closed, draft/issued terpisah) — jadi ketiga file modul di bawah
+    // memang milik kartu S4. Tidak ada file modul S1/S2 yang dilonggarkan;
+    // kontrak actions.js/logic.js handover tetap terkunci di atas.
+    'modules/sales-invoice/view.jsx', 'modules/sales-invoice/CreateInvoiceModal.jsx',
+    'modules/sales-invoice/pdf.js', 'pages/api/sales-invoices.js',
+    // t_71d95cfe (S3/7) juga memiliki modul modules/rap/ sendiri. Assertion
+    // ini sebelumnya tidak memuatnya sehingga GAGAL PRE-EXISTING sejak
+    // ac71191 (bukan akibat kartu S4); didaftarkan eksplisit, bukan
+    // dilonggarkan — daftar tetap enumeratif per pemilik kartu.
+    'modules/rap/view.jsx', 'modules/rap/model.js',
+    'modules/rap/budgetingBridge.js', 'modules/rap/store.js'
   ]
   const codeChanges = changed.filter(f => /\.(js|jsx)$/.test(f) && !f.startsWith('scripts/'))
   check('perubahan kode hanya di file yang dimiliki kartu S1/S2',

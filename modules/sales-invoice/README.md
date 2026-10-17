@@ -1,68 +1,67 @@
 # Modul Invoice Penjualan (Sales Invoice) — Admin Suite
 
-Task `t_ff3a96cf` — arahan DAT: *"Kamu buka dulu modulnya, nanti terminnya
-menyusul ya."*
+Riwayat: `t_ff3a96cf` (buka modul) → `t_22865fc4` (perketat persistence &
+idempotensi). Kontrak lengkap: [`docs/sales-invoice-contract.md`](../../docs/sales-invoice-contract.md).
 
-## Cakupan tahap ini (SUDAH diimplementasikan)
+## Cakupan yang berjalan sekarang
 
-- **Menu + halaman admin-only yang benar-benar bisa dibuka**: item
-  `Invoice Penjualan` di section Admin Suite sidebar (hanya tampil untuk
-  role admin), kartu di Dashboard admin, halaman dengan judul
-  "Invoice Penjualan".
-- **Guard akses 3 lapis** (pola RAB & BOQ / t_18564dce):
-  1. menu sidebar disembunyikan untuk non-admin (`lib/constants.js`
-     section `adminOnly`),
-  2. guard render di `pages/index.js` — role HANYA dari tabel
-     `profiles` (server data), non-admin yang memaksa state
-     `page='sales_invoice'` mendapat panel "Halaman ini khusus
-     administrator",
-  3. pola data mengikuti arsitektur existing: modul hanya menerima
-     `invoices` via props dari data yang dimuat sesi; tidak ada endpoint
-     baru, dan semua mutasi modul lain tetap tunduk RLS.
-- **Daftar / empty state**: bila data invoice tersedia (props), tabel
-  read-only dirender; saat ini belum ada tabel DB invoice penjualan, jadi
-  halaman menampilkan empty state jujur:
-  *"Belum ada invoice penjualan. Pengaturan penagihan/termin akan
-  ditambahkan berikutnya."* **Tidak ada data demo.**
-- **Kerangka detail** (kolom read-only, hanya bila datanya ada):
-  No. Invoice, Customer (CRM), RAB Final/Disetujui, Nominal, Status
-  Dokumen.
+- **Menu + halaman admin-only.** Item `Invoice Penjualan` di section Admin Suite
+  (`lib/constants.js`, `adminOnly`), guard render di `pages/index.js`, dan
+  **guard server** di `pages/api/sales-invoices.js`.
+- **Buat invoice sebagai DRAF.** Form hanya menyimpan draf; nomor invoice dan
+  nomor proyek baru terbit saat tombol **Terbitkan** ditekan.
+- **Aksi status eksplisit** dengan bukti:
+  * `Terbitkan` → server mengalokasikan `INV/NL/TAHUN/BULAN/URUT`;
+  * `Sudah dikirim` → wajib pilih kanal (WhatsApp / Email / cetak / kurir);
+  * `Lunas` → wajib nominal diterima + tanggal + referensi pembayaran, dan
+    nominal harus sama dengan total tagihan;
+  * `Batalkan` → nomor invoice tetap tercatat terpakai.
+- **PDF** A4 native (tanpa dependensi) dengan watermark untuk draf/batal.
+- **Banner penyimpanan jujur**: membedakan "tersimpan di Supabase" vs
+  "pratinjau lokal (hilang saat deploy)".
 
-## Yang SENGAJA BELUM diimplementasikan (menunggu keputusan DAT)
+## Yang SENGAJA belum ada
 
-| Item | Status | Alasan |
-|---|---|---|
-| Tombol "Buat Invoice" / form input | ❌ belum | Trigger draft vs invoice resmi **belum diputuskan**. Tanpa tombol = tidak ada jalur input palsu. |
-| Termin (persen/jadwal/cicilan) | ❌ belum | Arahan DAT: "terminnya menyusul". |
-| Penomoran dokumen otomatis / nomor proyek dari BOQ | ❌ belum | Belum disepakati; existing project tidak disentuh. |
-| Simpan/update DB, kirim invoice, pembayaran | ❌ belum | Tidak ada invoice nyata/sends/payments pada tahap ini. |
-| Tabel DB + RLS | ❌ belum | Freeze migrasi — butuh keputusan skema (lihat di bawah). |
+| Item | Alasan |
+|---|---|
+| Tabel `sales_invoices` | Migrasi **belum dijalankan** (blocker, lihat kontrak §3 & §7). |
+| Data penerbit & rekening di PDF | Belum ada sumber terverifikasi; PDF menandai "BELUM DIISI" alih-alih mengarang. |
+| Termin / pembayaran bertahap | Belum ada tabelnya; `LUNAS` hanya untuk pembayaran penuh. |
+| Pengiriman otomatis (email/WA) | Status `TERKIRIM` adalah catatan manual admin, bukan pengiriman. |
 
-## Catatan kebutuhan fase database (untuk keputusan berikutnya)
+## Keamanan
 
-Bila DAT menyetujui persistence, tabel minimal yang dibutuhkan
-(usulan — belum didesain final, belum dimigrasi):
+- Setiap method (`GET`/`POST`/`PATCH`) wajib lolos `verifyAdmin()`:
+  JWT Supabase **diverifikasi** ke server auth, lalu peran dibaca dari tabel
+  `profiles`. Hanya `admin` yang lulus (403 untuk peran lain, 401 tanpa sesi).
+- Tanpa kredensial Supabase, endpoint butuh `SALES_INVOICE_PREVIEW_TOKEN`
+  (header `x-preview-token`); tanpa itu semua permintaan ditolak (503).
+- Penyimpanan file JSON **ditolak di produksi** (fail closed) — bukan menulis
+  file di server yang ephemeral.
+- Uang tidak dipercaya dari klien: `tax_amount` dan `grand_total` selalu
+  dihitung ulang server.
+- `payment_verified_by` diambil dari sesi admin, bukan dari body permintaan.
 
-- `sales_invoices`:
-  - `id uuid pk`, `created_at timestamptz default now()`
-  - `customer_id uuid` → sumber identitas dari **CRM** (relasi ke tabel
-    customers CRM saat dibuat — catatan: modul CRM belum ada di repo;
-    bila belum, simpan snapshot nama + customer_id null-able)
-  - `rab_version_id uuid` → RAB **final/disetujui customer** (versi RAB
-    yang disetujui, bukan draft)
-  - `project_id uuid` → Master Project tempat nomor diterbitkan
-  - `invoice_no text unique` → **penomoran dokumen unik** (format &
-    pemicu penerbitan nomor Master Project menunggu keputusan)
-  - `nominal numeric`, `status text` (draft/resmi — enum final menunggu
-    keputusan trigger)
-  - `issued_at timestamptz`, `created_by uuid`
-- RLS admin-only (polanya sama dengan modul lain).
-- **Belum** dirancang: tabel termin (butuh keputusan persentase/jadwal).
+## Menjalankan uji
 
-## Keamanan & jujur-UI
+```bash
+python3 scripts/sales-invoice-test/run.py
+```
 
-- Tidak ada `dangerouslySetInnerHTML`; semua render via React.
-- Tidak ada data demo / seed / localStorage-as-db / klaim tersimpan.
-- Tidak ada tombol yang tidak melakukan apa-apa (no fake save).
-- Guard non-admin: menu disembunyikan + panel "khusus administrator" +
-  tidak ada jalur data apa pun untuk non-admin.
+4 harness, 294 assertion:
+
+| Harness | Isi |
+|---|---|
+| `contract_test.mjs` | Mesin status, format nomor, validasi payload, uang dihitung ulang, field beku. |
+| `store_test.mjs` | Idempotensi (termasuk setelah restart), alokasi nomor, balapan, proyek yatim, LUNAS tanpa bukti, store fail-closed. |
+| `auth_api_test.mjs` | Otorisasi 401/403/503 per method, 405, 400 validasi, 409 transisi & nominal, verifikator dari sesi. |
+| `render_test.mjs` | PDF bebas data karangan + watermark, render jsdom (tombol status eksplisit), wiring registry/pages/constants. |
+
+## Untuk mengaktifkan penyimpanan nyata
+
+1. Setujui & jalankan migrasi di `docs/sales-invoice-contract.md` §3 (aditif, RLS admin-only).
+2. Set `SALES_INVOICE_STORE=supabase` (+ `SUPABASE_SERVICE_ROLE_KEY`).
+3. Isi data penerbit & rekening (sumber terverifikasi) agar PDF tidak lagi
+   menandai "BELUM DIISI".
+4. Opsional: pasang RPC `sales_invoice_issue` dan set `SALES_INVOICE_ISSUE_RPC=1`
+   supaya alokasi nomor + penerbitan proyek satu transaksi.

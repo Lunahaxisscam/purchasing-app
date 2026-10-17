@@ -1,46 +1,28 @@
 // ============================================================
 // modules/sales-invoice/CreateInvoiceModal.jsx
 // ============================================================
-// Modal pembuatan Sales Invoice resmi dari penawaran RAB yang disetujui.
-// Alur Bisnis: CRM (Customer) -> RAB Disetujui -> Invoice Penjualan ->
-// Penerbitan Nomor Proyek Baru di Master Project (Mandat DAT).
+// Modal pembuatan Sales Invoice.
+//
+// PERUBAHAN KONTRAK (S4, temuan review Brooklyn):
+//   * Form ini HANYA membuat DRAFT. Tidak ada lagi nomor invoice yang
+//     dikarang di klien, tidak ada lagi "langsung TERKIRIM" — dulu invoice
+//     lahir dengan status TERKIRIM padahal belum pernah dikirim ke siapa pun.
+//   * Nomor proyek TIDAK lagi di-insert ke `projects` dari browser sebelum
+//     invoice tersimpan. Urutan sekarang: simpan draf → terbitkan (server
+//     mengalokasikan nomor invoice, lalu nomor proyek). Bila invoice gagal,
+//     tidak ada nomor proyek yatim.
+//   * Nomor proyek di form hanya SARAN (advisory); server selalu memeriksa
+//     ulang keunikan & bisa menolak dengan kode 409 + saran nomor berikutnya.
+//   * Semua panggilan lewat apiClient (membawa JWT + Idempotency-Key).
 // ============================================================
 
-import React, { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabaseClient'
-
-export function suggestNextProjectCode(projects = []) {
-  if (!Array.isArray(projects) || projects.length === 0) return '106'
-  let maxNum = 0
-  for (const p of projects) {
-    const raw = String(p.kode ?? p.code ?? '').trim()
-    const n = parseInt(raw, 10)
-    if (!isNaN(n) && n > maxNum) {
-      maxNum = n
-    }
-  }
-  return maxNum > 0 ? String(maxNum + 1) : '106'
-}
-
-export function generateInvoiceNumber(existingInvoices = []) {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const prefix = `INV/NL/${year}/${month}/`
-  
-  let maxSeq = 0
-  for (const inv of existingInvoices) {
-    const no = String(inv.invoice_no || '').trim()
-    if (no.startsWith(prefix)) {
-      const seqStr = no.slice(prefix.length)
-      const seq = parseInt(seqStr, 10)
-      if (!isNaN(seq) && seq > maxSeq) {
-        maxSeq = seq
-      }
-    }
-  }
-  return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`
-}
+import React, { useState, useEffect, useMemo } from 'react'
+import { createDraftInvoice, issueInvoice, makeIdempotencyKey } from './apiClient'
+import {
+  LIMITS,
+  isProjectCodeTaken,
+  nextNumericProjectCode
+} from './contract.js'
 
 export default function CreateInvoiceModal({
   isOpen,
@@ -48,180 +30,154 @@ export default function CreateInvoiceModal({
   onSaved,
   projects = [],
   existingInvoices = [],
-  say
+  say,
+  token
 }) {
-  const [sourceMode, setSourceMode] = useState('rab') // 'rab' | 'direct'
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [projectAddress, setProjectAddress] = useState('')
-  const [rabReff, setRabReff] = useState('BOQ-001')
+  const [rabReff, setRabReff] = useState('')
   const [projectName, setProjectName] = useState('')
-  
-  // Invoice Meta
-  const [invoiceNo, setInvoiceNo] = useState('')
+
   const [issueDate, setIssueDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [nominal, setNominal] = useState('')
   const [includeTax, setIncludeTax] = useState(false)
   const [taxRate, setTaxRate] = useState(11)
   const [notes, setNotes] = useState('Termin pembayaran pertama (DP) pekerjaan interior.')
-  
-  // Project Creation Option (Mandat Bisnis DAT)
+
   const [projectOption, setProjectOption] = useState('new') // 'new' | 'existing' | 'none'
   const [newProjectCode, setNewProjectCode] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState('')
-  
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  // Satu kunci idempotensi per pembukaan modal: retry manual memakai kunci
+  // yang sama sehingga tidak pernah menghasilkan dua invoice.
+  const [draftKey, setDraftKey] = useState('')
 
-  // Init defaults on open
   useEffect(() => {
-    if (isOpen) {
-      const today = new Date().toISOString().slice(0, 10)
-      const due = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
-      setIssueDate(today)
-      setDueDate(due)
-      setInvoiceNo(generateInvoiceNumber(existingInvoices))
-      setNewProjectCode(suggestNextProjectCode(projects))
-      setError('')
-      setSaving(false)
-    }
-  }, [isOpen, existingInvoices, projects])
+    if (!isOpen) return
+    const today = new Date().toISOString().slice(0, 10)
+    const due = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+    setIssueDate(today)
+    setDueDate(due)
+    setNewProjectCode(nextNumericProjectCode(projects))
+    setError('')
+    setNotice('')
+    setSaving(false)
+    setDraftKey(makeIdempotencyKey('si-draft'))
+  }, [isOpen, projects])
 
-  if (!isOpen) return null
-
-  // Duplicate checks
+  const suggestion = useMemo(() => nextNumericProjectCode(projects), [projects])
   const cleanCode = String(newProjectCode || '').trim()
   const isDuplicateProjectCode = projectOption === 'new' && cleanCode
-    ? projects.some(p => String(p.kode ?? p.code ?? '').trim().toLowerCase() === cleanCode.toLowerCase())
-    : false
-
-  const cleanInvoiceNo = String(invoiceNo || '').trim()
-  const isDuplicateInvoiceNo = cleanInvoiceNo
-    ? existingInvoices.some(inv => String(inv.invoice_no || '').trim().toLowerCase() === cleanInvoiceNo.toLowerCase())
+    ? isProjectCodeTaken(projects, cleanCode)
     : false
 
   const rawNominal = parseFloat(nominal) || 0
   const taxAmount = includeTax ? Math.round(rawNominal * (taxRate / 100)) : 0
   const grandTotal = rawNominal + taxAmount
 
-  async function handleSubmit(e) {
+  if (!isOpen) return null
+
+  function buildPayload() {
+    return {
+      customer_name: customerName.trim(),
+      customer_phone: customerPhone.trim(),
+      project_address: projectAddress.trim(),
+      project_name: projectName.trim(),
+      rab_reff: rabReff.trim(),
+      nominal: rawNominal,
+      tax_rate: includeTax ? taxRate : 0,
+      notes: notes.trim(),
+      payment_terms: 'DP / Termin',
+      issue_date: issueDate,
+      due_date: dueDate,
+      // status TIDAK dikirim: draf selalu DRAFT (server menolak status lain)
+      project_intent: {
+        mode: projectOption,
+        code: projectOption === 'new' ? cleanCode : '',
+        project_id: projectOption === 'existing' ? selectedProjectId : ''
+      }
+    }
+  }
+
+  function validate() {
+    if (!customerName.trim()) return 'Nama customer (CRM) wajib diisi.'
+    if (rawNominal <= 0) return 'Nominal tagihan harus lebih besar dari 0.'
+    if (!issueDate) return 'Tanggal terbit wajib diisi.'
+    if (projectOption === 'new') {
+      if (!cleanCode) return 'Nomor / kode proyek baru wajib diisi.'
+      if (isDuplicateProjectCode) {
+        return `Kode proyek "${cleanCode}" sudah dipakai di Master Project. Nomor berikutnya yang tersedia: ${suggestion}.`
+      }
+    }
+    if (projectOption === 'existing' && !selectedProjectId) return 'Pilih proyek existing yang akan ditautkan.'
+    return ''
+  }
+
+  async function handleSaveDraft(e) {
     e.preventDefault()
     if (saving) return
     setError('')
-
-    if (!cleanInvoiceNo) {
-      setError('Nomor invoice wajib diisi.')
-      return
-    }
-    if (isDuplicateInvoiceNo) {
-      setError(`Nomor invoice "${cleanInvoiceNo}" sudah digunakan. Silakan gunakan nomor lain.`)
-      return
-    }
-    if (!customerName.trim()) {
-      setError('Nama customer (CRM) wajib diisi.')
-      return
-    }
-    if (rawNominal <= 0) {
-      setError('Nominal tagihan harus lebih besar dari 0.')
-      return
-    }
-
-    if (projectOption === 'new') {
-      if (!cleanCode) {
-        setError('Nomor / kode proyek baru wajib diisi.')
-        return
-      }
-      if (isDuplicateProjectCode) {
-        setError(`Kode proyek "${cleanCode}" sudah digunakan di Master Project. Gunakan kode lain.`)
-        return
-      }
-    }
+    setNotice('')
+    const invalid = validate()
+    if (invalid) { setError(invalid); return }
 
     setSaving(true)
-
     try {
-      let createdProjectId = null
-      let assignedProjectCode = ''
-      let finalProjectName = projectName.trim() || `${customerName.trim()} Project`
+      const json = await createDraftInvoice(buildPayload(), { token, idempotencyKey: draftKey })
+      const inv = json.invoice
+      if (onSaved) onSaved(inv)
+      if (say) say(`✓ Draf invoice ${inv.id} tersimpan${json.replayed ? ' (permintaan ulang, tidak ada duplikat)' : ''}.`)
+      setNotice(
+        `Draf tersimpan. Belum ada nomor invoice dan belum ada nomor proyek — keduanya dialokasikan saat Anda menekan "Terbitkan".` +
+        (json.replayed ? ' Permintaan identik sebelumnya sudah tersimpan; tidak ada duplikat.' : '')
+      )
+      setDraftKey(makeIdempotencyKey('si-draft'))
+    } catch (err) {
+      setError(err.message || 'Gagal menyimpan draf invoice.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
-      // 1. Mandat DAT: Jika opsi 'new', terbitkan nomor proyek baru di tabel `projects` Supabase
-      if (projectOption === 'new' && supabase) {
-        const { data: projData, error: projErr } = await supabase
-          .from('projects')
-          .insert([{
-            kode: cleanCode,
-            code: cleanCode,
-            name: finalProjectName,
-            status: 'ON_GOING'
-          }])
-          .select()
+  async function handleSaveAndIssue(e) {
+    e.preventDefault()
+    if (saving) return
+    setError('')
+    setNotice('')
+    const invalid = validate()
+    if (invalid) { setError(invalid); return }
 
-        if (projErr) {
-          throw new Error(`Gagal menerbitkan proyek baru ke Master Project: ${projErr.message}`)
-        }
-        if (projData && projData[0]) {
-          createdProjectId = projData[0].id
-          assignedProjectCode = cleanCode
-        }
-      } else if (projectOption === 'existing' && selectedProjectId) {
-        createdProjectId = selectedProjectId
-        const pObj = projects.find(p => p.id === selectedProjectId)
-        if (pObj) {
-          assignedProjectCode = String(pObj.kode ?? pObj.code ?? '')
-          if (!projectName.trim()) {
-            finalProjectName = pObj.name || ''
-          }
-        }
-      }
+    setSaving(true)
+    try {
+      // 1) Simpan draf (idempoten).
+      const created = await createDraftInvoice(buildPayload(), { token, idempotencyKey: draftKey })
+      const draft = created.invoice
 
-      // 2. Simpan Sales Invoice ke backend
-      const payload = {
-        invoice_no: cleanInvoiceNo,
-        customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim(),
-        project_address: projectAddress.trim(),
-        rab_reff: rabReff.trim(),
-        project_name: finalProjectName,
-        project_code: assignedProjectCode,
-        project_id: createdProjectId,
-        nominal: rawNominal,
-        tax_rate: includeTax ? taxRate : 0,
-        tax_amount: taxAmount,
-        grand_total: grandTotal,
-        notes: notes.trim(),
-        payment_terms: 'DP / Termin',
-        issue_date: issueDate,
-        due_date: dueDate,
-        status: 'TERKIRIM' // langsung berstatus TERKIRIM saat diterbitkan
-      }
-
-      const res = await fetch('/api/sales-invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      const json = await res.json()
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error || 'Gagal menyimpan sales invoice.')
-      }
-
+      // 2) Terbitkan. Server mengalokasikan nomor invoice; nomor proyek baru
+      //    diterbitkan SETELAH invoice tersimpan.
+      const issued = await issueInvoice(draft.id, { token })
+      const inv = issued.invoice
+      if (onSaved) onSaved(inv)
+      const warn = (issued.warnings || []).join(' ')
       if (say) {
-        if (projectOption === 'new') {
-          say(`✓ Invoice ${cleanInvoiceNo} berhasil dibuat & Proyek [${cleanCode}] ${finalProjectName} resmi diterbitkan di Master Project!`)
-        } else {
-          say(`✓ Invoice ${cleanInvoiceNo} berhasil diterbitkan!`)
-        }
+        say(
+          `✓ Invoice ${inv.invoice_no} diterbitkan` +
+          (inv.project_issued && inv.project_code ? ` & proyek [${inv.project_code}] terdaftar.` : '.') +
+          (warn ? ' ' + warn : '')
+        )
       }
-
-      if (onSaved) {
-        onSaved(json.invoice)
-      }
+      setDraftKey(makeIdempotencyKey('si-draft'))
       onClose()
     } catch (err) {
-      console.error('Submit Sales Invoice error:', err)
-      setError(err.message || 'Terjadi kesalahan saat memproses invoice.')
+      setError(
+        (err.message || 'Gagal menerbitkan invoice.') +
+        (err.extra && err.extra.suggested_code ? ` Nomor proyek berikutnya yang tersedia: ${err.extra.suggested_code}.` : '')
+      )
     } finally {
       setSaving(false)
     }
@@ -232,17 +188,18 @@ export default function CreateInvoiceModal({
       <div className="si-modal-card">
         <div className="si-modal-head">
           <div>
-            <h3>🧾 Buat Invoice Penjualan (Sales Invoice)</h3>
-            <p>Alur Bisnis: Penawaran Disetujui ➔ Invoice Penjualan ➔ Penerbitan Nomor Master Project</p>
+            <h3>🧾 Buat Invoice Penjualan (draf)</h3>
+            <p>Draf disimpan dulu. Nomor invoice &amp; nomor proyek diterbitkan saat Anda menekan Terbitkan.</p>
           </div>
           <button type="button" className="si-modal-close" onClick={onClose} disabled={saving}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSaveAndIssue}>
           <div className="si-modal-body">
             {error && <div className="si-modal-err">⚠️ {error}</div>}
+            {notice && <div className="si-modal-note">{notice}</div>}
 
-            {/* SEKSI 1: IDENTITAS CUSTOMER & SUMBER RAB */}
+            {/* SEKSI 1 */}
             <div className="si-form-section">
               <div className="si-sec-title">
                 <span className="si-sec-num">1</span>
@@ -255,6 +212,7 @@ export default function CreateInvoiceModal({
                   <input
                     type="text"
                     required
+                    maxLength={LIMITS.customer_name}
                     placeholder="Contoh: Ibu Jessica / PT Maju Sentosa"
                     value={customerName}
                     onChange={e => setCustomerName(e.target.value)}
@@ -265,6 +223,7 @@ export default function CreateInvoiceModal({
                   <label>No. Kontak / WhatsApp</label>
                   <input
                     type="text"
+                    maxLength={LIMITS.customer_phone}
                     placeholder="0812-xxxx-xxxx"
                     value={customerPhone}
                     onChange={e => setCustomerPhone(e.target.value)}
@@ -278,16 +237,19 @@ export default function CreateInvoiceModal({
                   <label>Ref. Penawaran RAB / BOQ Disetujui</label>
                   <input
                     type="text"
+                    maxLength={LIMITS.rab_reff}
                     placeholder="Contoh: BOQ-001 / RAB-Verdi-02"
                     value={rabReff}
                     onChange={e => setRabReff(e.target.value)}
                     disabled={saving}
                   />
+                  <small>Kosongkan bila belum ada — jangan mengarang nomor referensi.</small>
                 </div>
                 <div className="si-field">
                   <label>Nama / Judul Pekerjaan</label>
                   <input
                     type="text"
+                    maxLength={LIMITS.project_name}
                     placeholder="Contoh: Fit-Out Interior Master Bedroom"
                     value={projectName}
                     onChange={e => setProjectName(e.target.value)}
@@ -300,6 +262,7 @@ export default function CreateInvoiceModal({
                 <label>Lokasi / Alamat Proyek</label>
                 <input
                   type="text"
+                  maxLength={LIMITS.project_address}
                   placeholder="Contoh: Cluster Verdi Barat No. 8, Gading Serpong"
                   value={projectAddress}
                   onChange={e => setProjectAddress(e.target.value)}
@@ -308,14 +271,15 @@ export default function CreateInvoiceModal({
               </div>
             </div>
 
-            {/* SEKSI 2: PENERBITAN NOMOR MASTER PROJECT (MANDAT DAT) */}
+            {/* SEKSI 2 */}
             <div className="si-form-section si-sec-highlight">
               <div className="si-sec-title">
                 <span className="si-sec-num">2</span>
-                <span>Penerbitan Nomor Proyek Resmi (Master Project)</span>
+                <span>Nomor Proyek (diterbitkan saat invoice terbit)</span>
               </div>
               <p className="si-sec-hint">
-                💡 <i>Arahan Bisnis Noir Living:</i> Nomor proyek baru resmi diterbitkan saat Sales Invoice pertama dibuat dari deal penawaran yang disetujui.
+                💡 Nomor proyek baru baru didaftarkan ke Master Project <b>setelah</b> invoice berhasil
+                tersimpan. Jadi tidak ada nomor proyek yang terpakai untuk invoice yang gagal.
               </p>
 
               <div className="si-proj-options">
@@ -328,9 +292,8 @@ export default function CreateInvoiceModal({
                     onChange={() => setProjectOption('new')}
                     disabled={saving}
                   />
-                  <span><b>✨ Terbitkan Nomor Proyek Baru</b> (Pendaftaran deal deal-maker ke Master Project)</span>
+                  <span><b>✨ Terbitkan nomor proyek baru</b> saat invoice terbit</span>
                 </label>
-
                 <label className="si-radio-opt">
                   <input
                     type="radio"
@@ -340,9 +303,8 @@ export default function CreateInvoiceModal({
                     onChange={() => setProjectOption('existing')}
                     disabled={saving}
                   />
-                  <span><b>🔗 Tautkan ke Proyek Existing</b> (Invoice lanjutan / termin proyek yang sudah ada)</span>
+                  <span><b>🔗 Tautkan ke proyek existing</b> (termin lanjutan)</span>
                 </label>
-
                 <label className="si-radio-opt">
                   <input
                     type="radio"
@@ -352,33 +314,36 @@ export default function CreateInvoiceModal({
                     onChange={() => setProjectOption('none')}
                     disabled={saving}
                   />
-                  <span><b>⚪ Tanpa Nomor Proyek</b> (Invoice umum / belum menerbitkan proyek)</span>
+                  <span><b>⚪ Tanpa nomor proyek</b> (invoice umum)</span>
                 </label>
               </div>
 
               {projectOption === 'new' && (
                 <div className="si-new-proj-box">
                   <div className="si-field">
-                    <label>Nomor / Kode Proyek Resmi yang Diterbitkan *</label>
+                    <label>Usulan Nomor Proyek (bisa diubah) *</label>
                     <div className="si-code-input-wrap">
                       <input
                         type="text"
-                        required
+                        maxLength={LIMITS.project_code}
                         value={newProjectCode}
                         onChange={e => setNewProjectCode(e.target.value)}
-                        placeholder="Contoh: 106"
+                        placeholder={suggestion}
                         className={isDuplicateProjectCode ? 'input-error' : ''}
                         disabled={saving}
                       />
                       <span className="si-code-status">
                         {isDuplicateProjectCode ? (
-                          <span style={{ color: '#d32f2f' }}>❌ Kode sudah dipakai!</span>
+                          <span style={{ color: '#d32f2f' }}>❌ sudah dipakai</span>
                         ) : cleanCode ? (
-                          <span style={{ color: '#2e7d32' }}>✓ Tersedia (Status: ON_GOING)</span>
+                          <span style={{ color: '#2e7d32' }}>✓ tampak tersedia</span>
                         ) : null}
                       </span>
                     </div>
-                    <small>Sistem menyarankan nomor berikutnya secara berurutan. Anda dapat mengubahnya sesuai format nomor proyek.</small>
+                    <small>
+                      Hanya usulan dari data proyek yang sedang dimuat. Server memeriksa ulang keunikan
+                      dan dapat menolak (409) bila nomor ini ternyata sudah dipakai.
+                    </small>
                   </div>
                 </div>
               )}
@@ -391,7 +356,6 @@ export default function CreateInvoiceModal({
                       value={selectedProjectId}
                       onChange={e => setSelectedProjectId(e.target.value)}
                       disabled={saving}
-                      required
                     >
                       <option value="">-- Pilih Proyek --</option>
                       {projects.map(p => (
@@ -405,23 +369,18 @@ export default function CreateInvoiceModal({
               )}
             </div>
 
-            {/* SEKSI 3: DETAIL TAGIHAN / INVOICE */}
+            {/* SEKSI 3 */}
             <div className="si-form-section">
               <div className="si-sec-title">
                 <span className="si-sec-num">3</span>
-                <span>Rincian Nilai Tagihan &amp; Pembayaran</span>
+                <span>Rincian Nilai Tagihan</span>
               </div>
 
               <div className="si-grid-3">
                 <div className="si-field">
-                  <label>Nomor Dokumen Invoice *</label>
-                  <input
-                    type="text"
-                    required
-                    value={invoiceNo}
-                    onChange={e => setInvoiceNo(e.target.value)}
-                    disabled={saving}
-                  />
+                  <label>Nomor Dokumen Invoice</label>
+                  <input type="text" value="(otomatis saat terbit)" readOnly disabled />
+                  <small>Dialokasikan server: INV/NL/TAHUN/BULAN/URUT.</small>
                 </div>
                 <div className="si-field">
                   <label>Tanggal Diterbitkan</label>
@@ -468,7 +427,7 @@ export default function CreateInvoiceModal({
                         onChange={e => setIncludeTax(e.target.checked)}
                         disabled={saving}
                       />
-                      <span>Tambah PPN (11%)</span>
+                      <span>Tambah PPN ({taxRate}%)</span>
                     </label>
                   </div>
                 </div>
@@ -481,7 +440,7 @@ export default function CreateInvoiceModal({
                 </div>
                 {includeTax && (
                   <div className="si-calc-row">
-                    <span>PPN 11%:</span>
+                    <span>PPN {taxRate}%:</span>
                     <b>Rp {taxAmount.toLocaleString('id-ID')}</b>
                   </div>
                 )}
@@ -489,15 +448,19 @@ export default function CreateInvoiceModal({
                   <span>TOTAL TAGIHAN KLIEN:</span>
                   <span className="si-grand-badge">Rp {grandTotal.toLocaleString('id-ID')}</span>
                 </div>
+                <div className="si-calc-row" style={{ fontSize: 11, color: '#6b6f66' }}>
+                  Total dihitung ulang di server; angka kiriman klien tidak dipercaya.
+                </div>
               </div>
 
               <div className="si-field" style={{ marginTop: '12px' }}>
                 <label>Catatan / Instruksi Pembayaran Klien</label>
                 <textarea
                   rows="2"
+                  maxLength={LIMITS.notes}
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  placeholder="Catatan rekening tujuan atau keterangan termin pembayaran..."
+                  placeholder="Catatan termin pembayaran..."
                   disabled={saving}
                 />
               </div>
@@ -508,8 +471,11 @@ export default function CreateInvoiceModal({
             <button type="button" className="si-btn-cancel" onClick={onClose} disabled={saving}>
               Batal
             </button>
-            <button type="submit" className="si-btn-submit" disabled={saving || isDuplicateInvoiceNo || isDuplicateProjectCode}>
-              {saving ? '⏳ Memproses & Menerbitkan...' : '✓ Simpan & Terbitkan Invoice'}
+            <button type="button" className="si-btn-draft" onClick={handleSaveDraft} disabled={saving}>
+              {saving ? '⏳ Memproses…' : '💾 Simpan Draf'}
+            </button>
+            <button type="submit" className="si-btn-submit" disabled={saving || isDuplicateProjectCode}>
+              {saving ? '⏳ Memproses…' : '✓ Simpan & Terbitkan'}
             </button>
           </div>
         </form>
@@ -538,21 +504,22 @@ export default function CreateInvoiceModal({
           cursor: pointer; padding: 4px 8px; border-radius: 4px;
         }
         .si-modal-close:hover { background: #eaece6; color: #222; }
-        .si-modal-body {
-          padding: 18px 22px; overflow-y: auto; flex: 1;
-        }
+        .si-modal-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
         .si-modal-err {
           background: #fde8e8; color: #b71c1c; padding: 10px 14px;
           border-radius: 8px; font-size: 12.5px; margin-bottom: 16px;
           border: 1px solid #f5c6c6;
         }
+        .si-modal-note {
+          background: #eef4ea; color: #33502a; padding: 10px 14px;
+          border-radius: 8px; font-size: 12px; margin-bottom: 16px;
+          border: 1px solid #cfe0c4; line-height: 1.5;
+        }
         .si-form-section {
           background: #fafbf9; border: 1px solid #e5e7e0;
           border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
         }
-        .si-sec-highlight {
-          background: #fdfaf2; border-color: #eeddb2;
-        }
+        .si-sec-highlight { background: #fdfaf2; border-color: #eeddb2; }
         .si-sec-title {
           display: flex; align-items: center; gap: 8px;
           font-size: 13.5px; font-weight: 700; color: #3b4233; margin-bottom: 10px;
@@ -561,18 +528,10 @@ export default function CreateInvoiceModal({
           background: #4b523a; color: #fff; width: 20px; height: 20px;
           border-radius: 50%; display: grid; place-items: center; font-size: 11px;
         }
-        .si-sec-hint {
-          font-size: 11.5px; color: #6b6f66; margin: 0 0 12px; line-height: 1.5;
-        }
-        .si-grid-2 {
-          display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-        }
-        .si-grid-3 {
-          display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px;
-        }
-        .si-field {
-          margin-bottom: 10px;
-        }
+        .si-sec-hint { font-size: 11.5px; color: #6b6f66; margin: 0 0 12px; line-height: 1.5; }
+        .si-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .si-grid-3 { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
+        .si-field { margin-bottom: 10px; }
         .si-field label {
           display: block; font-size: 11.5px; font-weight: 600;
           color: #4b523a; margin-bottom: 5px;
@@ -585,15 +544,9 @@ export default function CreateInvoiceModal({
         .si-field input:focus, .si-field select:focus, .si-field textarea:focus {
           border-color: #4b523a; outline: none; box-shadow: 0 0 0 2px rgba(75,82,58,0.15);
         }
-        .si-field input.input-error {
-          border-color: #d32f2f; background: #fff8f8;
-        }
-        .si-field small {
-          display: block; font-size: 11px; color: #7a7e75; margin-top: 4px;
-        }
-        .si-proj-options {
-          display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
-        }
+        .si-field input.input-error { border-color: #d32f2f; background: #fff8f8; }
+        .si-field small { display: block; font-size: 11px; color: #7a7e75; margin-top: 4px; }
+        .si-proj-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         .si-radio-opt {
           display: flex; align-items: center; gap: 8px; font-size: 12.5px;
           color: #333; cursor: pointer; padding: 6px 10px; border-radius: 6px;
@@ -604,18 +557,10 @@ export default function CreateInvoiceModal({
           background: #ffffff; border: 1px dashed #d5d8cc;
           padding: 12px 14px; border-radius: 8px;
         }
-        .si-code-input-wrap {
-          display: flex; align-items: center; gap: 12px;
-        }
-        .si-code-input-wrap input {
-          width: 140px; font-weight: bold; font-size: 14px;
-        }
-        .si-code-status {
-          font-size: 12px; font-weight: 600;
-        }
-        .si-tax-toggle {
-          padding-top: 8px;
-        }
+        .si-code-input-wrap { display: flex; align-items: center; gap: 12px; }
+        .si-code-input-wrap input { width: 140px; font-weight: bold; font-size: 14px; }
+        .si-code-status { font-size: 12px; font-weight: 600; }
+        .si-tax-toggle { padding-top: 8px; }
         .si-tax-toggle label {
           display: flex; align-items: center; gap: 8px; cursor: pointer;
           font-weight: normal; font-size: 12.5px;
@@ -632,9 +577,7 @@ export default function CreateInvoiceModal({
           margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cfd4c5;
           font-weight: 700; color: #232720;
         }
-        .si-grand-badge {
-          font-size: 14px; color: #1b6348; font-weight: 800;
-        }
+        .si-grand-badge { font-size: 14px; color: #1b6348; font-weight: 800; }
         .si-modal-foot {
           padding: 14px 20px; background: #f7f8f5; border-top: 1px solid #e2e4de;
           display: flex; justify-content: flex-end; gap: 10px;
@@ -644,13 +587,19 @@ export default function CreateInvoiceModal({
           padding: 7px 14px; border-radius: 6px; font-size: 12.5px; cursor: pointer;
         }
         .si-btn-cancel:hover { background: #eaece5; color: #222; }
+        .si-btn-draft {
+          background: #ffffff; border: 1px solid #4b523a; color: #3b4233;
+          padding: 7px 14px; border-radius: 6px; font-size: 12.5px;
+          font-weight: 600; cursor: pointer;
+        }
+        .si-btn-draft:hover { background: #f0f2ea; }
         .si-btn-submit {
           background: #4b523a; border: 1px solid #3d432e; color: #ffffff;
           padding: 7px 18px; border-radius: 6px; font-size: 12.5px; font-weight: 600;
           cursor: pointer; transition: all 0.15s;
         }
         .si-btn-submit:hover { background: #3d432e; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
-        .si-btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+        .si-btn-submit:disabled, .si-btn-draft:disabled { opacity: 0.55; cursor: not-allowed; }
       `}</style>
     </div>
   )
