@@ -205,6 +205,7 @@ export const modules = [
       'modules/sales-invoice/README.md',
       'pages/api/sales-invoices.js',
       'docs/sales-invoice-contract.md',
+      'docs/report-t_fca26349.md',
       'scripts/sales-invoice-test/run.py'
     ]
   },
