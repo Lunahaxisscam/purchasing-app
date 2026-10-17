@@ -801,16 +801,12 @@ export default function App() {
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
         ) : page === 'sales_invoice' ? (
-          // Invoice Penjualan (t_ff3a96cf) — modul admin-only, guard RENDER
-          // sama polanya dengan RAB & BOQ: role HANYA dari profiles (server
-          // data); non-admin yang memaksa page='sales_invoice' tetap dapat
-          // panel "khusus administrator". Menu + kartu dashboard disembunyikan
-          // utk non-admin. TAHAP AWAL: tidak ada props data invoice karena
-          // belum ada tabel DB — modul menampilkan empty state jujur; bila
-          // kelak tabel `sales_invoices` dibuat (keputusan DAT), muat di
-          // loadAll() lalu kirim sebagai prop `invoices`.
           role === 'admin' ? (
-            <SalesInvoiceModule />
+            <SalesInvoiceModule
+              projects={rows.projects || []}
+              allProjects={allProjects || []}
+              say={setNotice}
+            />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )

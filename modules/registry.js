@@ -188,7 +188,10 @@ export const modules = [
     source: 'core',
     files: [
       'modules/sales-invoice/view.jsx',
+      'modules/sales-invoice/CreateInvoiceModal.jsx',
+      'modules/sales-invoice/pdf.js',
       'modules/sales-invoice/README.md',
+      'pages/api/sales-invoices.js',
       'scripts/sales-invoice-test/run.py'
     ]
   },
