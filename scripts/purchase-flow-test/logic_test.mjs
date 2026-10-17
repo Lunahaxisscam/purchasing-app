@@ -507,7 +507,9 @@ console.log('\nB5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur')
   check('B5c status DRAFT (antrean belum diserahkan)', ho[0]?.status === 'DRAFT')
   check('B5d terhubung ke nota', ho[0]?.receiving_id === res.receivingId)
   check('B5e belum ada waktu penyerahan', !ho[0]?.diserahkan_at)
-  check('B5f dilaporkan di pesan', /antrean Handover/.test(res.message), res.message)
+  // t_31871b64 (Sprint 1, arahan DAT): pesan terlihat memakai istilah
+  // 'Serah Terima' (sebelumnya 'Handover'). Antrean tetap masuk modul handovers.
+  check('B5f dilaporkan di pesan', /antrean Serah Terima/.test(res.message), res.message)
 
   // idempoten: nota yang SUDAH punya handover tidak membuat dokumen kedua.
   // Mock memberi id header pertama "rec-1" (prefix tabel + urutan), jadi

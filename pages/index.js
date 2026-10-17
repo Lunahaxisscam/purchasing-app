@@ -336,13 +336,13 @@ export default function App() {
           status: 'DRAFT',
           note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
         })
-        if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
+        if (hoErr) { setNotice(`Gagal membuat Serah Terima: ${hoErr.message}`); return }
 
         const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
-        if (error) { setNotice(`Handover dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
+        if (error) { setNotice(`Serah Terima dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
       }
 
-      setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk antrean Handover — tandai "Sudah Diserahkan" setelah serah terima fisik.`)
+      setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk antrean Serah Terima — tandai "Sudah Diserahkan" setelah serah terima fisik.`)
       loadAll()
     } catch (err) {
       setNotice(`Terjadi kesalahan saat kirim ke tukang: ${err.message}`)
@@ -666,7 +666,7 @@ export default function App() {
       )
       if (!okWarning) return
     }
-    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Purchase' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Pembelian' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
     
     // Sesuaikan penentuan itemName berdasarkan pageTarget
     let itemName
@@ -737,6 +737,12 @@ export default function App() {
   const activeProjects = (rows.projects || []).filter(p => normalizeStatus(p.status) !== 'DONE')
   const pastProjects = (rows.projects || []).filter(p => normalizeStatus(p.status) === 'DONE')
   const currentRows = page === 'projects' ? activeProjects : (page === 'past_projects' ? pastProjects : (rows[page] || []))
+  // t_31871b64: route lama `past_projects` TETAP berfungsi (link/bookmark
+  // lama, kartu Dashboard, link dari modul lain). Ia dirender sebagai modul
+  // Projects yang sama, hanya dengan tab "Selesai" langsung aktif — jadi
+  // tidak ada data yang hilang dan tidak ada ID navigasi yang mati.
+  // Modules yang dirender ModuleView selain Projects memakai tab default.
+  const modulePage = page === 'past_projects' ? 'projects' : page
 
   return (
     <main className="shell">
@@ -825,8 +831,11 @@ export default function App() {
           <PurchasePage rows={rows} refresh={loadAll} say={setNotice} />
         ) : (
           <Module
-            page={page}
+            page={modulePage}
             rows={currentRows}
+            // t_31871b64: masuk lewat route lama `past_projects` = langsung
+            // buka tab "Selesai". Lewat menu Projects = tab default 'active'.
+            projectTab={page === 'past_projects' ? 'done' : 'active'}
             allProjects={rows.projects || []}
             allMaterials={rows.materials || []}
             allPrItems={rows.pr_items || []}

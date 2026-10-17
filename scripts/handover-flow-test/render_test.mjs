@@ -197,7 +197,10 @@ console.log('=== R1. DAFTAR HANDOVER (desktop): barang, status bukti fisik, aksi
   await tick()
   const form = doc.querySelector('form.dialog')
   const ft = form?.textContent || ''
-  check('R4a judul "Edit Handover"', /Edit Handover/.test(ft))
+  // t_31871b64 (Sprint 1, arahan DAT): label terlihat "Handover" diganti
+  // "Serah Terima" di lib/constants.js, jadi judul modal ikut berubah.
+  // Yang diperiksa tetap perilaku (tidak ada dropdown sumber/status).
+  check('R4a judul "Edit Serah Terima"', /Edit Serah Terima/.test(ft))
   check('R4b TIDAK ada dropdown Penerimaan (Purchase) di edit', !/Penerimaan \(Purchase\)/.test(ft))
   check('R4c TIDAK ada dropdown Project di edit', !/Project \(otomatis dari penerimaan/.test(ft))
   check('R4d TIDAK ada dropdown Status Serah Terima di edit', !/Status Serah Terima/.test(ft))
@@ -225,7 +228,8 @@ console.log('=== R1. DAFTAR HANDOVER (desktop): barang, status bukti fisik, aksi
   const { document: doc } = mountCreate(null)
   await tick()
   const ft = doc.querySelector('form.dialog')?.textContent || ''
-  check('R5a judul "Tambah Handover"', /Tambah Handover/.test(ft))
+  // t_31871b64 (Sprint 1): label "Handover" -> "Serah Terima" (lihat R4a).
+  check('R5a judul "Tambah Serah Terima"', /Tambah Serah Terima/.test(ft))
   check('R5b dropdown Penerimaan ada (link wajib)', /Penerimaan \(Purchase\)/.test(ft))
   const sel = [...doc.querySelectorAll('select')].find(s => /Pilih Penerimaan/.test(s.textContent))
   check('R5c dropdown penerimaan required', sel?.required === true)

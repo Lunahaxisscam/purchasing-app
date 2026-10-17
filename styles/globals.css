@@ -6465,3 +6465,67 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
   .purchase-detail-totals { flex-direction: column; align-items: flex-start; gap: 6px; }
   .purchase-detail-grand { margin-left: 0; }
 }
+
+/* ============================================================
+   t_31871b64 (Sprint 1, arahan DAT) — Ringkas navigasi, Projects,
+   Materials, Vendors. Gaya yang DITAMBAHKAN di sini hanya milik
+   sprint ini (di-scope per kelas, tidak menimpa gaya lama).
+
+   1) Material: kolom 'Kode' dihilangkan dari daftar (kode kini
+      sublabel di bawah nama). Field materials.kode TIDAK berubah.
+   2) Vendor: email/kontak lain dipindah ke bagian LANJUTAN (opsional),
+      native <details> tanpa state tambahan.
+   ============================================================ */
+/* Sublabel kode = SEKALIGUNS tombol urutkan (t_31871b64) */
+.cell-kode-sub {
+  display: block;
+  width: fit-content;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--slate-500, #64748b);
+  letter-spacing: 0.01em;
+  word-break: break-word;
+  cursor: pointer;
+  text-align: left;
+}
+.cell-kode-sub:hover { color: var(--slate-700, #334155); text-decoration: underline; }
+.cell-kode-sub:focus-visible { outline: 2px solid var(--olive-500, #6b7f4f); outline-offset: 2px; border-radius: 4px; }
+@media (hover: none) and (pointer: coarse) {
+  .cell-kode-sub { min-height: 44px; display: flex; align-items: center; }
+}
+
+/* --- Form Vendor: bagian LANJUTAN (opsional) --- */
+.vendor-form-advanced {
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 12px;
+  margin-top: 4px;
+  background: #fafbfa;
+}
+.vendor-form-advanced-summary {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--slate-600, #475569);
+  cursor: pointer;
+  /* target sentuh mobile tetap nyaman (>= 44px) */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.vendor-form-advanced[open] .vendor-form-advanced-summary {
+  margin-bottom: 8px;
+}
+.vendor-form-advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vendor-form-advanced-hint {
+  font-size: 11px;
+  color: var(--slate-500, #64748b);
+  margin: 0;
+}

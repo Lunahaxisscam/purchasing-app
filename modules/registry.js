@@ -67,7 +67,9 @@ export const modules = [
   },
   {
     id: 'receivings',
-    label: 'Purchase',
+    // t_31871b64 (Sprint 1, arahan DAT): label terlihat 'Purchase' ->
+    // 'Pembelian'. id modul, permission, source, files TIDAK berubah.
+    label: 'Pembelian',
     adminOnly: false,
     // t_9109cf5e (arahan DAT): Purchase punya HALAMAN SENDIRI (dua tab: Siap
     // Dibeli & Riwayat Pembelian + dialog Proses Pembelian), dirender langsung
@@ -87,7 +89,9 @@ export const modules = [
   },
   {
     id: 'handovers',
-    label: 'Handover',
+    // t_31871b64 (Sprint 1, arahan DAT): label terlihat 'Handover' ->
+    // 'Serah Terima'. id modul, permission, source, files TIDAK berubah.
+    label: 'Serah Terima',
     adminOnly: false,
     source: 'module',
     files: [

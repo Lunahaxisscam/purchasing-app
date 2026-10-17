@@ -41,8 +41,12 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     ['requests', 'Purchase Request', rows.requests?.length || 0, 'tone-neutral', 'lihat semua PR'],
     ['approvals', 'Menunggu approval', pendingApprovals, pendingApprovals > 0 ? 'tone-warn' : 'tone-ok',
       pendingApprovals > 0 ? 'perlu tindakan' : 'tidak ada antrean'],
-    ['receivings', 'Purchase', rows.receivings?.length || 0, 'tone-neutral', 'penerimaan barang'],
-    ['past_projects', 'Past Project', pastProjects.length, 'tone-neutral', 'proyek selesai']
+    ['receivings', 'Pembelian', rows.receivings?.length || 0, 'tone-neutral', 'penerimaan barang'],
+    // t_31871b64 (Sprint 1, arahan DAT): menu "Past Project" digabung ke
+    // Projects (tab Aktif/Selesai). Kartu dashboard jadi satu dan mengarah
+    // ke modul 'projects'. Rute lama 'past_projects' tetap terdaftar dan
+    // membuka tab Selesai, jadi link/bookmark lama masih bekerja.
+    ['projects', 'Project selesai', pastProjects.length, 'tone-neutral', 'tab Selesai di Project']
   ]
 
   // Modul tambahan khusus admin
@@ -112,12 +116,14 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
                 vendor_name: (rows.vendors || []).find(v => v.id === it.vendor_id)?.name || ''
               })), ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status', 'supplier_category', 'vendor_name']],
               ['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']],
-              ['Purchase', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note', 'alokasi', 'masuk_gudang', 'tukang_at']],
-              ['Purchase Items', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
+              ['Pembelian', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note', 'alokasi', 'masuk_gudang', 'tukang_at']],
+              ['Item Pembelian', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
               // Kolom note handover bisa memuat bukti foto base64 (maks 2MB) —
               // JANGAN ikutkan ke sel Excel (batas 32.767 karakter/sel). Yang
               // diekspor cukup catatan teksnya + penanda keberadaan foto.
-              ['Handover', (rows.handovers || []).map(h => {
+              // t_31871b64 (Sprint 1, arahan DAT): nama sheet ikut rename
+              // terlihat 'Handover' -> 'Serah Terima'.
+              ['Serah Terima', (rows.handovers || []).map(h => {
                 const { foto, extra } = parseHandoverNote(h.note)
                 return { ...h, note: [extra, foto ? '(ada bukti foto di aplikasi)' : ''].filter(Boolean).join(' ') }
               }), ['project_name', 'received_by', 'status', 'handover_date', 'note', 'diserahkan_at']]

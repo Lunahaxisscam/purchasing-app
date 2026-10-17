@@ -25,9 +25,12 @@ const ENTITY_LABEL = {
   purchase_requests: 'Purchase Request',
   pr_items: 'Item PR',
   approval_steps: 'Approval',
-  receivings: 'Purchase',
-  receiving_items: 'Item Purchase',
-  handovers: 'Handover',
+  receivings: 'Pembelian',
+  receiving_items: 'Item Pembelian',
+  // t_31871b64 (Sprint 1, arahan DAT): label terlihat 'Handover' ->
+  // 'Serah Terima'. Nama tabel/entity (handovers) TIDAK berubah — ini
+  // hanya tampilan di Log Aktivitas.
+  handovers: 'Serah Terima',
   projects: 'Project',
   materials: 'Material',
   vendors: 'Vendor',

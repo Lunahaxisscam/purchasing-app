@@ -56,7 +56,7 @@ export async function save(ctx) {
     const { error } = await supabase.from('handovers').update(data).eq('id', editRow.id)
     setSaving(false)
     if (error) { say(error.message); return }
-    say('Handover berhasil diperbarui (metadata — status & sumber tidak berubah).')
+    say('Serah Terima berhasil diperbarui (metadata — status & sumber tidak berubah).')
     close(); refresh()
     return
   }

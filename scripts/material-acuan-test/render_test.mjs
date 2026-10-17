@@ -179,8 +179,15 @@ console.log('A. Kolom Acuan Harga dihilangkan dari daftar (desktop & mobile)')
   await tick()
   const headers = [...document.querySelectorAll('.desktop-table-view thead th')].map(t => t.textContent.trim())
   check('header kolom TIDAK memuat "Acuan Harga"', !headers.some(h => h.includes('Acuan Harga')), headers.join(' | '))
-  check('header tetap: Kode/Nama/Kategori/Qty/Satuan/Stok/Batas Min',
-    ['Kode', 'Nama', 'Kategori', 'Qty', 'Satuan', 'Stok Saat Ini', 'Batas Min'].every(h => headers.some(x => x.includes(h))))
+  // t_31871b64 (Sprint 1): kolom "Kode" DIHILANGKAN dari header — kode
+  // tampil sebagai sublabel di bawah nama (tetap bisa diklik untuk urutkan).
+  check('header tetap: Nama/Kategori/Qty/Satuan/Stok/Batas Min (tanpa kolom Kode)',
+    ['Nama', 'Kategori', 'Qty', 'Satuan', 'Stok Saat Ini', 'Batas Min'].every(h => headers.some(x => x.includes(h)))
+    && !headers.some(h => h === 'Kode'), headers.join(' | '))
+  // Kode TIDAK hilang — hanya pindah ke sublabel di bawah nama material.
+  const kodeSubs = [...document.querySelectorAll('.desktop-table-view .cell-kode-sub')].map(b => b.textContent.trim())
+  check('kode material tetap tampil sbg sublabel (tidak hilang)',
+    kodeSubs.length === 10 && kodeSubs.some(t => t.includes('ALM-0001')), kodeSubs.slice(0, 3).join(' | '))
   // Mobile: kartu tanpa baris "Acuan Harga:"
   const cards = document.querySelectorAll('.mobile-card')
   check('kartu mobile dirender (10)', cards.length === 10)
@@ -194,11 +201,16 @@ console.log('A. Kolom Acuan Harga dihilangkan dari daftar (desktop & mobile)')
   check('tombol mobile berubah "▲ Tutup Acuan"', mobToggle.textContent.includes('▲ Tutup Acuan'))
   click(mobToggle); await tick()
   check('klik lagi mobile: panel tertutup', !document.querySelector('.mobile-cards-view .acuan-rincian'))
-  // Header sort: klik header tetap bekerja (regresi sort tidak rusak)
-  const th = [...document.querySelectorAll('.desktop-table-view thead th')].find(t => t.textContent.includes('Kode'))
-  click(th); await tick()
-  check('sort header Kode masih berfungsi (asc ALM-0001)',
+  // Header sort: kolom "Kode" sudah digabung ke sublabel (t_31871b64) —
+  // urut-by-kode sekarang lewat tombol .cell-kode-sub, bukan header.
+  const kodeBtn = document.querySelector('.desktop-table-view .cell-kode-sub')
+  check('sublabel kode tampil sebagai tombol urutkan', kodeBtn?.tagName === 'BUTTON', kodeBtn?.tagName)
+  click(kodeBtn); await tick()
+  check('klik sublabel kode: urut asc (ALM-0001 di baris pertama)',
     (document.querySelector('.desktop-table-view tbody tr td')?.textContent || '').includes('ALM-0001'))
+  click(kodeBtn); await tick()
+  check('klik sublabel kode lagi: urut berubah (desc)',
+    !(document.querySelector('.desktop-table-view tbody tr td')?.textContent || '').includes('ALM-0001'))
 }
 
 // ---------- B. DEFAULT TERTUTUP ----------

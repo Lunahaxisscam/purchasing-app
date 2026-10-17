@@ -107,7 +107,7 @@ export function formBody(ctx) {
             onChange={pilihFoto}
           />
           <span style={{ fontSize: '11px', color: '#71817d', fontWeight: 500 }}>
-            Maksimal 2MB (JPG/PNG). Foto bukti akan tampil di tabel Handover.
+            Maksimal 2MB (JPG/PNG). Foto bukti akan tampil di tabel Serah Terima.
           </span>
         </label>
         {fotoError && (
@@ -165,7 +165,7 @@ export function formBody(ctx) {
           ))}
         </select>
         <span style={{ fontSize: '11px', color: '#71817d', fontWeight: 500 }}>
-          Handover harus terhubung ke penerimaan asalnya — pilih penerimaan yang barangnya diserahkan ke tukang.
+          Serah Terima harus terhubung ke penerimaan asalnya — pilih penerimaan yang barangnya diserahkan ke tukang.
         </span>
       </label>
       {recSelected && (
@@ -191,7 +191,7 @@ export function formBody(ctx) {
           onChange={pilihFoto}
         />
         <span style={{ fontSize: '11px', color: '#71817d', fontWeight: 500 }}>
-          Maksimal 2MB (JPG/PNG). Foto bukti akan tampil di tabel Handover.
+          Maksimal 2MB (JPG/PNG). Foto bukti akan tampil di tabel Serah Terima.
         </span>
       </label>
       {fotoError && (

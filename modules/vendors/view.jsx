@@ -133,6 +133,7 @@ export function mobileCard(r, ctx) {
         </div>
       </div>
       <div className="mobile-card-body">
+        {/* t_31871b64 (Sprint 1): label diseragamkan dgn form & header tabel. */}
         <div className="mobile-card-row">
           <span className="mobile-label">Kontak WA:</span>
           <span className="mobile-val"><WaContact value={r.phone} /></span>
@@ -141,6 +142,12 @@ export function mobileCard(r, ctx) {
           <span className="mobile-label">Link Toko:</span>
           <span className="mobile-val"><StoreLink value={r.store_link} /></span>
         </div>
+        {r.contact ? (
+          <div className="mobile-card-row">
+            <span className="mobile-label">Email / Kontak Lain:</span>
+            <span className="mobile-val">{r.contact}</span>
+          </div>
+        ) : null}
       </div>
       {/* Aksi sekunder di-discourage: link teks kecil muted pojok bawah,
           BUKAN tombol merah mencolok. Konfirmasi bertingkat dijalankan dulu. */}

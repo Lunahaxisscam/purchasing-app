@@ -284,8 +284,8 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     totals: plan.totals,
     reusedHeader: !!reuseId,
     message: `Nota ${header.invoiceNo}${vendorName ? ` (${vendorName})` : ''} tersimpan: ${saved.length} barang, total ${new Intl.NumberFormat('id-ID').format(plan.totals.total)}.`
-      + (handoverQueued ? ' Barang masuk antrean Handover.' : '')
+      + (handoverQueued ? ' Barang masuk antrean Serah Terima.' : '')
       + (statusFallback ? ' Penanda tahap disimpan di catatan nota (kolom status belum menerima nilai DIBELI).' : '')
-      + (handoverError ? ` ⚠️ Antrean Handover belum terbuat otomatis (${handoverError}) — tambahkan dokumen serah terima manual di modul Handover.` : '')
+      + (handoverError ? ` ⚠️ Antrean Serah Terima belum terbuat otomatis (${handoverError}) — tambahkan dokumen serah terima manual di modul Serah Terima.` : '')
   }
 }

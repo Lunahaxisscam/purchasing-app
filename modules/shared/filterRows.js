@@ -15,14 +15,21 @@ export function filterRows({
   approvalFilter,
   materialFilter,
   vendorFilter,
-  handoverFilter
+  handoverFilter,
+  projectTab
 }) {
   let displayRows = rows
   if (page === 'projects') {
-    if (projectFilter === 'all') displayRows = allProjects
-    else if (projectFilter === 'NOT_START') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'NOT_START')
-    else if (projectFilter === 'ON_GOING') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'ON_GOING')
+    // t_31871b64: tab Aktif / Selesai (status DONE) di dalam modul Projects.
+    // Tab memilih kelompok besar dulu; projectFilter lama tetap berlaku
+    // di dalam tab tersebut (default 'active' = tampilkan SEMUA status
+    // aktif, bukan hanya yang belum mulai — nama historis dipertahankan
+    // agar perilaku lama tidak berubah).
+    if (projectTab === 'done') displayRows = allProjects.filter(p => normalizeStatus(p.status) === 'DONE')
     else displayRows = allProjects.filter(p => normalizeStatus(p.status) !== 'DONE')
+    if (projectFilter === 'all') { /* tanpa filter tambahan */ }
+    else if (projectFilter === 'NOT_START') displayRows = displayRows.filter(p => normalizeStatus(p.status) === 'NOT_START')
+    else if (projectFilter === 'ON_GOING') displayRows = displayRows.filter(p => normalizeStatus(p.status) === 'ON_GOING')
   } else if (page === 'requests') {
     if (prFilter === 'DRAFT') displayRows = rows.filter(r => r.status === 'DRAFT')
     else if (prFilter === 'SUBMITTED') displayRows = rows.filter(r => r.status === 'SUBMITTED')

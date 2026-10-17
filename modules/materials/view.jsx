@@ -257,6 +257,22 @@ export function renderCell(h, r, rawVal, ctx) {
     return (
       <div className="cell-name-wrap">
         <div className="cell-name" title={String(rawVal || '')}>{format(rawVal)}</div>
+        {/* t_31871b64 (Sprint 1, arahan DAT): kode material TIDAK jadi kolom
+            sendiri lagi — tampil sebagai sublabel di bawah nama agar tabel
+            ringkas. Nilai materials.kode tetap dibaca dari data (tidak berubah).
+            Sublabel SEKALIGUNS tombol urutkan: kemampuan urut-by-kode tidak
+            hilang bersama kolom yang dihapus (44px target sentuh mobile). */}
+        {r.kode ? (
+          <button
+            type="button"
+            className="cell-kode-sub"
+            onClick={e => { e.stopPropagation(); ctx?.toggleSort?.('kode') }}
+            title="Urutkan berdasarkan kode material (klik untuk naik/turun)"
+          >
+            {String(r.kode)}
+            {ctx?.sortKey === 'kode' ? (ctx?.sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+          </button>
+        ) : null}
         {hasId && (
           <button
             type="button"
@@ -392,8 +408,10 @@ export function mobileCard(r, ctx) {
     <>
       <div className="mobile-card-header">
         <div>
-          <b className="mobile-card-title">{r.kode || '—'}</b>
-          <div className="mobile-card-sub">{r.name}</div>
+          {/* t_31871b64 (Sprint 1): nama jadi judul, kode jadi sublabel —
+              konsisten dengan tampilan desktop (kode di bawah nama). */}
+          <b className="mobile-card-title">{r.name || r.kode || '—'}</b>
+          {r.kode ? <div className="mobile-card-sub mobile-kode-sub">{r.kode}</div> : null}
         </div>
         <span className="badge status-APPROVED" style={{ fontSize: '11px' }}>
           {r.qty ?? 0} {r.satuan || ''}
