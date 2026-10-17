@@ -71,9 +71,14 @@ export function vendorActiveCategories(vendor) {
       if (Array.isArray(arr)) return arr.map(c => normCat(c)).filter(Boolean)
     } catch { /* bukan JSON — abaikan */ }
   }
-  // Scalar existing
-  const one = normCat(vendor?.supplier_category)
-  return one ? [one] : []
+  // Scalar existing: vendors.supplier_category. t_e626b674: bisa berisi
+  // MULTI-KATEGORI dipisah koma ("Plywood & Board, HPL & Edging") dari
+  // checklist form Vendor — pecah per koma supaya semua kategori aktif
+  // terbaca. Format lama (1 kategori, tanpa koma) tetap terbaca sama.
+  return String(vendor?.supplier_category ?? '')
+    .split(',')
+    .map(c => normCat(c))
+    .filter(Boolean)
 }
 
 export function isVendorEligible(vendor, category) {

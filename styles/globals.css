@@ -852,6 +852,158 @@ input:focus, select:focus, textarea:focus {
   white-space: nowrap;
 }
 
+/* ============================================================
+   CHIP KATEGORI VENDOR (t_e626b674 — arahan DAT)
+   Kategori material vendor tampil sbg badge/pill rapi per kategori
+   (multi-kategori didukung) — di kartu mobile & cell tabel desktop.
+   Tema Noir: soft neutral surface, border halus, rounded-full,
+   font 11px bold uppercase-ish; chip "kosong" lebih redup.
+   ============================================================ */
+.vendor-cat-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+/* Baris chips kategori di header kartu mobile — wrapper flex-wrap agar
+   banyak kategori turun baris rapi tanpa meluber keluar kartu. */
+.vendor-cat-row .vendor-cat-chips {
+  max-width: 100%;
+  margin-top: 4px;
+}
+.vendor-cat-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: var(--slate-700);
+  background: var(--olive-50);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vendor-cat-chips.vendor-cat-empty {
+  font-size: 11px;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--slate-400);
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+
+/* Checklist multi-kategori di form Tambah/Edit Vendor (t_e626b674) */
+.vendor-cat-checklist {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--olive-50);
+}
+.vendor-cat-checklist-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.vendor-cat-checklist-hint {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+/* Spesifik di-scope ke .vendor-cat-checklist supaya mengalahkan
+   .dialog label { display:grid } (spesifisitas 0,2,0 > 0,1,1) —
+   checkbox & teks kategori harus SATU BARIS (flex). */
+.vendor-cat-checklist .vendor-cat-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--slate-700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.vendor-cat-checklist .vendor-cat-option:hover {
+  border-color: var(--slate-400);
+}
+.vendor-cat-checklist .vendor-cat-option.is-checked {
+  background: var(--olive-100);
+  border-color: var(--slate-400);
+  color: var(--primary);
+}
+.vendor-cat-checklist .vendor-cat-option input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.vendor-cat-checklist .vendor-cat-option-text {
+  flex: 1;
+  min-width: 0;
+}
+.vendor-cat-checklist .vendor-cat-option-mark {
+  font-weight: 800;
+  color: var(--primary);
+}
+
+/* ============================================================
+   HAPUS VENDOR DI-DISCOURAGE (t_e626b674 — arahan DAT)
+   Bukan lagi tombol merah full-width menyolok: link teks kecil abu-abu
+   di pojok bawah kartu mobile + icon button muted di tabel desktop.
+   Konfirmasi bertingkat (2x) dijalankan sebelum delete.
+   ============================================================ */
+.vendor-card-footnote {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+.vendor-delete-link {
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.vendor-delete-link:hover {
+  color: #be123c;
+  text-decoration: underline;
+}
+.btn-delete-muted {
+  background: transparent;
+  color: var(--slate-400);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-delete-muted:hover {
+  color: #be123c;
+  border-color: #fda4af;
+  background: #fff1f2;
+}
+
 .badge.status-APPROVED {
   background: #ecfdf5;
   color: #047857;
@@ -2491,6 +2643,18 @@ a:hover { color: var(--slate-700); }
     min-height: 44px;
     font-size: 13px;
     font-weight: 700;
+  }
+  /* PENGECUALIAN (t_e626b674): link "Hapus Vendor" SENGAJA kecil, redup,
+     & menempel di pojok bawah — aksi sekunder yang di-discourage, BUKAN
+     aksi utama. Jangan ikut menggembung jadi tombol 44px. Padding
+     transparan diperbesar agar tetap nyaman disentuh tanpa membesarkan
+     tampilannya. */
+  .mobile-card .vendor-delete-link {
+    min-height: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 10px 8px;
+    margin: -6px -2px;
   }
   .mobile-menu-btn {
     min-width: 44px;

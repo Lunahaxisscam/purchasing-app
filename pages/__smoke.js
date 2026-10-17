@@ -29,7 +29,11 @@ const mock = {
     { id: 'p2', kode: '83', name: 'Mabes', status: 'DONE', created_at: '2026-09-01T00:00:00Z' }
   ],
   vendors: [
-    { id: 'v1', name: 'TB Sumber Jaya', phone: '08123456789', store_link: 'https://tokopedia.com/x', supplier_category: 'Plywood & Board', contact: 'a@b.c' }
+    { id: 'v1', name: 'TB Sumber Jaya', phone: '08123456789', store_link: 'https://tokopedia.com/x', supplier_category: 'Plywood & Board', contact: 'a@b.c' },
+    // t_e626b674: vendor MULTI-KATEGORI (string koma) + vendor TANPA kategori
+    // — jalur chips multi & empty-chip harus ter-render di smoke build.
+    { id: 'v2', name: 'TB Multi Kategori', phone: '085999', store_link: '', supplier_category: 'Plywood & Board, HPL & Edging', contact: '' },
+    { id: 'v3', name: 'TB Tanpa Kategori', phone: '', store_link: '', supplier_category: '', contact: '' }
   ],
   materials: [
     { id: 'm1', kode: 'PLY-0001', code: 'PLY-0001', name: 'Triplek 9mm', category: 'Plywood & Board', qty: 10, satuan: 'Lembar', current_stock: 2, min_stock: 5, harga_acuan: 120000 },

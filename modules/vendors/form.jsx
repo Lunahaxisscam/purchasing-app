@@ -9,25 +9,63 @@
 // shell CreateModal. ctx berisi form, setForm, field, isEdit, editRow, dst.
 // yang disediakan shell — lihat components/CreateModal.js.
 //
-// CATATAN Fase 2 (belum dikerjakan): logika simpan (save) per modul masih di
-// shell CreateModal; pemindahannya direncanakan terpisah agar tidak
-// mencampur refactor struktur dengan perubahan perilaku.
+// ============================================================
+// t_e626b674 (arahan DAT): KATEGORI MULTI-SELECT.
+// Dropdown tunggal diganti CHECKLIST kategori material (sumber sama dengan
+// master Material: materialCategories dari shell CreateModal). Admin bisa
+// memilih LEBIH DARI 1 kategori utk 1 vendor.
+// Format simpan kompatibel: string dipisah koma di kolom scalar
+// vendors.supplier_category (parser di modules/vendors/categories.js;
+// eligibility estimator juga sudah membaca format koma + array).
+// Data lama (kategori tunggal / "A, B" / array) tetap ter-prefill benar.
 // ============================================================
 import React from 'react'
+import { parseVendorCategories } from './categories'
 
 export function formBody(ctx) {
   const { form, setForm, field, materialCategories } = ctx
+  const selected = parseVendorCategories(form.supplier_category)
+  // Pencocokan case-insensitive: kategori lama mungkin beda kapital dgn
+  // master list — jangan sampai "hpl & edging" tidak tercentang/terhapus.
+  const sameCat = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase()
+  const hasCat = (c) => selected.some(x => sameCat(x, c))
+  const toggleCat = (c) => {
+    const next = hasCat(c) ? selected.filter(x => !sameCat(x, c)) : [...selected, c]
+    setForm({ ...form, supplier_category: next.join(', ') })
+  }
   return (
     <>
       {field('name', 'Nama Vendor', 'text', true)}
       {field('phone', 'Kontak WA (No. WhatsApp)', 'text', false)}
       {field('store_link', 'Link Toko (URL)', 'text', false)}
-      <label>Kategori Material yang Disuplai Vendor Ini
-        <select value={form.supplier_category || ''} onChange={e => setForm({ ...form, supplier_category: e.target.value })}>
-          <option value="">-- Pilih Kategori --</option>
-          {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </label>
+      {/* ============================================================
+          KATEGORI MATERIAL YANG DISUPLAI — CHECKLIST MULTI-SELECT
+          (t_e626b674). Checkbox bergaya Noir: tiap kategori = satu baris
+          pill dgn checkbox; kategori terpilih ditandai chip aktif.
+          Simpan: join ', ' — kompatibel dgn kolom existing & estimator.
+          ============================================================ */}
+      <div className="vendor-cat-checklist" role="group" aria-label="Kategori material yang disuplai vendor ini">
+        <span className="vendor-cat-checklist-label">Kategori Material yang Disuplai Vendor Ini</span>
+        <span className="vendor-cat-checklist-hint">
+          {selected.length
+            ? `${selected.length} kategori dipilih — boleh lebih dari satu`
+            : 'Belum ada kategori dipilih (boleh lebih dari satu)'}
+        </span>
+        {(materialCategories || []).map(c => {
+          const checked = hasCat(c)
+          return (
+            <label key={c} className={`vendor-cat-option${checked ? ' is-checked' : ''}`}>
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggleCat(c)}
+              />
+              <span className="vendor-cat-option-text">{c}</span>
+              {checked && <span className="vendor-cat-option-mark">✓</span>}
+            </label>
+          )
+        })}
+      </div>
       {field('contact', 'Kontak / Email (opsional)', 'text', false)}
     </>
   )

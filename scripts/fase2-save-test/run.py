@@ -33,6 +33,10 @@ if os.path.isfile(f'{REPO}/modules/requests/estimator.js'):
 if os.path.isfile(f'{REPO}/modules/materials/acuan.js'):
     os.makedirs(f'{SB}/modules/materials', exist_ok=True)
     shutil.copy(f'{REPO}/modules/materials/acuan.js', f'{SB}/modules/materials/acuan.js')
+# t_e626b674: modules/vendors/save.js mengimpor ./categories (parser
+# multi-kategori vendor satu-sumber) — file pendamping ikut disalin.
+if os.path.isfile(f'{REPO}/modules/vendors/categories.js'):
+    shutil.copy(f'{REPO}/modules/vendors/categories.js', f'{SB}/modules/vendors/categories.js')
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')

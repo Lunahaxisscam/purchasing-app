@@ -638,6 +638,23 @@ export default function App() {
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
+    // ============================================================
+    // SAFETY BARRIER VENDOR (t_e626b674 — arahan DAT): konfirmasi
+    // bertingkat SEBELUM konfirmasi generik. Vendor berrelasi dgn riwayat
+    // transaksi pengadaan & acuan harga material; hapus vendor harus
+    // disengaja, bukan satu ketukan yang salah. (UI kartu mobile & tabel
+    // desktop Vendor sudah menjalankan gerbang pertamanya di
+    // modules/vendors/view.jsx — gerbang di sini menjaga SEMUA jalur hapus.)
+    // ============================================================
+    if (pageTarget === 'vendors') {
+      const namaVendor = item?.name || item?.code || 'vendor ini'
+      const okWarning = window.confirm(
+        'PERINGATAN: Menghapus vendor dapat mempengaruhi riwayat transaksi pengadaan ' +
+        'dan acuan harga material terkait.\n\n' +
+        `Apakah Anda benar-benar yakin ingin menghapus "${namaVendor}"?`
+      )
+      if (!okWarning) return
+    }
     const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Purchase' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
     
     // Sesuaikan penentuan itemName berdasarkan pageTarget

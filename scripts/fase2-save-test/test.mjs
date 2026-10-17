@@ -215,5 +215,44 @@ check('pesan error ditampilkan', __calls.some(c => c.op === 'say' && c.msg === '
 check('close TIDAK dipanggil saat error', !__calls.find(c => c.op === 'close'))
 check('setSaving(false) tetap dipanggil', __calls.filter(c => c.op === 'setSaving').pop()?.v === false)
 
+// 11. Vendor MULTI-KATEGORI (t_e626b674 — arahan DAT)
+// Checklist form Vendor menghasilkan string dipisah koma; save harus
+// menyimpan dgn format kompatibel kolom scalar vendors.supplier_category:
+// bersih (tanpa entry kosong) & dedupe, TANPA migrasi DB.
+console.log('\n11. Vendor multi-kategori (t_e626b674)')
+reset()
+await dispatchSave('vendors', baseCtx({
+  form: { name: 'TB Multi', phone: '0812', store_link: '', contact: '',
+          supplier_category: 'Plywood & Board, HPL & Edging, Hardware & Fitting' }
+}))
+const multiData = find('insert', 'vendors')?.data
+check('multi kategori tersimpan dipisah koma',
+  multiData?.supplier_category === 'Plywood & Board, HPL & Edging, Hardware & Fitting',
+  `(dapat: ${JSON.stringify(multiData?.supplier_category)})`)
+
+reset()
+await dispatchSave('vendors', baseCtx({
+  form: { name: 'TB Dedupe', phone: '', store_link: '', contact: '',
+          supplier_category: 'Plywood & Board, plywood & board ,, HPL & Edging,' }
+}))
+const dedupeData = find('insert', 'vendors')?.data
+check('dedupe (case-insensitive) + buang kosong',
+  dedupeData?.supplier_category === 'Plywood & Board, HPL & Edging',
+  `(dapat: ${JSON.stringify(dedupeData?.supplier_category)})`)
+
+reset()
+await dispatchSave('vendors', baseCtx({
+  form: { name: 'TB Lama', phone: '', store_link: '', contact: '', supplier_category: 'Plywood & Board' }
+}))
+check('vendor lama 1 kategori: format TIDAK berubah',
+  find('insert', 'vendors')?.data?.supplier_category === 'Plywood & Board')
+
+reset()
+await dispatchSave('vendors', baseCtx({
+  form: { name: 'TB Kosong', phone: '', store_link: '', contact: '', supplier_category: '' }
+}))
+check('tanpa kategori -> null (bukan string kosong)',
+  find('insert', 'vendors')?.data?.supplier_category === null)
+
 console.log(`\n=== HASIL: ${pass} lulus, ${fail} gagal ===`)
 process.exit(fail ? 1 : 0)
