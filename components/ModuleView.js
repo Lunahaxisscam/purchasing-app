@@ -3,6 +3,7 @@ import Create from './CreateModal'
 import { headersFor, pretty, format, labels } from '../lib/constants'
 import { makeItemHelpers } from '../modules/shared/itemHelpers'
 import { makeAcuanHelpers, validateManualAcuan } from '../modules/materials/acuan'
+import { getReceiptCapability } from '../modules/receivings/receiptCapability'
 import { filterRows } from '../modules/shared/filterRows'
 import { sortRows } from '../modules/shared/sortRows'
 import {
@@ -55,6 +56,24 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   // state receiptRow — baris Purchase yang form Terima Barang-nya dibuka.
   // null = modal tertutup. Tidak ada state perluasan receiving lagi.
   const [receiptRow, setReceiptRow] = useState(null)
+  // t_7bc6246b: modal retur (dari barang rusak, tanpa ketik ulang) dan modal
+  // konfirmasi FISIK serah terima (rincian per barang). Keduanya null = tutup.
+  const [returnRow, setReturnRow] = useState(null)
+  const [handoverConfirmRow, setHandoverConfirmRow] = useState(null)
+  // Kemampuan skema per barang (receiving_events/handover_items) — hasil probe
+  // READ-ONLY. null = belum diperiksa; UI memakai mode legacy sampai probe
+  // membuktikan tabel benar-benar ada (jangan asumsikan "READY = DB siap").
+  // Probe hanya dijalankan untuk modul yang membutuhkannya (Purchase/Handover)
+  // supaya tidak menambah query di modul lain.
+  const [capability, setCapability] = useState(null)
+  useEffect(() => {
+    if (page !== 'receivings' && page !== 'handovers') return undefined
+    let cancelled = false
+    getReceiptCapability()
+      .then(cap => { if (!cancelled) setCapability(cap) })
+      .catch(() => { if (!cancelled) setCapability({ ready: false, missing: ['probe gagal'], events: false, handoverItems: false, progress: false }) })
+    return () => { cancelled = true }
+  }, [page])
   // ============================================================
   // ACUAN HARGA MATERIAL (t_090127ad — arahan DAT)
   // ============================================================
@@ -241,6 +260,11 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     expandedApproval, setExpandedApproval,
     // Form Terima Barang (t_5196b689): baris Purchase terpilih + penutup.
     receiptRow, setReceiptRow,
+    // t_7bc6246b: retur dari barang rusak + konfirmasi fisik serah terima.
+    returnRow, setReturnRow,
+    handoverConfirmRow, setHandoverConfirmRow,
+    // Hasil probe skema per barang (null = belum diperiksa → mode legacy).
+    capability,
     // Acuan harga material (t_090127ad): state expand + prototype form manual.
     expandedAcuan, setExpandedAcuan,
     acuanEntries, acuanForm, setAcuanForm, acuanFormError,

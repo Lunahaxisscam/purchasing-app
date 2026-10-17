@@ -21,7 +21,30 @@
 import React from 'react'
 import { format, rupiah, parseReceivingNote, notaHref, prettyReceivingStatus, isReceivingKendala } from '../../lib/constants'
 import ReceiptForm from './receiptForm'
+import ReturnForm from './returnForm'
 import { itemRingkas, parentSummary, bulkActionState } from './receiptLogic'
+import { buildSplitPlan, applySplitPlan } from './receiptSplit'
+
+// --- Banner modul: status penyimpanan per barang (jujur, dari probe) ---
+// Ditampilkan SEBELUM user membuka form supaya tidak ada kejutan: kalau skema
+// ledger belum ada, user tahu kondisi/tujuan/retur belum bisa disimpan.
+export function banner(ctx) {
+  const { capability } = ctx
+  if (!capability) return null
+  if (capability.ready) {
+    return (
+      <div data-testid="receipt-capability-banner" style={{ background: '#e6f4ea', border: '1px solid #ceead6', color: '#137333', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
+        ✓ Penyimpanan per barang aktif — kondisi (baik/rusak), tujuan (Workshop/Tukang), retur, dan rincian serah terima tersimpan per barang.
+      </div>
+    )
+  }
+  return (
+    <div data-testid="receipt-capability-banner" style={{ background: '#fef6e7', border: '1px solid #fcdfa6', color: '#7a4a08', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', lineHeight: 1.45 }}>
+      ⚠️ Penyimpanan per barang belum aktif: {(capability.missing || []).filter(m => !/^\(opsional\)/.test(m)).join('; ') || 'skema belum tersedia'}.
+      Jumlah datang tetap bisa dicatat; kondisi/tujuan/retur per barang akan tersimpan setelah migrasi aditif (task t_03b41644). Tidak ada data yang ditulis setengah.
+    </div>
+  )
+}
 
 // --- Filter tabs ---
 export function filters(ctx) {
@@ -118,7 +141,7 @@ export function renderCell(h, r, rawVal, ctx) {
     const prog = receivingProgress(r.id, isReceivingKendala(r.status))
     const alokasiAsing = unknownAlokasi(r)
     const items = receivingItemsForReceiving(r.id)
-    const bulk = bulkActionState(items)
+    const bulk = bulkActionState(items, { ready: !!ctx.capability?.ready })
     // Arahan DAT 16 Okt: dropdown status parent DILARANG utk nota multi-item
     // (bisa meng-override anak). Utk nota 0/1 item, dropdown tetap ada TAPI
     // diberi label "Status Nota" — dimensi nota (Normal/Retur/Refund) yang
@@ -259,14 +282,36 @@ export function renderCell(h, r, rawVal, ctx) {
   return null
 }
 
-// --- Aksi per baris (desktop): Terima Barang + Hapus ---
+// --- Aksi per baris (desktop): Terima Barang + Retur + Pecah Vendor + Hapus ---
 // Satu pintu input penerimaan: tombol membuka modal ReceiptForm (per item).
 // Label "Lihat Barang" dipakai bila semua item sudah lengkap & nota bukan
 // kendala (untuk sekadar meninjau rincian/qty).
+//
+// t_7bc6246b:
+//   - "↩ Retur" hanya tampil bila penyimpanan per barang AKTIF (capability),
+//     karena retur mengambil baris dari catatan rusak — tanpa skema tidak ada
+//     yang bisa diretur dan tombol akan menyesatkan.
+//   - "✂ Pecah per Vendor" hanya tampil bila nota memuat barang dari ≥2 vendor
+//     dan belum ada qty diterima / alokasi (lihat receiptSplit.splitBlockReason).
 export function rowActions(r, ctx) {
-  const { title, page, onDelete, setReceiptRow, H } = ctx
+  const { title, page, onDelete, setReceiptRow, setReturnRow, H, capability, say, refresh } = ctx
   const prog = H.receivingProgress(r.id, isReceivingKendala(r.status))
   const done = !!(prog && prog.allDone && !prog.kendala)
+  const items = H.receivingItemsForReceiving(r.id)
+  const prItems = r.purchase_request_id ? H.prItemsForPr(r.purchase_request_id) : []
+  const splitPlan = buildSplitPlan({ receiving: r, items, prItems, vendors: ctx.allVendors || [] })
+  const canSplit = splitPlan.ok
+
+  async function pecah() {
+    const vendors = splitPlan.plan.filter(g => g.vendorId).map(g => g.vendorName)
+    const ok = window.confirm(`Pecah nota ini menjadi pembelian per vendor?\n\n${vendors.map(v => '• ' + v).join('\n')}\n\nItem akan dipindah ke nota vendornya; jejak PR tetap tersimpan. Tindakan ini tidak mengubah jumlah diterima (semua item masih 0).`)
+    if (!ok) return
+    const res = await applySplitPlan({ receiving: r, plan: splitPlan.plan, existingReceivings: (ctx.allReceivings || []) })
+    if (!res.ok) { say?.(`Pemecahan gagal: ${res.error}`); refresh?.(); return }
+    say?.(`Nota dipecah menjadi ${res.done.length} pembelian per vendor${res.created.length ? ` (${res.created.length} nota baru)` : ''}.`)
+    refresh?.()
+  }
+
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'center', alignItems: 'stretch', width: '120px', margin: '0 auto' }}>
@@ -279,6 +324,28 @@ export function rowActions(r, ctx) {
         >
           {done ? '📦 Lihat Barang' : '📦 Terima Barang'}
         </button>
+        {capability?.ready && (
+          <button
+            type="button"
+            onClick={() => setReturnRow?.(r)}
+            data-testid={`btn-retur-${r.id}`}
+            style={{ background: '#fef6e7', color: '#a15309', border: '1px solid #fcdfa6', borderRadius: '4px', padding: '4px 8px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', width: '100%' }}
+            title="Retur barang rusak — baris diambil dari catatan penerimaan, tanpa mengetik ulang"
+          >
+            ↩ Retur Rusak
+          </button>
+        )}
+        {canSplit && (
+          <button
+            type="button"
+            onClick={pecah}
+            data-testid={`btn-pecah-${r.id}`}
+            style={{ background: '#eef3f1', color: '#1f3a34', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '4px 8px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', width: '100%' }}
+            title="Nota ini memuat barang dari beberapa vendor — pecah jadi pembelian per vendor/nota (jejak PR tetap)"
+          >
+            ✂ Pecah per Vendor
+          </button>
+        )}
         <button
           type="button"
           className="btn-delete"
@@ -309,7 +376,7 @@ export function mobileCard(r, ctx) {
   const items = receivingItemsForReceiving(r.id)
   const ring = itemRingkas(items)
   const done = !!(prog && prog.allDone && !prog.kendala)
-  const bulk = bulkActionState(items)
+  const bulk = bulkActionState(items, { ready: !!ctx.capability?.ready })
   const alokasiAsing = unknownAlokasi(r)
   return (
     <>
@@ -425,7 +492,7 @@ export function mobileCard(r, ctx) {
 // --- Modal Terima Barang (dirender shell lewat dispatcher) ---
 // ctx.receiptRow = baris Purchase yang dipilih (null = modal tertutup).
 export function receiptForm(ctx) {
-  const { receiptRow, setReceiptRow, H, say, refresh } = ctx
+  const { receiptRow, setReceiptRow, H, say, refresh, capability } = ctx
   if (!receiptRow) return null
   const prId = receiptRow.purchase_request_id
   return (
@@ -436,7 +503,23 @@ export function receiptForm(ctx) {
       orderedFor={H.orderedQtyFor}
       say={say}
       refresh={refresh}
+      capability={capability}
       close={() => setReceiptRow(null)}
+    />
+  )
+}
+
+// --- Modal Retur (t_7bc6246b) — baris dari catatan rusak, tanpa ketik ulang ---
+export function returnForm(ctx) {
+  const { returnRow, setReturnRow, say, refresh, capability } = ctx
+  if (!returnRow) return null
+  return (
+    <ReturnForm
+      receiving={returnRow}
+      capability={capability}
+      say={say}
+      refresh={refresh}
+      close={() => setReturnRow(null)}
     />
   )
 }

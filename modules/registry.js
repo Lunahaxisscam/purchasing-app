@@ -79,7 +79,15 @@ export const modules = [
       'modules/receivings/receiptLogic.js',
       'modules/receivings/receiptSave.js',
       'modules/receivings/receiptForm.jsx',
-      'scripts/receipt-flow-test/run.py'
+      // t_7bc6246b: ledger per barang (capability probe, logika event,
+      // simpan via RPC, retur dari barang rusak, pemecahan per vendor).
+      'modules/receivings/receiptCapability.js',
+      'modules/receivings/receiptEventLogic.js',
+      'modules/receivings/receiptEventSave.js',
+      'modules/receivings/receiptSplit.js',
+      'modules/receivings/returnForm.jsx',
+      'scripts/receipt-flow-test/run.py',
+      'scripts/receiving-events-test/run.py'
     ]
   },
   {
@@ -95,6 +103,9 @@ export const modules = [
       // prototype per-item) + konfirmasi fisik idempoten (CAS diserahkan_at).
       'modules/handovers/display.js',
       'modules/handovers/confirm.js',
+      // t_7bc6246b: modal konfirmasi FISIK per barang (prefill dari event
+      // penerimaan; penerima hanya memverifikasi qty, bukan input ulang).
+      'modules/handovers/confirmForm.jsx',
       'scripts/handover-flow-test/run.py'
     ]
   },

@@ -227,10 +227,20 @@ export function parentSummary(prog, opts = {}) {
 // Tukang)? Arahan DAT: BULK DILARANG untuk nota multi-item — tiap item harus
 // punya kondisi/tujuan sendiri. Bulk juga tidak boleh untuk nota tanpa item
 // atau tanpa satupun jumlah diterima (0/rusak tidak masuk stok/handover).
-export function bulkActionState(items) {
+//
+// `opts.ready` = penyimpanan per barang sudah aktif. Teks alasan menyesuaikan
+// supaya tidak berbohong: saat skema sudah ada, alasan "menunggu skema" salah.
+export function bulkActionState(items, opts = {}) {
   const list = items || []
   if (!list.length) return { allowed: false, reason: 'Nota belum punya rincian barang.' }
-  if (list.length >= 2) return { allowed: false, reason: 'Nota multi-item: tujuan dicatat per barang (belum bisa disimpan — menunggu persetujuan skema).' }
+  if (list.length >= 2) {
+    return {
+      allowed: false,
+      reason: opts.ready
+        ? 'Nota multi-item: tujuan dicatat per barang di Terima Barang (bukan sekaligus untuk semua barang).'
+        : 'Nota multi-item: tujuan dicatat per barang (belum bisa disimpan — menunggu persetujuan skema).'
+    }
+  }
   const anyReceived = list.some(it => Number(it.quantity_received || 0) > 0)
   if (!anyReceived) return { allowed: false, reason: 'Belum ada jumlah diterima — isi lewat Terima Barang dulu.' }
   return { allowed: true, reason: '' }

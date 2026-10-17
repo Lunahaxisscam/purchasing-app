@@ -57,7 +57,11 @@ purchasing-app/
 │   ├── vendors/                   # view.jsx + form.jsx + save.js  (Vendor)
 │   ├── materials/                 # view.jsx + form.jsx + save.js  (Material + stok BHP)
 │   ├── receivings/                # view.jsx + form.jsx + save.js  (Purchase/Receiving)
-│   ├── handovers/                 # view.jsx + form.jsx + save.js + display.js + confirm.js  (Handover)
+│   │                              #  + receiptLogic/receiptSave/receiptForm (t_5196b689)
+│   │                              #  + receiptCapability/receiptEventLogic/receiptEventSave/
+│   │                              #    receiptSplit/returnForm (t_7bc6246b)
+│   ├── handovers/                 # view.jsx + form.jsx + save.js + display.js + confirm.js
+│   │                              #  + confirmForm.jsx (konfirmasi fisik per barang, t_7bc6246b)
 │   ├── projects/                  # view.jsx + form.jsx + save.js  (Project + Past Project)
 │   └── ...                        # planning, project-finance, finance, tukang-upah, settings
 ├── lib/constants.js               # Konstanta & util bersama                      [CORE]
@@ -87,6 +91,12 @@ Modul TIDAK mengimpor shell — arah dependensi selalu shell → modul.
 | `rowExpand(r, ctx)` | Baris perluasan di bawah baris | tidak ada perluasan |
 | `mobileCard(r, ctx)` | Kartu mobile | shell pakai kartu generik |
 | `receiptForm(ctx)` | Modal khusus modul (mis. Terima Barang), dirender SEKALI per halaman lewat `renderModuleModal` | modul tanpa modal |
+| `returnForm(ctx)` | Modal retur dari barang rusak (t_7bc6246b) | modul tanpa retur |
+| `handoverConfirmForm(ctx)` | Modal konfirmasi fisik serah terima per barang (t_7bc6246b) | modul tanpa modal konfirmasi |
+
+`renderModuleModal` merender SEMUA ekspor modal yang terdaftar
+(`MODAL_EXPORTS` di `modules/shared/renderModuleCell.jsx`); tiap fungsi
+mengembalikan `null` bila state-nya tertutup.
 
 ### `form.jsx`
 
@@ -125,7 +135,12 @@ Input qty TIDAK menulis DB saat mengetik — hanya tombol "Simpan Penerimaan".
 - `modules/handovers/confirm.js` — konfirmasi fisik idempoten: menulis
   `diserahkan_at` dengan compare-and-swap (`diserahkan_at IS NULL`); retry/
   re-confirm tidak menandai dua kali. Dipanggil `pages/index.js`
-  (`onMarkHandoverDelivered`).
+  (`onMarkHandoverDelivered`) — jalur LEGACY (skema per barang belum ada).
+- `modules/handovers/confirmForm.jsx` (t_7bc6246b) — modal konfirmasi fisik
+  per barang: baris diprefill dari event penerimaan (alokasi tukang) dikurangi
+  yang sudah diserahkan, penerima memverifikasi qty, lalu satu RPC
+  `handover_confirm` menulis `diserahkan_at` + `handover_items` (idempoten).
+  Bila skema belum ada → jatuh ke jalur header di atas dengan pesan jujur.
 - Kontrak & gap: `docs/handover-gap-proposal.md` (tabel `handover_items`
   menunggu izin DAT — jangan packing ke note).
 - Purchase (t_b418827b, arahan DAT): dropdown status parent + aksi bulk
@@ -146,7 +161,9 @@ Input qty TIDAK menulis DB saat mengetik — hanya tombol "Simpan Penerimaan".
 - `say`, `refresh` — umpan balik & reload setelah simpan (dipakai modal modul).
 - State filter: `projectFilter/setProjectFilter`, `receivingFilter/...`, dst.
 - State UI: `openNoteId/setOpenNoteId`, `expandedApproval/...`,
-  `receiptRow/setReceiptRow` (form Terima Barang), `setEditRow`.
+  `receiptRow/setReceiptRow` (form Terima Barang), `setEditRow`,
+  `returnRow/setReturnRow` (retur rusak), `handoverConfirmRow/setHandoverConfirmRow`
+  (konfirmasi fisik serah terima), `capability` (hasil probe skema per barang).
 - Callback halaman: `onStatusChange`, `onReceivingStatusChange`, `onMoveToWarehouse`,
   `onSendToTukang`, `onMarkHandoverDelivered`, `onDecideApproval`, `onReviseApproval`,
   `onApproveItem`, `onFinishPr`, `onMarkPrItemOrdered`, `onDelete`, `setPage`.

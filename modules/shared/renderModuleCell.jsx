@@ -5,6 +5,7 @@
 // detail modul mana pun. Menambah modul baru = tambah 1 entri di MODULES +
 // folder modules/<id>/ — tanpa menyentuh modul lain.
 // ============================================================
+import React from 'react'
 import * as projects from '../projects/view'
 import * as vendors from '../vendors/view'
 import * as materials from '../materials/view'
@@ -90,9 +91,24 @@ export function renderModuleMobileCard(page, r, ctx) {
   return (m && m.mobileCard) ? m.mobileCard(r, ctx) : null
 }
 
-// Modal khusus modul (mis. form Terima Barang di Purchase). null = tidak ada.
+// Nama ekspor modal yang dikenali dispatcher (urutan = urutan render).
+const MODAL_EXPORTS = ['receiptForm', 'returnForm', 'handoverConfirmForm']
+
+// Modal khusus modul (mis. form Terima Barang di Purchase, konfirmasi fisik
+// serah terima di Handover). null = tidak ada modal terbuka.
 // Dipanggil SEKALI per render halaman (bukan per baris).
+// Beberapa modul bisa mengekspor lebih dari satu modal; semuanya dirender
+// (masing-masing mengembalikan null bila state-nya tertutup).
 export function renderModuleModal(page, ctx) {
   const m = MODULES[page]
-  return (m && m.receiptForm) ? m.receiptForm(ctx) : null
+  if (!m) return null
+  const out = []
+  for (const key of MODAL_EXPORTS) {
+    if (typeof m[key] === 'function') {
+      const el = m[key](ctx)
+      if (el) out.push(el)
+    }
+  }
+  if (!out.length) return null
+  return out.length === 1 ? out[0] : <>{out.map((el, i) => <React.Fragment key={i}>{el}</React.Fragment>)}</>
 }

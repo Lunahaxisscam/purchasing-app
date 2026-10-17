@@ -25,6 +25,7 @@
 import React from 'react'
 import { format, parseHandoverNote, isHandoverDelivered } from '../../lib/constants'
 import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA, validatePrototypeRow, prototypeTotals } from './display'
+import HandoverConfirmForm from './confirmForm'
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -204,11 +205,19 @@ export function renderCell(h, r, rawVal, ctx) {
 // --- Aksi per baris (desktop) ---
 // Arahan DAT (t_b418827b): hindari tombol bertumpuk — satu baris ikon ringkas:
 // ✓ (tandai sudah diserahkan; hanya bila belum), ✏️ edit, 🗑️ hapus.
-// Konfirmasi fisik menulis diserahkan_at lewat onMarkHandoverDelivered
-// (modules/handovers/confirm.js) — bukan sekadar mengubah status.
+// Konfirmasi fisik menulis diserahkan_at lewat modal konfirmasi
+// (t_7bc6246b: form konfirmasi per barang → RPC handover_confirm; mode legacy
+// tetap memakai confirm.js untuk header saja). BUKAN sekadar ubah status.
 export function rowActions(r, ctx) {
-  const { title, page, setEditRow, onMarkHandoverDelivered, onDelete } = ctx
+  const { title, page, setEditRow, setHandoverConfirmRow, onMarkHandoverDelivered, onDelete, capability } = ctx
   const delivered = isHandoverDelivered(r)
+  // Skema per barang sudah aktif → buka modal konfirmasi (verifikasi jumlah
+  // fisik). Belum aktif → jalur lama (konfirmasi header) supaya tidak ada
+  // tombol yang menjanjikan rincian yang tidak bisa disimpan.
+  const openConfirm = () => {
+    if (capability?.ready && setHandoverConfirmRow) setHandoverConfirmRow(r)
+    else onMarkHandoverDelivered(r)
+  }
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
@@ -224,7 +233,7 @@ export function rowActions(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-${r.id}`}
-            onClick={() => onMarkHandoverDelivered(r)}
+            onClick={openConfirm}
             style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 7px', fontSize: '11px', cursor: 'pointer', fontWeight: 700, lineHeight: 1 }}
             title="Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik)"
           >
@@ -388,7 +397,7 @@ function PrototypePanel({ handover, refItems }) {
 
 // --- Kartu mobile ---
 export function mobileCard(r, ctx) {
-  const { page, title, setEditRow, onMarkHandoverDelivered, onDelete, expandedAcuan, setExpandedAcuan, allReceivings, allRequests } = ctx
+  const { page, title, setEditRow, setHandoverConfirmRow, onMarkHandoverDelivered, onDelete, expandedAcuan, setExpandedAcuan, allReceivings, allRequests, capability } = ctx
   const { foto, extra } = parseHandoverNote(r.note)
   const delivered = isHandoverDelivered(r)
   const st = statusInfo(r)
@@ -474,7 +483,7 @@ export function mobileCard(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-mobile-${r.id}`}
-            onClick={() => onMarkHandoverDelivered(r)}
+            onClick={() => (capability?.ready && setHandoverConfirmRow ? setHandoverConfirmRow(r) : onMarkHandoverDelivered(r))}
             style={{ width: '100%', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: 700 }}
           >
             ✓ Tandai Sudah Diserahkan
@@ -493,5 +502,23 @@ export function mobileCard(r, ctx) {
         </button>
       </div>
     </>
+  )
+}
+
+// --- Modal konfirmasi FISIK (t_7bc6246b) — dirender shell lewat dispatcher ---
+// ctx.handoverConfirmRow = baris Handover yang dikonfirmasi (null = tertutup).
+// Rincian barang diprefill dari event penerimaan (alokasi ke tukang) supaya
+// penerima hanya memverifikasi jumlah fisik, bukan mengetik ulang barang.
+export function handoverConfirmForm(ctx) {
+  const { handoverConfirmRow, setHandoverConfirmRow, say, refresh, capability } = ctx
+  if (!handoverConfirmRow) return null
+  return (
+    <HandoverConfirmForm
+      handover={handoverConfirmRow}
+      capability={capability}
+      say={say}
+      refresh={refresh}
+      close={() => setHandoverConfirmRow(null)}
+    />
   )
 }

@@ -13,15 +13,22 @@ export const __state = {
   rows: new Map(),      // id -> row (tabel receiving_items saja)
   calls: [],            // {op, table, ...}
   failInsertOnce: false,
-  nextError: null
+  nextError: null,
+  // t_7bc6246b: tabel yang BENAR-BENAR ada di skema live (PostgREST menjawab
+  // PGRST205 untuk tabel lain). Dipakai capability probe — tanpa ini mock
+  // "mengarang" skema lengkap dan UI salah mengira ledger per barang aktif.
+  tables: new Set(['receiving_items', 'receivings', 'handovers'])
 }
 
-export function __reset({ rows = [], failInsertOnce = false } = {}) {
+export function __reset({ rows = [], failInsertOnce = false, tables = null } = {}) {
   __state.rows = new Map(rows.map(r => [r.id, { ...r }]))
   __state.calls = []
   __state.failInsertOnce = failInsertOnce
   __state.nextError = null
+  if (tables) __state.tables = new Set(tables)
 }
+
+const MISSING = (t) => ({ code: 'PGRST205', message: `Could not find the table 'public.${t}' in the schema cache` })
 
 export function __callsOf(op, table) {
   return __state.calls.filter(c => c.op === op && (!table || c.table === table))
@@ -54,6 +61,7 @@ function terminal(st) {
     return { data: [{}], error: null }
   }
   // select
+  if (!__state.tables.has(st.table)) return { data: null, error: MISSING(st.table) }
   if (st.table === 'receiving_items' && st.inFilter) {
     const ids = new Set(st.inFilter.vals)
     const data = [...__state.rows.values()]

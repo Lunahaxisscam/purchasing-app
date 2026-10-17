@@ -10,13 +10,17 @@
 export const __state = {
   handovers: new Map(),   // id -> row
   calls: [],              // {op, table, ...}
-  nextError: null
+  nextError: null,
+  // t_7bc6246b: tabel yang ADA di skema. Tabel lain dijawab PGRST205 (seperti
+  // PostgREST sungguhan) supaya capability probe deterministik → mode legacy.
+  tables: new Set(['handovers'])
 }
 
-export function __reset({ handovers = [] } = {}) {
+export function __reset({ handovers = [], tables = null } = {}) {
   __state.handovers = new Map(handovers.map(r => [r.id, { ...r }]))
   __state.calls = []
   __state.nextError = null
+  if (tables) __state.tables = new Set(tables)
 }
 
 export function __callsOf(op, table) {
@@ -50,6 +54,9 @@ function terminal(st) {
     return { data: [{}], error: null }
   }
   // select
+  if (!__state.tables.has(st.table)) {
+    return { data: null, error: { code: 'PGRST205', message: `Could not find the table 'public.${st.table}' in the schema cache` } }
+  }
   if (st.table === 'handovers') {
     return { data: [...__state.handovers.values()].map(r => ({ ...r })), error: null }
   }

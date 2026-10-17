@@ -6,13 +6,18 @@
 // "Terima Barang" membuka form per item; input TIDAK menulis DB saat
 // mengetik — semua tersimpan sekali lewat tombol "Simpan Penerimaan".
 //
-// Yang dapat disimpan dengan skema saat ini (tanpa migrasi):
-//   receiving_items.quantity_received (kumulatif) + receivings.received_date.
-// Yang belum bisa (rusak / tujuan per item / retur / buang) tetap lengkap di
-// form, divalidasi, tetapi submit diblok dengan pesan gap eksplisit —
-// lihat modules/receivings/receiptLogic.js (schemaBlocks).
-// ANTI DOBEL: tombol submit nonaktif selama menyimpan + ref guard (double
-// click/Enter sebelum state render) + compare-and-swap di receiptSave.js.
+// DUA MODE (dipilih dari capability probe, bukan dari asumsi):
+//   1) READY  — tabel `receiving_events` + `handover_items` ADA:
+//      submit memanggil RPC `receipt_apply_events` (datang/rusak/tujuan/retur
+//      per barang tersimpan permanen; qty kumulatif dijaga RPC).
+//   2) LEGACY — skema belum ada:
+//      perilaku lama dipertahankan: dimensi rusak/tujuan diblok dengan pesan
+//      gap eksplisit, NOL tulisan (bukan packing ke kolom note), dan qty
+//      datang murni masih bisa disimpan lewat compare-and-swap lama.
+//      Ini mencegah "ilusi tersimpan".
+//
+// ANTI DOBEL: busyRef + tombol disabled + idempotency key deterministik
+// (`client_event_id`) + CAS lama untuk mode legacy.
 // ============================================================
 import React, { useMemo, useRef, useState } from 'react'
 import {
@@ -20,12 +25,16 @@ import {
   buildRows, emptyEntry, computeItem, validateForm, buildSavePlan
 } from './receiptLogic'
 import { saveReceipt, loadItemsFromPr } from './receiptSave'
+import { buildEventDrafts } from './receiptEventLogic'
+import { applyReceiptEvents } from './receiptEventSave'
+import { capabilityMessage } from './receiptCapability'
 import { dataUrlByteSize, validateHandoverFotoSize } from '../../lib/constants'
 
 const fmt = (v) => (v === null || v === undefined || v === '' ? '—' : v)
 
-export default function ReceiptForm({ receiving, items, prItems = [], orderedFor, say, refresh, close }) {
+export default function ReceiptForm({ receiving, items, prItems = [], orderedFor, say, refresh, close, capability = null }) {
   const rows = useMemo(() => buildRows(items, orderedFor), [items, orderedFor])
+  const ready = !!capability?.ready
   const [entries, setEntries] = useState(() => {
     const init = {}
     for (const r of rows) init[r.id] = emptyEntry()
@@ -46,6 +55,13 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
   const v = validateForm(rows, entries)
   const label = receiving?.invoice_no || receiving?.delivery_note || 'Penerimaan'
   const plan = buildSavePlan(rows, entries)
+  // Dimensi per barang (rusak / tujuan / retur) diminta user?
+  const needsLedger = v.schemaBlocks.length > 0
+  // Mode READY: semua dimensi bisa disimpan. Mode LEGACY: submit tetap
+  // diblokir di handler (pesan gap eksplisit, nol tulisan) — tombol TIDAK
+  // di-disable supaya user mendapat penjelasan saat menekan (perilaku
+  // kontrak t_5196b689 dipertahankan).
+  const blockedBySchema = !ready && needsLedger
   // Tombol submit: nonaktif saat menyimpan, tanpa data, atau form invalid
   // (mencegah double submit & payload setengah jadi).
   const canSubmit = !saving && plan.length > 0 && v.valid
@@ -59,7 +75,9 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
       const err = validateHandoverFotoSize(size)
       if (err) { setFotoError(prev => ({ ...prev, [itemId]: err })); return }
       setFotoError(prev => ({ ...prev, [itemId]: '' }))
-      setField(itemId, 'foto', dataUrl)
+      // Foto TIDAK dikirim sebagai base64 ke DB (arsip Drive belum aktif):
+      // hanya nama file sebagai referensi jujur; lihat catatan di UI.
+      setField(itemId, 'foto', { nama: file.name || 'foto', dataUrl })
     }
     reader.readAsDataURL(file)
   }
@@ -92,9 +110,9 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
       return
     }
     setErrorMsg('')
-    // Prototype/schema-gap: form valid tetapi butuh kolom yang belum ada.
-    // TIDAK menulis apa pun (bukan flow salah, bukan packing ke note).
-    if (v.schemaBlocks.length > 0) {
+
+    // ---- MODE LEGACY: dimensi belum bisa disimpan → blokir, nol tulisan ----
+    if (blockedBySchema) {
       setErrorMsg(`Belum dapat disimpan — ${v.schemaBlocks[0]} Data belum ditulis sama sekali; menunggu persetujuan perbaikan skema (receiving_events / handover_items).`)
       return
     }
@@ -102,6 +120,22 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
     busyRef.current = true
     setSaving(true)
     try {
+      if (ready) {
+        // ---- MODE READY: satu RPC atomik untuk semua dimensi ----
+        const drafts = buildEventDrafts(rows, entries, { receivingId: receiving?.id })
+        const sisaById = {}
+        for (const r of rows) if (r.sisa !== null) sisaById[r.id] = r.sisa
+        const res = await applyReceiptEvents({ receiving, drafts, sisaById })
+        if (!res.ok) { setErrorMsg(res.error || 'Gagal menyimpan penerimaan.'); return }
+        const total = drafts.reduce((s, d) => s + Number(d.qty_datang || 0), 0)
+        const dup = res.alreadyApplied ? ` · ${res.alreadyApplied} baris sudah pernah tersimpan (tidak digandakan)` : ''
+        say?.(`Penerimaan tersimpan: ${res.applied} baris barang, total datang ${total}${dup}.`)
+        close?.()
+        refresh?.()
+        return
+      }
+
+      // ---- MODE LEGACY tanpa dimensi: qty kumulatif via CAS ----
       const res = await saveReceipt({ receiving, plan })
       if (!res.ok) {
         setErrorMsg(res.error || 'Gagal menyimpan penerimaan.')
@@ -132,6 +166,21 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
           jumlah baik boleh dibagi ke Workshop dan/atau diserahkan ke Tukang. Tidak ada yang
           tersimpan sebelum <b>Simpan Penerimaan</b> ditekan.
         </p>
+
+        {/* Status penyimpanan per barang — jujur, dari capability probe. */}
+        <div
+          data-testid="receipt-capability"
+          style={{
+            fontSize: '11.5px', borderRadius: '7px', padding: '7px 10px', lineHeight: 1.45,
+            background: ready ? '#e6f4ea' : '#fef6e7',
+            border: `1px solid ${ready ? '#ceead6' : '#fcdfa6'}`,
+            color: ready ? '#137333' : '#7a4a08'
+          }}
+        >
+          {ready
+            ? 'Penyimpanan per barang AKTIF: kondisi (baik/rusak), tujuan (Workshop/Tukang), dan status retur dicatat per barang.'
+            : capabilityMessage(capability)}
+        </div>
 
         {rows.length === 0 && (
           <div data-testid="receipt-empty" style={{ background: '#fef6e7', border: '1px solid #fcdfa6', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#7a4a08' }}>
@@ -263,8 +312,8 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
                             onChange={e => pickFoto(row.id, e.target.files?.[0])}
                           />
                         </label>
-                        {entry.foto && (
-                          <img src={entry.foto} alt="Pratinjau bukti foto barang dibuang" style={{ width: '84px', height: '84px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd8d4' }} />
+                        {entry.foto?.dataUrl && (
+                          <img src={entry.foto.dataUrl} alt="Pratinjau bukti foto barang dibuang" style={{ width: '84px', height: '84px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd8d4' }} />
                         )}
                         {fotoError[row.id] && <span style={{ color: '#c93b2b', fontSize: '11px' }}>{fotoError[row.id]}</span>}
                         {/* KOREKSI DAT (16 Okt): foto tidak memblokir transaksi.
@@ -273,7 +322,7 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
                             jangan mengklaim foto sudah tersimpan. */}
                         <div data-testid={`foto-note-${row.id}`} style={{ fontSize: '10.5px', color: '#8a6d1f', background: '#fdf8ea', border: '1px solid #f0dcb4', borderRadius: '4px', padding: '4px 7px' }}>
                           {entry.foto
-                            ? 'Pratinjau saja — arsip foto (Drive) belum aktif di sistem ini, jadi foto ini belum tersimpan permanen. Transaksi tetap bisa disimpan tanpa foto.'
+                            ? 'Pratinjau saja — arsip foto (Drive) belum aktif di sistem ini, jadi foto ini belum tersimpan permanen. Yang disimpan hanya NAMA file sebagai rujukan; transaksi tetap bisa disimpan tanpa foto.'
                             : 'Foto tidak wajib. Kalau memilih foto, arsip otomatis ke Drive belum aktif — foto belum tersimpan permanen dan transaksi tetap bisa disimpan tanpa foto.'}
                         </div>
                         <label style={{ fontSize: '11.5px', display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -297,7 +346,9 @@ export default function ReceiptForm({ receiving, items, prItems = [], orderedFor
           ke Tukang <b>{v.summary.totalTukang}</b> · belum datang <b>{v.summary.totalBelum}</b>.
         </div>
 
-        {v.schemaBlocks.length > 0 && (
+        {/* Gap skema HANYA ditampilkan di mode legacy (di mode READY dimensi
+            ini tersimpan — tidak ada alasan menakut-nakuti user). */}
+        {!ready && v.schemaBlocks.length > 0 && (
           <div data-testid="schema-gap-note" style={{ background: '#fef6e7', border: '1px solid #fcdfa6', borderRadius: '8px', padding: '10px 12px', fontSize: '11.5px', color: '#7a4a08' }}>
             <b>⚠️ Butuh persetujuan perbaikan skema (tidak ada data yang ditulis setengah):</b>
             <ul style={{ margin: '5px 0 0 18px', padding: 0 }}>
