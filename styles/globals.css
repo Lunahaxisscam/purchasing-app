@@ -3471,6 +3471,2757 @@ nav .active .nav-ico {
   .login-panel { padding: 40px 26px; }
 }
 
+/* t_27e26b0e: tombol Export CSV / PDF di toolbar Material — gaya konsisten
+   dengan tombol outline tema Noir */
+.btn-export-module {
+  white-space: nowrap;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+
+.notice {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  margin-bottom: 22px;
+  font-weight: 600;
+  font-size: 13.5px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Action Buttons */
+.btn-delete {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.btn-delete:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+  color: #be123c;
+  transform: translateY(-1px);
+}
+
+.btn-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f8fafc;
+  color: var(--slate-700);
+  border: 1px solid var(--border-subtle);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-file:hover {
+  background: #f1f5f9;
+  border-color: var(--slate-400);
+  color: var(--text-main);
+}
+
+/* Kendala & Warehouse Status */
+.status-kendala {
+  background: #fff1f2 !important;
+  color: #e11d48 !important;
+  border: 1px solid #fecdd3 !important;
+  font-weight: 700 !important;
+}
+
+.status-kendala:hover {
+  background: #ffe4e6 !important;
+  border-color: #fda4af !important;
+}
+
+.status-normal {
+  background: #f8fafc;
+  color: var(--slate-700);
+  border: 1px solid var(--border-subtle);
+}
+
+.status-gudang {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+  font-weight: 700 !important;
+}
+
+.status-gudang:hover {
+  background: #d1fae5 !important;
+  border-color: #059669 !important;
+}
+
+/* Material Picker Box */
+.material-picker-box {
+  background: #f8fafc;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin: 12px 0;
+}
+
+/* Status Badges */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   CHIP KATEGORI VENDOR (t_e626b674 — arahan DAT)
+   Kategori material vendor tampil sbg badge/pill rapi per kategori
+   (multi-kategori didukung) — di kartu mobile & cell tabel desktop.
+   Tema Noir: soft neutral surface, border halus, rounded-full,
+   font 11px bold uppercase-ish; chip "kosong" lebih redup.
+   ============================================================ */
+.vendor-cat-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+/* Baris chips kategori di header kartu mobile — wrapper flex-wrap agar
+   banyak kategori turun baris rapi tanpa meluber keluar kartu. */
+.vendor-cat-row .vendor-cat-chips {
+  max-width: 100%;
+  margin-top: 4px;
+}
+.vendor-cat-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: var(--slate-700);
+  background: var(--olive-50);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vendor-cat-chips.vendor-cat-empty {
+  font-size: 11px;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--slate-400);
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+
+/* Checklist multi-kategori di form Tambah/Edit Vendor (t_e626b674) */
+.vendor-cat-checklist {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--olive-50);
+}
+.vendor-cat-checklist-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.vendor-cat-checklist-hint {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+/* Spesifik di-scope ke .vendor-cat-checklist supaya mengalahkan
+   .dialog label { display:grid } (spesifisitas 0,2,0 > 0,1,1) —
+   checkbox & teks kategori harus SATU BARIS (flex). */
+.vendor-cat-checklist .vendor-cat-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--slate-700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.vendor-cat-checklist .vendor-cat-option:hover {
+  border-color: var(--slate-400);
+}
+.vendor-cat-checklist .vendor-cat-option.is-checked {
+  background: var(--olive-100);
+  border-color: var(--slate-400);
+  color: var(--primary);
+}
+.vendor-cat-checklist .vendor-cat-option input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.vendor-cat-checklist .vendor-cat-option-text {
+  flex: 1;
+  min-width: 0;
+}
+.vendor-cat-checklist .vendor-cat-option-mark {
+  font-weight: 800;
+  color: var(--primary);
+}
+
+/* ============================================================
+   HAPUS VENDOR DI-DISCOURAGE (t_e626b674 — arahan DAT)
+   Bukan lagi tombol merah full-width menyolok: link teks kecil abu-abu
+   di pojok bawah kartu mobile + icon button muted di tabel desktop.
+   Konfirmasi bertingkat (2x) dijalankan sebelum delete.
+   ============================================================ */
+.vendor-card-footnote {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+.vendor-delete-link {
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.vendor-delete-link:hover {
+  color: #be123c;
+  text-decoration: underline;
+}
+.btn-delete-muted {
+  background: transparent;
+  color: var(--slate-400);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-delete-muted:hover {
+  color: #be123c;
+  border-color: #fda4af;
+  background: #fff1f2;
+}
+
+.badge.status-APPROVED {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.badge.status-DRAFT {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.badge.status-PENDING {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.badge.status-REJECTED {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.badge.status-REVISI {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.badge.badge-item-approved {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+/* Icon Buttons (Edit / Delete) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.btn-edit {
+  background: #fff;
+  color: var(--slate-700);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-edit:hover {
+  background: #f8fafc;
+  border-color: var(--slate-300);
+  color: var(--text-main);
+  transform: translateY(-1px);
+}
+
+.btn-delete.icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.btn-finish {
+  background: #059669;
+  color: #fff;
+  border: 1px solid #059669;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 6px 14px;
+  transition: all 0.15s ease;
+}
+
+.btn-finish:hover {
+  background: #047857;
+  border-color: #047857;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Priority Dots */
+.prio-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.prio-normal {
+  background: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2);
+}
+
+.prio-urgent {
+  background: #e11d48;
+  box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2);
+}
+
+.prio-header {
+  width: 8px;
+  height: 8px;
+  background: #cbd5e1;
+  box-shadow: none;
+}
+
+/* Sidebar Navigation groups & divider */
+.nav-group {
+  display: grid;
+  gap: 4px;
+}
+
+.nav-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 10px 4px;
+}
+
+/* Tables Specific Widths & Layouts — Fluid & Scrollable (Anti-Collision) */
+.table {
+  width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+table {
+  table-layout: auto !important;
+  width: 100%;
+}
+
+table.materials-table {
+  min-width: 920px !important;
+}
+
+/* Kategori rapat ke kolom Nama: kolom Kategori dibuat selebar isinya (1%),
+   Nama dibatasi 300px, sisa ruang dibagi ke kolom kanan */
+table.materials-table th:nth-child(1),
+table.materials-table td:nth-child(1) { width: 84px; }
+
+table.materials-table th:nth-child(2),
+table.materials-table td:nth-child(2) { width: 300px; max-width: 300px; }
+
+table.materials-table th:nth-child(3),
+table.materials-table td:nth-child(3) { width: 1%; white-space: nowrap; }
+
+table.requests-table {
+  min-width: 1250px !important;
+}
+
+/* Modul PR compact: padding & font lebih rapat supaya semua kolom (Qty, Vendor)
+   muat tanpa teks tabrakan */
+table.requests-table th,
+table.requests-table td {
+  padding: 8px 10px;
+  font-size: 12.5px;
+  vertical-align: top;
+}
+
+/* PR master-detail: tiap item satu baris — Qty / Item / Vendor sejajar */
+table.requests-table tr.pr-item-row > td {
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+table.requests-table tr.pr-item-row:last-child > td {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+table.requests-table td.pr-item-qty {
+  white-space: nowrap !important;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+table.requests-table td.pr-item-name {
+  white-space: normal !important;
+  min-width: 220px;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
+table.requests-table td.pr-item-vendor {
+  white-space: normal !important;
+  min-width: 130px;
+  line-height: 1.45;
+}
+
+/* Judul kebutuhan di-wrap ke bawah; kolom dikecilkan (revisi user 9 Okt) */
+table.requests-table .pr-title-cell {
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.45;
+  max-width: 150px;
+}
+
+/* Estimasi harga per item (PR) */
+table.requests-table td.pr-item-price {
+  white-space: nowrap !important;
+  font-weight: 600;
+  color: var(--ok);
+}
+
+table.approvals-table {
+  min-width: 1180px !important;
+}
+
+th, td {
+  white-space: nowrap !important;
+}
+
+/* ========================================================
+   Modul Upah Tukang — kolom teks panjang dipotong ellipsis.
+   Catatan: `th, td { white-space: nowrap !important }` di atas TIDAK bisa
+   dioverride dari inline style sel, dan `overflow:hidden` pada table-cell
+   diabaikan — karena itu teks panjang dibungkus <div class="cell-ellip">
+   di dalam sel, dengan title = teks lengkap (hover untuk melihat utuh).
+   ======================================================== */
+.cell-ellip {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cell-ellip.cell-ellip-wide { max-width: 240px; }
+.cell-ellip.cell-ellip-sm { max-width: 130px; }
+
+/* Badge status ringkas: 1 baris, teks panjang dipotong (title = teks penuh). */
+.badge.badge-truncate {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Tabel Upah Tukang: 10 kolom dirapatkan agar MUAT PENUH tanpa scroll
+   horizontal di layar ~1600px (panel tersedia ±1250px). Teks panjang tetap
+   dipotong ellipsis + tooltip. Jangan lebarkan kembali tanpa hitung ulang. */
+table.upah-table th,
+table.upah-table td {
+  padding: 10px 12px;
+}
+table.upah-table .cell-ellip { max-width: 165px; }
+table.upah-table .cell-ellip.cell-ellip-wide { max-width: 195px; }
+table.upah-table .cell-ellip.cell-ellip-sm { max-width: 108px; }
+table.upah-table .badge.badge-truncate { max-width: 98px; }
+
+td .cell-name {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-dot {
+  width: 9px;
+  height: 9px;
+  min-width: 9px;
+  border-radius: 50%;
+  padding: 0;
+  background: #e5e6dd;
+  border: 1px solid #d5d9ce;
+  box-shadow: none;
+  flex: 0 0 auto;
+}
+.note-dot-on {
+  background: radial-gradient(circle at 35% 30%, #d9b877, #b98a2e);
+  border-color: #b98a2e;
+  box-shadow: 0 0 0 3px rgba(185, 138, 46, 0.15);
+}
+
+.dialog-wide {
+  width: min(720px, 100%) !important;
+}
+
+.note-pop {
+  margin-top: 4px;
+  background: #fdf8ea;
+  border: 1px solid #f0dcb4;
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: break-word;
+  max-width: 240px;
+  color: #6b4a12;
+  font-weight: 500;
+}
+
+textarea {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 11px;
+  background: white;
+  color: var(--text-main);
+  width: 100%;
+  font: inherit;
+  resize: vertical;
+  min-height: 90px;
+}
+
+/* Mobile App Bar & Drawer Elements (Hidden on Desktop) */
+.mobile-header {
+  display: none;
+}
+.mobile-backdrop {
+  display: none;
+}
+.table-scroll-hint {
+  display: none;
+}
+
+/* Mobile Cards System */
+.mobile-cards-view {
+  display: none !important;
+}
+.desktop-table-view {
+  display: block;
+}
+
+
+/* ========================================================
+   RESPONSIVE DESIGN (MOBILE & TABLET <= 900px)
+   ======================================================== */
+@media (max-width: 1024px) {
+  .shell {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* Mobile Top App Bar */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--sidebar-bg);
+    color: #ffffff;
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mobile-brand .logo-badge {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border: 1px solid rgba(197, 160, 89, 0.4);
+    color: var(--accent-gold);
+    font-weight: 800;
+    font-family: var(--font-heading);
+    border-radius: var(--radius-sm);
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .mobile-brand b {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    letter-spacing: 0.8px;
+    color: #ffffff;
+    display: block;
+    line-height: 1.2;
+  }
+
+  .mobile-brand small {
+    display: block;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 1px;
+    line-height: 1.2;
+  }
+
+  .mobile-menu-btn {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: 8px 13px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: none;
+    line-height: 1;
+  }
+
+  /* Off-canvas Drawer & Backdrop */
+  .mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 150;
+  }
+
+  aside, aside.app-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    background: var(--sidebar-bg) !important;
+    z-index: 200 !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+    overflow-y: auto;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 24px 16px !important;
+  }
+
+  aside.sidebar-open, aside.app-sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Main Content Area */
+  .content {
+    width: 100% !important;
+    padding: 16px 12px !important;
+    max-width: 100% !important;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  header {
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .toolbar-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+  }
+
+  .toolbar-actions input,
+  .toolbar-actions select,
+  .toolbar-actions button {
+    width: 100% !important;
+  }
+
+  .toolbar-actions .search-input {
+    width: 100% !important;
+    padding: 10px 14px !important;
+    font-size: 13.5px !important;
+    box-sizing: border-box !important;
+  }
+
+  .toolbar-actions .btn-create-module {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-md) !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 6px rgba(92, 99, 73, 0.2) !important;
+  }
+
+  /* t_27e26b0e: export buttons ikut stack vertikal di layar sempit,
+     setengah lebar berpasangan agar tetap rapi (tema Noir). */
+  .toolbar-actions .btn-export-module {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-md) !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  /* Horizontal Swipe for Filter Tabs */
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .filter-tabs .pill {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* Table Swipe Hint */
+  .table-scroll-hint {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: #f1f5f9;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    margin-bottom: 10px;
+  }
+
+  .table-scroll-hint span {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--primary);
+  }
+
+  /* Tables: Clean Horizontal Scroll without Column Collision */
+  .panel.table {
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .table {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 0 !important;
+  }
+
+  table {
+    min-width: 820px;
+  }
+
+  table.requests-table {
+    min-width: 1200px !important;
+    table-layout: auto !important;
+  }
+
+  table.approvals-table {
+    min-width: 1050px !important;
+    table-layout: auto !important;
+  }
+
+  table.materials-table {
+    min-width: 820px !important;
+    table-layout: auto !important;
+  }
+
+  table.materials-table td:nth-child(2) .cell-name {
+    white-space: normal;
+  }
+
+  th {
+    padding: 12px 14px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap !important;
+  }
+
+  td {
+    padding: 12px 14px !important;
+    font-size: 13px !important;
+  }
+
+
+  /* Mobile View: Hide Desktop Table, Show Native Cards */
+  .desktop-table-view {
+    display: none !important;
+  }
+  .table-scroll-hint {
+    display: none !important;
+  }
+  .mobile-cards-view {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+  .mobile-card {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    border-bottom: 1px solid #edeee5;
+    padding-bottom: 10px;
+  }
+  .mobile-card-title {
+    font-family: var(--font-heading);
+    font-size: 15.5px;
+    font-weight: 800;
+    color: var(--primary);
+    display: block;
+    line-height: 1.25;
+  }
+  .mobile-card-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .mobile-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .mobile-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .mobile-label {
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .mobile-val {
+    color: var(--text-main);
+    font-weight: 600;
+    text-align: right;
+    font-size: 13px;
+  }
+  .mobile-items-box {
+    background: #f8fafc;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    width: 100%;
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .mobile-item-line {
+    color: var(--slate-700);
+    margin-bottom: 3px;
+    font-weight: 500;
+  }
+  .mobile-card-note {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #92400e;
+  }
+  .mobile-card-actions {
+    border-top: 1px solid #f1f5f9;
+    padding-top: 10px;
+  }
+  .mobile-action-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .btn-mobile-approve {
+    background: #059669 !important;
+    color: white !important;
+    padding: 10px 4px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-md) !important;
+    border: 0 !important;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
+  }
+  .btn-mobile-reject {
+    background: #e11d48 !important;
+    color: white !important;
+    padding: 10px 4px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-md) !important;
+    border: 0 !important;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(225, 29, 72, 0.25);
+  }
+  .btn-mobile-revise {
+    background: #d97706 !important;
+    color: white !important;
+    padding: 10px 4px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-md) !important;
+    border: 0 !important;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(217, 119, 6, 0.25);
+  }
+
+  /* Dashboard Cards */
+  .cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .card strong {
+    font-size: 24px;
+    margin: 6px 0;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  /* Modals */
+  .modal {
+    padding: 14px 10px !important;
+  }
+
+  .dialog {
+    padding: 18px !important;
+    max-height: calc(100vh - 28px) !important;
+  }
+
+  .material-picker-box {
+    padding: 10px;
+  }
+}
+
+/* ============================================================
+   SPRINT 1 — CETAK DOKUMEN CLOSING PROYEK RESMI (A4, siap PDF)
+   ============================================================
+   Alur: tombol "📄 Cetak Dokumen Closing (PDF)" membuka modal
+   preview (.print-modal) berisi kertas .print-paper, lalu
+   window.print(). Saat mode print:
+     * body.printing-closing aktif → SEMUA elemen app disembunyikan
+       kecuali .print-modal (navbar, sidebar, toolbar, tombol).
+     * Ukuran A4 portrait, margin 12mm, warna teks hitam.
+   ============================================================ */
+
+/* --- Kertas dokumen di layar (preview) --- */
+.print-paper {
+  background: #fff;
+  color: #111;
+  padding: 28px 34px;
+  border: 1px solid #e5e6e1;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.print-kop-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.print-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: #3f4433;
+  color: #d9dcc4;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.print-company {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #3f4433;
+}
+
+.print-company-sub {
+  font-size: 11.5px;
+  color: #444;
+}
+
+.print-kop-line {
+  margin-top: 12px;
+  border-bottom: 3px double #3f4433;
+}
+
+.print-title {
+  text-align: center;
+  margin: 20px 0 16px;
+}
+
+.print-title h1 {
+  font-size: 16.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin: 0 0 4px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.print-title-no {
+  font-size: 11.5px;
+  color: #333;
+}
+
+.print-info {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.print-info td {
+  padding: 3px 6px;
+  vertical-align: top;
+  font-size: 12.5px;
+}
+
+.print-info-label {
+  width: 150px;
+  color: #333;
+}
+
+.print-info-value {
+  font-weight: 600;
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.print-table th,
+.print-table td {
+  border: 1px solid #999;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  white-space: normal !important;
+}
+
+.print-table th {
+  background: #eef0e6;
+  font-weight: 800;
+  text-align: left;
+}
+
+.print-table small {
+  color: #555;
+  font-size: 10.5px;
+}
+
+.print-row-total td {
+  background: #f2f3ea;
+}
+
+.print-row-profit td {
+  background: #eef4ee;
+}
+
+.print-row-loss td {
+  background: #fbeceb;
+}
+
+.print-section-title {
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.print-notes-box {
+  border: 1px solid #999;
+  border-radius: 4px;
+  padding: 10px 12px;
+  min-height: 56px;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  background: #fcfcf8;
+}
+
+.print-sign {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  margin-top: 34px;
+  page-break-inside: avoid;
+}
+
+.print-sign-col {
+  flex: 1;
+  text-align: center;
+  font-size: 12.5px;
+}
+
+.print-sign-space {
+  height: 62px;
+}
+
+.print-sign-name {
+  font-weight: 800;
+  border-top: 1px solid #333;
+  padding-top: 5px;
+}
+
+.print-sign-role {
+  font-size: 11px;
+  color: #444;
+}
+
+.print-footer {
+  margin-top: 26px;
+  text-align: center;
+  font-size: 10.5px;
+  color: #555;
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+}
+
+/* ============================================================
+   PRINT MODE — hanya dokumen closing yang tercetak.
+   Pendekatan: saat modal cetak terbuka, React memindahkan dokumen ke
+   <body> (portal) dan menandai body.printing-closing. Di @media print,
+   SEMUA anak body disembunyikan dengan display:none KECUALI dokumen —
+   display:none menghapus layout box sehingga tidak ada halaman kosong
+   (visibility:hidden menyisakan ruang → dokumen terdorong ke halaman 2+).
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body.printing-closing > *:not(.print-portal) {
+    display: none !important;
+  }
+
+  body.printing-closing .print-portal {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    z-index: auto !important;
+  }
+
+  /* Overlay modal (position:fixed + backdrop) → kertas biasa saat print */
+  body.printing-closing .print-modal {
+    position: static !important;
+    inset: auto !important;
+    background: #fff !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    display: block !important;
+  }
+
+  body.printing-closing .print-dialog {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    display: block !important;
+  }
+
+  /* Toolbar (tombol Tutup/Cetak) tidak ikut tercetak */
+  body.printing-closing .print-toolbar {
+    display: none !important;
+  }
+
+  body.printing-closing .print-paper {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    font-size: 12px;
+  }
+
+  body.printing-closing .print-table th,
+  body.printing-closing .print-table td {
+    border-color: #444 !important;
+    color: #000 !important;
+  }
+
+  body.printing-closing .print-table th {
+    background: #eee !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.printing-closing .print-row-profit td,
+  body.printing-closing .print-row-loss td,
+  body.printing-closing .print-row-total td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* ============================================================
+   SPRINT 1 — Highlight baris BHP stok menipis.
+   Kelas dipakai di <tr> (ModuleView). Ditempatkan SETELAH rule
+   tbody tr:hover agar warnanya konsisten walau kursor di atas baris.
+   ============================================================ */
+tbody tr.row-stok-menipis,
+tbody tr.row-stok-menipis:hover {
+  background-color: #fbeceb !important;
+}
+
+tbody tr.row-stok-menipis > td {
+  background-color: transparent !important;
+}
+
+/* ============================================================
+   BUDGETING — KONTROL ANGGARAN & PAGU HISTORIS (NOIR LIVING)
+   Patokan historis: Material 50% · Manpower 25% · Ops 10% · Margin 15%
+   ============================================================ */
+
+.budget-control-panel {
+  margin-bottom: 22px;
+  padding: 20px 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease-in-out;
+}
+
+.budget-control-panel.has-anomaly {
+  border: 1.5px solid #eec3c1;
+  background: #fdfbf9;
+}
+
+/* ============================================================
+   PANEL ATUR PERSENTASE ANGGARAN (Budget Custom)
+   Tampil tepat di bawah saklar mode — 4 input + total/sisa.
+   ============================================================ */
+.budget-pct-panel {
+  border: 1px solid #cdd8d2;
+  background: #f7faf8;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.budget-pct-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.budget-pct-panel-title {
+  font-family: var(--font-heading);
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #20251f;
+}
+
+.budget-pct-panel-hint {
+  font-size: 11px;
+  color: #7a8272;
+}
+
+.budget-pct-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.budget-pct-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.budget-pct-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a5445;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.custom-pct-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #20251f;
+  box-sizing: border-box;
+}
+
+.custom-pct-input:focus {
+  outline: none;
+  border-color: #5c6349 !important;
+  box-shadow: 0 0 0 3px rgba(92, 99, 73, 0.15);
+}
+
+.budget-pct-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #4a5445;
+}
+
+.budget-pct-total strong,
+.budget-pct-sisa strong {
+  font-size: 13px;
+}
+
+.budget-pct-status {
+  margin-left: auto;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.budget-pct-warn {
+  font-size: 11.5px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 7px 10px;
+  line-height: 1.4;
+}
+
+.budget-pct-pending {
+  font-size: 11.5px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 7px 10px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1100px) {
+  .budget-pct-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Revenue & Total Cost Overview Strip */
+.budget-overview-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  background: #fcfcf8;
+  border: 1px solid #e5e6e1;
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.budget-overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.budget-overview-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #60664d;
+}
+
+.budget-overview-val {
+  font-family: var(--font-heading);
+  font-size: 15.5px;
+  font-weight: 800;
+  color: #20251f;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.budget-overview-val small {
+  font-size: 11px;
+  font-weight: 600;
+  color: #60664d;
+}
+
+/* Banner Peringatan Rangkuman Anomali */
+.budget-anomaly-summary-banner {
+  background: #fbeceb;
+  border: 1.5px solid #b34a4a;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.anomaly-banner-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.anomaly-banner-title {
+  font-weight: 800;
+  color: #8a2425;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+}
+
+.anomaly-banner-subtitle {
+  font-size: 12px;
+  color: #9e2a2b;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.anomaly-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.anomaly-item-card {
+  background: #ffffff;
+  border: 1px solid #eec3c1;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 4-Pillar Budget Cards Grid */
+.budget-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.budget-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 215px;
+  transition: all 0.15s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.budget-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #cbdad4;
+}
+
+.budget-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbdad4;
+}
+
+.budget-card.card-revenue::before {
+  background: linear-gradient(90deg, #5c6349, #7a8064);
+}
+
+.budget-card.card-material::before {
+  background: #7a8064;
+}
+
+.budget-card.card-material.is-anomaly::before {
+  background: #9e2a2b;
+}
+
+.budget-card.card-manpower::before {
+  background: #5c6349;
+}
+
+.budget-card.card-manpower.is-anomaly::before {
+  background: #9e2a2b;
+}
+
+.budget-card.card-operasional::before {
+  background: #945719;
+}
+
+.budget-card.card-operasional.is-anomaly::before {
+  background: #9e2a2b;
+}
+
+.budget-card.card-margin::before {
+  background: #1b6348;
+}
+
+.budget-card.card-margin.is-anomaly::before {
+  background: #9e2a2b;
+}
+
+.budget-card.is-anomaly {
+  border-color: #eec3c1;
+  background: #fdfbf9;
+}
+
+.budget-card.is-on-track {
+  border-color: #bfdccd;
+  background: #fbfbf6;
+}
+
+.budget-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.budget-card-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.budget-card-nominal {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.budget-card-nominal.danger-text {
+  color: #9e2a2b;
+}
+
+.budget-card-nominal.success-text {
+  color: #1b6348;
+}
+
+.budget-card-sub {
+  font-size: 11px;
+  color: #60664d;
+  line-height: 1.35;
+}
+
+.budget-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 8px 0;
+  padding: 8px 0;
+  border-top: 1px solid #eff0e8;
+  border-bottom: 1px solid #eff0e8;
+}
+
+.budget-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  gap: 8px;
+}
+
+.budget-detail-label {
+  color: #60664d;
+  font-weight: 500;
+}
+
+.budget-detail-val {
+  color: #2b3127;
+  font-weight: 700;
+  text-align: right;
+}
+
+.budget-detail-val.danger-text {
+  color: #9e2a2b;
+}
+
+.budget-detail-val.success-text {
+  color: #1b6348;
+}
+
+.budget-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #eef0e6;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.budget-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(179, 74, 74, 0.45); }
+  70% { box-shadow: 0 0 0 6px rgba(179, 74, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(179, 74, 74, 0); }
+}
+
+.badge-anomaly-glow {
+  animation: pulse-red 2s infinite;
+}
+
+@media (max-width: 1100px) {
+  .budget-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .budget-overview-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .budget-card-nominal {
+    font-size: 16.5px;
+  }
+  .budget-control-panel {
+    padding: 16px 14px;
+  }
+}
+
+@media (max-width: 580px) {
+  .budget-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .budget-overview-strip {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+
+/* ============================================================
+   NOIR LIVING — OLIVE DESIGN SYSTEM v2 (Blossom, t_0b304478)
+   Referensi: screenshot DAT (banner olive #969b7c, ivory #fcfcf8,
+   charcoal #20251f, garis tipis, sudut lembut, angka tabular rata kanan).
+   Blok ini aditif & di-scope agar tidak menabrak JSX worker lain.
+   ============================================================ */
+
+/* --- 1. Angka rupiah: tabular & rata kanan (Pilar 3) ---
+   Semua sel/elemen finansial memakai figur tabular supaya titik ribuan
+   lurus vertikal; teks tetap rata kanan ala UI akuntansi. */
+.num-rupiah,
+.numeric-data,
+.budget-overview-val,
+.budget-card-nominal,
+.budget-detail-val,
+.card strong,
+td.col-nominal,
+td[data-numeric],
+.mobile-val[data-numeric] {
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum";
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+td.col-nominal,
+td[data-numeric] {
+  text-align: right;
+  white-space: nowrap !important;
+}
+
+.rp-prefix {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.9em;
+  margin-right: 2px;
+}
+
+/* --- 2. Tabel: izinkan teks item wrap, angka tetap nowrap ---
+   Menggantikan aturan brute-force lama yang memotong nama material. */
+table td.cell-wrap,
+table td .cell-wrap {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+table th.col-num,
+table td.col-num {
+  text-align: right;
+  white-space: nowrap !important;
+}
+
+/* --- 3. Kolom aksi: micro-action bar horizontal --- */
+.actions-cell {
+  white-space: nowrap;
+  width: 1%;
+}
+.actions-cell .icon-btn,
+.actions-cell .btn-finish {
+  vertical-align: middle;
+}
+.actions-cell .icon-btn + .icon-btn,
+.actions-cell .btn-finish + .icon-btn,
+.actions-cell .icon-btn + .btn-finish {
+  margin-left: 6px;
+}
+
+/* --- 4. Sidebar: label grup & badge admin --- */
+.nav-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 14px 14px 4px;
+}
+.nav-group:first-child .nav-group-label { padding-top: 4px; }
+
+/* --- 5. Filter pills: isyarat scroll horizontal di mobile (Pilar 4) --- */
+.filter-tabs-wrapper { position: relative; }
+.filter-tabs-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 6px;
+  width: 26px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(248, 250, 252, 0), rgba(248, 250, 252, 1));
+}
+@media (min-width: 1025px) {
+  .filter-tabs-wrapper::after { display: none; }
+}
+
+/* --- 6. Aksen link & tombol file --- */
+a { color: var(--primary); }
+a:hover { color: var(--slate-700); }
+
+/* --- 7. Banner/hero tipis (opsional) --- */
+.brand-banner {
+  background: var(--slate-900);
+  color: #ffffff;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.brand-banner .brand-banner-title { font-weight: 800; font-size: 18px; letter-spacing: -0.01em; }
+.brand-banner .brand-banner-sub { font-size: 11.5px; opacity: 0.9; }
+.brand-banner .rev-badge {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* --- 8. Tombol kontras-aman --- */
+.btn-olive {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-olive:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-on-olive {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+/* --- 9. Fokus keyboard jelas di seluruh kontrol interaktif (a11y) --- */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- 10. Touch target minimal 44px di mobile (Pilar 4) --- */
+@media (max-width: 1024px) {
+  .mobile-card-actions button,
+  .mobile-action-grid-3 button,
+  .btn-mobile-approve,
+  .btn-mobile-reject,
+  .btn-mobile-revise,
+  .mobile-card button,
+  .mobile-card a.btn-file {
+    min-height: 44px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  /* PENGECUALIAN (t_e626b674): link "Hapus Vendor" SENGAJA kecil, redup,
+     & menempel di pojok bawah — aksi sekunder yang di-discourage, BUKAN
+     aksi utama. Jangan ikut menggembung jadi tombol 44px. Padding
+     transparan diperbesar agar tetap nyaman disentuh tanpa membesarkan
+     tampilannya. */
+  .mobile-card .vendor-delete-link {
+    min-height: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 10px 8px;
+    margin: -6px -2px;
+  }
+  .mobile-menu-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .icon-btn,
+  .dialog .icon,
+  .mobile-card .icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* --- 11. Badge: tidak pernah warna-saja — selalu ada ikon/teks --- */
+.badge::before { content: ''; }
+
+
+/* --- 12. Override warna inline lama (mis. "Tech Blue" #1a73e8) TANPA
+   mengedit file JSX worker lain. React menulis style via CSSOM sehingga
+   nilainya terserialisasi sebagai rgb(); kita cocokkan kedua bentuk. --- */
+a[style*="rgb(26, 115, 232)"], a[style*="1a73e8"] { color: #0284c7 !important; }
+[style*="color: rgb(19, 115, 51)"], [style*="color:#137333"] { color: var(--ok) !important; }
+[style*="color: rgb(217, 119, 6)"], [style*="color:#d97706"] { color: var(--warn) !important; }
+[style*="color: rgb(180, 83, 9)"], [style*="color:#b45309"] { color: var(--warn) !important; }
+[style*="color: rgb(220, 38, 38)"], [style*="color:#dc2626"] { color: var(--danger) !important; }
+[style*="color: rgb(201, 59, 43)"], [style*="color:#c93b2b"] { color: var(--danger) !important; }
+[style*="color: rgb(2, 132, 199)"], [style*="color:#0284c7"] { color: #0284c7 !important; }
+
+
+/* --- 13. Kolom numerik tabel modul: tabular & rata kanan (Pilar 3).
+   Murni CSS — menyasar class yang sudah ada agar tidak perlu mengedit JSX
+   modul milik worker lain. --- */
+table td.pr-item-price,
+table td.pr-item-qty,
+table.requests-table td:nth-child(5),
+table.materials-table td:nth-child(4),
+table.materials-table td:nth-child(6),
+table.materials-table td:nth-child(7),
+table.materials-table td:nth-child(8),
+table.upah-table td.num,
+table.upah-table td.nominal {
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum";
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+table td.pr-item-price,
+table td.pr-item-qty,
+table.materials-table td:nth-child(8),
+table.upah-table td.nominal {
+  text-align: right;
+}
+
+/* --- 14. Header kolom teks item boleh wrap 2 baris (Pilar 2) --- */
+table.requests-table td.pr-title-cell,
+table.requests-table td.pr-item-name,
+table.requests-table td.pr-item-vendor {
+  line-height: 1.4;
+}
+
+
+/* --- 15. Override BACKGROUND inline off-palette (progress bar WBS dsb.)
+   di file modul milik worker lain, tanpa mengedit JSX mereka. --- */
+[style*="background: rgb(19, 115, 51)"], [style*="background:#137333"] { background: var(--ok) !important; }
+[style*="background: rgb(26, 86, 196)"], [style*="background:#1a56c4"] { background: var(--primary) !important; }
+[style*="background: rgb(2, 132, 199)"], [style*="background:#0284c7"] { background: #0284c7 !important; }
+[style*="background: rgb(220, 38, 38)"], [style*="background:#dc2626"] { background: var(--danger) !important; }
+[style*="background: rgb(230, 244, 234)"], [style*="background:#e6f4ea"] { background: var(--ok-tint) !important; }
+[style*="background: rgb(206, 234, 214)"], [style*="background:#ceead6"] { background: var(--ok-border) !important; }
+
+/* ========================================================
+   DAFTAR RINGKAS + SHOW MORE (Arahan DAT t_cf05c96f)
+   Footer bersama shell ModuleView — di bawah tabel desktop
+   & kartu mobile. Hanya menahan TAMPILAN (10 data dulu),
+   filter/search/sort tetap memakai seluruh dataset.
+   ======================================================== */
+.list-show-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: var(--olive-50);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+}
+
+.list-show-more .list-shown-indicator {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.list-show-more-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.list-show-more-actions .outline {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .list-show-more {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .list-show-more-actions {
+    flex-direction: column;
+  }
+  .list-show-more-actions .outline {
+    width: 100%;
+    /* Touch target 44px (standar a11y mobile) */
+    min-height: 44px;
+  }
+}
+
+/* ========================================================
+   TOMBOL PRINT TEMPLATE PENGADAAN (Arahan DAT t_bb0929f6)
+   Baris sendiri, rata kanan, tepat di atas baris search /
+   "+ Tambah Purchase Request" pada modul Purchase Request.
+   Anchor bergaya tombol (rule `button` tidak berlaku ke <a>).
+   ======================================================== */
+.print-template-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 14px;
+}
+
+.btn-print-template {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .print-template-row {
+    margin: 0 0 12px;
+  }
+  .btn-print-template {
+    width: 100%;
+    /* Touch target 44px (standar a11y mobile) */
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}
+
+/* ========================================================
+   RINCIAN ACUAN HARGA MATERIAL — EXPANDABLE (Arahan DAT t_090127ad)
+   Kolom "Acuan Harga" dihilangkan dari daftar; penggantinya tombol
+   "+ Acuan Harga" di bawah NAMA yang membuka rincian per vendor
+   (Vendor | Harga per satuan | Tanggal | Sumber Historis/Manual).
+   Default SEMUA TERTUTUP. Rule TAMBAHAN — tidak ada rule existing
+   yang diubah; kolom numerik tetap pakai token tabular-nums.
+   ======================================================== */
+.acuan-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--olive-700);
+  background: var(--olive-50);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.acuan-toggle:hover {
+  background: var(--olive-100);
+  border-color: var(--olive-200);
+}
+
+/* Nama + tombol acuan ditumpuk vertikal di dalam sel Nama */
+.cell-name-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.cell-name-wrap .cell-name {
+  max-width: 260px;
+}
+
+/* Baris expand rincian acuan (di bawah baris material) */
+tr.acuan-expand-row > td {
+  background: #fbfdfc;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.acuan-rincian {
+  overflow-x: auto;
+}
+
+/* Tabel kecil di dalam rincian — kontras jelas dgn tabel utama */
+.acuan-table {
+  width: 100%;
+  min-width: 560px;
+  font-size: 11.5px;
+  border-collapse: collapse;
+}
+.acuan-table th {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--olive-800);
+  white-space: nowrap;
+}
+.acuan-table td {
+  color: var(--text-main);
+  vertical-align: middle;
+}
+.acuan-table td:nth-child(2) {
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum";
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+
+/* Badge sumber: TIDAK warna-saja (Pilar 11) — selalu ada ikon + teks */
+.acuan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.acuan-badge + .acuan-badge { margin-left: 4px; }
+.acuan-badge-historis {
+  background: var(--ok-tint);
+  color: var(--ok);
+  border: 1px solid var(--ok-border);
+}
+.acuan-badge-master {
+  background: var(--olive-50);
+  color: var(--olive-700);
+  border: 1px solid var(--olive-200);
+}
+.acuan-badge-manual {
+  background: var(--warn-tint);
+  color: var(--warn);
+  border: 1px solid var(--warn-border);
+}
+/* Estimasi PR terdahulu (P1 t_e88c28fb): netral abu-abu — BUKAN hijau.
+   Estimasi yang barangnya sudah diterima bukan harga beli aktual; warna
+   sukses hanya utk harga aktual terverifikasi (kategori HISTORIS). */
+.acuan-badge-estimate {
+  background: #f3f5f6;
+  color: #556260;
+  border: 1px solid #d6dcde;
+}
+
+@media (max-width: 1024px) {
+  .acuan-toggle {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ============================================================
+   ESTIMATOR HARGA PR (t_ac0b39c0) — append-only
+   ============================================================ */
+
+/* Baris Total Estimasi di daftar PR (desktop) */
+tr.pr-est-total-row td {
+  font-size: 11px;
+}
+
+/* Area pemilih item PR: baris search+filter kategori & dropdown+qty+tombol.
+   Mobile (<=640px): stack vertikal nyaman (steer 2 DAT — search diperkecil
+   di desktop, filter kategori sejajar; di HP semua lebar penuh). */
+.pr-picker-row-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 8px;
+  align-items: end;
+}
+.pr-picker-row-2 select { margin-bottom: 0; }
+.pr-picker-row-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px auto;
+  gap: 8px;
+  align-items: end;
+}
+@media (max-width: 640px) {
+  .pr-picker-row-2,
+  .pr-picker-row-3 {
+    grid-template-columns: 1fr;
+  }
+  .pr-picker-row-3 button { width: 100%; }
+}
+
+/* ============================================================
+   PENGELOMPOKAN ITEM PER KATEGORI (t_48f6b336) — append-only
+   Judul kategori tampil sekali sebagai pemisah grup di dalam dokumen PR /
+   Approval (desktop & mobile). Murni tampilan — tidak mengubah data.
+   ============================================================ */
+
+/* Baris pemisah grup kategori (desktop PR & Approval) */
+tr.pr-group-row > td {
+  border-top: 1px solid #e2e8f0;
+}
+table.requests-table tr.pr-group-row > td,
+table.approvals-table tr.pr-group-row > td {
+  padding-top: 10px;
+}
+td.pr-group-cell {
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 6px 12px !important;
+}
+span.pr-group-label {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #334155;
+}
+td.pr-group-cell .pr-group-label::before {
+  content: '▸ ';
+  color: #64748b;
+}
+
+/* Nama item di master-detail Approval (wrap rapi, sejajar dgn Qty) */
+table.approvals-table td.ap-item-name {
+  white-space: normal !important;
+  min-width: 200px;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+/* Panel perluasan Approval: blok grup kategori */
+.ap-group-block { margin-bottom: 10px; }
+.ap-group-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #f4f7f4;
+  border: 1px solid #dfe5e0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  margin-bottom: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #4a5d56;
+}
+
+/* Mobile kartu PR/Approval: heading kategori di dalam kotak item */
+.mobile-item-group { margin-bottom: 6px; }
+.mobile-item-group:last-child { margin-bottom: 0; }
+.mobile-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #4a5d56;
+  border-bottom: 1px dashed #cfd8d3;
+  padding-bottom: 2px;
+  margin-bottom: 4px;
+}
+.mobile-group-label::before {
+  content: '▸ ';
+  color: #8aa39a;
+}
+
+/* Header form PR satu baris desktop (steer DAT t_ac0b39c0): Project (kiri
+   ~40%) + Judul Kebutuhan (kanan ~60%), tetap dua field terpisah.
+   Mobile (<=640px): stack vertikal agar readable / tanpa horizontal scroll. */
+.pr-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 12px;
+  align-items: end;
+}
+@media (max-width: 640px) {
+  .pr-header-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* ============================================================
+   UI REFRESH (t_eeef38e2) — kurangi kesan kaku
+   Permintaan DAT 17 Okt 2026: "tampilan masih kaku".
+   Aditif & ter-scope: tidak mengubah class lama, alur, formula, role.
+   ============================================================ */
+
+/* --- 1. Sidebar: ikon nav + kartu akun --- */
+.app-sidebar nav button,
+nav button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.nav-ico {
+  flex: 0 0 auto;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+nav button:hover .nav-ico { opacity: 1; }
+
+nav .active .nav-ico {
+  opacity: 1;
+  transform: scale(1.06);
+}
+
+.nav-ico-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  margin: 0 6px;
+  display: inline-block;
+}
+
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Kartu akun di bawah sidebar */
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 10px;
+}
+
+.account-avatar {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-gold);
+  color: #090d16;
+  font-weight: 800;
+  font-size: 12px;
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+}
+
+.account-meta { min-width: 0; }
+
+.account-email {
+  display: block !important;
+  margin: 0 !important;
+  color: #cbd5e1 !important;
+  font-size: 11.5px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-role {
+  display: block !important;
+  margin: 2px 0 0 !important;
+  font-size: 10px !important;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8 !important;
+}
+
+.account-role.is-admin { color: var(--accent-gold) !important; }
+
+.account-logout {
+  width: 100%;
+  justify-content: center !important;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  padding: 8px 12px !important;
+}
+
+.account-logout:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  text-decoration: none !important;
+}
+
+/* --- 2. Kartu dashboard: ikon, tone, grid seimbang --- */
+.cards {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: stretch;
+}
+
+.card { display: flex; flex-direction: column; }
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.card-label {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  display: block;
+}
+
+.card-ico {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--olive-50);
+  color: var(--text-main);
+  flex: 0 0 auto;
+}
+
+.card:hover .card-ico { background: var(--olive-100); }
+
+.card.tone-warn .card-ico { background: var(--warn-tint); color: var(--warn); }
+.card.tone-ok .card-ico { background: var(--ok-tint); color: var(--ok); }
+
+.card.tone-warn::before { background: var(--warn); }
+.card.tone-ok::before { background: var(--ok); }
+
+.card-hint {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.card-arrow { transition: transform 0.15s ease; }
+.card:hover .card-arrow { transform: translateX(3px); }
+
+/* --- 3. Panel head + shortcut admin --- */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.panel-head h2 { margin: 0; }
+
+.badge-admin {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-main);
+  background: var(--olive-100);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.admin-shortcuts { margin-bottom: 20px; }
+
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.shortcut {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  background: white;
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.shortcut:hover:not(:disabled) {
+  border-color: var(--slate-300);
+  background: var(--olive-50);
+  transform: translateY(-1px);
+}
+
+.shortcut .card-ico { width: 30px; height: 30px; border-radius: 8px; }
+
+.shortcut-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.shortcut-text b { font-size: 13px; font-weight: 700; }
+.shortcut-text small { color: var(--text-muted); font-size: 11px; }
+
+.shortcut-arrow { color: var(--text-muted); font-weight: 700; }
+
+/* --- 4. Login: split-screen brand + form --- */
+.login {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  place-items: stretch;
+  padding: 0;
+  background: var(--bg-app);
+}
+
+.login-brand {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 56px 52px;
+  background: radial-gradient(circle at 22% 18%, #1e293b 0%, #090d16 62%, #020617 100%);
+  color: #ffffff;
+}
+
+.login-brand-inner { position: relative; z-index: 2; max-width: 420px; }
+
+.login-brand-badge {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--accent-gold);
+  color: #090d16;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 19px;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.5);
+  margin-bottom: 20px;
+}
+
+.login-brand-name {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+}
+
+.login-brand-head {
+  font-family: var(--font-heading);
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 6px 0 12px;
+  color: #ffffff;
+}
+
+.login-brand-sub {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+.login-brand-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.login-brand-points li {
+  position: relative;
+  padding-left: 26px;
+  font-size: 13.5px;
+  color: #cbd5e1;
+}
+
+.login-brand-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(197, 160, 89, 0.18);
+  border: 1px solid var(--accent-gold);
+}
+
+.login-brand-points li::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 10px;
+  width: 5px;
+  height: 2.5px;
+  border-left: 1.6px solid var(--accent-gold);
+  border-bottom: 1.6px solid var(--accent-gold);
+  transform: rotate(-45deg);
+}
+
+.login-brand-glow {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  right: -120px;
+  bottom: -140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(197, 160, 89, 0.15), transparent 68%);
+  z-index: 1;
+}
+
+.login-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 52px;
+  background: #fbfbf7;
+}
+
+/* Kolom form terpusat (bukan kartu mengambang) — lebar nyaman. */
+.login-form-col { width: 100%; max-width: 430px; }
+
+.login-title {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  color: var(--text-main);
+}
+
+.login-sub { margin: 0 0 4px; }
+
+.login-panel form { margin: 22px 0 16px; }
+
+.field-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+
+.field-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-ico {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.field-wrap input { padding-left: 38px; padding-right: 40px; }
+
+.field-toggle {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.field-toggle:hover:not(:disabled) {
+  background: var(--olive-50);
+  transform: none;
+  box-shadow: none;
+}
+
+.login-submit {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+  background: var(--primary);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+}
+
+.login-submit:hover:not(:disabled) {
+  background: var(--primary-hover);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+}
+
+.login-foot { color: var(--text-muted); font-size: 12px; }
+
+/* Responsif: satu kolom di layar kecil */
+@media (max-width: 900px) {
+  .login { grid-template-columns: 1fr; }
+  .login-brand { display: none; }
+  .login-panel { padding: 40px 26px; }
+}
+
 /* ========================================================
    MODUL PURCHASE (t_9109cf5e) — halaman belanja admin
    Dua tab: Siap Dibeli & Riwayat Pembelian + dialog Proses Pembelian.

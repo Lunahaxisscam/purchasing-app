@@ -28,6 +28,7 @@ const Module = (await import(pathToFileURL(path.join(SB, 'dist/components/Module
 const Create = (await import(pathToFileURL(path.join(SB, 'dist/components/CreateModal.mjs')).href)).default
 // PENTING: mock harus dari dist/ — komponen terkompilasi mengimpor dist/lib/…
 const mock = await import(pathToFileURL(path.join(SB, 'dist/lib/supabaseClient.mjs')).href)
+const { buildDistributionQueue } = await import(pathToFileURL(path.join(SB, 'dist/modules/handovers/logic.mjs')).href)
 
 // ---------- 3) Helpers ----------
 let pass = 0, fail = 0
@@ -242,6 +243,114 @@ console.log('=== R1. DAFTAR HANDOVER (desktop): barang, status bukti fisik, aksi
   check('R6b tombol konfirmasi mobile ada utk h1', !!doc.querySelector('[data-testid="btn-deliver-mobile-h1"]'))
   check('R6c h2 sudah diserahkan -> teks statis', /✓ Sudah diserahkan/.test(ct))
   check('R6d tombol detail mobile ada', !!doc.querySelector('[data-testid="btn-detail-mobile-h1"]'))
+}
+
+// ---------- R7: banner antrean distribusi fisik (t_ca7ecb65) ----------
+{
+  const { document: doc } = mountModule(HANDOVERS)
+  await tick()
+  const banner = doc.querySelector('[data-testid="handover-queue-banner"]')
+  check('R7a banner antrean muncul', !!banner)
+  check('R7b hanya handover DRAFT yang masuk antrean', /1 handover menunggu/.test(banner?.textContent || ''))
+  // h2 sudah diserahkan -> tidak boleh punya kartu antrean
+  check('R7c handover terkonfirmasi tidak diantre', !doc.querySelector('[data-testid="queue-card-h2"]'))
+  const card = doc.querySelector('[data-testid="queue-card-h1"]')
+  check('R7d kartu aksi h1 tampil', !!card)
+  check('R7e 3 tombol aksi tersedia', (card?.querySelectorAll('button[data-testid^="queue-act-"]') || []).length === 3)
+  // rec1 belum punya barang terjual (allPrItems kosong) -> "Tandai diserahkan" harus nonaktif
+  const terima = doc.querySelector('[data-testid="queue-act-terima-h1"]')
+  check('R7f aksi terima nonaktif sebelum ada distribusi', terima?.disabled === true)
+  check('R7g alasan terima tampil di title', /Belum ada barang/.test(terima?.getAttribute('title') || ''))
+  // Fixture rec1: alokasi KE_TUKANG + tukang_at sudah terisi -> aksi tukang
+  // nonaktif karena SUDAH dikirim (bukan karena alokasi).
+  const tukang = doc.querySelector('[data-testid="queue-act-tukang-h1"]')
+  check('R7h aksi tukang nonaktif (sudah dikirim)', tukang?.disabled === true)
+  check('R7i alasan tukang tampil di title', /nota sudah ditandai dikirim/i.test(tukang?.getAttribute('title') || ''))
+  const gudang = doc.querySelector('[data-testid="queue-act-gudang-h1"]')
+  check('R7j aksi gudang aktif', gudang?.disabled === false)
+}
+
+// ---------- R7b: penjaga alokasi (gudang -> tukang dilarang) ----------
+{
+  mock.__reset({
+    handovers: [{ id: 'h1', receiving_id: 'rec1', project_id: 'p1', received_by: 'Pak Andi', status: 'DRAFT', diserahkan_at: null }],
+    receivings: [{ id: 'rec1', masuk_gudang: false, tukang_at: null, alokasi: 'KE_GUDANG' }],
+    prItems: [{ id: 'p1', status: 'RECEIVED', quantity: 2 }],
+    receivingItems: [{ id: 'ri1', receiving_id: 'rec1', pr_item_id: 'p1' }]
+  })
+  const { document: doc } = mountModule(
+    [{ id: 'h1', receiving_id: 'rec1', project_id: 'p1', project_name: '[100] EA Store', received_by: 'Pak Andi', status: 'CONFIRMED', handover_date: '2026-10-15', diserahkan_at: null, note: '' }],
+    { allReceivings: [{ id: 'rec1', purchase_request_id: 'pr1', masuk_gudang: false, tukang_at: null, alokasi: 'KE_GUDANG' }], allPrItems: [{ id: 'p1', pr_id: 'pr1', status: 'RECEIVED', quantity: 2 }], allReceivingItems: [{ id: 'ri1', receiving_id: 'rec1', pr_item_id: 'p1' }] }
+  )
+  await tick()
+  const tukang = doc.querySelector('[data-testid="queue-act-tukang-h1"]')
+  check('R7k nota alokasi gudang -> tukang nonaktif', tukang?.disabled === true)
+  check('R7l alasannya soal alokasi gudang', /gudang/i.test(tukang?.getAttribute('title') || ''))
+  // dan ringkasan sudah benar menghitung 2 barang
+  check('R7m ringkasan menghitung qty barang', /0 dari 2 barang/.test(doc.querySelector('[data-testid="queue-summary-h1"]')?.textContent || ''))
+}
+
+// ---------- R8: klik aksi "Kirim ke Gudang" dari UI nyata ----------
+{
+  const calls = []
+  mock.__reset({
+    handovers: [{ id: 'h1', receiving_id: 'rec1', project_id: 'p1', received_by: 'Pak Andi', status: 'DRAFT', diserahkan_at: null }],
+    receivings: [{ id: 'rec1', masuk_gudang: false, tukang_at: null, alokasi: 'KE_GUDANG' }],
+    prItems: [{ id: 'p1', status: 'RECEIVED', quantity: 2 }],
+    receivingItems: [{ id: 'ri1', receiving_id: 'rec1', pr_item_id: 'p1' }]
+  })
+  const { document: doc } = mountModule(
+    [{ id: 'h1', receiving_id: 'rec1', project_id: 'p1', project_name: '[100] EA Store', received_by: 'Pak Andi', status: 'CONFIRMED', handover_date: '2026-10-15', diserahkan_at: null, note: '' }],
+    { say: (m) => calls.push(m), allReceivings: [{ id: 'rec1', masuk_gudang: false, tukang_at: null, alokasi: 'KE_GUDANG' }], allPrItems: [{ id: 'p1', pr_id: 'pr1', status: 'RECEIVED', quantity: 2 }], allReceivingItems: [{ id: 'ri1', receiving_id: 'rec1', pr_item_id: 'p1' }] }
+  )
+  await tick()
+  const gudang = doc.querySelector('[data-testid="queue-act-gudang-h1"]')
+  check('R8a tombol gudang ada di UI', !!gudang)
+  flushSync(() => { gudang.dispatchEvent(new dom0.window.MouseEvent('click', { bubbles: true })) })
+  await tick(); await tick()
+  check('R8b receivings.masuk_gudang jadi true', mock.__state.receivings.get('rec1').masuk_gudang === true)
+  check('R8c pr_items.status jadi DI_GUDANG', mock.__state.prItems.get('p1').status === 'DI_GUDANG')
+  check('R8d ada notifikasi sukses ke user', calls.some(c => /gudang/i.test(c)))
+}
+
+// ---------- R9: klik "Tandai Diserahkan" dari UI nyata ----------
+{
+  const calls = []
+  mock.__reset({
+    handovers: [{ id: 'h1', receiving_id: 'rec1', project_id: 'p1', received_by: 'Pak Andi', status: 'DRAFT', diserahkan_at: null }],
+    receivings: [{ id: 'rec1', masuk_gudang: true, tukang_at: null, alokasi: 'KE_GUDANG' }],
+    prItems: [{ id: 'p1', status: 'DI_GUDANG', quantity: 2 }],
+    receivingItems: [{ id: 'ri1', receiving_id: 'rec1', pr_item_id: 'p1' }]
+  })
+  const { document: doc } = mountModule(
+    [{ id: 'h1', receiving_id: 'rec1', project_id: 'p1', project_name: '[100] EA Store', received_by: 'Pak Andi', status: 'CONFIRMED', handover_date: '2026-10-15', diserahkan_at: null, note: '' }],
+    { say: (m) => calls.push(m), allReceivings: [{ id: 'rec1', purchase_request_id: 'pr1', masuk_gudang: true, tukang_at: null, alokasi: 'KE_GUDANG' }], allPrItems: [{ id: 'p1', pr_id: 'pr1', status: 'DI_GUDANG', quantity: 2 }], allReceivingItems: [{ id: 'ri1', receiving_id: 'rec1', pr_item_id: 'p1' }] }
+  )
+  await tick()
+  const terima = doc.querySelector('[data-testid="queue-act-terima-h1"]')
+  check('R9a aksi terima aktif setelah barang masuk gudang', terima?.disabled === false)
+  flushSync(() => { terima.dispatchEvent(new dom0.window.MouseEvent('click', { bubbles: true })) })
+  await tick(); await tick()
+  check('R9b form nama penerima muncul', !!doc.querySelector('[data-testid="queue-terima-form-h1"]'))
+  const nama = doc.querySelector('[data-testid="queue-terima-nama-h1"]')
+  // input terkontrol React: set .value langsung tidak terdeteksi onChange,
+  // jadi pakai native setter lalu kirim event input (pola standar React test).
+  const setter = Object.getOwnPropertyDescriptor(dom0.window.HTMLInputElement.prototype, 'value').set
+  setter.call(nama, 'Mandor A')
+  nama.dispatchEvent(new dom0.window.Event('input', { bubbles: true }))
+  const okBtn = doc.querySelector('[data-testid="queue-terima-ok-h1"]')
+  flushSync(() => { okBtn.dispatchEvent(new dom0.window.MouseEvent('click', { bubbles: true })) })
+  await tick(); await tick()
+  check('R9c diserahkan_at terisi', !!mock.__state.handovers.get('h1').diserahkan_at)
+  check('R9d received_by tersimpan', mock.__state.handovers.get('h1').received_by === 'Mandor A')
+  // refresh() di test adalah noop, jadi DOM belum berubah. Yang benar-benar
+  // menentukan kartu hilang: buildDistributionQueue harus mengecualikan
+  // handover yang sudah diserahkan_at. Itu yang diuji di sini.
+  const stillQueued = buildDistributionQueue([
+    { id: 'h1', receiving_id: 'rec1', diserahkan_at: mock.__state.handovers.get('h1').diserahkan_at },
+    { id: 'h2', receiving_id: 'rec2', diserahkan_at: null }
+  ]).map(h => h.id)
+  check('R9e handover keluar dari antrean (sudah diserahkan)', stillQueued.join(',') === 'h2')
 }
 
 console.log(`\nrender_test: ${pass}/${pass + fail} lulus${fail ? ' — GAGAL: ' + failures.join(' | ') : ''}`)

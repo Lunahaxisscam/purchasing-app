@@ -88,12 +88,16 @@ open(os.path.join(SB, 'package.json'), 'w').write('{ "type": "module" }')
 shutil.copy(os.path.join(REPO, 'scripts', 'vendors-toolbar-test', 'compile_sandbox.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'render_test.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'logic_test.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'queue_test.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
 r = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB)
 if r.returncode:
     sys.exit(r.returncode)
 r = subprocess.run(['node', 'logic_test.mjs'], cwd=SB)
+if r.returncode:
+    sys.exit(r.returncode)
+r = subprocess.run(['node', 'queue_test.mjs'], cwd=SB)
 if r.returncode:
     sys.exit(r.returncode)
 r = subprocess.run(['node', 'render_test.mjs'], cwd=SB)

@@ -9,6 +9,8 @@ import {
   PAGE_SIZE, limitRows, shownLabel
 } from '../modules/shared/visibleRows'
 import { renderGenericCell } from '../modules/shared/renderGenericCell'
+// t_27e26b0e: Export Data Material (CSV & PDF) — modul-terisolasi.
+import { MaterialExportButtons } from '../modules/materials/export'
 import {
   renderModuleTableClass,
   renderModuleBanner,
@@ -299,6 +301,12 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
             <button type="button" className="outline btn-back-active" onClick={() => setPage('projects')}>
               ← Ke Project Aktif
             </button>
+          )}
+          {/* t_27e26b0e: Export Data Material — CSV (UTF-8 BOM, Excel-ready)
+              & PDF A4 header Noir Living. Data = displayRows (filter/search/
+              sort AKTIF, TANPA potongan Show More) — sama seperti hitungan. */}
+          {page === 'materials' && (
+            <MaterialExportButtons rows={displayRows} acuanEntries={acuanEntries} />
           )}
           {['projects', 'vendors', 'materials', 'requests', 'handovers'].includes(page) && (
             <button type="button" className="btn-create-module" onClick={() => setOpen(true)}>

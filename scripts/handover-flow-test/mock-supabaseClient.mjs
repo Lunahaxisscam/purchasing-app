@@ -9,29 +9,64 @@
 
 export const __state = {
   handovers: new Map(),   // id -> row
+  receivings: new Map(),  // id -> row
+  prItems: new Map(),     // id -> row
+  receivingItems: new Map(), // id -> row (pr_item_id + receiving_id)
   calls: [],              // {op, table, ...}
   nextError: null
 }
 
-export function __reset({ handovers = [] } = {}) {
+export function __reset({ handovers = [], receivings = [], prItems = [], receivingItems = [] } = {}) {
   __state.handovers = new Map(handovers.map(r => [r.id, { ...r }]))
+  __state.receivings = new Map(receivings.map(r => [r.id, { ...r }]))
+  __state.prItems = new Map(prItems.map(r => [r.id, { ...r }]))
+  __state.receivingItems = new Map(receivingItems.map((r, i) => [r.id || `ri${i}`, { ...r }]))
   __state.calls = []
   __state.nextError = null
+}
+
+// Tabel pendukung untuk modul Handover (distribusi fisik).
+function storeOf(table) {
+  if (table === 'handovers') return __state.handovers
+  if (table === 'receivings') return __state.receivings
+  if (table === 'pr_items') return __state.prItems
+  if (table === 'receiving_items') return __state.receivingItems
+  return null
+}
+
+function idFilter(st) {
+  const eqF = st.filters.find(f => f.col === 'id' && !f.vals)
+  if (eqF) return r => r.id === eqF.val
+  const inF = st.filters.find(f => f.col === 'id' && f.vals)
+  if (inF) return r => inF.vals.includes(r.id)
+  return null
 }
 
 export function __callsOf(op, table) {
   return __state.calls.filter(c => c.op === op && (!table || c.table === table))
 }
 
-function terminal(st) {
+function terminal(st, unwrap = false) {
+  const res = terminalRaw(st)
+  if (!unwrap) return res
+  // single()/maybeSingle(): data jadi baris tunggal (null bila kosong),
+  // sesuai kontrak @supabase/supabase-js asli.
+  if (res.error) return { data: null, error: res.error }
+  const rows = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : [])
+  return { data: rows.length ? rows[0] : null, error: null }
+}
+
+function terminalRaw(st) {
   if (__state.nextError) {
     const err = __state.nextError
     __state.nextError = null
     return { data: null, error: err }
   }
   if (st.op === 'insert') {
-    const row = { id: `gen-${__state.handovers.size + 1}-${Math.random().toString(36).slice(2, 7)}`, ...st.data }
-    if (st.table === 'handovers') __state.handovers.set(row.id, { ...row })
+    const size = __state.handovers.size + __state.receivings.size + __state.prItems.size + __state.receivingItems.size
+    const row = { id: `gen-${size}-${Math.random().toString(36).slice(2, 7)}`, ...st.data }
+    const store = storeOf(st.table)
+    if (store) store.set(row.id, { ...row })
     return { data: [row], error: null }
   }
   if (st.op === 'update') {
@@ -47,12 +82,34 @@ function terminal(st) {
       Object.assign(row, st.data)
       return { data: [{ ...row }], error: null }
     }
+    // Tabel pendukung (receivings / pr_items / receiving_items).
+    const store = storeOf(st.table)
+    if (store) {
+      const pred = idFilter(st)
+      const rows = [...store.values()].filter(pred || (() => true))
+      for (const r of rows) Object.assign(r, st.data)
+      return { data: rows.map(r => ({ ...r })), error: null }
+    }
     return { data: [{}], error: null }
   }
-  // select
-  if (st.table === 'handovers') {
-    return { data: [...__state.handovers.values()].map(r => ({ ...r })), error: null }
+  // select — tabel pendukung (mengembalikan semua baris bila tanpa filter)
+  const store = storeOf(st.table)
+  if (store) {
+    let rows = [...store.values()].map(r => ({ ...r }))
+    for (const f of st.filters) {
+      if (f.col === 'id' && f.vals) rows = rows.filter(r => f.vals.includes(r.id))
+      else if (f.col === 'id' && f.val !== undefined) rows = rows.filter(r => r.id === f.val)
+      else if (f.col === 'receiving_id') rows = rows.filter(r => r.receiving_id === f.val)
+      else if (f.col === 'pr_item_id') rows = rows.filter(r => r.pr_item_id === f.val)
+    }
+    if (st.table === 'handovers') {
+      // CAS emulasi handovers: .is('diserahkan_at', null) hanya cocok bila NULL.
+      const isF = st.filters.find(f => f.col === 'diserahkan_at' && f.isNull)
+      if (isF) rows = rows.filter(r => r.diserahkan_at === null || r.diserahkan_at === undefined)
+    }
+    return { data: rows, error: null }
   }
+  // select (tabel tanpa store khusus: mengembalikan semua baris seperti semula)
   return { data: [], error: null }
 }
 
@@ -72,15 +129,19 @@ function makeBuilder(table) {
     },
     delete() { st.op = 'delete'; __state.calls.push({ op: 'delete', table }); return api },
     eq(col, val) { st.filters.push({ col, val }); return api },
+    in(col, vals) { st.filters.push({ col, vals }); return api },
     neq() { return api },
     is(col, val) { st.filters.push({ col, val, isNull: val === null }); return api },
-    in() { return api },
     or() { return api },
     not() { return api },
     order() { return api },
     limit() { return api },
-    single() { return Promise.resolve(terminal(st)) },
-    maybeSingle() { return Promise.resolve(terminal(st)) },
+    single() { return Promise.resolve(terminal(st, true)) },
+    // maybeSingle seperti @supabase/supabase-js asli: data = baris tunggal
+    // (atau null bila tidak ada), BUKAN array. Ini penting karena pemanggil
+    // melakukan `data.receiving_id` — mengembalikan wrapper membuat field
+    // undefined dan alur distribusi gagal diam-diam.
+    maybeSingle() { return Promise.resolve(terminal(st, true)) },
     then(resolve, reject) { return Promise.resolve(terminal(st)).then(resolve, reject) },
     catch(reject) { return Promise.resolve(terminal(st)).catch(reject) }
   }

@@ -22,6 +22,12 @@
 //   [FotoBukti: …] (lihat lib/constants.js). Kolom "Bukti Foto" menampilkan
 //   thumbnail + tombol lihat; kolom "Catatan" menampilkan teksnya saja.
 // ============================================================
+
+// Antrean Distribusi Fisik (3 aksi: gudang / tukang / tandai diserahkan).
+// Dire-export dari queue.jsx supaya dispatcher modules/shared/renderModuleCell
+// menemukannya sebagai `banner` modul handovers tanpa mengubah file shell.
+export { renderHandoverQueue as banner } from './queue'
+
 import React from 'react'
 import { format, parseHandoverNote, isHandoverDelivered } from '../../lib/constants'
 import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA, validatePrototypeRow, prototypeTotals } from './display'

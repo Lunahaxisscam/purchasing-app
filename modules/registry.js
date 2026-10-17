@@ -98,6 +98,11 @@ export const modules = [
       // prototype per-item) + konfirmasi fisik idempoten (CAS diserahkan_at).
       'modules/handovers/display.js',
       'modules/handovers/confirm.js',
+      // t_ca7ecb65: antrean distribusi fisik — logika murni (penjaga aksi),
+      // penulis DB (3 aksi), dan banner React.
+      'modules/handovers/logic.js',
+      'modules/handovers/actions.js',
+      'modules/handovers/queue.jsx',
       'scripts/handover-flow-test/run.py'
     ]
   },
