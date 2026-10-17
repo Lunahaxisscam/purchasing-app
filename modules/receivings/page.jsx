@@ -16,6 +16,25 @@
 // TIDAK ADA lagi tombol gudang / tukang / retur / refund di halaman ini —
 // itu urusan Handover. Halaman ini hanya: pilih barang -> isi nota -> selesai.
 //
+// ============================================================
+// t_cde1b8ad (arahan DAT — "Purchase dipadatkan") — RINGKASAN PERUBAHAN
+// ============================================================
+// Nota = 6 hal saja: TOKO/VENDOR · NO. NOTA · TANGGAL · TOTAL · BUKTI ·
+// CATATAN. Karena itu:
+//   - Tabel "Siap Dibeli" 8 kolom -> 5 kolom (+checkbox). Satuan & kode
+//     digabung ke sel Barang; No. PR digabung ke sel Proyek. Tidak ada
+//     informasi yang hilang — hanya tidak lagi memakan kolom sendiri.
+//   - Tabel "Riwayat" 9 kolom -> 6 kolom. Kolom Material & Biaya Lain tidak
+//     dibuang: keduanya turun jadi baris kecil di bawah Total Nota (rincian
+//     penuh tetap ada di tombol "▼ Rincian").
+//   - Tombol "Proses Pembelian" di footer hanya muncul saat ADA barang
+//     dicentang — sebelumnya tombol primer yang sama tampil dua kali
+//     (toolbar + footer) walau tidak ada pilihan.
+//   - Status nota / kendala (Retur/Refund/Rusak) TIDAK ditampilkan di UI
+//     utama. Nilai `receivings.status` & `receivings.kendala` di DB TIDAK
+//     disentuh modul ini (tidak pernah ditulis, tidak pernah dihapus) —
+//     penyaringan "nota bermasalah" tetap ada di modul Handover.
+//
 // Semua angka rupiah dibulatkan sebelum ditampilkan (Math.round) supaya tidak
 // ada desimal liar; harga satuan riil disimpan per barang dan menjadi acuan
 // harga historis (modules/materials/acuan.js membaca [Harga: n]).
@@ -63,6 +82,17 @@ function openAttachment(src, title) {
 }
 
 const BUKTI_LABEL = { nota: '📷 Foto Nota', transfer: '💳 Bukti Transfer' }
+
+// Baris kecil ringkasan biaya di bawah Total Nota (Material · Biaya lain ·
+// Diskon). Nilai kosong TIDAK ditampilkan sebagai 0 — hanya yang benar-benar
+// tercatat di nota. Tujuannya: kolom terpisah tidak diperlukan lagi.
+function totalSubLine(row) {
+  const parts = []
+  if (row.material !== null && row.material !== undefined) parts.push(`Material ${rupiah(row.material)}`)
+  if (row.biayaLain) parts.push(`Lain ${rupiah(row.biayaLain)}`)
+  if (row.diskon) parts.push(`Diskon −${rupiah(row.diskon)}`)
+  return parts.join(' · ')
+}
 
 export default function PurchasePage({ rows, refresh, say }) {
   const receivings = rows?.receivings || []
@@ -176,6 +206,16 @@ export default function PurchasePage({ rows, refresh, say }) {
         <>
           <div className="purchase-toolbar">
             <div className="purchase-filters">
+              <label className="purchase-filter purchase-filter-search">
+                <span>Cari barang</span>
+                <input
+                  type="search"
+                  placeholder="Nama barang, No. PR, proyek…"
+                  value={q}
+                  onChange={e => setQ(e.target.value)}
+                  data-testid="filter-search"
+                />
+              </label>
               <label className="purchase-filter">
                 <span>Toko / Vendor</span>
                 <select
@@ -202,16 +242,6 @@ export default function PurchasePage({ rows, refresh, say }) {
                   ))}
                 </select>
               </label>
-              <label className="purchase-filter purchase-filter-search">
-                <span>Cari barang</span>
-                <input
-                  type="search"
-                  placeholder="Nama barang, No. PR, proyek…"
-                  value={q}
-                  onChange={e => setQ(e.target.value)}
-                  data-testid="filter-search"
-                />
-              </label>
             </div>
             <button
               type="button"
@@ -235,11 +265,15 @@ export default function PurchasePage({ rows, refresh, say }) {
             </div>
           )}
 
+          {/* ===== TABEL SIAP DIBELI — 5 kolom (t_cde1b8ad) =====
+              Barang (nama + kode + satuan) · Qty (PR + sisa) · Proyek (+No. PR)
+              · Toko · Estimasi. Informasi yang dulu punya kolom sendiri tetap
+              tampil, hanya digabung supaya baris tidak melebar ke samping. */}
           <div className="panel table desktop-table-view">
             <table className="purchase-table">
               <thead>
                 <tr>
-                  <th style={{ width: '38px' }}>
+                  <th style={{ width: '34px' }}>
                     <input
                       type="checkbox"
                       checked={allVisibleSelected}
@@ -250,12 +284,10 @@ export default function PurchasePage({ rows, refresh, say }) {
                     />
                   </th>
                   <th>Barang</th>
-                  <th style={{ width: '78px' }}>Satuan</th>
-                  <th style={{ width: '74px' }}>Qty PR</th>
+                  <th style={{ width: '92px' }}>Qty</th>
                   <th>Proyek</th>
-                  <th style={{ width: '92px' }}>No. PR</th>
-                  <th>Toko / Vendor</th>
-                  <th style={{ width: '120px' }}>Estimasi</th>
+                  <th style={{ width: '140px' }}>Toko / Vendor</th>
+                  <th style={{ width: '110px', textAlign: 'right' }}>Estimasi</th>
                 </tr>
               </thead>
               <tbody>
@@ -274,19 +306,24 @@ export default function PurchasePage({ rows, refresh, say }) {
                       </td>
                       <td>
                         <b className="purchase-item-name">{r.itemName}</b>
-                        {r.kode ? <span className="purchase-item-code">{r.kode}</span> : null}
+                        <span className="purchase-item-code">
+                          {r.kode ? r.kode : '—'}{r.unit ? ` · ${r.unit}` : ''}
+                        </span>
                       </td>
-                      <td>{r.unit || '—'}</td>
-                      <td>
-                        {r.qtyPr}
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <b>{r.qtyPr}</b> <span className="purchase-muted">{r.unit || ''}</span>
                         {r.qtyBought > 0 && r.qtySisa < r.qtyPr && (
                           <span className="purchase-muted" style={{ display: 'block', fontSize: '10px' }}>
                             sisa {r.qtySisa}
                           </span>
                         )}
                       </td>
-                      <td className="purchase-cell-wrap">{r.projectName}</td>
-                      <td>{r.prNumber}</td>
+                      <td className="purchase-cell-wrap">
+                        {r.projectName}
+                        <span className="purchase-muted" style={{ display: 'block', fontSize: '10.5px' }}>
+                          {r.prNumber}
+                        </span>
+                      </td>
                       <td className="purchase-cell-wrap">
                         {r.vendorName || <span className="purchase-muted">Belum ditentukan</span>}
                       </td>
@@ -297,7 +334,7 @@ export default function PurchasePage({ rows, refresh, say }) {
                   )
                 }) : (
                   <tr>
-                    <td colSpan={8} className="empty">
+                    <td colSpan={6} className="empty">
                       Tidak ada barang yang siap dibeli. Barang muncul di sini setelah disetujui di modul Approval.
                     </td>
                   </tr>
@@ -334,7 +371,7 @@ export default function PurchasePage({ rows, refresh, say }) {
                     </div>
                     <div className="mobile-card-row">
                       <span className="mobile-label">Proyek</span>
-                      <span className="mobile-val">{r.projectName}</span>
+                      <span className="mobile-val">{r.projectName} · {r.prNumber}</span>
                     </div>
                     <div className="mobile-card-row">
                       <span className="mobile-label">Toko</span>
@@ -352,18 +389,19 @@ export default function PurchasePage({ rows, refresh, say }) {
             )}
           </div>
 
-          {readyRows.length > 0 && (
+          {/* Footer: hanya muncul saat ADA pilihan (t_cde1b8ad) — tombol primer
+              tidak lagi tampil dua kali saat tidak ada yang dicentang. */}
+          {selectedRows.length > 0 && (
             <div className="purchase-footer-bar">
               <span className="purchase-muted">
-                {readyRows.length} barang tampil · {selectedRows.length} dipilih
+                {selectedRows.length} dipilih dari {readyRows.length} barang tampil
               </span>
               <button
                 type="button"
                 className="btn-purchase-primary"
                 onClick={startPurchase}
-                disabled={!selectedRows.length}
               >
-                Proses Pembelian{selectedRows.length ? ` (${selectedRows.length})` : ''}
+                Proses Pembelian ({selectedRows.length})
               </button>
             </div>
           )}
@@ -380,25 +418,26 @@ export default function PurchasePage({ rows, refresh, say }) {
             </div>
           </div>
 
+          {/* ===== RIWAYAT — 6 kolom (t_cde1b8ad) =====
+              Tanggal · No. Nota · Toko · Total (+rincian biaya kecil) · Bukti ·
+              Aksi. Rincian barang & biaya lengkap tetap di "▼ Rincian". */}
           <div className="panel table desktop-table-view">
             <table className="purchase-table">
               <thead>
                 <tr>
                   <th style={{ width: '104px' }}>Tanggal</th>
-                  <th style={{ width: '140px' }}>No. Nota</th>
+                  <th style={{ width: '150px' }}>No. Nota</th>
                   <th>Toko / Vendor</th>
-                  <th>Barang</th>
-                  <th style={{ width: '118px', textAlign: 'right' }}>Material</th>
-                  <th style={{ width: '104px', textAlign: 'right' }}>Biaya Lain</th>
-                  <th style={{ width: '132px', textAlign: 'right' }}>Total Nota</th>
-                  <th style={{ width: '124px' }}>Bukti</th>
-                  <th style={{ width: '70px', textAlign: 'center' }}>Aksi</th>
+                  <th style={{ width: '210px', textAlign: 'right' }}>Total Nota</th>
+                  <th style={{ width: '150px' }}>Bukti</th>
+                  <th style={{ width: '96px', textAlign: 'center' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {historyRows.length ? historyRows.map(row => {
                   const ring = historySummary(row)
                   const isOpen = expanded === row.id
+                  const sub = totalSubLine(row)
                   return (
                     <React.Fragment key={row.id}>
                       <tr data-testid={`history-row-${row.id}`}>
@@ -408,22 +447,25 @@ export default function PurchasePage({ rows, refresh, say }) {
                           {row.kind === 'LEGACY' && (
                             <div className="purchase-muted" style={{ fontSize: '10.5px' }}>nota lama</div>
                           )}
-                        </td>
-                        <td className="purchase-cell-wrap">{row.vendorName || <span className="purchase-muted">Tidak dicatat</span>}</td>
-                        <td className="purchase-cell-wrap">
-                          <div style={{ fontSize: '12px', fontWeight: 600 }}>
-                            {ring.count ? `${ring.count} item` : <span className="purchase-muted">Rincian tidak tercatat</span>}
+                          <div className="purchase-muted" style={{ fontSize: '10.5px' }}>
+                            {ring.count ? `${ring.count} item` : 'rincian tidak tercatat'}
                           </div>
-                          <div className="purchase-muted" style={{ fontSize: '11px' }}>{ring.ringkas || (ring.count ? '—' : '')}</div>
+                        </td>
+                        <td className="purchase-cell-wrap">
+                          {row.vendorName || <span className="purchase-muted">Tidak dicatat</span>}
+                          <span className="purchase-muted" style={{ display: 'block', fontSize: '10.5px' }}>
+                            {row.projectName}
+                          </span>
                         </td>
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {row.material !== null ? rupiah(row.material) : <span className="purchase-muted">—</span>}
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {row.biayaLain ? rupiah(row.biayaLain) : <span className="purchase-muted">—</span>}
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700 }}>
-                          {row.total !== null ? rupiah(row.total) : <span className="purchase-muted">—</span>}
+                          <b style={{ fontSize: '13px' }}>
+                            {row.total !== null ? rupiah(row.total) : <span className="purchase-muted">—</span>}
+                          </b>
+                          {sub && (
+                            <span className="purchase-muted" style={{ display: 'block', fontSize: '10.5px', fontWeight: 500 }}>
+                              {sub}
+                            </span>
+                          )}
                         </td>
                         <td>
                           <div className="purchase-bukti">
@@ -456,7 +498,7 @@ export default function PurchasePage({ rows, refresh, say }) {
                       </tr>
                       {isOpen && (
                         <tr className="purchase-detail-row">
-                          <td colSpan={9}>
+                          <td colSpan={6}>
                             <div className="purchase-detail">
                               <div className="purchase-detail-head">
                                 <span><b>No. Nota:</b> {row.invoiceNo || '—'}</span>
@@ -534,7 +576,7 @@ export default function PurchasePage({ rows, refresh, say }) {
                   )
                 }) : (
                   <tr>
-                    <td colSpan={9} className="empty">Belum ada nota pembelian yang selesai.</td>
+                    <td colSpan={6} className="empty">Belum ada nota pembelian yang selesai.</td>
                   </tr>
                 )}
               </tbody>

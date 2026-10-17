@@ -4,6 +4,33 @@
 // Diekstrak VERBATIM dari CreateModal.save() (Fase 2 modularisasi).
 // Menangani 2 jalur: EDIT PR yang ada (sinkronisasi pr_items) dan PR BARU
 // (nomor atomic via RPC next_pr_number, dibuat sebagai DRAFT).
+//
+// ============================================================
+// t_cde1b8ad (arahan DAT) — KONTRAK SIMPAN TIDAK BERUBAH
+// ============================================================
+// Form PR dipangkas ke Project · Judul · Prioritas · Material · Qty ·
+// Estimasi, dan pemilih toko dipindah ke modul Purchase. Konsekuensi yang
+// SENGAJA dijaga di file ini:
+//
+//  1. `pr_items.vendor_id` dan `pr_items.supplier_category` TETAP DITULIS
+//     apa adanya (termasuk nilai kosong → null). Field-nya tidak dihapus
+//     dari payload: PR lama yang sudah punya rencana toko tetap utuh saat
+//     diedit, dan item baru menyimpan null karena PR tidak lagi menanyakan
+//     toko. TIDAK ada migrasi, TIDAK ada kolom baru.
+//  2. Gate validasi vendor eligible TETAP dijalankan. Ia bukan hiasan:
+//     `vendor_id` masih tersimpan, jadi kombinasi vendor ↔ kategori material
+//     yang tidak sah tetap harus ditolak di service boundary. Karena gate ini
+//     masih ada, kontrol vendor TIDAK boleh dihilangkan total dari form —
+//     kalau dihilangkan, PR lama yang vendornya sudah tidak aktif menjadi
+//     tidak bisa disimpan sama sekali (jalan buntu tanpa jalan keluar di UI).
+//     Solusinya: kontrol vendor dilipat di <details> "Rencana toko (opsional)"
+//     di modules/requests/form.jsx, bukan dibuang.
+//  3. `purchase_requests.notes` tetap ditulis (fallback ke judul PR bila
+//     catatan kosong) — catatan hanya dilipat di UI, bukan dibuang.
+//  4. Toko AKTUAL (nota belanja) TIDAK pernah ditulis dari sini; itu
+//     `receivings.vendor_id` milik modul Purchase. Dua konsep ini sengaja
+//     dipisah supaya "rencana toko" di PR tidak pernah diklaim sebagai
+//     supplier aktual (lihat docs/pr-estimasi-policy.md).
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
 // ============================================================

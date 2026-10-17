@@ -239,12 +239,17 @@ console.log('\nC. Total Estimasi live — tambah/hapus/ubah qty & acuan')
   check('total awal 230.000 (2×115.000)', totalText.includes('230.000'), totalText.slice(-160))
   // Review run 86: Total Estimasi WAJIB di luar area scroll daftar item —
   // user tidak boleh harus scroll utk melihat total PR.
+  // t_cde1b8ad: penanda total sekarang .pr-total-row (baris flex, bukan <tr>)
+  // karena <table> 6 kolom di luar scroll membuat dialog melebar di mobile.
   {
     const box = q(document, '.material-picker-box')
     const scrollDiv = [...box.querySelectorAll('div')].find(d => d.style.maxHeight === '240px')
-    const totalRow = [...box.querySelectorAll('tr')].find(tr => tr.textContent.includes('Total Estimasi'))
+    const totalRow = q(document, '.pr-total-row')
     check('Total Estimasi di LUAR scroll container (selalu terlihat)', !!totalRow && !scrollDiv.contains(totalRow),
       scrollDiv && totalRow ? (scrollDiv.contains(totalRow) ? ' masih di dalam scroll' : ' ok') : ' struktur tak ditemukan')
+    check('Total Estimasi memakai baris flex, bukan tabel lebar (anti overflow dialog)',
+      !!totalRow && totalRow.tagName === 'DIV' && totalRow.style.display === 'flex',
+      totalRow ? `${totalRow.tagName} display=${totalRow.style.display}` : 'tidak ada')
   }
   await addMat('HPL-0002', 'mHPL2', 3)   // +3×95.000 = 285.000 → 515.000
   totalText = q(document, '.material-picker-box').textContent

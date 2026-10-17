@@ -192,6 +192,17 @@ export function header(h) {
   if (h === 'priority') {
     return <span className="prio-dot prio-header" title="Prioritas — klik untuk urutkan" />
   }
+  // t_cde1b8ad (arahan DAT): PR tidak lagi "memesan" toko. Kolom ini tetap
+  // ADA karena datanya masih tersimpan (pr_items.vendor_id — rencana toko dari
+  // data lama) dan dipakai estimator harga; labelnya dibuat jujur supaya tidak
+  // terbaca sebagai supplier aktual. Toko AKTUAL dicatat di modul Purchase.
+  if (h === 'vendor_name') {
+    return (
+      <span title="Rencana toko dari data lama — toko AKTUAL dicatat di modul Purchase saat nota dibuat">
+        Rencana Toko
+      </span>
+    )
+  }
   return null
 }
 
