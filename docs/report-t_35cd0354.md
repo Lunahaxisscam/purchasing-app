@@ -11,11 +11,12 @@
 | Hal | Nilai |
 |---|---|
 | Branch integrasi | `feat/integration-8h-18okt` |
-| Commit HEAD (kode + uji) | `3d6b0a67c0876e2afd3c2c407f9bcb3fdbefc2ec` (`3d6b0a6`) |
+| Commit HEAD (kode + uji + laporan) | `ddf0c892a11ff053b5e8e9d96789b06ace2a86da` (`ddf0c89`) |
+| Commit kode terakhir sebelum laporan | `3d6b0a6` (isi kode identik; `ddf0c89` hanya menambah dokumen + bukti) |
 | Base | `main` @ `18fb594` (tidak diubah, tidak di-push) |
 | Worktree integrasi | `/home/ubuntu/dev-workspaces/purchasing-8h-integration` |
 | Worktree artefak rilis | `/home/ubuntu/dev-workspaces/purchasing-8h-integration-release` |
-| BUILD_ID artefak rilis | `0mTi4xm5UY8NBf5PNOYwW` |
+| BUILD_ID artefak rilis | `lVh3j-vT5c1tDFVbHfcAI` (dibangun dari `ddf0c89`) |
 | `origin/main` | tetap `3870ef7` — **tidak ada push** |
 | Staging 3001 sekarang | `purchasing-staging-3001`, cwd `purchasing-staging-3001`, BUILD_ID `A7HPMJyVcpqYZEuyRHkjd` (**belum dialihkan**) |
 
@@ -137,12 +138,12 @@ Catatan kejujuran: **tidak ada** assertion aplikasi yang saya longgarkan; yang s
 ## 7. Kesiapan staging & rollback (BELUM dieksekusi)
 
 Artefak rilis sudah dibangun & diuji **di tempat terpisah**, bukan di `.next` yang aktif:
-- `purchasing-8h-integration-release` = `.next` hasil build `ENABLE_SMOKE=1` (BUILD_ID `0mTi4xm5UY8NBf5PNOYwW`) + `package.json`/`next.config.js`/`.npmrc`/`public` + symlink `node_modules`.
+- `purchasing-8h-integration-release` = `.next` hasil build `ENABLE_SMOKE=1` (BUILD_ID `lVh3j-vT5c1tDFVbHfcAI`, dari commit `ddf0c89`) + `package.json`/`next.config.js`/`.npmrc`/`public` + symlink `node_modules`. Build sebelumnya (`0mTi4xm5…`) diarsipkan di `state/prev-build-0mTi4xm5/`.
 - Dijalankan di **port 3016** (server bayangan) dengan env staging: `/` 200, `/__smoke` 200, `/api/sales-invoices` **401**, HTML memuat BUILD_ID yang sama, chunk `_app` **200**.
 - `scripts/integration-test/switch_staging_3001.sh` siap: default **dry-run**, `--apply` hanya setelah approval, `--rollback` memulihkan snapshot (`state/before-*.json` + `pm2 jlist`), hanya menyentuh proses `purchasing-staging-3001`, dan **tidak** menjalankan `next build` di direktori aktif.
-- Dry-run terakhir mencetak: sekarang `purchasing-staging-3001`/`A7HPMJyVcpqYZEuyRHkjd` → menjadi `purchasing-8h-integration-release`/`0mTi4xm5UY8NBf5PNOYwW`.
+- Dry-run terakhir mencetak: sekarang `purchasing-staging-3001`/`A7HPMJyVcpqYZEuyRHkjd` → menjadi `purchasing-8h-integration-release`/`lVh3j-vT5c1tDFVbHfcAI`.
 
-**Kenapa belum saya switch:** mandat berbunyi "AFTER independent Brooklyn approval … switch PM2 preview 3001". Approval itu belum ada untuk commit `3d6b0a6`. Menyajikan lebih dulu berarti klaim rilis tanpa izin.
+**Kenapa belum saya switch:** mandat berbunyi "AFTER independent Brooklyn approval … switch PM2 preview 3001". Approval itu belum ada untuk commit `ddf0c89`. Menyajikan lebih dulu berarti klaim rilis tanpa izin.
 
 ---
 
@@ -161,10 +162,10 @@ Artefak rilis sudah dibangun & diuji **di tempat terpisah**, bukan di `.next` ya
 
 ## 9. Permintaan untuk Brooklyn (gerbang rilis)
 
-Mohon review commit **`3d6b0a6`** (branch `feat/integration-8h-18okt`, worktree `purchasing-8h-integration`) dengan fokus:
+Mohon review commit **`ddf0c89`** (branch `feat/integration-8h-18okt`, worktree `purchasing-8h-integration`) dengan fokus:
 1. Resolusi CORE (§3) — apakah semua rute & guard admin utuh.
 2. Tiga perubahan perilaku (§4 no.1–3) — apakah instruksi rekonsiliasi & nama wajib sudah sesuai REVIEW-02.
 3. Klasifikasi merah (§5.3) — apakah bukti baseline cukup untuk menyebut `rab-boq-render` F1/F2 & `ui-olive` C sebagai pre-existing, dan E7/e2e-handover sebagai assertion usang.
-4. Apakah artefak `0mTi4xm5UY8NBf5PNOYwW` layak disajikan di port 3001.
+4. Apakah artefak `lVh3j-vT5c1tDFVbHfcAI` layak disajikan di port 3001.
 
 Setelah approval tertulis, saya jalankan `switch_staging_3001.sh --apply` dan melaporkan readback (root 200, BUILD_ID disajikan, chunk 200, API 401) — **tanpa** push ke `origin/main`, tanpa DDL.
