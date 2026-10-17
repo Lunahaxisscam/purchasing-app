@@ -243,6 +243,54 @@ console.log('\nA6. Tab Riwayat: nota DIBELI + nota lama, cangkang tidak tampil')
   check('A6n ringkasan nota tanpa item jujur', L.historySummary({ itemCount: 0, items: [] }).text === 'Rincian barang tidak tercatat')
 }
 
+// ---------- A6b: cangkang Approval TIDAK tampil sebagai nota ----------
+console.log('\nA6b. Cangkang Approval tidak muncul di Riwayat (delivery_note "PO ...")')
+{
+  // Bentuk PRODUKSI: ensure_item_in_purchase mengisi delivery_note
+  // = "PO <no PR> - <judul>". Sebelum perbaikan, setiap PR yang baru disetujui
+  // tampil di Riwayat sebagai "nota lama" tanpa nomor/toko/total — padahal
+  // belum ada uang keluar sama sekali.
+  const shellRecs = [
+    { id: 'sh1', vendor_id: null, invoice_no: null, status: 'NORMAL', received_date: null, note: 'Dibuat otomatis dari PR (barang disetujui).', delivery_note: 'PO PR-2026-0007 - Renovasi Lantai 2', project_id: 'p1', purchase_request_id: 'pr1' },
+    { id: 'sh2', vendor_id: null, invoice_no: null, status: 'NORMAL', received_date: null, note: 'Dibuat otomatis dari PR (barang disetujui).', delivery_note: 'PO PR-2026-0008 - Pengecatan', project_id: 'p2', purchase_request_id: 'pr2' }
+  ]
+  const rows = L.buildHistoryRows({
+    receivings: shellRecs, receivingItems: [{ id: 'sh1a', receiving_id: 'sh1', pr_item_id: 'x', item_name: 'Sealant', quantity_received: 0, note: null }],
+    vendors: VENDORS, projects: PROJECTS, requests: REQUESTS
+  })
+  check('A6b1 cangkang ber-delivery_note TIDAK tampil di Riwayat', rows.length === 0, String(rows.length))
+  check('A6b2 classifyNota cangkang = DRAFT', L.classifyNota(shellRecs[0]) === 'DRAFT', L.classifyNota(shellRecs[0]))
+
+  // Nota lama yang SAH (nomor nota ada) tetap tampil
+  const legacyOk = { id: 'lg1', vendor_id: 'v1', invoice_no: 'INV-OLD-1', status: 'NORMAL', received_date: '2026-10-10', note: '[Nominal: Rp 865.000] Nota lama', delivery_note: 'SJ-1' }
+  check('A6b3 nota lama bernomor tetap tampil', L.classifyNota(legacyOk) === 'LEGACY', L.classifyNota(legacyOk))
+
+  // Nota lama tanpa nomor tapi bertanggal + bernominal (uang nyata keluar) tetap tampil
+  const legacyNoNum = { id: 'lg2', vendor_id: 'v1', invoice_no: null, status: 'NORMAL', received_date: '2026-10-09', note: '[Nominal: Rp 120.000] beli cat', delivery_note: null }
+  check('A6b4 nota lama tanpa nomor tapi bertanggal+nominal tetap tampil', L.classifyNota(legacyNoNum) === 'LEGACY', L.classifyNota(legacyNoNum))
+
+  // Cangkang tanpa nomor, tanpa tanggal, tanpa nominal -> DRAFT
+  check('A6b5 cangkang kosong tetap DRAFT', L.classifyNota({ id: 'x', invoice_no: null, received_date: null, note: null, delivery_note: 'PO PR-1' }) === 'DRAFT')
+}
+
+// ---------- A6c: rincian nota hanya barang yang benar-benar dibeli ----------
+console.log('\nA6c. Rincian nota tidak memuat baris qty 0 (sisa cangkang)')
+{
+  const recs = [{ id: 'rcMix', vendor_id: 'v1', invoice_no: 'TB-MIX', status: 'DIBELI', received_date: '2026-10-17', note: '[Nominal: Rp 480.000] [Tahap: DIBELI]', project_id: 'p1', purchase_request_id: 'pr1' }]
+  const items = [
+    { id: 'mi1', receiving_id: 'rcMix', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', quantity_received: 4, note: '[Harga: 120000]' },
+    // sisa cangkang untuk barang yang BELUM dibeli di nota ini
+    { id: 'mi2', receiving_id: 'rcMix', pr_item_id: 'pi2', item_name: 'Sekrup 3cm', unit: 'Box', quantity_received: 0, note: null }
+  ]
+  const rows = L.buildHistoryRows({ receivings: recs, receivingItems: items, vendors: VENDORS, projects: PROJECTS, requests: REQUESTS })
+  const row = rows[0]
+  check('A6c1 jumlah item = 1 (bukan 2)', row?.itemCount === 1, String(row?.itemCount))
+  check('A6c2 rincian hanya barang yang dibeli', row?.items.length === 1 && row.items[0].item_name === 'Triplek 9mm',
+    JSON.stringify(row?.items.map(i => i.item_name)))
+  check('A6c3 total qty = 4 (baris qty 0 tidak dihitung)', row?.qtyTotal === 4, String(row?.qtyTotal))
+  check('A6c4 ringkasan tidak menyebut barang qty 0', !/Sekrup/.test(L.historySummary(row).text), L.historySummary(row).text)
+}
+
 // ---------- A7: kontrak catatan nota ----------
 console.log('\nA7. Kontrak catatan nota (lib/purchaseNote.js)')
 {
@@ -512,6 +560,113 @@ console.log('\nB6. Validasi awal: nol tulisan bila data belum lengkap')
   const noItems = await S.savePurchase({ form: formFixture({ items: [] }), vendors: VENDORS })
   check('B6c tanpa item ditolak', noItems.ok === false)
   check('B6d NOL tulisan sepanjang validasi', mock.__state.calls.filter(c => c.op === 'insert' || c.op === 'update').length === 0)
+}
+
+// ---------- B7: dua nota berurutan pada cangkang yang sama ----------
+console.log('\nB7. Dua nota berurutan dari PR yang sama: nota pertama TIDAK boleh hilang')
+{
+  // Bentuk produksi: ensure_item_in_purchase membuat SATU cangkang per PR
+  // (delivery_note "PO <no PR>"). Admin beli sebagian hari ini, sisanya besok —
+  // keduanya menunjuk cangkang yang sama. Nota hari ini tidak boleh tertimpa.
+  const prItem = {
+    id: 'piS', pr_id: 'prS', item_name: 'Triplek 9mm', unit: 'Lembar',
+    quantity: 10, estimated_price: 120000, status: 'APPROVED', vendor_id: 'v1'
+  }
+  const reqs = [{ id: 'prS', pr_number: 'PR-S', project_id: 'pS' }]
+  const projs = [{ id: 'pS', kode: '99', name: 'Baroni' }]
+  mock.__reset({
+    tables: {
+      receivings: [{
+        id: 'rcShellS', vendor_id: null, invoice_no: null, status: 'NORMAL',
+        note: 'Dibuat otomatis dari PR', delivery_note: 'PO PR-S',
+        project_id: 'pS', purchase_request_id: 'prS'
+      }],
+      receiving_items: [{
+        id: 'riShellS', receiving_id: 'rcShellS', pr_item_id: 'piS',
+        item_name: 'Triplek 9mm', unit: 'Lembar', quantity_received: 0, note: null
+      }],
+      handovers: []
+    }
+  })
+  const draftOf = (qty, harga, inv, tgl) => ({
+    vendorId: 'v1', tanggal: tgl, invoiceNo: inv, biayaLain: '', diskon: '',
+    notaUrl: '', buktiNota: '', buktiTransfer: '', catatan: '',
+    items: [{
+      prItemId: 'piS', itemName: 'Triplek 9mm', unit: 'Lembar', qtyPr: 10,
+      qty: String(qty), harga: String(harga), estimasi: 120000, hargaAcuan: null,
+      projectName: '[99] Baroni', prNumber: 'PR-S', prId: 'prS', projectId: 'pS'
+    }]
+  })
+
+  const r1 = await S.savePurchase({
+    form: draftOf(4, 118000, 'TB-111', '2026-10-17'),
+    receivings: mock.__rows('receivings'), receivingItems: mock.__rows('receiving_items'), vendors: VENDORS
+  })
+  check('B7a nota pertama tersimpan', r1.ok === true, r1.error || '')
+  check('B7b nota pertama memakai cangkang', r1.reusedHeader === true)
+
+  const r2 = await S.savePurchase({
+    form: draftOf(6, 119000, 'TB-222', '2026-10-18'),
+    receivings: mock.__rows('receivings'), receivingItems: mock.__rows('receiving_items'), vendors: VENDORS
+  })
+  check('B7c nota kedua tersimpan', r2.ok === true, r2.error || '')
+  check('B7d nota kedua TIDAK menimpa nota pertama (header baru)', r2.reusedHeader === false)
+
+  const recs = mock.__rows('receivings')
+  check('B7e ada 2 nota tercatat', recs.length === 2, String(recs.length))
+  const n1 = recs.find(r => r.invoice_no === 'TB-111')
+  const n2 = recs.find(r => r.invoice_no === 'TB-222')
+  check('B7f nota TB-111 tetap ada', !!n1)
+  check('B7g nota TB-222 ada', !!n2)
+  check('B7h tanggal nota pertama utuh', n1?.received_date === '2026-10-17', String(n1?.received_date))
+  check('B7i nominal nota pertama utuh (4 x 118.000)', /Rp 472\.000/.test(String(n1?.note)), String(n1?.note))
+
+  // Rincian tiap nota tidak boleh tercampur
+  const hist = L.buildHistoryRows({
+    receivings: recs, receivingItems: mock.__rows('receiving_items'),
+    vendors: VENDORS, projects: projs, requests: reqs
+  })
+  const h1 = hist.find(h => h.invoiceNo === 'TB-111')
+  const h2 = hist.find(h => h.invoiceNo === 'TB-222')
+  check('B7j riwayat memuat 2 nota', hist.length === 2, String(hist.length))
+  check('B7k rincian nota pertama = qty 4', h1?.items.length === 1 && Number(h1.items[0].quantity_received) === 4,
+    JSON.stringify(h1?.items.map(i => i.quantity_received)))
+  check('B7l rincian nota kedua = qty 6', h2?.items.length === 1 && Number(h2.items[0].quantity_received) === 6,
+    JSON.stringify(h2?.items.map(i => i.quantity_received)))
+  check('B7m total kedua nota = 472.000 + 714.000', (h1?.total === 472000 && h2?.total === 714000),
+    `${h1?.total} / ${h2?.total}`)
+  check('B7n sisa kebutuhan habis (tidak muncul lagi)', L.buildReadyRows({
+    prItems: [prItem], requests: reqs, projects: projs, vendors: VENDORS,
+    materials: [], receivings: recs, receivingItems: mock.__rows('receiving_items')
+  }).length === 0)
+}
+
+// ---------- B8: header nota baru tetap membawa PR & proyek ----------
+console.log('\nB8. Nota tanpa cangkang tetap menyimpan jejak PR & proyek')
+{
+  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  const prItem = {
+    id: 'piJ', pr_id: 'prJ', item_name: 'Triplek 9mm', unit: 'Lembar',
+    quantity: 4, estimated_price: 120000, status: 'APPROVED', vendor_id: 'v1'
+  }
+  const res = await S.savePurchase({
+    form: {
+      vendorId: 'v1', tanggal: '2026-10-17', invoiceNo: 'TB-J', biayaLain: '', diskon: '',
+      notaUrl: '', buktiNota: '', buktiTransfer: '', catatan: '',
+      items: [{
+        prItemId: 'piJ', itemName: 'Triplek 9mm', unit: 'Lembar', qtyPr: 4,
+        qty: '4', harga: '118000', estimasi: 120000, hargaAcuan: null,
+        projectName: '[99] Baroni', prNumber: 'PR-J', prId: 'prJ', projectId: 'pJ'
+      }]
+    },
+    receivings: [], receivingItems: [], vendors: VENDORS
+  })
+  check('B8a simpan sukses', res.ok === true, res.error || '')
+  const hdr = mock.__callsOf('insert', 'receivings')[0]?.data
+  check('B8b purchase_request_id terisi dari jejak form', hdr?.purchase_request_id === 'prJ', String(hdr?.purchase_request_id))
+  check('B8c project_id terisi dari jejak form', hdr?.project_id === 'pJ', String(hdr?.project_id))
+  check('B8d dokumen Handover membawa proyek', mock.__rows('handovers')[0]?.project_id === 'pJ',
+    String(mock.__rows('handovers')[0]?.project_id))
 }
 
 console.log(`\n=== HASIL: ${pass} lulus, ${fail} gagal ===`)

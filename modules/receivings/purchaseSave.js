@@ -82,17 +82,37 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
   const shellIds = [...new Set(items
     .map(it => itemByPrItem.get(it.prItemId)?.receiving_id)
     .filter(Boolean))]
-  const reuseId = shellIds.length === 1 ? shellIds[0] : null
-  const reuseRow = reuseId ? (receivings || []).find(r => r.id === reuseId) || null : null
+  const shellHeader = shellIds.length === 1 ? (receivings || []).find(r => r.id === shellIds[0]) || null : null
+  // JANGAN memakai ulang header yang SUDAH menjadi nota selesai. Satu cangkang
+  // Approval mewakili satu PR, jadi bila admin membeli sebagian barang hari ini
+  // dan sisanya besok (atau ke toko lain), keduanya menunjuk cangkang yang sama.
+  // Tanpa penjagaan ini, nota hari ini DITIMPA nota besok: nomor nota, toko,
+  // tanggal, dan nominal nota pertama hilang dari Riwayat — uang yang sudah
+  // keluar lenyap dari catatan. Nota yang sudah selesai = header yang sudah
+  // DIBELI atau sudah bernomor; dalam kasus itu nota baru dibuat terpisah dan
+  // baris item dipindahkan ke header baru (satu barang tetap satu baris).
+  const shellIsFinishedNota = !!shellHeader && (
+    isPurchasedNota(shellHeader) || !!String(shellHeader.invoice_no || '').trim()
+  )
+  const reuseId = shellHeader && !shellIsFinishedNota ? shellHeader.id : null
+  const reuseRow = reuseId ? shellHeader : null
 
   // PR/proyek hanya bisa diisi bila SELURUH barang di nota ini satu PR/proyek.
-  const prIds = new Set(items.map(it => itemByPrItem.get(it.prItemId)?.pr_id).filter(Boolean))
-  const prId = prIds.size === 1 ? [...prIds][0] : null
-  const projectIds = new Set(items.map(it => {
+  // Sumber jejak: baris item (pr_item_id → receiving_items.pr_id) bila ada,
+  // ATAU jejak yang dibawa form dari tab Siap Dibeli (form.items[].prId /
+  // projectId). Nota tanpa cangkang tidak punya receiving_items lama, jadi
+  // tanpa jalur kedua header kehilangan PR/proyeknya dan Handover-nya kosong.
+  const prIds = new Set()
+  const projectIds = new Set()
+  for (const it of items) {
     const ri = itemByPrItem.get(it.prItemId)
+    const prOfItem = ri?.pr_id || it.prId
+    if (prOfItem) prIds.add(prOfItem)
     const rec = ri ? (receivings || []).find(r => r.id === ri.receiving_id) : null
-    return rec?.project_id || null
-  }).filter(Boolean))
+    const projOfItem = rec?.project_id || it.projectId
+    if (projOfItem) projectIds.add(projOfItem)
+  }
+  const prId = prIds.size === 1 ? [...prIds][0] : null
   const projectId = projectIds.size === 1 ? [...projectIds][0] : null
 
   const note = buildPurchaseNote({
@@ -175,7 +195,19 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
       quantity_received: it.qty,
       note: it.itemNote
     }
-    if (existing?.id) {
+    // Pakai ulang baris HANYA bila baris itu memang milik nota yang sedang
+    // ditulis, atau bila ia masih baris cangkang kosong (qty 0 — belum pernah
+    // mencatat pembelian). Baris yang sudah mencatat pembelian nyata di nota
+    // LAIN tidak boleh dipindahkan/ditimpa: nota lama harus tetap punya
+    // rincian barangnya. Dalam kasus itu dibuat baris baru — satu barang boleh
+    // punya beberapa baris pembelian (nota berbeda, harga & tanggal berbeda),
+    // dan itu justru sumber acuan harga historis yang jujur.
+    const existingQty = Number(existing?.quantity_received || 0)
+    const canReuseRow = !!existing?.id && (
+      String(existing.receiving_id || '') === String(receivingId || '')
+      || !isFinite(existingQty) || existingQty <= 0
+    )
+    if (canReuseRow) {
       const { error } = await supabase.from('receiving_items').update(payload).eq('id', existing.id)
       if (error) {
         return {

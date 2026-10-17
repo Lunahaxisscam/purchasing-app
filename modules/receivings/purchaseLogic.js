@@ -176,15 +176,25 @@ export function readyFilterOptions(rows) {
 // ------------------------------------------------------------
 // Klasifikasi nota:
 //   PURCHASED : ditandai DIBELI (kolom status atau penanda [Tahap: DIBELI]).
-//   LEGACY    : nota lama yang punya no. nota/invoice tapi dibuat sebelum
-//               alur belanja baru (tanpa harga satuan per item). Ditampilkan
-//               dengan label jujur "nota lama" — tidak diberi harga karangan.
-//   DRAFT     : cangkang nota otomatis (belum dibeli) — TIDAK ditampilkan.
+//   LEGACY    : nota lama yang benar-benar mencatat uang keluar (punya nomor
+//               nota, atau bertanggal + nominal) tapi dibuat sebelum alur
+//               belanja baru (tanpa harga satuan per item). Ditampilkan dengan
+//               label jujur "nota lama" — tidak diberi harga karangan.
+//   DRAFT     : cangkang nota otomatis dari Approval — TIDAK ditampilkan.
+//
+// PENTING (defect t_9109cf5e): cangkang Approval mengisi `delivery_note`
+// dengan "PO <no PR> - <judul>" (lihat ensure_item_in_purchase di pages/index.js).
+// Karena itu `delivery_note` TIDAK boleh dijadikan bukti "ini nota". Kalau
+// dipakai, tab Riwayat menampilkan baris hantu (tanpa nomor, tanpa toko, tanpa
+// total) untuk setiap PR yang baru disetujui — sebelum ada uang keluar sama
+// sekali. Bukti nota yang sah = `invoice_no` terisi, atau tanggal + nominal.
 export function classifyNota(rec) {
   if (!rec) return 'DRAFT'
   if (isPurchasedNota(rec)) return 'PURCHASED'
-  const hasNota = !!(String(rec.invoice_no || '').trim() || String(rec.delivery_note || '').trim())
-  return hasNota ? 'LEGACY' : 'DRAFT'
+  if (String(rec.invoice_no || '').trim()) return 'LEGACY'
+  const berTanggal = !!String(rec.received_date || '').trim()
+  const adaNominal = parsePurchaseNote(rec.note).material !== null
+  return berTanggal && adaNominal ? 'LEGACY' : 'DRAFT'
 }
 
 export function buildHistoryRows({
@@ -206,7 +216,16 @@ export function buildHistoryRows({
     const kind = classifyNota(rec)
     if (kind === 'DRAFT') continue
     const note = parsePurchaseNote(rec.note)
-    const items = itemsByRec.get(rec.id) || []
+    // Rincian nota = HANYA barang yang benar-benar dibeli di nota itu
+    // (quantity_received > 0). Baris qty 0 adalah sisa cangkang Approval untuk
+    // barang yang belum dibeli — kalau ikut ditampilkan, nota terlihat membeli
+    // barang yang tidak ada di nota toko ("Sekrup x0") dan jumlah itemnya
+    // membengkak. Nota tanpa baris berisi tetap jujur: "rincian tidak tercatat".
+    const allItems = itemsByRec.get(rec.id) || []
+    const items = allItems.filter(it => {
+      const q = Number(it?.quantity_received)
+      return isFinite(q) && q > 0
+    })
     const proj = rec.project_id ? projById.get(rec.project_id) : null
     const pr = rec.purchase_request_id ? prById.get(rec.purchase_request_id) : null
     const qtyTotal = items.reduce((s, it) => s + (Number(it.quantity_received) || 0), 0)
@@ -274,7 +293,13 @@ export function buildFormDraft(rows, { vendorId = '', today = null } = {}) {
       estimasi: r.estimasi,
       hargaAcuan: r.hargaAcuan,
       projectName: r.projectName,
-      prNumber: r.prNumber
+      prNumber: r.prNumber,
+      // Jejak PR/proyek dibawa ke form: header nota baru harus tetap tahu PR &
+      // proyek asalnya (dipakai untuk mengisi purchase_request_id/project_id
+      // dan proyek pada dokumen Handover). Tanpa ini nota tanpa cangkang
+      // kehilangan jejak proyeknya.
+      prId: r.prId || null,
+      projectId: r.projectId || null
     }))
   }
 }
@@ -352,6 +377,10 @@ export function buildSavePlan(form) {
         qty: c.qty,
         harga: c.harga,
         subtotal: c.subtotal,
+        // Jejak PR/proyek dibawa supaya header nota baru tetap punya
+        // purchase_request_id/project_id walau tidak ada cangkang Approval.
+        prId: it.prId || null,
+        projectId: it.projectId || null,
         itemNote: buildItemPriceNote(c.harga)
       }
     })

@@ -28,11 +28,23 @@ Handover `DRAFT`** sehingga masuk antrean distribusi fisik di modul Handover.
 Aturan klasifikasi nota (`classifyNota` di `purchaseLogic.js`):
 
 - `PURCHASED` — status `DIBELI` **atau** catatan memuat `[Tahap: DIBELI]`.
-- `LEGACY` — punya `invoice_no`/`delivery_note` tapi bukan DIBELI (nota sebelum
-  rombak). Ditampilkan dengan label kecil **"nota lama"**; harga satuan per
-  barang tidak dikarang (tampil "—").
-- `DRAFT` — cangkang nota otomatis dari Approval (tanpa nomor, belum dibeli).
+- `LEGACY` — nota lama yang benar-benar mencatat uang keluar: `invoice_no`
+  terisi, **atau** bertanggal + bernominal. Ditampilkan dengan label kecil
+  **"nota lama"**; harga satuan per barang tidak dikarang (tampil "—").
+- `DRAFT` — cangkang nota otomatis dari Approval (belum dibeli).
   **Tidak ditampilkan di tab mana pun**; barangnya tetap ada di Siap Dibeli.
+
+> **`delivery_note` bukan bukti nota.** `ensure_item_in_purchase` mengisi
+> `delivery_note` dengan `"PO <no PR> - <judul>"`, jadi kolom itu terisi pada
+> **setiap** PR yang baru disetujui. Kalau dipakai sebagai penanda nota, tab
+> Riwayat menampilkan baris hantu (tanpa nomor/toko/total) sebelum ada uang
+> keluar — terlihat di data produksi (2 cangkang tampil sebagai "nota lama").
+> Karena itu klasifikasi hanya memakai `invoice_no`, atau tanggal + nominal.
+
+Rincian barang satu nota = **hanya baris `quantity_received > 0`**. Baris qty 0
+adalah sisa cangkang untuk barang yang belum dibeli; kalau ikut ditampilkan,
+nota seolah membeli barang yang tidak ada di nota toko ("Sekrup x0") dan jumlah
+itemnya membengkak.
 
 ## 3. Dialog "Proses Pembelian" (satu nota = satu toko)
 
@@ -65,7 +77,7 @@ ditekan (`purchaseSave.js`), dengan ref guard + tombol disabled (anti dobel).
 | `delivery_note` | `Nota <nomor>` (kolom lama dipakai sebagai label sumber; Handover menampilkannya) |
 | `received_date` | tanggal belanja |
 | `status` | `DIBELI` (fallback: nilai lama + penanda tahap, lihat §4.3) |
-| `purchase_request_id` / `project_id` | diisi **hanya bila** seluruh barang nota berasal dari satu PR/proyek; FK lama tidak dikosongkan |
+| `purchase_request_id` / `project_id` | diisi **hanya bila** seluruh barang nota berasal dari satu PR/proyek (jejak dibaca dari baris item **atau** dari jejak form `prId`/`projectId` yang dibawa tab Siap Dibeli); FK lama tidak dikosongkan |
 | `note` | catatan terstruktur (§4.2), selalu string |
 | `alokasi`, `masuk_gudang`, `tukang_at` | **tidak disentuh** (urusan Handover) |
 
@@ -114,11 +126,29 @@ yang menolak; fallback tetap disiapkan untuk lingkungan lain.
 | `quantity_received` | **qty beli** (boleh beda dari qty PR) |
 | `note` | `[Harga: <harga satuan riil>]` |
 
-Baris item **dipakai ulang**, tidak diduplikasi: alur Approval sudah membuat
-cangkang nota + baris item qty 0 (`ensure_item_in_purchase`). Saat membeli,
-baris itu di-update (qty + harga). Bila nota memuat barang dari beberapa PR,
-header baru dibuat dan baris cangkang lama dipindahkan ke header itu — satu
-barang tidak pernah punya dua baris penerimaan.
+Baris item **dipakai ulang** hanya bila masih cangkang kosong (qty 0) atau
+memang sudah milik nota yang sedang ditulis. Alur Approval membuat cangkang
+nota + baris item qty 0 (`ensure_item_in_purchase`), jadi saat membeli pertama
+kali baris itu di-update (qty + harga) — tidak diduplikasi.
+
+### 4.4b Pembelian bertahap: nota kedua TIDAK menimpa nota pertama
+
+Satu cangkang Approval mewakili **satu PR**, sedangkan admin bisa membeli
+bertahap (sebagian hari ini, sisanya besok) atau ke toko berbeda. Keduanya
+menunjuk cangkang yang sama, sehingga **header yang sudah menjadi nota selesai
+tidak boleh dipakai ulang**:
+
+- Header dianggap selesai bila statusnya `DIBELI` **atau** sudah punya
+  `invoice_no`.
+- Dalam kasus itu nota baru dibuat sebagai header terpisah; baris item yang
+  sudah mencatat pembelian nyata di nota lain **tidak dipindahkan/ditimpa** —
+  baris baru dibuat, sehingga nota lama tetap punya rincian barangnya.
+- Satu barang boleh punya beberapa baris pembelian (nota, tanggal, dan harga
+  berbeda) — itu justru sumber acuan harga historis yang jujur.
+
+Tanpa penjagaan ini, nota hari ini ditimpa nota besok: nomor nota, toko,
+tanggal, dan nominal nota pertama hilang dari Riwayat — uang yang sudah keluar
+lenyap dari catatan (diuji `B7` di `logic_test.mjs`).
 
 ### 4.5 Acuan harga historis
 
@@ -142,11 +172,21 @@ yang meminta dokumen serah terima dibuat manual.
 
 | Harness | Cakupan | Hasil |
 |---|---|---|
-| `scripts/purchase-flow-test/run.py` → `logic_test.mjs` | logika murni + kontrak catatan + acuan historis + simpan (mock DB) | 151 lulus |
+| `scripts/purchase-flow-test/run.py` → `logic_test.mjs` | logika murni + kontrak catatan + acuan historis + simpan (mock DB) | 178 lulus |
 | `scripts/purchase-flow-test/run.py` → `render_test.mjs` | `page.jsx` + `purchaseForm.jsx` asli di jsdom interaktif (klik/ketik/submit nyata) | 90 lulus |
 | `scripts/purchase-flow-test/e2e_runtime_test.mjs` | Chrome headless CDP pada `/__smoke` (desktop + mobile 390px) | 45 lulus |
 | `scripts/handover-flow-test/e2e_runtime_test.mjs` | regresi Handover + memastikan Purchase tidak menyisakan aksi lama | 43 lulus |
 | `npm run build` / `npm run smoke` | build Next.js hijau | ✓ |
+
+Regresi yang dikunci harness (semua **gagal** pada commit `e25b26e`, lulus
+setelah perbaikan):
+
+| Uji | Perilaku yang dijaga |
+|---|---|
+| `A6b` | cangkang Approval (`delivery_note` = `"PO …"`) tidak tampil sebagai nota di Riwayat; nota lama bernomor / bertanggal+nominal tetap tampil |
+| `A6c` | rincian nota hanya baris `quantity_received > 0` (tidak ada "Sekrup x0") |
+| `B7` | beli bertahap dari PR yang sama: nota kedua **tidak** menimpa nota pertama (2 nota, 2 total, rincian tidak tercampur) |
+| `B8` | nota tanpa cangkang tetap menyimpan `purchase_request_id`/`project_id` dan proyek pada dokumen Handover |
 
 ## 6. Gap yang masih terbuka (butuh keputusan schema owner)
 
