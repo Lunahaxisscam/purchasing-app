@@ -10,6 +10,24 @@
 // yang disediakan shell — lihat components/CreateModal.js.
 //
 // ============================================================
+// t_cde1b8ad (arahan DAT — "Ringkas alur PR & Purchase") — FORM PR RINGKAS
+// ============================================================
+// PR = PERMINTAAN BARANG dari lapangan. Isinya cukup:
+//   Project · Judul · Prioritas · Material · Qty · Estimasi Harga.
+// Yang DIHILANGKAN dari tampilan utama (bukan dihapus dari data):
+//   - Pemilih "Rencana beli: Kategori + Vendor" per item  →  dipindah ke
+//     modul Purchase (di sana admin memilih toko AKTUAL saat mencatat nota).
+//     Kontrolnya TIDAK dibuang: ia dilipat di dalam <details> "Rencana toko
+//     (opsional)" supaya (a) data vendor_id/supplier_category yang sudah
+//     tersimpan tetap terlihat & bisa dikoreksi, dan (b) PR lama yang
+//     vendornya tidak lagi eligible tetap bisa disimpan (kalau kontrol ini
+//     dihilangkan total, validasi save() jadi jalan buntu yang tak bisa
+//     diperbaiki user — lihat modules/requests/save.js).
+//   - Catatan Tambahan  →  dilipat, default TERTUTUP (opsional).
+// SKEMA DB TIDAK BERUBAH: pr_items.vendor_id & supplier_category tetap
+// ditulis apa adanya oleh save.js (nilai lama dipertahankan; item baru
+// menyimpan null karena PR tidak lagi menanyakan toko).
+// ============================================================
 // ESTIMATOR HARGA PR (t_ac0b39c0 — arahan DAT)
 // ============================================================
 // - Harga estimasi OTOMATIS terisi SAAT item dipilih/ditambahkan (di shell
@@ -20,8 +38,9 @@
 //   (✅ Historis / 📍 Master / ✍️ Manual), vendor referensi & tanggal bila
 //   nyata tersedia, subtotal qty × harga, dan tombol "Pakai acuan" bila
 //   harga sudah di-override user.
-// - Ganti vendor menghitung ulang harga BILA harga belum milik user
-//   (est_manual) — tidak pernah menimpa input user diam-diam.
+// - Ganti vendor (di lipatan "Rencana toko") menghitung ulang harga BILA
+//   harga belum milik user (est_manual) — tidak pernah menimpa input user
+//   diam-diam.
 // - Footer: Total Estimasi PR (Σ qty × harga satuan). Item tanpa acuan
 //   TIDAK dihitung 0 — total diberi label "belum lengkap" + daftar item
 //   yang belum punya acuan.
@@ -87,9 +106,17 @@ function sourceLabelFor(it) {
   )
 }
 
+// Nama vendor tersimpan per item (utk ringkasan lipatan "Rencana toko").
+// Murni tampilan: membaca state form, tidak menulis apa pun.
+function vendorNameOf(it, allVendors) {
+  if (!it.vendor_id) return ''
+  const v = (allVendors || []).find(x => x.id === it.vendor_id)
+  return v?.name || ''
+}
+
 export function formBody(ctx) {
   const {
-    form, setForm, field, allProjects, allMaterials,
+    form, setForm, allProjects, allMaterials, allVendors,
     prItemsList, materialSearch, setMaterialSearch,
     materialCategoryFilter, setMaterialCategoryFilter,
     selectedMaterialId, setSelectedMaterialId, filteredMaterials,
@@ -106,9 +133,67 @@ export function formBody(ctx) {
     const d = String(it.estimated_price ?? '').replace(/[^\d]/g, '')
     return !d
   })
+  // Item yang masih menyimpan rencana toko (data lama) — dipakai utk
+  // memberi tahu bahwa nilai itu DIPERTAHANKAN, bukan dihapus.
+  const itemsWithToko = (prItemsList || []).filter(it => it.vendor_id)
+  const notesText = String(form.notes || '')
 
   return (
     <>
+      {/* ============================================================
+          t_cde1b8ad — GAYA TER-SCOPE untuk tabel item PR (styled-jsx)
+          ============================================================
+          styles/globals.css punya aturan MOBILE global ber-!important:
+            @media (max-width: 900px) {
+              table { min-width: 820px }
+              th { padding: 12px 14px !important; white-space: nowrap !important }
+              td { padding: 12px 14px !important }
+            }
+          Tabel item PR jadi 820px dan harus digeser ke samping di HP.
+          File CSS bersama itu bukan milik card ini, jadi penawarnya ditaruh
+          di sini dan HANYA berlaku untuk tabel di dalam .material-picker-box
+          pada form PR. Kolom tetap 6 (kode/nama/qty/satuan/subtotal/aksi),
+          hanya padding & nowrap-nya yang dilonggarkan agar nama material
+          boleh wrap — informasi tidak ada yang dihapus. */}
+      <style jsx>{`
+        :global(.material-picker-box .pr-items-table) {
+          min-width: 0 !important;
+          width: 100% !important;
+          table-layout: auto !important;
+        }
+        :global(.material-picker-box .pr-items-table th),
+        :global(.material-picker-box .pr-items-table td) {
+          padding: 4px 5px !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere;
+          font-size: 11px !important;
+        }
+        :global(.material-picker-box .pr-items-table td.pr-num) {
+          white-space: nowrap !important;
+          text-align: right;
+        }
+        :global(.material-picker-box .pr-items-table input[type="number"]) {
+          min-width: 0 !important;
+          width: 48px !important;
+        }
+      `}</style>
+
+      {/* ============================================================
+          KONTEKS ALUR (t_cde1b8ad): satu kalimat supaya user paham PR
+          berhenti di permintaan barang — toko dipilih saat Purchase.
+          ============================================================ */}
+      <div
+        className="pr-form-note"
+        style={{
+          background: '#f4f7f5', border: '1px solid #dde7e1', borderRadius: '8px',
+          padding: '7px 10px', fontSize: '11.5px', color: '#485653', lineHeight: 1.45,
+          marginBottom: '8px'
+        }}
+      >
+        🧾 <b>PR = permintaan barang.</b> Cukup isi proyek, judul, prioritas, material, qty &
+        estimasi. <b>Toko/vendor aktual dipilih di modul Purchase</b> saat nota dicatat.
+      </div>
+
       {/* Header form SATU BARIS desktop (steer DAT t_ac0b39c0): Project (kiri
           ~40%) + Judul Kebutuhan (kanan ~60%) — tetap DUA field terpisah,
           tidak digabung input. Mobile (<=640px) stack agar readable. */}
@@ -144,8 +229,11 @@ export function formBody(ctx) {
         </select>
       </label>
 
-      {/* ITEM MATERIAL — 1 pengadaan bisa banyak item */}
-      <div className="material-picker-box">
+      {/* ITEM MATERIAL — 1 pengadaan bisa banyak item.
+          t_cde1b8ad: minWidth:0 pada kotak ini + kontainer item wajib — tanpa
+          itu lebar min-content tabel item (≈820px) merambat ke grid dialog dan
+          membuat dialog bergulir horizontal di layar sempit. */}
+      <div className="material-picker-box" style={{ minWidth: 0, maxWidth: '100%' }}>
         <label style={{ fontWeight: 600, color: '#1f3a34', marginBottom: '6px', display: 'block' }}>
           📦 Item Material ({prItemsList.length} item)
         </label>
@@ -219,9 +307,11 @@ export function formBody(ctx) {
         {prItemsList.length > 0 ? (
           <React.Fragment>
           {/* Total + warning + disclaimer DI LUAR area scroll — Total Estimasi
-              PR wajib selalu terlihat tanpa scroll daftar item (review run 86). */}
-          <div style={{ marginTop: '10px', maxHeight: '240px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+              PR wajib selalu terlihat tanpa scroll daftar item (review run 86).
+              t_cde1b8ad: overflowX juga di-scroll di dalam kotaknya sendiri
+              supaya tabel item tidak pernah mendorong lebar body (mobile). */}
+          <div style={{ marginTop: '10px', maxHeight: '240px', overflowY: 'auto', overflowX: 'auto' }}>
+            <table className="pr-items-table" style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
                   <th style={{ padding: '4px 6px' }}>Kode</th>
@@ -241,6 +331,7 @@ export function formBody(ctx) {
                     ? Math.round(unitPrice * qtyNum)
                     : null
                   const vendorNotEligible = !vendorEligibleForItem(it, it.vendor_id)
+                  const savedVendor = vendorNameOf(it, allVendors)
                   return (
                   <React.Fragment key={it.material_id || idx}>
                   <tr style={{ borderBottom: '1px dashed #e1e7e4' }}>
@@ -256,7 +347,7 @@ export function formBody(ctx) {
                       />
                     </td>
                     <td style={{ padding: '4px 6px' }}>{it.satuan || '—'}</td>
-                    <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <td className="pr-num" style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {subtotal !== null
                         ? <b style={{ color: '#137333' }}>{rupiah(subtotal)}</b>
                         : <span className="muted">—</span>}
@@ -274,39 +365,19 @@ export function formBody(ctx) {
                   </tr>
                   <tr style={{ borderBottom: '1px solid #e1e7e4' }}>
                     <td colSpan={6} style={{ padding: '3px 6px 6px', background: '#fafcfb' }}>
+                      {/* ===== BARIS 1 (selalu terlihat): ESTIMASI HARGA =====
+                          Hanya harga & acuan yang tampil di muka — ini inti PR.
+                          t_cde1b8ad: pemilih Kategori/Vendor TIDAK lagi di sini. */}
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '10px', color: '#71817d', fontWeight: 600 }}>🛒 Rencana beli:</span>
                         <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
-                          Kategori
-                          <select
-                            value={it.supplier_category || ''}
-                            onChange={e => updateItemSupplier(idx, e.target.value)}
-                            style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
-                          >
-                            <option value="">-- Pilih Kategori --</option>
-                            {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </label>
-                        <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
-                          Vendor
-                          <select
-                            value={it.vendor_id || ''}
-                            onChange={e => updateItemVendor(idx, e.target.value)}
-                            style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
-                          >
-                            <option value="">-- Pilih Vendor --</option>
-                            {vendorsForItem(it).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                          </select>
-                        </label>
-                        <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
-                          Estimasi Harga
+                          💰 Estimasi Harga
                           <input
                             type="text"
                             inputMode="numeric"
                             placeholder="Rp…"
                             value={it.estimated_price || ''}
                             onChange={e => updateItemPrice(idx, e.target.value)}
-                            style={{ width: '90px', padding: '2px 4px', fontSize: '10px' }}
+                            style={{ width: '96px', padding: '2px 4px', fontSize: '10px' }}
                           />
                         </label>
                         <button
@@ -318,6 +389,9 @@ export function formBody(ctx) {
                         >
                           ↺ Pakai acuan
                         </button>
+                        <span style={{ fontSize: '10px', color: '#71817d' }}>
+                          {subtotal !== null ? <>Subtotal <b style={{ color: '#137333' }}>{rupiah(subtotal)}</b></> : 'Subtotal —'}
+                        </span>
                       </div>
                       {/* Sumber acuan + vendor referensi + tanggal (bila nyata) */}
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
@@ -344,7 +418,7 @@ export function formBody(ctx) {
                         )}
                         {vendorNotEligible && (
                           <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
-                            ⚠️ vendor tidak aktif utk kategori material ini (lihat modul Vendor)
+                            ⚠️ vendor tersimpan tidak aktif utk kategori material ini (lihat modul Vendor)
                           </span>
                         )}
                         {unitPrice === null && (
@@ -353,6 +427,43 @@ export function formBody(ctx) {
                           </span>
                         )}
                       </div>
+                      {/* ===== BARIS 2 (LIPAT, default tertutup): RENCANA TOKO =====
+                          t_cde1b8ad: pemilihan toko dipindah ke Purchase. Kontrol
+                          ini tetap ada HANYA untuk melihat/mengoreksi data lama &
+                          memutus jalan buntu validasi vendor (save.js menolak vendor
+                          yang tidak eligible). Tidak ada field wajib di sini. */}
+                      <details className="pr-item-toko" style={{ marginTop: '5px' }}>
+                        <summary style={{ cursor: 'pointer', fontSize: '10px', fontWeight: 600, color: '#5b6b66', listStyle: 'revert' }}>
+                          🏷️ Rencana toko (opsional){savedVendor ? ` — tersimpan: ${savedVendor}` : ' — tidak dipilih di PR'}
+                        </summary>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
+                          <span style={{ fontSize: '10px', color: '#71817d' }}>
+                            Toko aktual dicatat di Purchase. Isian di sini hanya rencana/referensi lama.
+                          </span>
+                          <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
+                            Kategori
+                            <select
+                              value={it.supplier_category || ''}
+                              onChange={e => updateItemSupplier(idx, e.target.value)}
+                              style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
+                            >
+                              <option value="">-- Pilih Kategori --</option>
+                              {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </label>
+                          <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
+                            Vendor
+                            <select
+                              value={it.vendor_id || ''}
+                              onChange={e => updateItemVendor(idx, e.target.value)}
+                              style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
+                            >
+                              <option value="">-- Pilih Vendor --</option>
+                              {vendorsForItem(it).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                            </select>
+                          </label>
+                        </div>
+                      </details>
                     </td>
                   </tr>
                   </React.Fragment>
@@ -361,20 +472,31 @@ export function formBody(ctx) {
               </tbody>
             </table>
           </div>
-          {/* ===== TOTAL ESTIMASI PR (t_ac0b39c0) — di luar area scroll ===== */}
-          <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', marginTop: '4px' }}>
-            <tbody>
-            <tr>
-              <td colSpan={4} style={{ padding: '6px', textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34' }}>
-                Total Estimasi:
-              </td>
-              <td style={{ padding: '6px', textAlign: 'right', whiteSpace: 'nowrap', borderTop: '2px solid #1f3a34' }}>
-                <b style={{ fontSize: '12px', color: '#137333' }}>{rupiah(totals?.total ?? 0)}</b>
-              </td>
-              <td style={{ borderTop: '2px solid #1f3a34' }} />
-            </tr>
-            </tbody>
-          </table>
+          {/* ===== TOTAL ESTIMASI PR (t_ac0b39c0) — di luar area scroll =====
+              t_cde1b8ad: dulu ini <table> (6 kolom, tanpa table-layout). Lebar
+              min-content-nya (≈820px) merambat ke grid dialog dan membuat
+              SELURUH dialog form PR bergulir horizontal di layar 390px.
+              Bahkan dengan table-layout:fixed, kontribusi min-content tabel
+              tetap ≈820px karena width:100% tidak punya acuan pasti di dalam
+              grid auto. Karena itu bentuknya diganti BARIS FLEX (tanpa tabel
+              sama sekali) — satu-satunya bentuk yang benar-benar tidak punya
+              min-content lebar. Isi & posisi tidak berubah: Total tetap DI
+              LUAR area scroll item supaya selalu terlihat (review run 86).
+              Harness pr-estimator & pr-purchase-compact diperbarui untuk
+              memeriksa elemen `.pr-total-row` (bukan lagi <tr>). */}
+          <div
+            className="pr-total-row"
+            style={{
+              display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+              gap: '10px', flexWrap: 'wrap', marginTop: '4px', paddingTop: '6px',
+              borderTop: '2px solid #1f3a34', minWidth: 0, maxWidth: '100%'
+            }}
+          >
+            <span style={{ fontWeight: 700, color: '#1f3a34', fontSize: '11.5px' }}>Total Estimasi:</span>
+            <b style={{ fontSize: '13px', color: '#137333', whiteSpace: 'nowrap' }}>
+              {rupiah(totals?.total ?? 0)}
+            </b>
+          </div>
             {/* Label "belum lengkap" — item tanpa acuan TIDAK dihitung 0 */}
             {totals && !totals.complete && (
               <div style={{ marginTop: '6px', background: '#fdf8ea', border: '1px dashed #f0dcb4', borderRadius: '6px', padding: '6px 10px', fontSize: '10.5px', color: '#b45309', fontWeight: 600 }}>
@@ -385,6 +507,14 @@ export function formBody(ctx) {
                   ))}
                 </ul>
               </div>
+            )}
+            {/* Data lama: rencana toko tersimpan TIDAK dihapus — dinyatakan
+                terus terang supaya tidak terlihat seperti data hilang. */}
+            {itemsWithToko.length > 0 && (
+              <small style={{ display: 'block', color: '#556260', fontSize: '9.5px', marginTop: '4px' }}>
+                ℹ️ {itemsWithToko.length} item menyimpan rencana toko dari data lama — nilainya dipertahankan
+                (buka "Rencana toko" pada baris item untuk melihat/mengubah).
+              </small>
             )}
             <small style={{ display: 'block', color: '#71817d', fontSize: '9.5px', marginTop: '4px' }}>
               Harga estimasi = harga satuan material murni (tanpa ongkir/admin). Sumber acuan belum tersimpan permanen ke DB (lihat catatan pada modul Material).
@@ -397,7 +527,28 @@ export function formBody(ctx) {
         )}
       </div>
 
-      {field('notes', 'Catatan Tambahan', 'text', false)}
+      {/* ============================================================
+          CATATAN — OPSIONAL & DILIPAT (t_cde1b8ad)
+          ============================================================
+          Nilai form.notes TETAP dikirim ke save.js seperti sebelumnya
+          (purchase_requests.notes). Kalau dibiarkan kosong, save.js memakai
+          judul PR sebagai catatan (perilaku lama, tidak diubah). Lipatan
+          dibuka otomatis bila memang sudah ada catatan tersimpan, supaya
+          data lama tidak tampak hilang. */}
+      <details className="pr-notes-box" open={!!notesText.trim()} style={{ marginTop: '10px' }}>
+        <summary style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#485653', listStyle: 'revert' }}>
+          📝 Catatan (opsional){notesText.trim() ? ' — ada catatan tersimpan' : ''}
+        </summary>
+        <label style={{ marginTop: '6px' }}>
+          Catatan Tambahan
+          <textarea
+            rows={2}
+            value={notesText}
+            onChange={e => setForm({ ...form, notes: e.target.value })}
+            placeholder="Contoh: material untuk kamar utama, ambil dari sisa proyek sebelumnya"
+          />
+        </label>
+      </details>
     </>
   )
 }

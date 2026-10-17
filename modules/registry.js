@@ -176,12 +176,20 @@ export const modules = [
     ]
   },
   {
-    // Invoice Penjualan / Sales Invoice (t_ff3a96cf) — tahap awal SHELL:
-    // menu + halaman + daftar/empty state admin-only. Arahan DAT: "buka dulu
-    // modulnya, nanti terminnya menyusul". Halaman source:'core' (dirender
-    // pages/index.js, bukan tabel ModuleView) — pola RAB & BOQ. Tidak ada
-    // tombol buat/simpan: trigger draft vs invoice resmi & termin belum
-    // diputuskan DAT; tidak ada tabel DB (freeze migrasi, lihat README).
+    // Invoice Penjualan / Sales Invoice (t_ff3a96cf → diperkeras t_22865fc4).
+    // Menu + halaman admin-only. Halaman source:'core' (dirender
+    // pages/index.js, bukan tabel ModuleView) — pola RAB & BOQ.
+    //
+    // S4 (t_22865fc4) mengubah kontrak penyimpanan secara mendasar:
+    //   * pages/api/sales-invoices.js sekarang WAJIB lolos verifyAdmin
+    //     (JWT Supabase diverifikasi + peran dari tabel profiles) untuk
+    //     GET/POST/PATCH — guard peran di UI saja tidak dianggap keamanan.
+    //   * Store Supabase = kanonik; file JSON lokal hanya pratinjau
+    //     non-produksi dan DITOLAK di produksi (fail closed).
+    //   * Invoice lahir sebagai DRAFT tanpa nomor; nomor invoice & nomor
+    //     proyek dialokasikan server saat TERBIT. Idempotency-Key mencegah
+    //     duplikat saat retry.
+    //   * Lihat docs/sales-invoice-contract.md (handoff Supabase §3).
     id: 'sales_invoice',
     label: 'Invoice Penjualan',
     adminOnly: true,
@@ -190,9 +198,37 @@ export const modules = [
       'modules/sales-invoice/view.jsx',
       'modules/sales-invoice/CreateInvoiceModal.jsx',
       'modules/sales-invoice/pdf.js',
+      'modules/sales-invoice/contract.js',
+      'modules/sales-invoice/store.js',
+      'modules/sales-invoice/auth.js',
+      'modules/sales-invoice/apiClient.js',
       'modules/sales-invoice/README.md',
       'pages/api/sales-invoices.js',
+      'docs/sales-invoice-contract.md',
+      'docs/report-t_fca26349.md',
       'scripts/sales-invoice-test/run.py'
+    ]
+  },
+  {
+    // RAP — Rencana Anggaran Pelaksana (t_71d95cfe). Rencana internal tim
+    // pelaksana yang DITURUNKAN dari RAB: qty & harga satuan versi sendiri,
+    // label versi + status, dan perbandingan RAB vs RAP. Halaman
+    // source:'core' (dirender pages/index.js, bukan tabel ModuleView).
+    // TIDAK ADA tabel DB (freeze migrasi) -> mode DRAFT_ONLY: draft hidup di
+    // sesi + backup JSON manual, dan UI menyatakan "belum tersimpan di
+    // server". Lihat docs/rap-contract.md.
+    id: 'rap',
+    label: 'RAP (Rencana Pelaksanaan)',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/rap/view.jsx',
+      'modules/rap/model.js',
+      'modules/rap/budgetingBridge.js',
+      'modules/rap/store.js',
+      'modules/rap/README.md',
+      'docs/rap-contract.md',
+      'scripts/rap-test/run.py'
     ]
   },
   {

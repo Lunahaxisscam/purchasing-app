@@ -1,19 +1,45 @@
 // ============================================================
-// modules/handovers/queue.jsx — ANTREAN DISTRIBUSI FISIK (3 AKSI)
+// modules/handovers/queue.jsx — ANTREAN DISTRIBUSI FISIK (3 AKSI UTAMA)
 // ============================================================
-// Banner antrean + kartu aksi per handover DRAFT yang notanya sudah lengkap.
-// Aksi: Kirim ke Gudang | Kirim ke Tukang | Tandai Diserahkan.
-// Logika murni (siapa boleh apa) ada di logic.js; penulisan DB di actions.js.
-// File ini hanya tampilan + pemanggilan aksi lewat ctx.
+// t_b03c5228 (S2/7, arahan DAT) — DIPADATKAN & TANGGUNG JAWAB DIPISAH:
+//   Purchase berhenti di "barang dibeli". Modul ini SATU-SATUNYA tempat
+//   keputusan fisik barang, dalam TIGA aksi satu baris:
+//     📦 Masuk Stok Gudang · 👷 Serah Terima ke Tukang · ⚠ Bermasalah
+//   "Bermasalah" (Retur/Refund) sengaja TIDAK ditonjolkan — ia jalan keluar
+//   untuk barang cacat/salah kirim, bukan langkah normal.
+//   Konfirmasi "barang sudah diterima di lokasi" tetap ada sebagai LANGKAH
+//   PENUTUP (bukan aksi keempat yang setara) karena bukti fisik = diserahkan_at.
+//
+// Yang TIDAK ditampilkan (status teknis disembunyikan):
+//   - kode status mentah (KE_GUDANG / KE_TUKANG / LANGSUNG_LAPANGAN,
+//     DI_GUDANG / DI_TUKANG / RECEIVED, NORMAL / RETUR / REFUND) — nilai DB
+//     tetap dipakai untuk penjaga tombol, tetapi user hanya melihat kalimat
+//     manusia ("Tujuan: Tukang", "⚠ Nota bermasalah").
+//
+// Yang DIPERTAHANKAN (jangan hilang saat memadatkan):
+//   - rincian barang (dari nota pembelian) + label jujur
+//     "Rincian barang belum tersedia" bila memang tidak ada datanya.
+//   - fallback data lama: handover tanpa receiving_id tetap tampil apa adanya,
+//     aksinya dinonaktifkan dengan ALASAN yang bisa dibaca (bukan tombol mati
+//     tanpa penjelasan).
+//
+// BATAS KONTRAK (jangan diubah tanpa Tech Lead):
+//   - logic.js tetap SATU-SATUNYA sumber aturan aksi (actionPlan dst.).
+//   - actions.js tetap SATU-SATUNYA penulis DB aksi gudang/tukang/terima.
+//   - "Bermasalah" TIDAK menulis DB dari file ini: ia memakai handler yang
+//     sudah ada di shell (ctx.onReceivingStatusChange → pages/index.js
+//     updateReceivingStatus, kolom receivings.status + receivings.kendala).
+//     Tidak ada kolom/tabel baru, tidak ada migrasi.
 //
 // CATATAN STYLE: gaya ditulis inline di sini (objek JS), BUKAN di
-// styles/globals.css. globals.css sedang dibentuk ulang oleh sesi paralel
-// (lihat kanban card), jadi menambah kelas di sana = titik benturan.
+// styles/globals.css (file itu bukan milik modul ini).
 // ============================================================
 
 import { useState } from 'react'
 import {
   ACTIONS,
+  ACT_GUDANG,
+  ACT_TUKANG,
   ACT_TERIMA,
   actionPlan,
   buildDistributionQueue,
@@ -21,6 +47,7 @@ import {
   summarizeDistribution
 } from './logic'
 import { runHandoverAction } from './actions'
+import { RINCIAN_BELUM_TERSEDIA } from './display'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
@@ -28,16 +55,99 @@ const S = {
   head: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   title: { display: 'block', fontSize: 14 },
   sub: { display: 'block', fontSize: 12, opacity: 0.75, marginTop: 2 },
+  tags: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'flex-end' },
   tag: { fontSize: 11, border: '1px solid #3a3a48', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' },
-  actions: { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  warnTag: { fontSize: 11, border: '1px solid #a15309', color: '#e8a33d', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' },
+  actions: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   btn: { fontSize: 13, padding: '7px 12px', cursor: 'pointer' },
-  terima: { marginTop: 10, borderTop: '1px dashed #2a2a35', paddingTop: 10 },
-  label: { display: 'block', fontSize: 12, marginBottom: 6 },
-  input: { display: 'block', width: '100%', maxWidth: 280, marginTop: 4, padding: '6px 8px' },
-  row: { display: 'flex', gap: 8, marginTop: 8 },
+  subtleBtn: {
+    fontSize: 11.5,
+    padding: '4px 9px',
+    cursor: 'pointer',
+    background: 'transparent',
+    color: '#b9a17a',
+    border: '1px dashed #4a4136',
+    borderRadius: 6,
+    lineHeight: 1.2
+  },
+  panel: { flexBasis: '100%', border: '1px solid #3a3a48', borderRadius: 8, padding: 10, marginTop: 2, background: '#12121a' },
+  panelText: { fontSize: 11.5, lineHeight: 1.45, opacity: 0.9 },
+  row: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 },
+  finish: { marginTop: 10, borderTop: '1px dashed #2a2a35', paddingTop: 10 },
+  finishLabel: { display: 'block', fontSize: 11.5, opacity: 0.75, marginBottom: 6 },
+  detailToggle: { marginTop: 10, background: 'transparent', border: 'none', color: '#8fb0a6', fontSize: 11.5, cursor: 'pointer', padding: 0 },
+  detail: { marginTop: 6, borderTop: '1px dashed #2a2a35', paddingTop: 8, fontSize: 11.5, lineHeight: 1.5 },
+  detailLine: { display: 'block', opacity: 0.9 },
   banner: { marginBottom: 14 },
-  bannerHead: { display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }
+  bannerHead: { display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 },
+  label: { display: 'block', fontSize: 12, marginBottom: 6 },
+  input: { display: 'block', width: '100%', maxWidth: 280, marginTop: 4, padding: '6px 8px' }
 }
+
+// ------------------------------------------------------------
+// LABEL MANUSIA untuk nilai teknis (dipakai juga oleh view.jsx)
+// ------------------------------------------------------------
+// Nilai `receivings.alokasi` adalah kode DB. User tidak boleh melihat kode
+// mentah ("KE_TUKANG") — cukup tujuannya.
+export function alokasiLabel(alokasi) {
+  const up = String(alokasi || '').trim().toUpperCase()
+  if (up === 'KE_GUDANG') return 'Gudang'
+  if (up === 'KE_TUKANG') return 'Tukang'
+  if (up === 'LANGSUNG_LAPANGAN') return 'Langsung ke lapangan'
+  return ''
+}
+
+// Apakah nota sudah ditandai bermasalah (Retur/Refund/Rusak) — dibaca dari
+// kolom yang SUDAH ADA (receivings.status / receivings.kendala).
+export function isProblemNoted(receiving) {
+  if (!receiving) return false
+  const st = String(receiving.status || '').toUpperCase()
+  const kd = String(receiving.kendala || '').toUpperCase()
+  return !!kd || st === 'RETUR' || st === 'REFUND' || st === 'RUSAK' || st.startsWith('KENDALA')
+}
+
+// ------------------------------------------------------------
+// RENCANA AKSI "BERMASALAH" (retur / refund)
+// ------------------------------------------------------------
+// Mengembalikan { ok, reason }. reason selalu kalimat yang bisa dibaca user:
+// bila aksi tidak bisa dijalankan, UI menampilkan ALASANNYA (bukan tombol
+// mati tanpa penjelasan, dan bukan klaim palsu bahwa sudah tersimpan).
+//
+// Aturan (semua berasal dari keterbatasan nyata, bukan pilihan gaya):
+//   1. Tidak ada nota (data lama / handover orphan) -> tidak ada yang bisa
+//      ditandai; arahkan ke modul Purchase.
+//   2. Nota sudah bermasalah -> jangan tandai dua kali.
+//   3. Handler shell tidak tersedia -> jangan berpura-pura bisa menulis.
+//   4. Nota tanpa rincian barang -> tidak jelas barang mana yang bermasalah.
+//   5. Nota multi-item -> `updateReceivingStatus` di shell MENOLAK mengubah
+//      status parent (bisa meng-override kondisi barang anak); pencatatan
+//      per barang menunggu skema. Ditampilkan apa adanya.
+export function problemPlan(receiving, itemCount = 0, hasHandler = true) {
+  if (!receiving) {
+    return { ok: false, reason: 'Dokumen ini belum terhubung ke nota pembelian — masalah barang dicatat dari modul Purchase.' }
+  }
+  if (isProblemNoted(receiving)) {
+    return { ok: false, reason: 'Nota ini sudah ditandai bermasalah (Retur/Refund) — tidak bisa ditandai dua kali.' }
+  }
+  if (!hasHandler) {
+    return { ok: false, reason: 'Aksi bermasalah tidak tersedia di tampilan ini (pencatatan status nota hanya dari halaman utama).' }
+  }
+  const n = Number(itemCount) || 0
+  if (!n) {
+    return { ok: false, reason: 'Nota ini belum punya rincian barang — masalah barang dicatat dari modul Purchase.' }
+  }
+  if (n >= 2) {
+    return { ok: false, reason: 'Nota multi-item: Retur/Refund dicatat per barang, dan penyimpanan per barang belum aktif (menunggu persetujuan skema). Catat lewat modul Purchase.' }
+  }
+  return { ok: true, reason: '' }
+}
+
+// Pilihan tindakan bermasalah. Kunci = nilai kolom receivings.status yang
+// sudah dipakai sistem (NORMAL/RETUR/REFUND) — tidak ada nilai baru.
+export const PROBLEM_OPTIONS = [
+  { key: 'RETUR', label: '↩ Retur ke Supplier' },
+  { key: 'REFUND', label: '💸 Refund' }
+]
 
 // ------------------------------------------------------------
 // KARTU AKSI per baris
@@ -62,11 +172,41 @@ function ActionCard({ entry, ctx, onDone }) {
   const [busy, setBusy] = useState(false)
   const [showTerima, setShowTerima] = useState(false)
   const [receivedBy, setReceivedBy] = useState('')
+  const [showProblem, setShowProblem] = useState(false)
+  const [showDetail, setShowDetail] = useState(false)
 
   const items = receiving && H?.receivingItemsForReceiving ? H.receivingItemsForReceiving(receiving.id) : []
   const prItems = prItemsOf(ctx, receiving?.id)
   const summary = summarizeDistribution(handover, items, prItems)
   const plan = actionPlan(handover, summary, receiving?.alokasi, receiving)
+  const dest = alokasiLabel(receiving?.alokasi)
+  const problemNoted = isProblemNoted(receiving)
+  const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function')
+
+  // Lapisan tampilan DI ATAS actionPlan (logic.js tidak diubah):
+  //  a) nota yang sudah bermasalah tidak ditawari distribusi — sejalan dengan
+  //     penjaga DB yang sudah ada (RPC `receive_to_warehouse` menolak nota
+  //     Retur/Refund), jadi tombol mati di sini tidak menutup jalur nyata;
+  //  b) handover tanpa nota pembelian (data lama / orphan) tidak punya barang
+  //     untuk dipindahkan. Sebelumnya tombolnya AKTIF dan aksi akan "berhasil"
+  //     tanpa mengubah apa pun (loadContext → receiving null → 0 baris) —
+  //     klaim palsu. Sekarang nonaktif dengan alasan yang bisa dibaca.
+  const gated = plan.map(a => {
+    if (a.key !== ACT_GUDANG && a.key !== ACT_TUKANG) return a
+    if (problemNoted) {
+      return { ...a, ok: false, reason: 'Nota sudah ditandai bermasalah (Retur/Refund) — barang tidak didistribusikan.' }
+    }
+    if (!receiving) {
+      return { ...a, ok: false, reason: 'Belum terhubung ke nota pembelian — distribusi fisik dicatat dari nota di modul Purchase.' }
+    }
+    return a
+  })
+
+  // Baris aksi fisik: 2 aksi utama (gudang + tukang) lalu Bermasalah sebagai
+  // aksi ketiga yang tidak ditonjolkan. "Tandai diserahkan" dipisah menjadi
+  // langkah penutup di bawah kartu.
+  const primary = gated.filter(a => a.key === ACT_GUDANG || a.key === ACT_TUKANG)
+  const finish = gated.find(a => a.key === ACT_TERIMA)
 
   const run = async (action) => {
     if (busy) return
@@ -99,6 +239,21 @@ function ActionCard({ entry, ctx, onDone }) {
     }
   }
 
+  // Bermasalah: TIDAK menulis DB dari file ini — memakai handler shell yang
+  // sudah ada (kolom receivings.status + kendala). Panel ditutup setelah
+  // handler dipanggil; pesan hasil datang dari handler itu sendiri.
+  const tandaiBermasalah = async (key) => {
+    if (busy || !problem.ok) return
+    if (typeof ctx.onReceivingStatusChange !== 'function') return
+    setBusy(true)
+    try {
+      await ctx.onReceivingStatusChange(receiving, key)
+    } finally {
+      setBusy(false)
+      setShowProblem(false)
+    }
+  }
+
   return (
     <div style={S.card} data-testid={`queue-card-${handover.id}`}>
       <div style={S.head}>
@@ -110,11 +265,25 @@ function ActionCard({ entry, ctx, onDone }) {
             {distributionLabel(summary)}
           </span>
         </div>
-        {receiving?.alokasi ? <span style={S.tag}>{receiving.alokasi}</span> : null}
+        <div style={S.tags}>
+          {/* Tujuan dalam bahasa manusia — bukan kode DB (KE_TUKANG dst.). */}
+          {dest ? <span style={S.tag} data-testid={`queue-dest-${handover.id}`}>Tujuan: {dest}</span> : null}
+          {problemNoted ? (
+            <span style={S.warnTag} data-testid={`queue-problem-badge-${handover.id}`}>⚠ Nota bermasalah</span>
+          ) : null}
+        </div>
       </div>
 
-      <div style={S.actions}>
-        {plan.map(a => (
+      {/* ---- 3 AKSI DISTRIBUSI FISIK ----------------------------------------
+          Satu baris aksi = tanggung jawab fisik modul ini:
+          📦 Gudang · 👷 Tukang · ⚠ Bermasalah.
+          "Bermasalah" sengaja TIDAK ditonjolkan (border putus-putus, font lebih
+          kecil, tanpa warna aksi) sesuai arahan DAT — ia jalan keluar untuk
+          barang cacat/salah kirim, bukan langkah normal.
+          "Tandai Diserahkan" TIDAK di sini: itu bukti fisik penerimaan, jadi
+          ditampilkan sebagai langkah penutup di bawah (lihat S.finish). */}
+      <div style={S.actions} data-testid={`queue-primary-${handover.id}`}>
+        {primary.map(a => (
           <button
             key={a.key}
             type="button"
@@ -127,29 +296,134 @@ function ActionCard({ entry, ctx, onDone }) {
             <span aria-hidden="true">{a.icon}</span> {a.label}
           </button>
         ))}
+        {/* Aksi sekunder: retur/refund — tidak menyolok, tapi tetap terjangkau */}
+        <button
+          type="button"
+          disabled={busy}
+          data-testid={`queue-problem-${handover.id}`}
+          title={problem.reason || 'Barang cacat / salah kirim dari toko'}
+          onClick={() => setShowProblem(v => !v)}
+          style={S.subtleBtn}
+        >
+          ⚠ Bermasalah
+        </button>
       </div>
 
-      {showTerima && (
-        <div style={S.terima} data-testid={`queue-terima-form-${handover.id}`}>
-          <label style={S.label}>
-            Diterima oleh (opsional)
-            <input
-              type="text"
-              style={S.input}
-              value={receivedBy}
-              onChange={e => setReceivedBy(e.target.value)}
-              data-testid={`queue-terima-nama-${handover.id}`}
-              placeholder="Nama penerima"
-            />
-          </label>
-          <div style={S.row}>
-            <button type="button" onClick={submitTerima} disabled={busy} data-testid={`queue-terima-ok-${handover.id}`}>
-              Konfirmasi
-            </button>
-            <button type="button" className="outline" onClick={() => setShowTerima(false)}>
-              Batal
-            </button>
+      {showProblem && (
+        <div style={S.panel} data-testid={`queue-problem-panel-${handover.id}`}>
+          {problem.ok ? (
+            <>
+              <div style={S.panelText}>
+                Tandai nota ini bermasalah? Barang tidak didistribusikan; status nota dicatat sebagai Retur/Refund.
+              </div>
+              <div style={S.row}>
+                {PROBLEM_OPTIONS.map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    disabled={busy}
+                    data-testid={`queue-problem-${opt.key.toLowerCase()}-${handover.id}`}
+                    onClick={() => tandaiBermasalah(opt.key)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                <button type="button" className="outline" onClick={() => setShowProblem(false)}>
+                  Batal
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Label jujur: aksi tidak bisa dijalankan + alasannya. */}
+              <div style={S.panelText} data-testid={`queue-problem-blocked-${handover.id}`}>
+                {problem.reason}
+              </div>
+              <div style={S.row}>
+                <button type="button" className="outline" onClick={() => setShowProblem(false)}>
+                  Tutup
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ---- langkah penutup: bukti fisik barang sudah diterima ---- */}
+      <div style={S.finish} data-testid={`queue-finish-${handover.id}`}>
+        <span style={S.finishLabel}>Langkah penutup — setelah barang benar-benar diterima di lokasi:</span>
+        {finish ? (
+          <button
+            type="button"
+            disabled={!finish.ok || busy}
+            data-testid={`queue-${finish.testid}-${handover.id}`}
+            title={finish.reason || finish.label}
+            onClick={() => run(finish.key)}
+            style={S.btn}
+          >
+            <span aria-hidden="true">{finish.icon}</span> {finish.label}
+          </button>
+        ) : null}
+        {showTerima && (
+          <div data-testid={`queue-terima-form-${handover.id}`} style={{ marginTop: 8 }}>
+            <label style={S.label}>
+              Diterima oleh (opsional)
+              <input
+                type="text"
+                style={S.input}
+                value={receivedBy}
+                onChange={e => setReceivedBy(e.target.value)}
+                data-testid={`queue-terima-nama-${handover.id}`}
+                placeholder="Nama penerima"
+              />
+            </label>
+            <div style={S.row}>
+              <button type="button" onClick={submitTerima} disabled={busy} data-testid={`queue-terima-ok-${handover.id}`}>
+                Konfirmasi
+              </button>
+              <button type="button" className="outline" onClick={() => setShowTerima(false)}>
+                Batal
+              </button>
+            </div>
           </div>
+        )}
+      </div>
+
+      {/* ---- rincian barang (dipertahankan; label jujur bila tidak ada data) ---- */}
+      <button
+        type="button"
+        style={S.detailToggle}
+        data-testid={`queue-detail-${handover.id}`}
+        onClick={() => setShowDetail(v => !v)}
+        title="Lihat barang dari nota pembelian"
+      >
+        {showDetail ? '▲ Tutup rincian barang' : '▾ Rincian barang'}
+      </button>
+      {showDetail && (
+        <div style={S.detail} data-testid={`queue-detail-panel-${handover.id}`}>
+          {/* Tujuan TIDAK diulang di sini — sudah ada satu badge di header.
+              Satu nilai fisik = satu tempat tampil (tidak ada field ganda). */}
+          <span style={S.detailLine}>
+            Nota: {receiving?.invoice_no || receiving?.delivery_note || '—'}
+          </span>
+          {items.length ? (
+            <>
+              {items.map(it => (
+                <span key={it.id} style={S.detailLine}>
+                  • {it.item_name || '—'} — {Number(it.quantity_received || 0)}{it.unit ? ` ${it.unit}` : ''} <em style={{ opacity: 0.7 }}>(qty beli di nota)</em>
+                </span>
+              ))}
+              {/* Angka di atas = qty BELI, bukan jumlah yang diserahkan.
+                  Jumlah serah terima per item belum punya tabel (handover_items). */}
+              <span style={{ ...S.detailLine, opacity: 0.7 }}>
+                Jumlah serah terima per item belum tercatat terpisah — konfirmasi fisik tetap per dokumen.
+              </span>
+            </>
+          ) : (
+            <span style={S.detailLine} data-testid={`queue-items-unavailable-${handover.id}`}>
+              {RINCIAN_BELUM_TERSEDIA}
+            </span>
+          )}
         </div>
       )}
     </div>

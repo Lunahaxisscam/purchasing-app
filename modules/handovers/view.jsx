@@ -23,14 +23,16 @@
 //   thumbnail + tombol lihat; kolom "Catatan" menampilkan teksnya saja.
 // ============================================================
 
-// Antrean Distribusi Fisik (3 aksi: gudang / tukang / tandai diserahkan).
-// Dire-export dari queue.jsx supaya dispatcher modules/shared/renderModuleCell
-// menemukannya sebagai `banner` modul handovers tanpa mengubah file shell.
+// Antrean Distribusi Fisik (3 aksi fisik: gudang / tukang / bermasalah, plus
+// langkah penutup "tandai diserahkan"). Dire-export dari queue.jsx supaya
+// dispatcher modules/shared/renderModuleCell menemukannya sebagai `banner`
+// modul handovers tanpa mengubah file shell.
 export { renderHandoverQueue as banner } from './queue'
 
 import React from 'react'
 import { format, parseHandoverNote, isHandoverDelivered } from '../../lib/constants'
 import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA, validatePrototypeRow, prototypeTotals } from './display'
+import { alokasiLabel, isProblemNoted } from './queue'
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -150,12 +152,26 @@ export function renderCell(h, r, rawVal, ctx) {
   // ditampilkan sebagai catatan kecil (apa adanya, tidak diklaim).
   if (h === 'status') {
     const st = statusInfo(r)
+    // t_b03c5228: kendala nota (Retur/Refund) ditampilkan sebagai label
+    // MANUSIA di sini — satu-satunya tempat status nota muncul di modul
+    // Handover. Kode status mentah tidak pernah ditampilkan.
+    const rec = (ctx?.allReceivings || []).find(x => x && x.id === r.receiving_id) || null
+    const problem = isProblemNoted(rec)
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
         {st.delivered ? (
           <span style={{ fontSize: '11px', color: '#137333', fontWeight: 700, whiteSpace: 'nowrap' }}>✓ Sudah Diserahkan</span>
         ) : (
           <span style={{ fontSize: '11px', color: '#8a6d1f', fontWeight: 700, whiteSpace: 'nowrap' }}>⏳ Belum Diserahkan</span>
+        )}
+        {problem && (
+          <span
+            data-testid={`problem-${r.id}`}
+            style={{ fontSize: '10.5px', color: '#a15309', fontWeight: 700, whiteSpace: 'nowrap' }}
+            title="Nota pembelian ditandai bermasalah (Retur/Refund) — barang tidak didistribusikan"
+          >
+            ⚠ Nota bermasalah
+          </span>
         )}
         {st.legacyNote && (
           <span style={{ fontSize: '10px', color: '#a15309', whiteSpace: 'normal', maxWidth: '170px', lineHeight: 1.3 }} title={st.legacyNote}>
@@ -278,7 +294,7 @@ export function rowExpand(r, ctx) {
             <span>Purchase asal: <b>{refs.receivingLabel || '—'}</b></span>
             <span>Surat Jalan: <b>{refs.deliveryNote || '—'}</b></span>
             <span>PR asal: <b>{refs.prNumber || '—'}</b></span>
-            <span>Pengirim/Gudang: <b>{refs.alokasi === 'KE_TUKANG' ? 'Langsung ke Tukang' : (refs.alokasi || '—')}</b></span>
+            <span>Tujuan barang: <b>{alokasiLabel(refs.alokasi) || 'Belum ditentukan'}</b></span>
             <span>Penerima: <b>{r.received_by || '—'}</b></span>
             <span>Tanggal: <b>{format(r.handover_date)}</b></span>
           </div>
@@ -401,6 +417,9 @@ export function mobileCard(r, ctx) {
   const rinc = rincianInfo(r)
   const isOpen = !!r.id && expandedAcuan === r.id
   const refs = isOpen ? sourceRefs(r, { allReceivings, allRequests }) : null
+  // t_b03c5228: kendala nota tampil di kartu mobile juga (label manusia).
+  const rec = (allReceivings || []).find(x => x && x.id === r.receiving_id) || null
+  const problem = isProblemNoted(rec)
   return (
     <>
       <div className="mobile-card-header">
@@ -423,6 +442,11 @@ export function mobileCard(r, ctx) {
         </div>
         {st.legacyNote && (
           <div className="mobile-card-note" style={{ color: '#a15309' }}>⚠️ {st.legacyNote}</div>
+        )}
+        {problem && (
+          <div className="mobile-card-note" style={{ color: '#a15309' }} data-testid={`problem-mobile-${r.id}`}>
+            ⚠ Nota bermasalah — barang tidak didistribusikan (Retur/Refund dicatat dari modul Purchase).
+          </div>
         )}
         {foto && (
           <div className="mobile-card-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
@@ -462,7 +486,7 @@ export function mobileCard(r, ctx) {
         <div data-testid={`handover-detail-mobile-${r.id}`} style={{ margin: '8px 14px 0', background: '#fbfdfc', border: '1px solid #e1e7e4', borderRadius: '8px', padding: '10px', fontSize: '11.5px', color: '#1f3a34', display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <span>Purchase asal: <b>{refs.receivingLabel || '—'}</b></span>
           <span>PR asal: <b>{refs.prNumber || '—'}</b></span>
-          <span>Pengirim/Gudang: <b>{refs.alokasi === 'KE_TUKANG' ? 'Langsung ke Tukang' : (refs.alokasi || '—')}</b></span>
+          <span>Tujuan barang: <b>{alokasiLabel(refs.alokasi) || 'Belum ditentukan'}</b></span>
           <span>Penerima: <b>{r.received_by || '—'}</b></span>
           <span>Status: <b>{st.label}</b>{st.delivered && st.diserahkanAt ? ` — ${new Date(st.diserahkanAt).toLocaleString('id-ID')}` : ''}</span>
           <div>

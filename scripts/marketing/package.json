@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Kontrak integrasi Marketing → CRM/Project (S6) — modul ESM murni + pemeriksa read-only. package.json ini hanya menandai folder sebagai ESM agar skrip Node (CLI/harness) bisa mengimpor .js apa adanya; tidak ada dependensi baru."
+}

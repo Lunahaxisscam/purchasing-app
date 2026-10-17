@@ -15,6 +15,22 @@
 // TIDAK ADA input gudang / tukang / retur / refund di sini (pindah Handover).
 // Input TIDAK menulis DB saat mengetik: semua tersimpan sekali saat tombol
 // "Selesaikan Pembelian" ditekan (purchaseSave.js).
+//
+// ============================================================
+// t_cde1b8ad (arahan DAT) — DIPADATKAN: toko · nota · tanggal · total · bukti
+// ============================================================
+// Urutan baca sekarang mengikuti urutan kerja admin di toko:
+//   1) Toko · No. nota · Tanggal        (satu baris, 3 kolom)
+//   2) Barang + qty + harga riil        (inti nota)
+//   3) TOTAL NOTA RIIL                  (angka besar, langsung terlihat)
+//   4) Bukti (foto nota / transfer)      (2 kotak sejajar)
+//   5) Catatan                          (satu baris, opsional)
+// Biaya lain/ongkir & diskon TIDAK dihapus — keduanya dilipat di bawah Total
+// sebagai "Tambahan & potongan (opsional)" karena hanya dipakai bila nota
+// memang punya ongkir/diskon. Rumus total TIDAK berubah:
+//   total = material + biaya lain − diskon   (purchaseLogic.computeTotals)
+// Semua data-testid dipertahankan supaya harness purchase-flow-test tetap
+// menguji jalur yang sama.
 // ============================================================
 import React, { useMemo, useRef, useState } from 'react'
 import { rupiah } from '../../lib/constants'
@@ -35,6 +51,7 @@ export default function PurchaseForm({
   const totals = useMemo(() => computeTotals(form), [form])
   const v = useMemo(() => validatePurchaseForm(form, { vendors }), [form, vendors])
   const canSubmit = !saving && !fileBusy && v.valid
+  const adaTambahan = !!(String(form.biayaLain || '').trim() || String(form.diskon || '').trim())
 
   const setField = (k, val) => setForm(prev => ({ ...prev, [k]: val }))
   const setItem = (prItemId, k, val) => setForm(prev => ({
@@ -87,11 +104,51 @@ export default function PurchaseForm({
   return (
     <div className="modal">
       <form className="dialog dialog-purchase" onSubmit={submit} data-testid="purchase-form">
+        {/* ============================================================
+            t_cde1b8ad — GAYA TER-SCOPE (styled-jsx, hanya untuk dialog ini)
+            ============================================================
+            styles/globals.css punya aturan MOBILE global yang memakai
+            !important sehingga TIDAK bisa dilawan inline style:
+              @media (max-width: 900px) {
+                table { min-width: 820px }        ← tabel item jadi 820px
+                th { padding: 12px 14px !important; white-space: nowrap !important }
+                td { padding: 12px 14px !important }
+              }
+            Akibatnya dialog Proses Pembelian harus digeser ke samping di HP
+            (820px di viewport 390px). File CSS bersama itu BUKAN milik card
+            ini (lihat batas kepemilikan), jadi penawarnya ditaruh di sini
+            sebagai style ter-scope milik komponen ini sendiri.
+            Yang dinegasikan hanya untuk .purchase-items-table di dalam
+            dialog ini — tidak ada modul lain yang terpengaruh.
+            ============================================================ */}
+        <style jsx>{`
+          :global(.dialog-purchase .purchase-items-table) {
+            min-width: 0 !important;
+            width: 100% !important;
+            table-layout: fixed !important;
+          }
+          :global(.dialog-purchase .purchase-items-table th),
+          :global(.dialog-purchase .purchase-items-table td) {
+            padding: 7px 6px !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            font-size: 11.5px !important;
+          }
+          :global(.dialog-purchase .purchase-items-table td.purchase-cell-num) {
+            white-space: nowrap !important;
+            text-align: right;
+          }
+          :global(.dialog-purchase .purchase-items-table input) {
+            min-width: 0 !important;
+            width: 100% !important;
+          }
+        `}</style>
         <div className="dialoghead">
           <h2>🧾 Proses Pembelian</h2>
           <button type="button" className="icon" onClick={close} aria-label="Tutup">×</button>
         </div>
 
+        {/* 1) TOKO · NOTA · TANGGAL — identitas nota, satu baris */}
         <div className="purchase-form-grid">
           <label>
             Toko / Vendor
@@ -108,16 +165,7 @@ export default function PurchaseForm({
             {touched && !form.vendorId && <span className="purchase-field-error">Toko wajib dipilih.</span>}
           </label>
           <label>
-            Tanggal Belanja
-            <input
-              type="date"
-              value={form.tanggal}
-              onChange={e => setField('tanggal', e.target.value)}
-              data-testid="form-date"
-            />
-          </label>
-          <label>
-            No. Invoice / No. Nota Toko
+            No. Nota Toko
             <input
               type="text"
               placeholder="Contoh: TB-88912"
@@ -127,22 +175,49 @@ export default function PurchaseForm({
             />
             {touched && !String(form.invoiceNo).trim() && <span className="purchase-field-error">No. nota wajib diisi.</span>}
           </label>
+          <label>
+            Tanggal Belanja
+            <input
+              type="date"
+              value={form.tanggal}
+              onChange={e => setField('tanggal', e.target.value)}
+              data-testid="form-date"
+            />
+          </label>
         </div>
 
+        {/* 2) BARANG — qty & harga riil per item */}
         <div className="purchase-items-block">
           <div className="purchase-items-head">
             <b>Barang yang dibeli</b>
             <span className="purchase-muted">{form.items.length} barang</span>
           </div>
           <div className="purchase-items-scroll">
-            <table className="purchase-items-table">
+            {/* t_cde1b8ad: 5 kolom → 4 kolom. Kolom "Satuan" terpisah dihapus;
+                satuannya menempel pada input Qty (mis. "Lembar") supaya tetap
+                terbaca tanpa memakan kolom — tabel jadi cukup sempit untuk
+                layar HP tanpa harus digeser ke samping. */}
+            <table className="purchase-items-table" style={{ minWidth: 0 }}>
               <thead>
                 <tr>
-                  <th>Nama Barang</th>
-                  <th style={{ width: '70px' }}>Satuan</th>
-                  <th style={{ width: '96px' }}>Qty Beli</th>
-                  <th style={{ width: '140px' }}>Harga Satuan Riil</th>
-                  <th style={{ width: '132px', textAlign: 'right' }}>Subtotal</th>
+                  {/* t_cde1b8ad: judul kolom dibungkus <div> ber-white-space
+                      normal. Aturan bersama `th { white-space: nowrap
+                      !important }` membuat judul "Harga Satuan Riil" jadi satu
+                      baris 149px dan menahan tabel di 446px; div anak boleh
+                      wrap sendiri sehingga tabel bisa mengecil sampai pas di
+                      layar HP tanpa mengubah styles/globals.css. */}
+                  <th style={{ padding: '7px 6px' }}>
+                    <div style={{ whiteSpace: 'normal' }}>Nama Barang</div>
+                  </th>
+                  <th style={{ width: '96px', padding: '7px 6px' }}>
+                    <div style={{ whiteSpace: 'normal' }}>Qty Beli</div>
+                  </th>
+                  <th style={{ width: '92px', padding: '7px 5px' }}>
+                    <div style={{ whiteSpace: 'normal' }}>Harga Satuan</div>
+                  </th>
+                  <th style={{ width: '84px', textAlign: 'right', padding: '7px 5px' }}>
+                    <div style={{ whiteSpace: 'normal' }}>Subtotal</div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -153,15 +228,26 @@ export default function PurchaseForm({
                   const err = v.itemErrors[it.prItemId] || {}
                   return (
                     <tr key={it.prItemId} data-testid={`form-item-${it.prItemId}`}>
-                      <td>
+                      {/* class "cell-wrap" WAJIB di sini: aturan bersama
+                          `th, td { white-space: nowrap !important }` di
+                          styles/globals.css TIDAK bisa dilawan dengan inline
+                          style (perilaku CSS: !important > inline). Tanpa
+                          class ini, sel nama jadi satu baris tak terpotong
+                          (≈419px) dan menyeret lebar tabel ke 820px di layar
+                          HP — dialog jadi harus digeser ke samping.
+                          cell-wrap sudah didefinisikan global
+                          (white-space:normal !important; overflow-wrap:anywhere),
+                          jadi tidak ada file CSS bersama yang perlu diubah. */}
+                      <td className="cell-wrap">
                         <b style={{ fontSize: '12.5px' }}>{it.itemName}</b>
                         <div className="purchase-muted" style={{ fontSize: '10.5px' }}>
                           {it.prNumber}{it.projectName ? ` · ${it.projectName}` : ''}
                           {it.qtyPr ? ` · PR: ${it.qtyPr} ${it.unit}` : ''}
                         </div>
                       </td>
-                      <td>{it.unit || '—'}</td>
-                      <td>
+                      <td style={{ padding: '7px 6px' }}>
+                        {/* Satuan menempel di bawah input qty (bukan kolom
+                            sendiri) — menjaga tabel cukup sempit di HP. */}
                         <input
                           type="number"
                           min="0"
@@ -171,7 +257,11 @@ export default function PurchaseForm({
                           onChange={e => setItem(it.prItemId, 'qty', e.target.value)}
                           data-testid={`qty-${it.prItemId}`}
                           aria-label={`Qty beli ${it.itemName}`}
+                          style={{ minWidth: 0, width: '100%' }}
                         />
+                        <span className="purchase-muted" style={{ display: 'block', fontSize: '10.5px', marginTop: '2px' }}>
+                          {it.unit || '—'}
+                        </span>
                         {touched && err.qty && <span className="purchase-field-error">{err.qty}</span>}
                       </td>
                       <td>
@@ -204,56 +294,79 @@ export default function PurchaseForm({
           </div>
         </div>
 
-        <div className="purchase-cost-grid">
-          <label>
-            Biaya Lain / Ongkir (Rp)
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="0"
-              value={form.biayaLain}
-              onChange={e => setField('biayaLain', e.target.value.replace(/[^\d]/g, ''))}
-              data-testid="form-extra-cost"
-            />
-            <span className="purchase-field-hint">Masuk beban operasional WS, bukan harga material.</span>
-          </label>
-          <label>
-            Diskon Toko (Rp)
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="0"
-              value={form.diskon}
-              onChange={e => setField('diskon', e.target.value.replace(/[^\d]/g, ''))}
-              data-testid="form-discount"
-            />
-            <span className="purchase-field-hint">Mengurangi total nota.</span>
-          </label>
-        </div>
-
+        {/* 3) TOTAL NOTA RIIL — angka utama, selalu terlihat.
+               Tambahan & potongan dilipat di bawahnya (tidak dihapus). */}
         <div className="purchase-totals" data-testid="purchase-totals">
-          <div className="purchase-totals-row">
-            <span>Total Material</span>
-            <b>{rupiah(totals.material)}</b>
-          </div>
-          <div className="purchase-totals-row">
-            <span>Biaya Lain / Ongkir</span>
-            <b>{totals.biayaLain ? rupiah(totals.biayaLain) : '—'}</b>
-          </div>
-          <div className="purchase-totals-row">
-            <span>Diskon Toko</span>
-            <b>{totals.diskon ? `− ${rupiah(totals.diskon)}` : '—'}</b>
-          </div>
-          <div className="purchase-totals-row purchase-totals-grand">
+          <div
+            className="purchase-totals-row purchase-totals-grand"
+            style={{ borderTop: 'none', paddingTop: 0, marginTop: 0 }}
+          >
             <span>Total Nota Riil</span>
             <b data-testid="purchase-grand-total">{rupiah(totals.total)}</b>
           </div>
+          <div className="purchase-totals-row">
+            <span>Material</span>
+            <b>{rupiah(totals.material)}</b>
+          </div>
+          {(adaTambahan || totals.biayaLain > 0) && (
+            <div className="purchase-totals-row">
+              <span>Biaya Lain / Ongkir</span>
+              <b>{totals.biayaLain ? rupiah(totals.biayaLain) : '—'}</b>
+            </div>
+          )}
+          {(adaTambahan || totals.diskon > 0) && (
+            <div className="purchase-totals-row">
+              <span>Diskon toko</span>
+              <b>{totals.diskon ? `− ${rupiah(totals.diskon)}` : '—'}</b>
+            </div>
+          )}
+          <details
+            className="purchase-costs-fold"
+            open={adaTambahan}
+            style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '7px', marginTop: '2px' }}
+          >
+            <summary
+              style={{
+                cursor: 'pointer', listStyle: 'revert', fontSize: '11.5px',
+                fontWeight: 700, color: 'var(--text-muted)'
+              }}
+            >
+              ＋ Tambahan &amp; potongan (ongkir / diskon — opsional)
+            </summary>
+            <div className="purchase-cost-grid" style={{ marginTop: '8px' }}>
+              <label>
+                Biaya Lain / Ongkir (Rp)
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={form.biayaLain}
+                  onChange={e => setField('biayaLain', e.target.value.replace(/[^\d]/g, ''))}
+                  data-testid="form-extra-cost"
+                />
+                <span className="purchase-field-hint">Masuk beban operasional WS, bukan harga material.</span>
+              </label>
+              <label>
+                Diskon Toko (Rp)
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={form.diskon}
+                  onChange={e => setField('diskon', e.target.value.replace(/[^\d]/g, ''))}
+                  data-testid="form-discount"
+                />
+                <span className="purchase-field-hint">Mengurangi total nota.</span>
+              </label>
+            </div>
+          </details>
         </div>
 
+        {/* 4) BUKTI — dua kotak sejajar (opsional) */}
         <div className="purchase-attach-grid">
           {[
-            { kind: 'nota', label: 'Foto Nota / Struk Toko', field: 'buktiNota' },
-            { kind: 'transfer', label: 'Bukti Transfer / Pembayaran', field: 'buktiTransfer' }
+            { kind: 'nota', label: 'Foto Nota / Struk', field: 'buktiNota' },
+            { kind: 'transfer', label: 'Bukti Transfer', field: 'buktiTransfer' }
           ].map(({ kind, label, field }) => (
             <div className="purchase-attach-box" key={kind}>
               <div className="purchase-attach-title">{label} <span className="purchase-muted">(opsional)</span></div>
@@ -280,6 +393,7 @@ export default function PurchaseForm({
           ))}
         </div>
 
+        {/* 5) CATATAN — satu baris, opsional */}
         <label>
           Catatan Nota (opsional)
           <textarea

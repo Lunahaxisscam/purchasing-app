@@ -11,6 +11,7 @@ import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
 import SalesInvoiceModule from '../modules/sales-invoice/view'
+import RapModule from '../modules/rap/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
@@ -750,7 +751,7 @@ export default function App() {
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
               disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -812,6 +813,22 @@ export default function App() {
           )
         ) : page === 'settings' ? (
           <Settings role={role} session={session} />
+        ) : page === 'rap' ? (
+          // RAP (t_71d95cfe) — rencana anggaran PELAKSANAAN internal,
+          // admin-only (pola guard 3 lapis yang sama dengan RAB & BOQ).
+          // Modul ini DRAFT-ONLY: tidak ada tabel RAP dan tidak ada tulisan
+          // DB dari halaman ini (lihat docs/rap-contract.md). Guard render
+          // di sini mencegah non-admin yang memaksa page='rap'.
+          role === 'admin' ? (
+            <RapModule
+              projects={rows.projects || []}
+              say={setNotice}
+              setPage={setPage}
+              session={session}
+            />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
         ) : page === 'receivings' ? (
           // ============================================================
           // MODUL PURCHASE — HALAMAN SENDIRI (t_9109cf5e, arahan DAT)
