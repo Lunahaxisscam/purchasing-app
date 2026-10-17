@@ -337,7 +337,16 @@ if (CHECKS.some(c => !c.ok)) process.exit(1)
     check('E4', 'cabang rab_boq di-guard role admin', True, "role === 'admin'" in block)
     check('E5', 'fallback non-admin "khusus administrator"', True, 'khusus administrator' in block)
     check('E6', 'BoqModule diimpor di pages/index.js', True, "from '../modules/rab-boq/view'" in idx_src)
-    check('E7', 'exclude dari tombol refresh global', True, "'rab_boq', 'settings']" in idx_src)
+    # E7 — diperbarui oleh integrator t_35cd0354. Assertion lama mencari literal
+    # "'rab_boq', 'settings']" (dua entri BERSEMBELAHAN di daftar exclude tombol
+    # Perbarui global). Setelah modul sales_invoice/rap/rap_compare/crm/labor_stock
+    # masuk, 'rab_boq' tidak lagi bersebelahan dengan 'settings' — padahal
+    # perilakunya benar dan justru makin penting. Diuji ulang sebagai KEANGGOTAAN
+    # daftar exclude (semantik yang sama, tidak lebih longgar), dan sekaligus
+    # memastikan halaman rab_boq memang punya tombol refresh sendiri.
+    m_ex = re.search(r"!\[([^\]]*)\]\.includes\(page\)", idx_src)
+    excluded = m_ex.group(1) if m_ex else ''
+    check('E7', 'exclude dari tombol refresh global', True, "'rab_boq'" in excluded)
     check('E8', 'registry: rab_boq adminOnly source core', True, bool(re.search(r"id: 'rab_boq'.*?adminOnly: true.*?source: 'core'", reg_src, re.S)))
     # ModuleView TIDAK menyentuh rab_boq
     mv_src = open(f'{REPO}/components/ModuleView.js', encoding='utf-8').read()
