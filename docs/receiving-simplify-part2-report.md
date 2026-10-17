@@ -59,9 +59,25 @@ tidak ada data legacy dihapus.
 
 ---
 
-## 3. Kontrak perilaku yang dijaga (bukti test)
+## 3. Reuse, bukan reimplementasi (arahan task)
 
-### 3.1 Receiving — satu form, dimensi terpisah
+Diperiksa & dipakai ulang apa adanya dari task sebelumnya — **tidak ada duplikasi logika**:
+
+| Dari | Yang dipakai ulang |
+|---|---|
+| **t_5196b689** (`docs/receipt-flow-contract.md`) | `receiptLogic.js` (`buildRows`/`validateItem`/`validateForm`/`buildSavePlan`), `receiptSave.js` (CAS legacy), `loadItemsFromPr`, modal `receiptForm.jsx` — hanya ditambah mode READY, tidak ditulis ulang |
+| **t_b418827b** (`docs/handover-gap-proposal.md`) | `display.js` (semantik `diserahkan_at`, label "Rincian barang belum tersedia", `validatePrototypeRow`/`prototypeTotals`), `confirm.js` (CAS header, tetap jalur LEGACY), `save.js` (edit metadata terkunci) |
+| **t_48f6b336** | kategori material per `material_id` — tidak disentuh; grouping vendor memakai `pr_items.vendor_id` (relasi yang sudah ada) |
+| **t_ac0b39c0 / t_e88c28fb** | label sumber harga (HISTORIS/MASTER/MANUAL) tidak disentuh; tidak ada perubahan estimator |
+| **t_090127ad** | acuan manual sesi tidak disentuh |
+
+Tidak ada file milik reviewer (`modules/rab-boq/*`, `modules/sales-invoice/*`) yang diubah. Tidak ada worker aktif yang di-overwrite: pekerjaan dilakukan di worktree terpisah `/tmp/receiving-wt` pada branch `feat/receiving-simplify/t_7bc6246b`; `main` (3870ef7) tidak disentuh dan preview 3001 tidak di-restart.
+
+---
+
+## 4. Kontrak perilaku yang dijaga (bukti test)
+
+### 4.1 Receiving — satu form, dimensi terpisah
 - `datang ≠ rusak ≠ tujuan(ws/tukang) ≠ retur`; `baik = datang − rusak`;
   `Σtujuan ≤ baik`; tukang ⇒ nama penerima; buang ⇒ konfirmasi (foto opsional).
   (A1, A3, C5–C6, E4)
@@ -75,14 +91,14 @@ tidak ada data legacy dihapus.
 - Tanpa tabel ledger: submit dimensi per barang **diblok**, **nol tulisan**
   (bukan packing ke `note`). (C6h, E1h, E1i)
 
-### 3.2 Retur — tanpa ketik ulang, tanpa double-cost
+### 4.2 Retur — tanpa ketik ulang, tanpa double-cost
 - Baris retur diambil dari event dengan `qty_rusak > 0` dikurangi yang sudah
   diretur; item/qty/satuan tidak diketik ulang. (A5, E2d, E2j)
 - `return_lines` merujuk `receiving_event_id`; `quantity_received` **tidak**
   berubah (nol update `receiving_items`). (C6d)
 - Status `PENDING` = *menunggu dikembalikan*, bukan *sudah dikembalikan*. (A1e)
 
-### 3.3 Handover — prefill alokasi, konfirmasi fisik terpisah
+### 4.3 Handover — prefill alokasi, konfirmasi fisik terpisah
 - Prefill = `tujuan_tukang − Σ handover_items` lintas dokumen (tanpa hitung
   ganda); penerima boleh beda per baris. (A6, A8, E2b4–E2b6)
 - Konfirmasi menulis `status=CONFIRMED` + `diserahkan_at` **dan** `handover_items`
@@ -92,7 +108,7 @@ tidak ada data legacy dihapus.
 - Konfirmasi header-only (tanpa rincian) tetap tersedia saat skema belum ada,
   dengan pesan bahwa rincian belum tersimpan. (E1b, R1–R6 handover 51/51)
 
-### 3.4 PR multi-vendor → pembelian per vendor/nota
+### 4.4 PR multi-vendor → pembelian per vendor/nota
 - Grouping stabil per vendor; vendor "belum ditentukan" ditaruh paling akhir
   (tidak tampak seperti nota nyata). (A7a, A7i)
 - Nota asal dipakai ulang untuk vendor pertama; nota baru untuk vendor lain;
@@ -104,7 +120,7 @@ tidak ada data legacy dihapus.
 - **Readback** setelah eksekusi: setiap item harus berada di nota vendornya,
   kalau tidak → dilaporkan gagal (bukan klaim sukses). (D3e)
 
-### 3.5 Role & foto
+### 4.5 Role & foto
 - Tidak ada perubahan role/auth. Semua tulis ledger lewat RPC `SECURITY DEFINER`
   yang di kontrak diminta `REVOKE ... FROM PUBLIC, anon`.
 - Foto bukti tetap **opsional**; arsip Drive belum aktif → yang disimpan hanya
@@ -112,7 +128,7 @@ tidak ada data legacy dihapus.
 
 ---
 
-## 4. Capability probe (kenapa ini penting)
+## 5. Capability probe (kenapa ini penting)
 
 `getReceiptCapability()` melakukan 3 SELECT read-only (limit 1) ke
 `receiving_events`, `handover_items`, `v_receipt_progress`, lalu:
@@ -137,7 +153,7 @@ migrasi aditif + RPC, probe otomatis berpindah ke mode READY tanpa deploy ulang
 
 ---
 
-## 5. Yang dibutuhkan dari schema owner (t_03b41644)
+## 6. Yang dibutuhkan dari schema owner (t_03b41644)
 
 Ringkas dari `docs/receiving-events-contract.md`:
 
@@ -160,7 +176,7 @@ perubahan hanya di satu file itu (bukan di UI).
 
 ---
 
-## 6. Verifikasi (angka nyata, runtime nyata)
+## 7. Verifikasi (angka nyata, runtime nyata)
 
 | Harness | Hasil |
 |---|---|
@@ -191,7 +207,7 @@ tambah 36/43 cek baru di harness baru).
 
 ---
 
-## 7. Batasan yang masih ada (jujur)
+## 8. Batasan yang masih ada (jujur)
 
 1. **Tidak ada penyimpanan per barang di produksi hari ini.** Semua jalur
    READY menunggu migrasi t_03b41644. UI menyatakan ini eksplisit (banner,
@@ -215,7 +231,7 @@ tambah 36/43 cek baru di harness baru).
 
 ---
 
-## 8. Cara menjalankan ulang verifikasi
+## 9. Cara menjalankan ulang verifikasi
 
 ```bash
 # logic + render (sandbox, tanpa DB)
