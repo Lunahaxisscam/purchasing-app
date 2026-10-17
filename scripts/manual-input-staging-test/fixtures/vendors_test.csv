@@ -1,0 +1,9 @@
+record_id,external_ref,source_file_id,source_row,notes,name,phone,store_link,supplier_category,contact
+,EXT-V-001,DRV-testnota01,3,vendor baru eligible kategori kanonik,[CONTOH] Toko plywood Baru,081200000003,,Plywood & Board,Budi
+22222222-2222-2222-2222-222222222221,EXT-V-002,DRV-testnota01,5,vendor lama update nomor telepon (record_id cocok master),[CONTOH] Toko Kayu Jaya,081299900001,,Plywood & Board,
+,EXT-V-003,,,kategori tak dikenal harus ditolak,[CONTOH] Toko Kategori Aneh,081200000004,,Kategori Aneh,
+,EXT-V-004,,,vendor tanpa kategori wajib ditolak,[CONTOH] Toko Tanpa Kategori,081200000005,,,
+,EXT-V-001,,,duplikat external_ref dalam batch,[CONTOH] Toko Ref Dobel,081200000006,,Hardware & Fitting,
+,EXT-V-007,,,nama duplikat dgn baris lain dalam batch (casefold),[CONTOH] TOKO plywood   baru,081200000007,,Plywood & Board,
+,EXT-V-008,,,INSERT intent tapi nama sudah ada di master = CONFLICT,[CONTOH] Toko Kayu Jaya,081200000008,,Hardware & Fitting,
+22222222-2222-2222-2222-222222222222,EXT-V-009,DRV-testnota01,9,UPDATE intent nama beda dari master id = REJECTED (tidak menebak),[CONTOH] Nama Tidak Ada Di Master,0812xxxx009,,Hardware & Fitting,

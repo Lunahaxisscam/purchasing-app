@@ -1,0 +1,6 @@
+record_id,external_ref,source_file_id,source_row,notes,vendor_name,category
+,EXT-VC-001,,,relasi multi-kategori utk vendor master,[CONTOH] Toko Kayu Jaya,Hardware & Fitting
+,EXT-VC-002,,,vendor tidak di master ditolak,[CONTOH] Vendor Tak Dikenal,HPL & Edging
+,EXT-VC-003,,,kategori non-kanonik ditolak,[CONTOH] Toko Kayu Jaya,Kategori Lain
+,EXT-VC-004,,,pasangan duplikat dalam batch ditolak,[CONTOH] Toko Kayu Jaya,Hardware & Fitting
+,EXT-VC-005,,,pasangan sudah ada di master = SKIP_UNCHANGED,[CONTOH] Toko Kayu Jaya,Plywood & Board
