@@ -1420,7 +1420,17 @@ textarea {
     z-index: 150;
   }
 
-  aside, aside.app-sidebar {
+  /* Top app bar HARUS di atas scrim: tombol ☰/✕ adalah satu-satunya kontrol
+     tutup selain tap scrim. Sebelumnya header z-index:100 < scrim 150
+     sehingga tombol tutup ter-intercept scrim (temuan t_eebe4678). */
+  .mobile-header {
+    z-index: 160;
+  }
+
+  /* Drawer HANYA `aside.app-sidebar`. Selector `aside` polos sebelumnya juga
+     menangkap <aside class="boq-side"> milik RAB & BOQ sehingga kartu
+     Summary/Settings BOQ jadi fixed + off-screen di <=1024px. */
+  aside.app-sidebar {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -1437,6 +1447,21 @@ textarea {
     display: flex !important;
     flex-direction: column !important;
     padding: 24px 16px !important;
+    /* dvh: drawer tidak terpotong saat address bar mobile tampil/hilang. */
+    height: 100dvh !important;
+    /* Safe area iOS: item terakhir tidak tertutup home indicator. */
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    /* Scrollbar gelap agar tidak muncul sebagai garis putih terang. */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    overscroll-behavior: contain;
+  }
+
+  aside.app-sidebar::-webkit-scrollbar { width: 6px; }
+  aside.app-sidebar::-webkit-scrollbar-track { background: transparent; }
+  aside.app-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
   }
 
   aside.sidebar-open, aside.app-sidebar.sidebar-open {
@@ -7240,3 +7265,292 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
   .crm-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
+/* ============================================================
+   PANEL BERTABEL LEBAR — scroll lokal (t_eebe4678)
+   ------------------------------------------------------------
+   Panel yang memuat <table> lebar (mis. "Rekap Pos Umum" di Finance)
+   sebelumnya `overflow-x: visible` sehingga tabel 1266px melebarkan BODY
+   jadi 1591px pada layar 1440 (overflow horizontal halaman). Dibuat
+   kontainer scroll lokal per panel: halaman tidak lagi bergeser, tabel
+   tetap utuh dan bisa digeser di dalam kartunya.
+   Di-scope ke panel yang PUNYA anak <table> langsung, jadi panel teks
+   biasa tidak terpengaruh.
+   ============================================================ */
+.content .panel:has(> table) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+}
+
+/* ============================================================
+   MOBILE RESPONSIVE POLISH (t_eebe4678) — append-only & scoped
+   ------------------------------------------------------------
+   Target: 360 / 390 / 412 / 768 / 1024 px tanpa regresi 1440.
+   Prinsip:
+   - TIDAK memakai `!important` global baru; hanya selektor sempit di
+     dalam media query dan pada elemen yang memang perlu menimpa rule
+     mobile lama yang sudah ada (mis. tinggi pill).
+   - TIDAK menyembunyikan field wajib / rincian item.
+   - Warna Noir (obsidian + champagne) dipertahankan; hanya ukuran
+     sentuh, tipografi input, dan geometri yang disesuaikan.
+   ============================================================ */
+
+/* --- 1. Token mobile: tinggi sentuh minimum & font input anti-zoom iOS --- */
+:root {
+  --touch-min: 44px;
+  --input-font-mobile: 16px;
+}
+
+@media (max-width: 1024px) {
+  /* iOS Safari auto-zoom saat input < 16px. Dinaikkan ke 16px HANYA di
+     layar sentuh kecil supaya tampilan desktop tidak berubah.
+     `!important` diperlukan karena blok mobile lama memaksa
+     `.toolbar-actions .search-input { font-size: 13.5px !important }`. */
+  .content input:not([type='checkbox']):not([type='radio']),
+  .content select,
+  .content textarea,
+  .modal input:not([type='checkbox']):not([type='radio']),
+  .modal select,
+  .modal textarea,
+  .toolbar-actions .search-input {
+    font-size: var(--input-font-mobile) !important;
+  }
+
+  /* Label angka & nominal: tabular supaya digit rata (qty vs harga). */
+  .mobile-val,
+  .pr-item-qty,
+  .pr-item-price,
+  td.pr-item-price,
+  .num,
+  .rupiah {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* --- 2. Toolbar & filter: swipe satu baris, sentuh >= 44px --- */
+  .filter-tabs {
+    /* sudah flex + overflow-x di blok lama; tambahkan snap & padding tepi
+       supaya pill pertama/terakhir tidak terpotong saat digeser. */
+    scroll-snap-type: x proximity;
+    padding-inline: 2px;
+    scrollbar-width: none;
+  }
+  .filter-tabs::-webkit-scrollbar { height: 0; }
+
+  /* Modul PR membungkus pill dalam <div style="flex-wrap:wrap"> (inline) di
+     dalam .filter-tabs. Di mobile, wrapper itu harus jadi baris geser juga
+     supaya tidak pecah 3 baris — diselesaikan lewat CSS tanpa mengubah file
+     modul milik owner lain. */
+  .filter-tabs > div {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .filter-tabs .pill {
+    min-height: var(--touch-min);
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 16px;
+    font-size: 13px;
+    scroll-snap-align: start;
+  }
+
+  /* Tombol aksi header & toolbar utama jadi target sentuh penuh. */
+  .content > header .outline,
+  .toolbar-actions button,
+  .btn-create-module,
+  .btn-back-active,
+  .btn-print-template,
+  .list-show-more-actions .outline {
+    min-height: var(--touch-min);
+  }
+
+  .btn-create-module { min-height: var(--touch-min); }
+
+  /* --- 3. Form & modal: tinggi maksimum viewport + scroll internal --- */
+  .modal {
+    /* dvh: tidak terpotong saat address bar mobile muncul/hilang. */
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+    align-items: flex-start;
+  }
+
+  .dialog {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Soft-keyboard: tetap bisa digulir ke field terakhir. */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Header & footer dialog tetap menempel supaya tombol Simpan/Batal
+     selalu terjangkau tanpa menggulir seluruh form. */
+  .dialog .dialoghead {
+    position: sticky;
+    top: -18px;
+    z-index: 3;
+  }
+  .dialog .actions {
+    position: sticky;
+    bottom: -18px;
+    z-index: 3;
+  }
+  .dialog .actions button {
+    min-height: var(--touch-min);
+    flex: 1 1 auto;
+  }
+
+  /* Field form: label tidak terpotong, input full width. */
+  .dialog label { font-size: 13px; }
+  .dialog input,
+  .dialog select,
+  .dialog textarea { min-height: var(--touch-min); }
+
+  /* --- 4. Pemilih item PR (material / vendor / qty / estimasi) --- */
+  .pr-picker-row-2,
+  .pr-picker-row-3 {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .pr-picker-row-3 button,
+  .pr-picker-row-2 select { width: 100%; min-height: var(--touch-min); }
+
+  /* --- 4b. Editor item di dalam form PR (kode/nama/qty/satuan/subtotal/aksi)
+     Tabel 6 kolom ini tadinya memaksa lebar 542px di dialog 361px sehingga
+     SELURUH dialog ikut melebar (scrollWidth 607). Di mobile kolom dikecilkan
+     + nama material dibungkus, jadi rincian item tetap TERBACA PENUH tanpa
+     scroll horizontal dan tanpa menyembunyikan kolom. --- */
+  .dialog .material-picker-box table {
+    table-layout: fixed;
+    width: 100% !important;
+    font-size: 10.5px !important;
+  }
+  .dialog .material-picker-box table th,
+  .dialog .material-picker-box table td {
+    padding: 4px 3px !important;
+    font-size: 10.5px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+  /* Lebar kolom: kode | nama | qty | satuan | subtotal | aksi */
+  .dialog .material-picker-box table th:nth-child(1) { width: 21%; }
+  .dialog .material-picker-box table th:nth-child(2) { width: 26%; }
+  .dialog .material-picker-box table th:nth-child(3) { width: 17%; }
+  .dialog .material-picker-box table th:nth-child(4) { width: 14%; }
+  .dialog .material-picker-box table th:nth-child(5) { width: 15%; }
+  .dialog .material-picker-box table th:nth-child(6) { width: 7%; }
+
+  /* Input qty & harga di dalam item: tetap bisa disentuh (>=44px) tapi
+     tidak lagi memaksa lebar kolom. */
+  .dialog .material-picker-box table input {
+    width: 100% !important;
+    min-width: 0;
+    padding: 6px 4px !important;
+    font-size: 16px !important; /* anti-zoom iOS */
+  }
+  .dialog .material-picker-box table select {
+    max-width: 100% !important;
+    font-size: 16px !important;
+  }
+  /* Baris "Rencana beli" (kategori/vendor/estimasi) jadi kolom bertumpuk. */
+  .dialog .material-picker-box table td[colspan] > div {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .dialog .material-picker-box table td[colspan] label {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .dialog .material-picker-box table td[colspan] button {
+    min-height: var(--touch-min);
+  }
+
+  /* --- 5. Kartu mobile: angka & harga sejajar kanan, tidak meluber --- */
+  .mobile-card { min-width: 0; }
+  .mobile-card-row { align-items: flex-start; }
+  .mobile-label { flex: 0 0 auto; }
+  .mobile-val {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .mobile-items-box { overflow-wrap: anywhere; }
+  .mobile-item-line { font-size: 12.5px; }
+
+  /* Aksi kartu: tombol penuh, >= 44px. */
+  .mobile-card-actions button,
+  .mobile-card-actions .outline,
+  .mobile-card-actions .btn-finish,
+  .mobile-card-actions .btn-delete {
+    min-height: var(--touch-min);
+    font-size: 13px !important;
+  }
+
+  /* --- 6. Tabel lebar: scroll LOKAL di dalam kartu panel, bukan overflow BODY.
+     Panel yang memuat tabel lebar (Finance rekap, Project Finance, Upah) tadinya
+     `overflow-x: visible` sehingga <table> melebarkan BODY (+467px @768).
+     Menjadikan panel sebagai kontainer scroll lokal menyelesaikan itu TANPA
+     mengubah display tabel (aman untuk tabel finansial). */
+  .content .panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    max-width: 100%;
+  }
+
+  /* --- 7. Admin Suite: Budgeting / Finance / ProjectFinance / Upah --- */
+  /* Kontrol filter & segmented di modul admin juga jadi target sentuh penuh
+     (sebelumnya 29px; 40px masih di bawah standar 44px). */
+  .panel .pill,
+  .budget-overview-strip .pill,
+  .filter-tabs .pill { min-height: var(--touch-min); }
+
+  /* Select & status pill di tabel/kartu admin (Projects, Upah, Budgeting). */
+  .content select,
+  .content .status-select { min-height: var(--touch-min); }
+
+  /* Tautan kontak vendor (telp / link toko) jadi target sentuh penuh. */
+  .mobile-card a[href] {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-min);
+  }
+
+  /* Tombol sekunder BOQ ("Tandai terkirim", Backup/Pulihkan JSON).
+     Style BOQ di-inject komponen (styled <style>) sehingga muncul SETELAH
+     globals.css — pakai prefix .boq-root agar spesifisitas menang tanpa
+     menyentuh file modul milik owner lain. */
+  .boq-root .boq-btn,
+  .boq-root .boq-quiet-link { min-height: var(--touch-min); }
+  .boq-root .boq-quiet-link {
+    display: inline-flex;
+    align-items: center;
+    padding-inline: 8px;
+  }
+
+  /* Tabel admin tidak memaksa lebar minimum di layar kecil — biarkan
+     scroll lokal per panel. */
+  .content table { min-width: 0; }
+
+  /* PDF / export: tombol tetap terlihat penuh & tidak terpotong. */
+  .boq-header-actions .boq-btn,
+  .btn-print-template,
+  .print-template-row .outline {
+    min-height: var(--touch-min);
+  }
+
+  /* BOQ: kartu ringkasan & kontrol bertumpuk, tidak fixed. */
+  .boq-side { position: static; }
+}
+
+/* Layar sangat sempit (<=380px): rapatkan padding, jaga kontras. */
+@media (max-width: 380px) {
+  .content { padding-inline: 10px; }
+  .mobile-card { padding: 13px; }
+  .mobile-card-title { font-size: 14.5px; }
+  .dialog { padding: 16px; }
+  .filter-tabs .pill { padding: 10px 13px; font-size: 12.5px; }
+}

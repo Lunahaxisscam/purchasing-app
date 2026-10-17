@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { navSections, labels } from '../lib/constants'
 
 // Ikon SVG inline (stroke-based, 18px) — memberi isyarat visual per menu
@@ -34,13 +34,85 @@ function NavIcon({ id }) {
   )
 }
 
+// Mobile breakpoint — SAMA dengan media query drawer di globals.css.
+// Dipakai untuk menutup drawer saat layar melebar ke desktop, supaya tidak
+// ada scrim "yatim" yang tetap menutup konten setelah layout berubah.
+const MOBILE_MAX_WIDTH = 1024
+
 export default function Sidebar({ page, setPage, session, logout, role = 'user' }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const drawerRef = useRef(null)
+  const menuBtnRef = useRef(null)
 
   const handleNavClick = (id) => {
     setPage(id)
     setMobileMenuOpen(false)
   }
+
+  const closeDrawer = (restoreFocus = false) => {
+    setMobileMenuOpen(false)
+    if (restoreFocus && menuBtnRef.current) menuBtnRef.current.focus()
+  }
+
+  // Escape menutup drawer (aksesibilitas keyboard). Listener hanya aktif
+  // saat drawer terbuka, jadi tidak menambah handler global permanen.
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        closeDrawer(true)
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [mobileMenuOpen])
+
+  // Scroll lock hanya selama drawer terbuka, dan WAJIB dibersihkan pada
+  // unmount / navigasi supaya body tidak tertinggal terkunci.
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const body = document.body
+    const prev = body.style.overflow
+    body.style.overflow = 'hidden'
+    return () => { body.style.overflow = prev }
+  }, [mobileMenuOpen])
+
+  // Resize mobile→desktop: tutup drawer supaya scrim tidak tertinggal.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onResize = () => {
+      if (window.innerWidth > MOBILE_MAX_WIDTH) setMobileMenuOpen(false)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // Fokus awal ke item pertama saat drawer dibuka (keyboard / screen reader).
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const first = drawerRef.current && drawerRef.current.querySelector('nav button')
+    if (first) first.focus({ preventScroll: true })
+  }, [mobileMenuOpen])
+
+  // Di mobile, drawer yang tertutup hanya digeser ke luar layar (transform),
+  // sehingga 16 tombol menu tetap bisa dijangkau Tab padahal tak terlihat.
+  // `inert` membuatnya benar-benar tidak fokusable selama tertutup; di
+  // desktop atribut ini selalu dilepas supaya sidebar tetap normal.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const el = drawerRef.current
+    if (!el) return
+    const mq = window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`)
+    const sync = () => {
+      const shouldInert = mq.matches && !mobileMenuOpen
+      if (shouldInert) el.setAttribute('inert', '')
+      else el.removeAttribute('inert')
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [mobileMenuOpen])
 
   // Section bertanda adminOnly (mis. Finance) hanya tampil untuk role admin.
   const visibleSections = navSections.filter(sec => !sec.adminOnly || role === 'admin')
@@ -62,24 +134,34 @@ export default function Sidebar({ page, setPage, session, logout, role = 'user' 
         </div>
         <button
           type="button"
+          ref={menuBtnRef}
           className="mobile-menu-btn"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle Menu"
+          onClick={() => setMobileMenuOpen(v => !v)}
+          aria-label={mobileMenuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="app-sidebar-nav"
         >
           {mobileMenuOpen ? '✕' : '☰'}
         </button>
       </div>
 
-      {/* Mobile Drawer Backdrop */}
+      {/* Mobile Drawer Backdrop — hanya ter-mount saat drawer terbuka, jadi
+          tidak pernah ada scrim "yatim" yang mengunci konten. */}
       {mobileMenuOpen && (
         <div
           className="mobile-backdrop"
-          onClick={() => setMobileMenuOpen(false)}
+          onClick={() => closeDrawer(true)}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar: Desktop persistent, Mobile off-canvas drawer */}
-      <aside className={`app-sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
+      <aside
+        id="app-sidebar-nav"
+        ref={drawerRef}
+        className={`app-sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}
+        aria-label="Navigasi utama"
+      >
         <div className="brand">
           <span>NL</span>
           <div>
@@ -99,6 +181,7 @@ export default function Sidebar({ page, setPage, session, logout, role = 'user' 
                   className={page === id ? 'active' : ''}
                   onClick={() => handleNavClick(id)}
                   title={name}
+                  aria-current={page === id ? 'page' : undefined}
                 >
                   <NavIcon id={id} />
                   <span className="nav-label">{name}</span>

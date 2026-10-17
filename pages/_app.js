@@ -1,6 +1,15 @@
 import Head from 'next/head'
 import '../styles/globals.css'
 
+// CATATAN VIEWPORT (t_eebe4678): tag <meta name="viewport"> hidup HANYA di
+// sini, TIDAK lagi diduplikasi di pages/_document.js.
+//
+// Sebelumnya tag yang sama dipasang di _app DAN _document, sehingga HTML
+// memuat dua tag viewport (Next.js menyuntik default `width=device-width`
+// lebih dulu, lalu tag kita menyusul). Dua tag = perilaku tidak terdefinisi
+// dan menyulitkan diagnosis bug mobile. Konvensi Next.js yang didukung: satu
+// sumber saja; `next/head` di _app dipilih karena tetap ter-render di HTML
+// awal (SSR/SSG) dan bisa di-override per halaman bila perlu.
 export default function MyApp({ Component, pageProps }) {
   return (
     <>
