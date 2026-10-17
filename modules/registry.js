@@ -176,6 +176,23 @@ export const modules = [
     ]
   },
   {
+    // Invoice Penjualan / Sales Invoice (t_ff3a96cf) — tahap awal SHELL:
+    // menu + halaman + daftar/empty state admin-only. Arahan DAT: "buka dulu
+    // modulnya, nanti terminnya menyusul". Halaman source:'core' (dirender
+    // pages/index.js, bukan tabel ModuleView) — pola RAB & BOQ. Tidak ada
+    // tombol buat/simpan: trigger draft vs invoice resmi & termin belum
+    // diputuskan DAT; tidak ada tabel DB (freeze migrasi, lihat README).
+    id: 'sales_invoice',
+    label: 'Invoice Penjualan',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/sales-invoice/view.jsx',
+      'modules/sales-invoice/README.md',
+      'scripts/sales-invoice-test/run.py'
+    ]
+  },
+  {
     id: 'settings',
     label: 'Settings',
     adminOnly: true,

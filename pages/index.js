@@ -10,9 +10,10 @@ import TukangUpah from '../components/TukangUpah'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
+import SalesInvoiceModule from '../modules/sales-invoice/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
-import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants' 
+import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 
 export default function App() {
@@ -749,7 +750,7 @@ export default function App() {
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
               disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -796,6 +797,20 @@ export default function App() {
           // sehingga guard ini bukan satu-satunya lapisan.
           role === 'admin' ? (
             <BoqModule projects={rows.projects || []} refresh={loadAll} />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'sales_invoice' ? (
+          // Invoice Penjualan (t_ff3a96cf) — modul admin-only, guard RENDER
+          // sama polanya dengan RAB & BOQ: role HANYA dari profiles (server
+          // data); non-admin yang memaksa page='sales_invoice' tetap dapat
+          // panel "khusus administrator". Menu + kartu dashboard disembunyikan
+          // utk non-admin. TAHAP AWAL: tidak ada props data invoice karena
+          // belum ada tabel DB — modul menampilkan empty state jujur; bila
+          // kelak tabel `sales_invoices` dibuat (keputusan DAT), muat di
+          // loadAll() lalu kirim sebagai prop `invoices`.
+          role === 'admin' ? (
+            <SalesInvoiceModule />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
