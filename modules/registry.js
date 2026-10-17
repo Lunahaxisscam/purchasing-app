@@ -242,6 +242,30 @@ export const modules = [
     ]
   },
   {
+    // Modul "Customer CRM" (t_7253b859) — READ-ONLY, admin-only.
+    // Halaman sendiri (source:'core', dirender pages/index.js) seperti
+    // Stok Workshop & Perbandingan RAB/RAP/Aktual. TIDAK ada tabel DB baru,
+    // TIDAK ada RPC, TIDAK ada migrasi, TIDAK ada penulisan: customer dari
+    // form hidup sebagai DRAF memori halaman dan diberi label "Draf halaman".
+    // Sumber data = prop `customers` dari host (atau rows.customers); tidak
+    // dikirim -> capability 'unavailable' dengan panel penjelasan, BUKAN
+    // daftar kosong yang terlihat seperti bug. Kontak kosong = "Tidak
+    // tersedia" (bukan string kosong); hitungan relasi invoice yang tidak
+    // dikirim host = "tidak dikirim", BUKAN 0. Tidak ada customer contoh.
+    // Detail: modules/crm/README.md.
+    id: 'crm',
+    label: 'Customer CRM',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/crm/view.jsx',
+      'modules/crm/selector.jsx',
+      'modules/crm/logic.js',
+      'modules/crm/README.md',
+      'scripts/crm-test/run.py'
+    ]
+  },
+  {
     id: 'settings',
     label: 'Settings',
     adminOnly: true,

@@ -17,6 +17,9 @@ import StockModule from '../modules/stock/view'
 // t_a5ba5f73: modul "Perbandingan RAB vs RAP vs Aktual" — halaman
 // source:'core' (read-only dari sisi DB, draft RAP hanya di memori).
 import RapCompareModule from '../modules/rap-compare/view'
+// t_7253b859: modul "Customer CRM" — halaman source:'core' (read-only dari
+// sisi DB; customer dari form adalah draf memori halaman, tidak tersimpan).
+import CrmModule from '../modules/crm/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
@@ -762,7 +765,7 @@ export default function App() {
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
               disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap_compare', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap_compare', 'crm', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -817,6 +820,29 @@ export default function App() {
             <SalesInvoiceModule
               projects={rows.projects || []}
               allProjects={allProjects || []}
+              say={setNotice}
+            />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'crm' ? (
+          // ============================================================
+          // MODUL CUSTOMER CRM (t_7253b859) — READ-ONLY
+          // ============================================================
+          // Halaman sendiri (source:'core' di registry), bukan tabel
+          // ModuleView: tampilannya daftar + pencarian + form draf, bukan
+          // CRUD generik. TIDAK ada tabel customers, TIDAK ada RPC, TIDAK
+          // ada migrasi, TIDAK ada penulisan DB. Customer dari form hidup
+          // sebagai draf memori halaman dan diberi label "Draf halaman".
+          // Sumber data = prop `customers` (host) atau rows.customers; kalau
+          // tidak ada yang dikirim, modul menampilkan panel capability
+          // 'unavailable' — bukan daftar kosong yang terlihat seperti bug.
+          // Guard admin sama seperti modul admin lainnya.
+          role === 'admin' ? (
+            <CrmModule
+              rows={rows}
+              customers={rows.customers}
+              invoiceCounts={null}
               say={setNotice}
             />
           ) : (
