@@ -37,17 +37,47 @@ export function buildSplitPlan({ receiving, items, prItems, vendors = [], projec
   const byId = new Map((prItems || []).map(p => [p.id, p]))
   const vendorOf = (it) => byId.get(it.pr_item_id)?.vendor_id || null
   const groups = groupItemsByVendor(items, vendorOf)
-  if (groups.length < 2) {
-    return { ok: false, reason: 'Semua barang di nota ini berasal dari satu vendor (atau vendor belum diisi) — tidak perlu dipecah.' }
+
+  // Hanya grup dengan vendor NYATA yang boleh dihitung. Grup "vendor belum
+  // ditentukan" tidak bisa dijadikan nota pembelian — kalau ikut dihitung,
+  // nota akan dilabeli satu vendor padahal masih memuat barang tanpa vendor
+  // (bug review: label salah + item yatim tidak pernah dipindah).
+  const realGroups = groups.filter(g => !!g.vendorId)
+  const tanpaVendor = groups.find(g => !g.vendorId)
+  // Cek barang tanpa vendor LEBIH DULU: alasannya paling spesifik & bisa
+  // ditindaklanjuti (lengkapi vendor di PR), bukan "tidak perlu dipecah".
+  if (tanpaVendor) {
+    return {
+      ok: false,
+      reason: `${tanpaVendor.items.length} barang di nota ini belum punya vendor (${tanpaVendor.items.map(it => it.item_name).slice(0, 3).join(', ')}${tanpaVendor.items.length > 3 ? ', …' : ''}). Lengkapi vendor di PR dulu — memecah sekarang akan menempelkan label vendor pada nota yang masih berisi barang tanpa vendor.`
+    }
   }
+  if (realGroups.length < 2) {
+    return { ok: false, reason: 'Semua barang di nota ini berasal dari satu vendor — tidak perlu dipecah.' }
+  }
+
+  // Nota asal TIDAK boleh diganti vendornya secara diam-diam. Kalau nota sudah
+  // punya vendor_id, grup vendor itulah yang memakai nota asal.
+  let originVendorId = realGroups[0].vendorId
+  if (receiving.vendor_id) {
+    if (!realGroups.some(g => g.vendorId === receiving.vendor_id)) {
+      return { ok: false, reason: 'Nota ini sudah berlabel vendor yang tidak ada pada barang mana pun di dalamnya — periksa data dulu sebelum dipecah.' }
+    }
+    originVendorId = receiving.vendor_id
+  }
+
   const vname = new Map((vendors || []).map(v => [v.id, v.name]))
-  const plan = groups.map((g, idx) => {
-    const label = g.vendorId ? (vname.get(g.vendorId) || 'Vendor') : 'Vendor belum ditentukan'
+  const ordered = [
+    realGroups.find(g => g.vendorId === originVendorId),
+    ...realGroups.filter(g => g.vendorId !== originVendorId)
+  ]
+  const plan = ordered.map((g, idx) => {
+    const label = vname.get(g.vendorId) || 'Vendor'
     const base = receiving.delivery_note || `PR ${receiving.pr_number || ''}`.trim()
     return {
       index: idx,
       vendorId: g.vendorId,
-      vendorName: g.vendorId ? (vname.get(g.vendorId) || 'Vendor') : 'Vendor belum ditentukan',
+      vendorName: label,
       itemIds: g.items.map(it => it.id),
       items: g.items,
       deliveryNote: `${base} · ${label} ${SPLIT_TAG}`.trim(),

@@ -324,7 +324,7 @@ export function rowActions(r, ctx) {
         >
           {done ? '📦 Lihat Barang' : '📦 Terima Barang'}
         </button>
-        {capability?.ready && (
+        {capability?.returnReady && (
           <button
             type="button"
             onClick={() => setReturnRow?.(r)}

@@ -118,7 +118,7 @@ console.log('\nE2. Mode READY (skema ada) — retur & konfirmasi per barang akti
 {
   mock.__reset({
     receivingItems: RECEIVING_ITEMS,
-    tables: ['receiving_events', 'handover_items', 'v_receipt_progress', 'receiving_items', 'receivings', 'handovers'],
+    tables: ['receiving_events', 'handover_items', 'return_lines', 'v_receipt_progress', 'receiving_items', 'receivings', 'handovers'],
     events: [
       { id: 'e1', receiving_id: 'rc1', receiving_item_id: 'ri1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 5, qty_rusak: 2, tujuan_ws: 1, tujuan_tukang: 2, penerima_tukang: 'Pak Joko', retur_status: 'NONE', retur_qty: 0, created_at: '2026-10-17T01:00:00Z' }
     ],

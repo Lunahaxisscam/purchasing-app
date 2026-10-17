@@ -25,6 +25,8 @@ const EVENT_COLUMNS = ['id', 'client_event_id', 'receiving_id', 'receiving_item_
   'retur_status', 'retur_qty', 'discard_confirmed', 'foto_ref', 'source', 'created_at']
 const HANDOVER_COLUMNS = ['id', 'handover_id', 'receiving_event_id', 'receiving_item_id', 'pr_item_id',
   'item_name', 'qty_diserahkan', 'satuan', 'penerima', 'catatan', 'created_at']
+// Retur butuh return_lines (sumber riwayat anti double-retur).
+const RETURN_LINE_COLUMNS = ['id', 'return_case_id', 'receiving_event_id', 'qty']
 
 async function probe(table, cols) {
   const { error } = await supabase.from(table).select(cols.join(',')).limit(1)
@@ -35,6 +37,7 @@ async function probe(table, cols) {
 const results = []
 results.push(await probe('receiving_events', EVENT_COLUMNS))
 results.push(await probe('handover_items', HANDOVER_COLUMNS))
+results.push(await probe('return_lines', RETURN_LINE_COLUMNS))
 results.push(await probe('v_receipt_progress', ['receiving_item_id', 'qty_datang', 'qty_rusak', 'qty_baik', 'tujuan_ws', 'tujuan_tukang', 'belum_diserahkan']))
 
 console.log('--- PROBE SKEMA LEDGER PER BARANG (read-only) ---')
@@ -42,8 +45,11 @@ for (const r of results) {
   console.log(`${r.ok ? 'ADA    ' : 'TIDAK  '} ${r.table}${r.ok ? '' : '  (' + (r.code || '') + ') ' + (r.message || '').slice(0, 80)}`)
 }
 const ready = results[0].ok && results[1].ok
-console.log('\nCAPABILITY ready =', ready)
+const returnReady = ready && results[2].ok
+console.log('\nCAPABILITY ready =', ready, '| returnReady =', returnReady)
 console.log(ready
-  ? 'Aplikasi akan memakai mode READY (simpan per barang via RPC).'
+  ? (returnReady
+    ? 'Aplikasi akan memakai mode READY (simpan per barang via RPC; retur aktif).'
+    : 'Aplikasi mode READY untuk penerimaan/serah terima, TETAPI tombol Retur disembunyikan (return_lines belum ada).')
   : 'Aplikasi akan memakai mode LEGACY: jumlah datang tetap tersimpan, dimensi per barang DIBLOK dengan pesan gap (nol tulisan).')
 process.exit(0)

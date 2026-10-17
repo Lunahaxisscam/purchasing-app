@@ -169,9 +169,27 @@ Karena aplikasi memakai capability probe, setelah drop UI otomatis kembali ke mo
 `modules/receivings/receiptCapability.js` memeriksa (read-only, tanpa tulis):
 1. tabel `receiving_events` & `handover_items` ada,
 2. kolom wajib ada (`select=id,qty_datang,qty_rusak,tujuan_ws,tujuan_tukang,penerima_tukang,retur_status,retur_qty,discard_confirmed,client_event_id`),
-3. `v_receipt_progress` ada (opsional; bila tidak ada, UI hitung dari event).
+3. tabel `return_lines` ada (WAJIB untuk retur — lihat catatan di bawah),
+4. `v_receipt_progress` ada (opsional; bila tidak ada, UI hitung dari event).
 
-Bila salah satu gagal → `ready=false` + `missing[]`, dan form berjalan **mode legacy** (perilaku sekarang: submit diblok dengan pesan gap, nol tulisan). Tidak ada klaim tersimpan.
+Probe menghasilkan **dua** tingkat kesiapan, karena tidak semua fitur bergantung
+pada tabel yang sama:
+
+| flag | syarat | efek UI |
+|---|---|---|
+| `ready` | `receiving_events` + `handover_items` | form Terima Barang mode READY, modal konfirmasi fisik Handover |
+| `returnReady` | `ready` **dan** `return_lines` | tombol `↩ Retur Rusak` tampil & modal retur bisa menyimpan |
+
+Bila `ready` gagal → `ready=false` + `missing[]`, form berjalan **mode legacy**
+(submit diblok dengan pesan gap, nol tulisan). Tidak ada klaim tersimpan.
+Bila `ready` benar tetapi `return_lines` belum ada → penerimaan & serah terima
+tetap jalan, **tombol Retur disembunyikan**: tanpa `return_lines` riwayat retur
+tidak bisa dibaca, sehingga retur yang sama berpotensi tercatat dua kali.
+
+**Anti double-retur (wajib dipertahankan schema owner):** `return_lines` harus
+bisa dibaca oleh user yang berhak, karena modal retur menghitung
+`sisa = qty_rusak − Σ return_lines.qty` per event. Bila pembacaan itu gagal,
+modal **menolak** menampilkan baris (bukan mengarang riwayat).
 
 ---
 

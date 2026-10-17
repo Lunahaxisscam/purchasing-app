@@ -13,7 +13,7 @@
 // ============================================================
 import React, { useEffect, useMemo, useState } from 'react'
 import { returLinesFromEvents } from './receiptEventLogic'
-import { loadReceivingEvents, createReturnCase } from './receiptEventSave'
+import { loadReceivingEvents, loadReturnedByEvent, createReturnCase } from './receiptEventSave'
 import { capabilityMessage } from './receiptCapability'
 
 const RESOLUTIONS = [
@@ -26,7 +26,7 @@ const RESOLUTIONS = [
 const fmt = (v) => (v === undefined || v === null || v === '' ? '—' : v)
 
 export default function ReturnForm({ receiving, capability = null, say, refresh, close }) {
-  const ready = !!capability?.ready
+  const ready = !!capability?.returnReady
   const [loading, setLoading] = useState(ready)
   const [loadError, setLoadError] = useState('')
   const [rows, setRows] = useState([])
@@ -44,7 +44,20 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
       const ev = await loadReceivingEvents({ receivingId: receiving?.id })
       if (cancelled) return
       if (!ev.ok) { setLoadError(ev.error); setLoading(false); return }
-      const lines = returLinesFromEvents(ev.events || [])
+      // ANTI DOUBLE-RETUR: baca qty yang SUDAH diretur dari return_lines.
+      // Kalau gagal dibaca, JANGAN menawarkan baris (lebih aman) — kalau tidak,
+      // membuka modal dua kali mencatat retur yang sama dua kali.
+      const ids = (ev.events || []).map(e => e.id)
+      const ret = await loadReturnedByEvent({ eventIds: ids })
+      if (cancelled) return
+      if (!ret.ok) {
+        setLoadError(`Tidak bisa memeriksa riwayat retur: ${ret.error}`)
+        setRows([])
+        setPicked({})
+        setLoading(false)
+        return
+      }
+      const lines = returLinesFromEvents(ev.events || [], { alreadyReturned: ret.returned || {} })
       setRows(lines)
       const init = {}
       for (const l of lines) init[l.receiving_event_id] = true

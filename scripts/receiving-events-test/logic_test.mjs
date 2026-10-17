@@ -117,9 +117,12 @@ console.log('\nA5. Retur tanpa ketik ulang (baris dari event rusak)')
     { id: 'e3', receiving_item_id: 'ri3', item_name: 'Paku', unit: 'Kg', qty_rusak: 2, retur_status: 'PENDING' }
   ]
   const lines = L.returLinesFromEvents(events)
-  check('A5a hanya event dengan rusak > 0', lines.length === 2)
+  // e2 rusak 0 → tidak ada retur. e3 sudah berstatus PENDING → SUDAH diretur,
+  // tidak boleh ditawarkan lagi (temuan review: dulu ikut ditawarkan sehingga
+  // retur yang sama bisa dicatat dua kali).
+  check('A5a hanya event rusak > 0 dan BELUM diretur', lines.length === 1 && lines[0].receiving_event_id === 'e1', JSON.stringify(lines.map(l => l.receiving_event_id)))
   check('A5b qty & satuan ikut event (tanpa input ulang)', lines[0].qty === 3 && lines[0].satuan === 'Lembar')
-  check('A5c status retur ikut terbaca', lines[1].retur_status === 'PENDING')
+  check('A5c event berstatus PENDING tidak ditawarkan lagi', !lines.some(l => l.receiving_event_id === 'e3'))
   // sebagian sudah diretur → sisa
   const partial = L.returLinesFromEvents(events, { alreadyReturned: { e1: 1 } })
   check('A5d qty sisa setelah retur sebagian', partial.find(l => l.receiving_event_id === 'e1').qty === 2)
@@ -264,6 +267,22 @@ console.log('\n=== C. SIMPAN VIA RPC (receiptEventSave.js + mock) ===\n')
   check('C6b return_lines merujuk event (bukan ketik ulang)', mock.__state.returnLines.length === 1 && mock.__state.returnLines[0].receiving_event_id === 'e1')
   check('C6c status event jadi PENDING', mock.__state.events[0].retur_status === 'PENDING')
   check('C6d tidak ada qty diterima yang berubah (nol update receiving_items)', mock.__callsOf('update', 'receiving_items').length === 0)
+
+  // C7 (temuan review): retur yang SAMA tidak boleh ditawarkan/dicatat dua kali.
+  // Dulu returnForm memanggil returLinesFromEvents TANPA riwayat retur, jadi
+  // membuka modal dua kali mencatat qty rusak 2 menjadi 4.
+  const eventsAfter = [{ id: 'e1', receiving_item_id: 'ri1', item_name: 'Triplek', qty_datang: 5, qty_rusak: 2, retur_status: 'PENDING' }]
+  check('C7a event berstatus retur tidak ditawarkan lagi (tanpa riwayat)', L.returLinesFromEvents(eventsAfter).length === 0)
+  const half = L.returLinesFromEvents(eventsAfter, { alreadyReturned: { e1: 1 } })
+  check('C7b retur sebagian → sisa 1 (dari riwayat return_lines)', half.length === 1 && half[0].qty === 1)
+  check('C7c retur penuh → tidak ada baris', L.returLinesFromEvents(eventsAfter, { alreadyReturned: { e1: 2 } }).length === 0)
+  // Sumber qty retur dibaca dari DB, bukan diasumsikan
+  mock.__reset({ tables: ['return_lines'], events: [] })
+  mock.__state.rows.set('return_lines:rl1', { id: 'rl1', return_case_id: 'rc1', receiving_event_id: 'e1', qty: 1 })
+  const lr = await SAVE.loadReturnedByEvent({ eventIds: ['e1'] })
+  check('C7d loadReturnedByEvent menjumlah qty dari return_lines', lr.ok && lr.returned.e1 === 1)
+  const lrMissing = await (async () => { mock.__reset({ tables: [] }); return SAVE.loadReturnedByEvent({ eventIds: ['e1'] }) })()
+  check('C7e return_lines belum ada → ok=false (modal menolak, bukan mengarang)', lrMissing.ok === false)
 }
 
 console.log('\n=== D. PEMECAHAN NOTA MULTI-VENDOR (receiptSplit.js + mock) ===\n')
@@ -284,6 +303,26 @@ console.log('\n=== D. PEMECAHAN NOTA MULTI-VENDOR (receiptSplit.js + mock) ===\n
   check('D2a nota sudah masuk gudang → tolak', blocked.ok === false && /stok gudang/.test(blocked.reason))
   const oneVendor = SPLIT.buildSplitPlan({ receiving: RECEIVING, items: [items[0]], prItems: PR_ITEMS, vendors })
   check('D2b satu vendor → tidak perlu dipecah', oneVendor.ok === false && /satu vendor/.test(oneVendor.reason))
+
+  // D2c/D2d (temuan review): barang TANPA vendor tidak boleh membuat nota
+  // dilabeli vendor lain. Dulu grup "belum ditentukan" ikut dihitung sebagai
+  // grup ke-2 → tombol muncul, nota asal dilabeli, dan item yatim tertinggal.
+  const prItemsWithOrphan = [
+    { id: 'pi1', vendor_id: 'v1', quantity: 2 },
+    { id: 'pi2', vendor_id: null, quantity: 1 }
+  ]
+  const orphan = SPLIT.buildSplitPlan({ receiving: RECEIVING, items, prItems: prItemsWithOrphan, vendors })
+  check('D2c barang tanpa vendor → pemecahan DITOLAK (bukan dilabeli)', orphan.ok === false && /belum punya vendor/.test(orphan.reason), JSON.stringify(orphan.reason))
+  const onlyOneReal = SPLIT.buildSplitPlan({ receiving: RECEIVING, items, prItems: [{ id: 'pi1', vendor_id: 'v1' }, { id: 'pi2', vendor_id: 'v1' }], vendors })
+  check('D2d satu vendor nyata + tanpa vendor → tetap tidak perlu dipecah', onlyOneReal.ok === false)
+
+  // D2e (temuan review): nota yang SUDAH berlabel vendor tidak boleh diganti
+  // vendor_id-nya diam-diam. Nota asal harus memakai grup vendor yang sama.
+  const prItemsAB = [{ id: 'pi1', vendor_id: 'v1', quantity: 2 }, { id: 'pi2', vendor_id: 'v2', quantity: 1 }]
+  const labeledB = SPLIT.buildSplitPlan({ receiving: { ...RECEIVING, vendor_id: 'v2' }, items, prItems: prItemsAB, vendors })
+  check('D2e nota sudah berlabel v2 → nota asal memakai v2', labeledB.ok && labeledB.plan[0].vendorId === 'v2' && labeledB.plan[0].existingReceivingId === 'rc1')
+  const mismatched = SPLIT.buildSplitPlan({ receiving: { ...RECEIVING, vendor_id: 'v9' }, items, prItems: prItemsAB, vendors })
+  check('D2f label vendor tak cocok dengan isi → ditolak', mismatched.ok === false && /tidak ada pada barang/.test(mismatched.reason))
 
   // D3: eksekusi
   mock.__reset({

@@ -81,6 +81,14 @@ function selectRows(table, st) {
     }
     return { data: list.map(r => ({ id: r.id, receiving_id: r.receiving_id, quantity_received: r.quantity_received })), error: null }
   }
+  if (table === 'return_lines') {
+    let list = [...__state.rows.entries()].filter(([k]) => k.startsWith('return_lines:')).map(([, v]) => v)
+    if (st.inFilter) {
+      const set = new Set(st.inFilter.vals)
+      list = list.filter(r => set.has(r[st.inFilter.col]))
+    }
+    return { data: list, error: null }
+  }
   if (table === 'receivings') {
     let list = [...__state.rows.entries()].filter(([k]) => k.startsWith('receivings:')).map(([, v]) => v)
     for (const f of st.filters) {

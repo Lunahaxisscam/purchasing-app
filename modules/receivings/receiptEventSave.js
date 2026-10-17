@@ -153,3 +153,28 @@ export async function loadDeliveredByEvent({ eventIds = [] } = {}) {
     return { ok: false, error: err.message, delivered: {} }
   }
 }
+
+// Total qty yang SUDAH diretur per event penerimaan (dari `return_lines`).
+// Dipakai modal retur supaya barang rusak yang sudah pernah diretur tidak
+// ditawarkan lagi (anti double-retur — temuan review).
+export async function loadReturnedByEvent({ eventIds = [] } = {}) {
+  if (!supabase) return { ok: false, error: 'Supabase tidak tersedia.', returned: {} }
+  const ids = (eventIds || []).filter(Boolean)
+  if (!ids.length) return { ok: true, returned: {} }
+  try {
+    const { data, error } = await supabase
+      .from('return_lines')
+      .select('receiving_event_id, qty')
+      .in('receiving_event_id', ids)
+    if (error) return { ok: false, error: error.message, returned: {} }
+    const returned = {}
+    for (const row of data || []) {
+      const k = row.receiving_event_id
+      if (!k) continue
+      returned[k] = (returned[k] || 0) + Number(row.qty || 0)
+    }
+    return { ok: true, returned }
+  } catch (err) {
+    return { ok: false, error: err.message, returned: {} }
+  }
+}

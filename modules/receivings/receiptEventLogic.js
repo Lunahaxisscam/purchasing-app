@@ -148,13 +148,26 @@ export function eventTotals(events) {
 }
 
 // Retur TANPA KETIK ULANG: baris retur diambil langsung dari event rusak yang
-// statusnya masih PENDING. qty & satuan ikut event; user hanya memilih aksi.
-export function returLinesFromEvents(events, { alreadyReturned = {} } = {}) {
+// BELUM pernah diretur. qty & satuan ikut event; user hanya memilih aksi.
+//
+// ANTI DOUBLE-RETUR (temuan review): event yang sudah punya status retur
+// (PENDING/RETURNED/REPLACED/REFUNDED/DISCARDED) TIDAK boleh ditawarkan lagi —
+// dulu modal retur memanggil fungsi ini tanpa `alreadyReturned`, sehingga
+// membuka modal dua kali mencatat retur yang sama dua kali (qty rusak 2 →
+// tercatat 4). `alreadyReturned` = { [receiving_event_id]: qty } dari
+// `return_lines`. Bila qty pengembalian tidak bisa dibaca, event berstatus
+// retur dianggap SUDAH diretur penuh (lebih aman tidak menawarkan daripada
+// mencatat ganda).
+export function returLinesFromEvents(events, { alreadyReturned = {}, trustStatus = true } = {}) {
   const out = []
   for (const ev of events || []) {
     const rusak = num(ev.qty_rusak) || 0
     if (rusak <= EPS) continue
-    const used = num(alreadyReturned[ev.id]) || 0
+    const hasLedger = Object.prototype.hasOwnProperty.call(alreadyReturned, ev.id)
+    const status = ev.retur_status || RETUR_NONE
+    // Sudah masuk kasus retur & tidak ada rincian pengembalian → jangan tawarkan.
+    if (!hasLedger && trustStatus && status !== RETUR_NONE) continue
+    const used = hasLedger ? (num(alreadyReturned[ev.id]) || 0) : 0
     const sisa = Math.max(0, rusak - used)
     if (sisa <= EPS) continue
     out.push({
@@ -166,7 +179,7 @@ export function returLinesFromEvents(events, { alreadyReturned = {} } = {}) {
       qty_rusak: rusak,
       qty_sudah_retur: used,
       qty: sisa,
-      retur_status: ev.retur_status || RETUR_NONE
+      retur_status: status
     })
   }
   return out

@@ -26,6 +26,9 @@ export const HANDOVER_ITEM_COLUMNS = [
   'id', 'handover_id', 'receiving_event_id', 'receiving_item_id', 'pr_item_id',
   'item_name', 'qty_diserahkan', 'satuan', 'penerima', 'catatan', 'created_at'
 ]
+// Retur butuh DUA tabel (kasus + baris). Tanpa `return_lines`, riwayat retur
+// tidak bisa dibaca → tombol Retur tidak boleh aktif (anti double-retur).
+export const RETURN_LINE_COLUMNS = ['id', 'return_case_id', 'receiving_event_id', 'qty']
 
 const TTL_MS = 60 * 1000
 let cache = null          // { at, value }
@@ -66,18 +69,28 @@ export async function getReceiptCapability({ force = false } = {}) {
   inflight = (async () => {
     const events = await probeTable('receiving_events', EVENT_COLUMNS)
     const handoverItems = await probeTable('handover_items', HANDOVER_ITEM_COLUMNS)
+    // Retur WAJIB punya return_lines: tanpa itu riwayat retur tidak terbaca dan
+    // retur yang sama bisa dicatat berulang (anti double-retur).
+    const returnLines = await probeTable('return_lines', RETURN_LINE_COLUMNS)
     // View progres opsional — bila belum ada, UI menghitung dari event.
     const progress = await probeTable('v_receipt_progress', ['receiving_item_id', 'qty_datang', 'qty_rusak', 'qty_baik', 'tujuan_ws', 'tujuan_tukang', 'belum_diserahkan'])
 
     const missing = []
     if (!events.ok) missing.push(events.reason)
     if (!handoverItems.ok) missing.push(handoverItems.reason)
+    if (!returnLines.ok) missing.push(`retur: ${returnLines.reason}`)
     if (!progress.ok) missing.push(`(opsional) ${progress.reason}`)
 
+    // `ready` = ledger penerimaan + rincian serah terima (inti penyimpanan per
+    // barang). `returnReady` = tambahan riwayat retur; tombol Retur hanya aktif
+    // bila keduanya ada, karena tanpa `return_lines` retur bisa tercatat ganda.
+    const coreReady = events.ok && handoverItems.ok
     const value = {
-      ready: events.ok && handoverItems.ok,
+      ready: coreReady,
+      returnReady: coreReady && returnLines.ok,
       events: events.ok,
       handoverItems: handoverItems.ok,
+      returnLines: returnLines.ok,
       progress: progress.ok,
       missing,
       checkedAt: new Date().toISOString()
