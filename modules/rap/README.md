@@ -21,14 +21,29 @@ Task `t_71d95cfe` (S3/7). Kontrak lengkap & keputusan desain:
 4. **Nomor PR & `pr_id` tidak dikarang** di handoff — keduanya lahir di modul
    Purchase Request saat benar-benar menyimpan.
 5. Acuan dari **WBS Budgeting hanya upah**; UI wajib menyebutnya.
+6. **Gerbang BOM (t_3b877fb5).** PR dari RAP adalah **PR MATERIAL**: hanya baris
+   `line_kind: MATERIAL` dengan `material_id` + satuan yang **sama** dengan
+   master material + qty > 0 + harga valid yang boleh masuk. Pekerjaan, upah,
+   dan barang jadi **DITOLAK** dengan penjelasan — tidak ditebak dari nama
+   barang, tidak dipecah otomatis tanpa gambar kerja/BOM.
+7. **Tidak ada koersi angka.** Harga negatif / bukan angka / kosong **tidak**
+   menjadi 0: ia disimpan sebagai state `NEGATIVE`/`NOT_NUMBER`/`MISSING` dan
+   **memblokir** validasi + handoff. Harga `0` yang diketik manusia tetap 0 dan
+   ditandai "belum lengkap".
+8. **Tidak ada klaim "apel-vs-apel".** RAB & BOQ = HARGA JUAL penawaran; RAP =
+   biaya pelaksanaan. Setiap perbandingan membawa label sumber acuan
+   (`describeRabBaseline`), dan `comparable_with_rap_cost` selalu `false`.
+9. **Draft bukan persetujuan.** Status RAP (termasuk "Disetujui") adalah label
+   kerja lokal `DRAFT_ONLY`; payload PR diberi label "PRATINJAU — BUKAN alokasi
+   resmi" dan `meta.approval = 'NONE'`.
 
 ## Menjalankan harness
 
 ```bash
-python3 scripts/rap-test/run.py          # 115 unit + 66 render jsdom, tanpa DB
+python3 scripts/rap-test/run.py          # 214 unit + 107 render + 50 wiring, tanpa DB
 npm run smoke                            # build + render semua modul (probe RAP)
 ENABLE_SMOKE=1 npx next start -p 3311
-node scripts/rap-test/e2e_runtime_test.mjs http://127.0.0.1:3311   # 40 assertion Chrome
+node scripts/rap-test/e2e_runtime_test.mjs http://127.0.0.1:3311   # Chrome nyata
 ```
 
 ## Status wiring

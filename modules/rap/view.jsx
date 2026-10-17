@@ -1,23 +1,29 @@
 // ============================================================
 // modules/rap/view.jsx — HALAMAN RAP (Rencana Anggaran Pelaksana)
 // ============================================================
-// t_71d95cfe (S3/7) — "RAP internal versi minimum".
+// t_71d95cfe (S3/7), diperkeras t_3b877fb5 (temuan Brooklyn P1).
 //
 // Alur yang ditawarkan (dan HANYA ini):
 //   1. Pilih proyek.
 //   2. Ambil acuan RAB: tempel/impor JSON RAB & BOQ, ATAU tarik baris WBS
 //      Budgeting (read-only, hanya upah — disebut apa adanya di layar).
-//   3. Edit qty & harga satuan RENCANA per baris, beri label versi.
-//   4. Lihat perbandingan RAB vs RAP (per baris + total + baris hilang).
-//   5. Ubah status versi (Draft -> Diajukan -> Disetujui/Ditolak).
-//   6. Susun handoff PR (payload ditampilkan; TIDAK ada penulisan DB).
+//   3. Edit qty & harga satuan RENCANA per baris, TANDAI JENIS baris
+//      (material baku / pekerjaan / upah), beri label versi.
+//   4. Lihat perbandingan RAB vs RAP + LABEL SUMBER ACUAN (harga jual RAB,
+//      upah WBS, manual) — tidak ada klaim "apel-vs-apel".
+//   5. Ubah status versi (Draft -> Diajukan -> Disetujui/Ditolak) —
+//      status ini label kerja LOKAL, bukan persetujuan resmi.
+//   6. Susun PRATINJAU payload PR material — hanya baris material baku yang
+//      lolos gerbang BOM (material_id + satuan + qty) dan terverifikasi ke
+//      master material. Tidak ada penulisan DB.
 //   7. Backup / pulihkan draft lewat JSON.
 //
 // KEJUJURAN YANG DIKUNCI DI UI:
 //   * Banner tetap "Draft — belum tersimpan di server" (tidak ada tabel RAP).
 //   * Angka RAP selalu berlabel RENCANA, tidak pernah "aktual/realisasi".
-//   * Tombol PR tidak menyimpan apa pun: ia hanya menampilkan payload yang
-//     bentuknya sama dengan jalur simpan PR existing.
+//   * Payload PR diberi label "PRATINJAU — BUKAN alokasi resmi, 0 tulisan DB".
+//   * Baris pekerjaan/upah TIDAK dipecah otomatis dan TIDAK ditebak menjadi
+//     material dari namanya; UI menampilkan penolakan + langkah perbaikan.
 //
 // File ini tidak mengimpor shell (pages/index.js, ModuleView, CreateModal) —
 // arah dependensi tetap shell -> modul. Wiring halaman (registry + satu
@@ -27,14 +33,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import {
+  LINE_KIND,
+  LINE_KIND_LABEL,
+  MONEY,
+  PR_HANDOFF_LABEL,
   RAP_STATUS,
   RAP_STATUS_LABEL,
   buildPrHandoff,
   compareRapToRab,
   formatRupiah,
   lineAmounts,
+  materialReadiness,
   normalizeLine,
-  parseNumberInput,
   rapFromSnapshot,
   rapToSnapshot,
   rapTotals,
@@ -43,7 +53,9 @@ import {
 } from './model'
 import {
   RAP_CAPABILITY,
+  loadMaterialsCatalog,
   loadWbsPlans,
+  newMaterialLine,
   rabLinesFromBoqPayload,
   rabLinesFromWbsPlans,
   rapLinesFromRab
@@ -70,6 +82,24 @@ function pctText(pct) {
   return `${sign}${pct}%`
 }
 
+// Nilai input yang ditampilkan: nilai MENTAH apa adanya (supaya "-100" tetap
+// terlihat "-100" dan tidak berubah jadi 0 di layar).
+function rawInputValue(line, field) {
+  const rawKey = field + '_raw'
+  if (line && Object.prototype.hasOwnProperty.call(line, rawKey) && line[rawKey] !== null && line[rawKey] !== undefined) {
+    return String(line[rawKey])
+  }
+  return line && line[field] !== null && line[field] !== undefined ? String(line[field]) : ''
+}
+
+function priceStateHint(state, raw) {
+  if (state === MONEY.NEGATIVE) return `ditolak: ${String(raw)} (negatif)`
+  if (state === MONEY.NOT_NUMBER) return `ditolak: ${String(raw)} (bukan angka)`
+  if (state === MONEY.MISSING) return 'kosong (bukan 0)'
+  if (state === MONEY.ZERO) return '0 — belum lengkap'
+  return ''
+}
+
 export default function RapModule({
   projects = [],
   say,
@@ -79,7 +109,10 @@ export default function RapModule({
   // Opsional: untuk label "oleh" pada riwayat status.
   session = null,
   // Diinjeksi harness; default store sesi (lihat modules/rap/store.js).
-  initialDraft = null
+  initialDraft = null,
+  // Opsional (harness/embedding): katalog material siap pakai. Bila tidak
+  // diberikan, katalog dibaca dari tabel `materials` (read-only).
+  materials: materialsProp = null
 }) {
   const actor = (session && session.user && session.user.email) || ''
 
@@ -93,6 +126,9 @@ export default function RapModule({
   const [notice, setNotice] = useState('')
   const [prPreview, setPrPreview] = useState(null)
   const [showPr, setShowPr] = useState(false)
+  const [catalog, setCatalog] = useState(() => (Array.isArray(materialsProp) ? materialsProp : []))
+  const [catalogError, setCatalogError] = useState('')
+  const [catalogBusy, setCatalogBusy] = useState(false)
   const fileRef = useRef(null)
 
   const activeProjects = useMemo(() => {
@@ -109,6 +145,26 @@ export default function RapModule({
   useEffect(() => {
     if (!projectId && activeProjects.length) setProjectId(activeProjects[0].id)
   }, [activeProjects, projectId])
+
+  // Katalog master material = satu-satunya sumber verifikasi material_id,
+  // satuan, dan skala harga. READ-ONLY (satu select).
+  useEffect(() => {
+    if (Array.isArray(materialsProp)) { setCatalog(materialsProp); return }
+    let alive = true
+    setCatalogBusy(true)
+    loadMaterialsCatalog(supabase).then(res => {
+      if (!alive) return
+      setCatalogBusy(false)
+      if (!res.ok) { setCatalogError(res.error || 'Gagal membaca katalog material.'); return }
+      setCatalogError('')
+      setCatalog(res.materials || [])
+    }).catch(e => {
+      if (!alive) return
+      setCatalogBusy(false)
+      setCatalogError(e.message || 'Gagal membaca katalog material.')
+    })
+    return () => { alive = false }
+  }, [materialsProp])
 
   const project = useMemo(
     () => activeProjects.find(p => p.id === projectId) || (projects || []).find(p => p.id === projectId) || null,
@@ -141,6 +197,7 @@ export default function RapModule({
       rab_revision: (ref && ref.revision) || '',
       rab_source: sourceLabel,
       rab_price_unit: (ref && ref.priceUnit) || '',
+      rab_basis: (ref && ref.priceBasis) || '',
       // snapshot acuan RAB (tidak ikut berubah saat rencana diedit)
       rab_lines: (rabLines || []).map(normalizeLine),
       note: '',
@@ -156,7 +213,7 @@ export default function RapModule({
     setPrPreview(null)
     setShowPr(false)
     setRabError('')
-    say_(`Draft ${version} dibuat dari ${sourceLabel} (${lines.length} baris). Belum tersimpan di server.`)
+    say_(`Draft ${version} dibuat dari ${sourceLabel} (${lines.length} baris). Belum tersimpan di server. Baris RAB = pekerjaan; tandai baris material baku bila akan dipakai untuk PR material.`)
   }
 
   function nextDraftVersion() {
@@ -216,15 +273,49 @@ export default function RapModule({
     setPrPreview(null)
   }
 
+  // Angka diketik apa adanya: nilai MENTAH disimpan ke `*_raw` supaya
+  // "-100" TETAP "-100" (state NEGATIVE, memblokir) dan tidak pernah
+  // berubah diam-diam menjadi 0.
   function setLineNumber(id, field, raw) {
-    const parsed = parseNumberInput(raw)
-    patchLine(id, { [field]: parsed === null ? 0 : parsed })
+    patchLine(id, { [field + '_raw']: raw, [field]: raw })
+  }
+
+  function setLineKind(id, kind) {
+    patchLine(id, { line_kind: kind })
+  }
+
+  function pickMaterial(id, materialId) {
+    const m = catalog.find(x => String(x.id) === String(materialId)) || null
+    if (!m) {
+      patchLine(id, { material_id: null })
+      return
+    }
+    patchLine(id, {
+      material_id: m.id,
+      item_name: m.name || m.nama || '',
+      kode: m.kode || m.code || '',
+      unit: String((m.satuan == null ? m.unit : m.satuan) || ''),
+      line_kind: LINE_KIND.MATERIAL,
+      price_source: 'MANUAL'
+    })
   }
 
   function addManualLine() {
     setDraft(d => {
       if (!d) return d
-      const line = normalizeLine({ item_name: '', unit: 'unit', planned_qty: 1, planned_unit_price: 0, rab_qty: 0, rab_unit_price: 0, price_source: 'MANUAL' })
+      const line = normalizeLine({ item_name: '', unit: 'unit', planned_qty: 1, planned_unit_price: 0, rab_qty: 0, rab_unit_price: 0, price_source: 'MANUAL', line_kind: LINE_KIND.UNSPECIFIED })
+      return { ...d, lines: [...d.lines, line], updated_at: new Date().toISOString() }
+    })
+  }
+
+  function addMaterialLine() {
+    if (!catalog.length) {
+      say_('Katalog master material belum termuat — baris material baku tidak bisa dibuat. ' + (catalogError || ''))
+      return
+    }
+    setDraft(d => {
+      if (!d) return d
+      const line = newMaterialLine(catalog[0], { qty: 1 })
       return { ...d, lines: [...d.lines, line], updated_at: new Date().toISOString() }
     })
   }
@@ -240,23 +331,35 @@ export default function RapModule({
 
   function setStatus(to) {
     if (!draft) return
-    // Transisi tetap lewat aturan model (bukan if-else di UI).
+    // Transisi tetap lewat aturan model (bukan if-else di UI). Draft yang
+    // masih punya penghalang tidak boleh diajukan/disetujui.
+    const gated = to === RAP_STATUS.DIAJUKAN || to === RAP_STATUS.DISETUJUI
+    if (gated) {
+      const check = validateRap(draft)
+      if (!check.ok) {
+        say_(`Tidak bisa ${RAP_STATUS_LABEL[to] || to}: masih ${check.problems.length} penghalang. ${check.problems[0]}`)
+        return
+      }
+    }
     const result = setRapStatus(draft, to, { by: actor })
     if (!result.ok) { say_(result.problem); return }
     setDraft(result.rap)
-    say_(`Status ${draft.version} -> ${RAP_STATUS_LABEL[result.rap.status]}. Catatan: status ini juga BELUM tersimpan di server.`)
+    say_(`Status ${draft.version} -> ${RAP_STATUS_LABEL[result.rap.status]}. Status ini label kerja LOKAL — BUKAN persetujuan resmi dan BELUM tersimpan di server.`)
   }
 
   // ----------------------------------------------------------
-  // Aksi: handoff PR (menyusun payload, bukan menyimpan)
+  // Aksi: handoff PR (menyusun pratinjau payload, bukan menyimpan)
   // ----------------------------------------------------------
   function previewPrHandoff() {
     if (!draft) return
-    const result = buildPrHandoff(draft, { project_id: draft.project_id })
+    const result = buildPrHandoff(draft, { project_id: draft.project_id, materials: catalog })
     setPrPreview(result)
     setShowPr(true)
-    if (!result.ok) say_(result.problems.join(' '))
-    else say_(`Payload PR disusun untuk ${result.items.length} baris. Belum ada yang dibuat/di-handoff — PR dibuat di modul Purchase Request.`)
+    if (!result.ok) {
+      say_(`Pratinjau PR DITOLAK (${result.gate.rejected} baris): ${result.problems[0]}`)
+    } else {
+      say_(`Pratinjau payload PR disusun untuk ${result.items.length} baris material terverifikasi. Ini BUKAN alokasi resmi dan belum ada yang dibuat — PR dibuat di modul Purchase Request.`)
+    }
   }
 
   // ----------------------------------------------------------
@@ -301,6 +404,7 @@ export default function RapModule({
   // ----------------------------------------------------------
   const totals = useMemo(() => (draft ? rapTotals(draft) : null), [draft])
   const validation = useMemo(() => (draft ? validateRap(draft) : null), [draft])
+  const material = useMemo(() => (draft ? materialReadiness(draft) : null), [draft])
   const comparison = useMemo(() => {
     if (!draft) return null
     // Acuan RAB = snapshot `draft.rab_lines` (tidak ikut berubah saat
@@ -310,6 +414,8 @@ export default function RapModule({
   }, [draft])
 
   const badge = statusBadge(draft && draft.status)
+  const baseline = (comparison && comparison.baseline) || (totals && totals.baseline) || null
+  const materialOptions = catalog
 
   return (
     <div className="rap-root" data-testid="rap-root">
@@ -371,6 +477,9 @@ export default function RapModule({
               </div>
             )}
           </div>
+          <span className="rap-muted" data-testid="rap-status-honest">
+            Label kerja LOKAL — bukan persetujuan resmi, tidak tersimpan di server.
+          </span>
         </div>
       </div>
 
@@ -423,13 +532,24 @@ export default function RapModule({
         )}
       </div>
 
+      {/* ---------- Label sumber acuan: apa yang dibandingkan ---------- */}
+      {draft && baseline && (
+        <div className="rap-baseline" data-testid="rap-baseline">
+          <strong data-testid="rap-baseline-label">Sumber acuan: {baseline.label}</strong>
+          <span data-testid="rap-baseline-note">{baseline.note}</span>
+          <span className="rap-muted" data-testid="rap-baseline-flag">
+            Perbandingan biaya-vs-biaya (apel-vs-apel): <b>TIDAK</b> — acuan ini bukan acuan biaya terverifikasi.
+          </span>
+        </div>
+      )}
+
       {/* ---------- Ringkasan RAB vs RAP ---------- */}
       {draft && totals && (
         <div className="rap-kpi" data-testid="rap-kpi">
           <div className="rap-kpi-card">
             <span className="rap-kpi-lbl">Acuan RAB</span>
             <strong className="rap-kpi-val" data-testid="rap-kpi-rab">{formatRupiah(totals.rabTotal)}</strong>
-            <span className="rap-kpi-sub">{draft.rab_price_unit || 'harga acuan'} · {totals.lineCount} baris</span>
+            <span className="rap-kpi-sub">{baseline ? baseline.label : 'harga acuan'} · {totals.lineCount} baris</span>
           </div>
           <div className="rap-kpi-card">
             <span className="rap-kpi-lbl">Rencana RAP</span>
@@ -442,15 +562,19 @@ export default function RapModule({
               {formatRupiah(totals.diffAmount)} <small>{pctText(totals.diffPct)}</small>
             </strong>
             <span className="rap-kpi-sub">
-              {totals.overBudget ? '⚠ Rencana MELEBIHI acuan RAB' : 'Rencana di bawah acuan RAB'}
+              {totals.hasRabBaseline
+                ? (totals.overBudget ? '⚠ Rencana MELEBIHI acuan (indikasi margin habis)' : 'Rencana di bawah acuan')
+                : 'Tanpa acuan — selisih TIDAK DIKETAHUI'}
             </span>
           </div>
           <div className="rap-kpi-card">
             <span className="rap-kpi-lbl">Baris perlu perhatian</span>
             <strong className="rap-kpi-val" data-testid="rap-kpi-flags">
-              {totals.overCount} lebih · {totals.zeroPrice} tanpa harga
+              {totals.overCount} lebih · {totals.zeroPrice} harga 0 · {totals.invalidPrice} harga tidak valid
             </strong>
-            <span className="rap-kpi-sub">{comparison ? `${comparison.summary.missingCount} baris RAB belum masuk RAP` : '—'}</span>
+            <span className="rap-kpi-sub">
+              {comparison ? `${comparison.summary.missingCount} baris RAB belum masuk RAP · ${totals.incomparable} tak sebanding` : '—'}
+            </span>
           </div>
         </div>
       )}
@@ -461,14 +585,24 @@ export default function RapModule({
           <div className="rap-panel-head">
             <strong>Baris pekerjaan — qty &amp; harga satuan RENCANA</strong>
             <div className="rap-head-actions">
+              <button type="button" className="outline" data-testid="rap-act-add-material" onClick={addMaterialLine} disabled={!catalog.length}>
+                + Baris material (BOM)
+              </button>
               <button type="button" className="outline" data-testid="rap-act-add-line" onClick={addManualLine}>+ Baris manual</button>
             </div>
           </div>
+          {catalogError && <div className="rap-error" data-testid="rap-catalog-error">{catalogError}</div>}
+          <p className="rap-muted" data-testid="rap-kind-honest">
+            Jenis baris TIDAK ditebak dari nama barang. Hanya baris bertanda
+            <b> Material baku (BOM)</b> yang boleh masuk PR material.
+            {catalogBusy ? ' (memuat katalog material…)' : ` Katalog material: ${catalog.length} item.`}
+          </p>
           <div className="rap-table-wrap">
             <table className="rap-table" data-testid="rap-lines">
               <thead>
                 <tr>
-                  <th>Pekerjaan</th>
+                  <th>Pekerjaan / material</th>
+                  <th>Jenis baris</th>
                   <th>Satuan</th>
                   <th className="rap-num">Qty RAB</th>
                   <th className="rap-num">Harga RAB</th>
@@ -482,19 +616,49 @@ export default function RapModule({
               <tbody>
                 {draft.lines.map(line => {
                   const a = lineAmounts(line)
+                  const priceHint = priceStateHint(line.planned_unit_price_state, line.planned_unit_price_raw)
                   return (
-                    <tr key={line.id} data-testid={`rap-line-${line.id}`}>
+                    <tr key={line.id} data-testid={`rap-line-${line.id}`} data-line-kind={line.line_kind}>
                       <td>
-                        <input
-                          className="rap-input-name"
-                          data-testid={`rap-name-${line.id}`}
-                          value={line.item_name}
-                          onChange={e => patchLine(line.id, { item_name: e.target.value })}
-                          placeholder="Nama pekerjaan"
-                        />
+                        {line.line_kind === LINE_KIND.MATERIAL ? (
+                          <select
+                            className="rap-input-name"
+                            data-testid={`rap-material-${line.id}`}
+                            value={line.material_id == null ? '' : String(line.material_id)}
+                            onChange={e => pickMaterial(line.id, e.target.value)}
+                          >
+                            <option value="">— pilih material —</option>
+                            {materialOptions.map(m => (
+                              <option key={String(m.id)} value={String(m.id)}>
+                                {m.kode ? `[${m.kode}] ` : ''}{m.name || m.nama} ({m.satuan || m.unit || '—'})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            className="rap-input-name"
+                            data-testid={`rap-name-${line.id}`}
+                            value={line.item_name}
+                            onChange={e => patchLine(line.id, { item_name: e.target.value })}
+                            placeholder="Nama pekerjaan"
+                          />
+                        )}
                         {line.price_source && line.price_source !== 'RAB' && (
                           <span className="rap-src-tag" title="Sumber angka acuan baris ini">{sourceTag(line.price_source)}</span>
                         )}
+                      </td>
+                      <td>
+                        <select
+                          className="rap-input-kind"
+                          data-testid={`rap-kind-${line.id}`}
+                          value={line.line_kind}
+                          onChange={e => setLineKind(line.id, e.target.value)}
+                        >
+                          <option value={LINE_KIND.UNSPECIFIED}>{LINE_KIND_LABEL.UNSPECIFIED}</option>
+                          <option value={LINE_KIND.MATERIAL}>{LINE_KIND_LABEL.MATERIAL}</option>
+                          <option value={LINE_KIND.WORK_ITEM}>{LINE_KIND_LABEL.WORK_ITEM}</option>
+                          <option value={LINE_KIND.LABOR}>{LINE_KIND_LABEL.LABOR}</option>
+                        </select>
                       </td>
                       <td>
                         <input
@@ -504,23 +668,27 @@ export default function RapModule({
                           onChange={e => patchLine(line.id, { unit: e.target.value })}
                         />
                       </td>
-                      <td className="rap-num">{line.rab_qty}</td>
-                      <td className="rap-num">{formatRupiah(line.rab_unit_price)}</td>
+                      <td className="rap-num">{line.rab_qty === null ? '—' : line.rab_qty}</td>
+                      <td className="rap-num">{line.rab_unit_price === null ? '—' : formatRupiah(line.rab_unit_price)}</td>
                       <td className="rap-num">
                         <input
                           className="rap-input-num"
                           data-testid={`rap-qty-${line.id}`}
-                          value={String(line.planned_qty)}
+                          value={rawInputValue(line, 'planned_qty')}
                           onChange={e => setLineNumber(line.id, 'planned_qty', e.target.value)}
                         />
+                        {priceStateHint(line.planned_qty_state, line.planned_qty_raw) && (
+                          <small className="rap-invalid" data-testid={`rap-qty-hint-${line.id}`}>{priceStateHint(line.planned_qty_state, line.planned_qty_raw)}</small>
+                        )}
                       </td>
                       <td className="rap-num">
                         <input
                           className="rap-input-num"
                           data-testid={`rap-price-${line.id}`}
-                          value={String(line.planned_unit_price)}
+                          value={rawInputValue(line, 'planned_unit_price')}
                           onChange={e => setLineNumber(line.id, 'planned_unit_price', e.target.value)}
                         />
+                        {priceHint && <small className="rap-invalid" data-testid={`rap-price-hint-${line.id}`}>{priceHint}</small>}
                       </td>
                       <td className="rap-num"><strong>{formatRupiah(a.rapAmount)}</strong></td>
                       <td className={`rap-num rap-state-${a.state}`} data-testid={`rap-diff-${line.id}`}>
@@ -534,7 +702,7 @@ export default function RapModule({
                   )
                 })}
                 {draft.lines.length === 0 && (
-                  <tr><td colSpan={9} className="rap-empty">Belum ada baris. Buat draft dari JSON RAB / WBS, atau tambah baris manual.</td></tr>
+                  <tr><td colSpan={10} className="rap-empty">Belum ada baris. Buat draft dari JSON RAB / WBS, atau tambah baris material/manual.</td></tr>
                 )}
               </tbody>
             </table>
@@ -567,6 +735,12 @@ export default function RapModule({
           {validation.problems.length === 0 && validation.warnings.length === 0 && (
             <p className="rap-muted">Semua baris punya qty &gt; 0 dan harga satuan terisi.</p>
           )}
+          {material && (
+            <p className="rap-muted" data-testid="rap-material-readiness">
+              Kesiapan PR material: {material.material} baris material · {material.work_item} pekerjaan · {material.labor} upah · {material.unspecified} belum ditandai.
+              {' '}{material.note}
+            </p>
+          )}
         </div>
       )}
 
@@ -579,6 +753,9 @@ export default function RapModule({
               {comparison.summary.overCount} baris lebih mahal · {comparison.summary.missingCount} baris RAB belum masuk RAP
             </span>
           </div>
+          <p className="rap-muted" data-testid="rap-compare-basis">
+            Acuan: <b>{comparison.baseline.label}</b>. {comparison.baseline.note}
+          </p>
           {comparison.missingInRap.length > 0 ? (
             <div className="rap-missing" data-testid="rap-missing">
               <strong>Pekerjaan RAB yang belum ada di RAP:</strong>
@@ -594,14 +771,14 @@ export default function RapModule({
         </div>
       )}
 
-      {/* ---------- Handoff PR ---------- */}
+      {/* ---------- Handoff PR (pratinjau) ---------- */}
       {draft && (
         <div className="rap-panel" data-testid="rap-pr-panel">
           <div className="rap-panel-head">
-            <strong>Serah ke Purchase Request</strong>
+            <strong>Pratinjau payload PR material</strong>
             <div className="rap-head-actions">
               <button type="button" className="outline" data-testid="rap-act-pr-preview" onClick={previewPrHandoff}>
-                Susun payload PR
+                Susun pratinjau payload PR
               </button>
               {showPr && setPage && (
                 <button type="button" className="outline" data-testid="rap-act-open-pr" onClick={() => setPage('requests')}>
@@ -611,12 +788,21 @@ export default function RapModule({
             </div>
           </div>
           <p className="rap-muted" data-testid="rap-pr-honest">
-            Tombol di atas hanya <b>menyusun</b> payload. RAP tidak membuat PR dan tidak menulis
-            apa pun ke database — PR tetap dibuat &amp; disimpan di modul Purchase Request
-            (nomor PR dari <code>next_pr_number</code>).
+            Tombol di atas hanya <b>menyusun pratinjau</b> payload. {PR_HANDOFF_LABEL}. RAP tidak membuat PR,
+            tidak mengalokasikan material, dan tidak menulis apa pun ke database — PR tetap dibuat, dialokasikan,
+            dan disetujui di modul Purchase Request (nomor PR dari <code>next_pr_number</code>).
+          </p>
+          <p className="rap-muted" data-testid="rap-pr-gate-rule">
+            <b>Gerbang BOM:</b> hanya baris <b>material baku</b> dengan material_id + satuan + qty positif yang
+            terverifikasi ke master material yang bisa masuk. Pekerjaan/upah/barang jadi DITOLAK dengan penjelasan —
+            tidak dipecah otomatis dan tidak ditebak dari nama barang.
           </p>
           {showPr && prPreview && (
             <div className="rap-pr-preview" data-testid="rap-pr-preview">
+              <div className="rap-pr-meta" data-testid="rap-pr-gate">
+                Pratinjau (bukan alokasi resmi) · dipilih {prPreview.gate.selected} baris · terverifikasi {prPreview.gate.verified} ·
+                ditolak {prPreview.gate.rejected} · katalog {prPreview.gate.catalog_loaded ? `${prPreview.gate.catalog_size} item` : 'BELUM termuat'}
+              </div>
               {prPreview.problems.length > 0 && (
                 <ul className="rap-error-list" data-testid="rap-pr-problems">
                   {prPreview.problems.map((p, i) => <li key={i}>{p}</li>)}
@@ -629,8 +815,12 @@ export default function RapModule({
               )}
               <div className="rap-pr-meta" data-testid="rap-pr-meta">
                 {prPreview.items.length} item · total rencana {formatRupiah(prPreview.meta.planned_total)} ·
-                {' '}penulisan DB: {prPreview.meta.writes}
+                {' '}penulisan DB: {prPreview.meta.writes} · persetujuan: {prPreview.meta.approval === 'NONE' ? 'TIDAK ADA (draft)' : prPreview.meta.approval}
               </div>
+              <p className="rap-muted" data-testid="rap-pr-approval-note">{prPreview.meta.approval_note}</p>
+              <p className="rap-muted" data-testid="rap-pr-basis-note">
+                Basis acuan payload: {prPreview.meta.rab_basis_label} · perbandingan apel-vs-apel: <b>TIDAK</b>.
+              </p>
               <pre className="rap-pre" data-testid="rap-pr-payload">{JSON.stringify({ request: prPreview.request, items: prPreview.items }, null, 2)}</pre>
             </div>
           )}
@@ -670,6 +860,11 @@ export default function RapModule({
         }
         .rap-honest strong { font-size: 13px; }
         .rap-honest span { color: #8a6410; }
+        .rap-baseline {
+          display: grid; gap: 3px; padding: 10px 14px; border-radius: 10px;
+          background: #f4f7fb; border: 1px solid #c7d7ea; color: #1e3a5f; font-size: 12.2px;
+        }
+        .rap-baseline strong { font-size: 12.8px; }
         .rap-toolbar {
           display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
           background: var(--card-bg, #fff); border: 1px solid var(--border-light, #e0e2db);
@@ -725,15 +920,17 @@ export default function RapModule({
         .rap-table td { padding: 7px 10px; border-bottom: 1px solid #f0f2eb; vertical-align: middle; }
         .rap-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .rap-num small { display: block; font-size: 10px; color: #8b8f88; }
+        .rap-invalid { color: #b91c1c !important; font-weight: 700; }
         .rap-state-OVER { color: #b91c1c; font-weight: 700; }
         .rap-state-UNDER { color: #166534; }
         .rap-input-name { min-width: 180px; width: 100%; }
+        .rap-input-kind { min-width: 150px; }
         .rap-input-unit { width: 74px; }
         .rap-input-num { width: 96px; text-align: right; }
-        .rap-input-name, .rap-input-unit, .rap-input-num {
+        .rap-input-name, .rap-input-unit, .rap-input-num, .rap-input-kind {
           font-size: 12.3px; padding: 4px 6px; border: 1px solid #d8dcd0; border-radius: 5px; background: #fff;
         }
-        .rap-input-name:focus, .rap-input-unit:focus, .rap-input-num:focus { border-color: #4b523a; outline: none; }
+        .rap-input-name:focus, .rap-input-unit:focus, .rap-input-num:focus, .rap-input-kind:focus { border-color: #4b523a; outline: none; }
         .rap-src-tag {
           display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
           background: #eef2ea; color: #3b4233; border-radius: 4px; padding: 1px 5px;
@@ -768,6 +965,7 @@ function sourceTag(src) {
     WBS_UPAH: 'acuan WBS (upah saja)',
     WBS_TANPA_UPAH: 'WBS tanpa upah',
     RAB_TANPA_HARGA: 'RAB tanpa harga',
+    RAB_HARGA_TIDAK_VALID: 'RAB harga tidak valid',
     MANUAL: 'manual'
   }
   return map[src] || src

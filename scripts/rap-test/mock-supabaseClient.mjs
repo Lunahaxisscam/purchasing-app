@@ -7,11 +7,15 @@
 export const __ops = []
 export let __plans = []
 export let __plansError = null
+export let __materials = []
+export let __materialsError = null
 
 export function __reset(opts = {}) {
   __ops.length = 0
   __plans = opts.plans || []
   __plansError = opts.plansError || null
+  __materials = opts.materials || []
+  __materialsError = opts.materialsError || null
 }
 
 export const supabase = {
@@ -19,19 +23,31 @@ export const supabase = {
     const api = {
       select(cols) {
         __ops.push({ op: 'select', table, cols })
+        const rowsFor = () => {
+          if (table === 'project_plans') return __plans
+          if (table === 'materials') return __materials
+          return []
+        }
+        const errFor = () => {
+          if (table === 'project_plans') return __plansError
+          if (table === 'materials') return __materialsError
+          return null
+        }
         const chain = {
           eq(col, val) {
             __ops.push({ op: 'eq', table, col, val })
-            if (__plansError) return Promise.resolve({ data: null, error: { message: __plansError } })
+            const err = errFor()
+            if (err) return Promise.resolve({ data: null, error: { message: err } })
             const rows = table === 'project_plans'
               ? __plans.filter(p => String(p.project_id) === String(val))
-              : []
+              : rowsFor()
             return Promise.resolve({ data: rows, error: null })
           },
           order() { return chain },
           then(res) {
-            if (__plansError) return Promise.resolve({ data: null, error: { message: __plansError } }).then(res)
-            return Promise.resolve({ data: table === 'project_plans' ? __plans : [], error: null }).then(res)
+            const err = errFor()
+            if (err) return Promise.resolve({ data: null, error: { message: err } }).then(res)
+            return Promise.resolve({ data: rowsFor(), error: null }).then(res)
           }
         }
         return chain

@@ -70,12 +70,22 @@ for (const [label, src] of [['view.jsx', view], ['model.js', model], ['budgeting
   check(`E4 ${label}: tidak ada .rpc(`, !/\.rpc\s*\(/.test(src))
 }
 check('E5 model.js tidak mengimpor Supabase sama sekali', !/supabaseClient/.test(model))
-check('E6 budgetingBridge hanya memakai satu select (read-only)', (bridge.match(/\.select\s*\(/g) || []).length === 1, String((bridge.match(/\.select\s*\(/g) || []).length))
+// t_3b877fb5: bridge kini punya DUA select baca-saja — `project_plans` (WBS)
+// dan `materials` (katalog master untuk verifikasi material_id/satuan/skala).
+check('E6 budgetingBridge hanya memakai select (read-only, 2 select sah)', (bridge.match(/\.select\s*\(/g) || []).length === 2, String((bridge.match(/\.select\s*\(/g) || []).length))
 check('E7 budgetingBridge membaca project_plans (bukan tabel RAP)', /from\('project_plans'\)/.test(bridge))
+check('E7b budgetingBridge membaca materials untuk verifikasi katalog', /from\('materials'\)/.test(bridge))
 check('E8 view.jsx tidak memakai localStorage', !/localStorage/.test(view))
 check('E9 tidak ada tabel rap di seluruh modul (tidak ada skema)', !/from\('rap/i.test(view + bridge + store + model))
 check('E10 store menandai mode DRAFT_ONLY', /PERSISTENCE_MODE = 'DRAFT_ONLY'/.test(store))
 check('E11 kapabilitas menyatakan canSave false', /canSave: false/.test(bridge))
+check('E12 kapabilitas menyatakan canApprove false', /canApprove: false/.test(bridge))
+check('E13 kapabilitas menyatakan gerbang BOM eksplisit', /bomGate:/.test(bridge) && /MATERIAL BAKU/.test(bridge))
+// t_3b877fb5: view TIDAK boleh memakai heuristik nama barang untuk menebak
+// material, dan tidak boleh ada Math.max(0, ...) yang menelan nilai negatif.
+check('E14 view tidak memakai heuristik nama untuk menebak material', !/item_name[^\n]{0,40}(includes|indexOf|match)\s*\(/.test(view))
+check('E15 model TIDAK meng-coerce nilai negatif dengan Math.max(0, harga)', !/Math\.max\(\s*0\s*,\s*(roundRupiah\()?[a-zA-Z_]*[Pp]rice/.test(model))
+check('E16 model menyatakan state uang eksplisit (MONEY)', /export const MONEY =/.test(model) && /NEGATIVE: 'NEGATIVE'/.test(model))
 
 console.log('\n=== F. TIDAK MENYENTUH FILE MODUL LAIN ===')
 check('F1 view.jsx tidak mengimpor modules/requests/*', !/from '\.\.\/requests/.test(view))

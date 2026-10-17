@@ -194,7 +194,68 @@ console.log('=== E2E CHROME NYATA — RAP internal versi minimum (t_71d95cfe) ==
   check('3d selisih jadi negatif (di bawah acuan)', /200\.000/.test(after.diff || ''), after.diff)
 }
 
-// ---------- 4) handoff PR: payload tampil, nol penulisan ----------
+// ---------- 3b) HARGA NEGATIF di browser: tetap negatif & MEMBLOKIR ----------
+// t_3b877fb5 (temuan Brooklyn): -100 tidak boleh berubah jadi 0 lalu lolos.
+{
+  const r = await evalJs(`(() => {
+    const sec = document.getElementById('mod-rap')
+    const rows = [...sec.querySelectorAll('tr[data-testid^="rap-line-"]')]
+    const row = rows.find(x => {
+      const i = x.querySelector('input[data-testid^="rap-name-"]')
+      return i && i.value === 'Wardrobe'
+    })
+    if (!row) return { err: 'row not found' }
+    const id = row.getAttribute('data-testid').replace('rap-line-', '')
+    const input = sec.querySelector('[data-testid="rap-price-' + id + '"]')
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+    setter.call(input, '-100')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    return { id }
+  })()`)
+  await sleep(600)
+  const after = await evalJs(`(() => {
+    const sec = document.getElementById('mod-rap')
+    const id = ${JSON.stringify(r.id)}
+    const priceInput = sec.querySelector('[data-testid="rap-price-' + id + '"]')
+    const hint = sec.querySelector('[data-testid="rap-price-hint-' + id + '"]')
+    const probs = sec.querySelector('[data-testid="rap-validation-problems"]')
+    return {
+      value: priceInput ? priceInput.value : null,
+      hint: hint ? hint.textContent.replace(/\\s+/g, ' ').trim() : null,
+      problems: probs ? probs.textContent.replace(/\\s+/g, ' ').trim() : ''
+    }
+  })()`)
+  check('3b1 input harga TETAP -100 (tidak berubah jadi 0)', after.value === '-100', String(after.value))
+  check('3b2 hint menyatakan ditolak (negatif)', /ditolak/i.test(after.hint || '') && /negatif/i.test(after.hint || ''), after.hint)
+  check('3b3 validasi memunculkan penghalang negatif', /negatif/i.test(after.problems) && /DITOLAK/i.test(after.problems), after.problems.slice(0, 200))
+
+  // status tidak bisa diajukan selama penghalang ada
+  await evalJs(`document.getElementById('mod-rap').querySelector('[data-testid="rap-act-ajukan"]').click()`)
+  await sleep(400)
+  const st = await evalJs(`(() => {
+    const sec = document.getElementById('mod-rap')
+    const b = sec.querySelector('[data-testid="rap-status-badge"]')
+    const n = sec.querySelector('[data-testid="rap-notice"]')
+    return { badge: b ? b.textContent.trim() : null, notice: n ? n.textContent.replace(/\\s+/g, ' ').trim() : '' }
+  })()`)
+  check('3b4 draft berpenghalang tidak bisa Diajukan', st.badge === 'Draft', String(st.badge))
+  check('3b5 alasan penolakan pengajuan terbaca', /penghalang/i.test(st.notice || ''), st.notice)
+
+  // kembalikan ke nilai sah supaya bagian berikutnya tidak terpengaruh
+  await evalJs(`(() => {
+    const sec = document.getElementById('mod-rap')
+    const id = ${JSON.stringify(r.id)}
+    const input = sec.querySelector('[data-testid="rap-price-' + id + '"]')
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+    setter.call(input, '1400000')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })()`)
+  await sleep(400)
+}
+
+// ---------- 4) gerbang BOM: baris pekerjaan DITOLAK dari PR material ----------
+// t_3b877fb5: baris BOQ = pekerjaan/barang jadi. Pratinjau HARUS menolak
+// dengan penjelasan dan TIDAK menyusun payload (fail-closed). Tetap nol tulis.
 {
   await evalJs(`document.getElementById('mod-rap').querySelector('[data-testid="rap-act-pr-preview"]').click()`)
   await sleep(500)
@@ -202,22 +263,26 @@ console.log('=== E2E CHROME NYATA — RAP internal versi minimum (t_71d95cfe) ==
     const sec = document.getElementById('mod-rap')
     const pre = sec.querySelector('[data-testid="rap-pr-payload"]')
     const meta = sec.querySelector('[data-testid="rap-pr-meta"]')
+    const probs = sec.querySelector('[data-testid="rap-pr-problems"]')
+    const gate = sec.querySelector('[data-testid="rap-pr-gate"]')
     let parsed = null
     try { parsed = JSON.parse(pre.textContent) } catch (e) { /* biarkan null */ }
     return {
       hasPre: !!pre,
       meta: meta ? meta.textContent.replace(/\\s+/g, ' ').trim() : null,
+      gate: gate ? gate.textContent.replace(/\\s+/g, ' ').trim() : null,
+      problems: probs ? probs.textContent.replace(/\\s+/g, ' ').trim() : '',
       items: parsed ? parsed.items.length : -1,
-      prNumber: parsed ? parsed.request.pr_number : 'x',
-      status: parsed ? parsed.request.status : 'x'
+      request: parsed ? parsed.request : 'x'
     }
   })()`)
-  check('4a payload PR tampil di browser', r.hasPre === true)
+  check('4a pratinjau PR tampil di browser (transparan)', r.hasPre === true)
   check('4b meta menyatakan penulisan DB: 0', /penulisan DB: 0/.test(r.meta || ''), r.meta)
-  check('4c jumlah item = baris RAP', r.items === 2, 'items=' + r.items)
-  check('4d nomor PR tidak dikarang (null)', r.prNumber === null, String(r.prNumber))
-  check('4e status request DRAFT', r.status === 'DRAFT', String(r.status))
-  check('4f NOL request mutasi ke Supabase', mutationRequests === 0, 'mutations=' + mutationRequests)
+  check('4c TIDAK ada item pekerjaan lolos ke PR material', r.items === 0, 'items=' + r.items)
+  check('4d payload TIDAK disusun saat gerbang menolak (fail-closed)', r.request === null, String(r.request))
+  check('4e alasan penolakan menyebut MATERIAL BAKU + langkah perbaikan', /MATERIAL BAKU/.test(r.problems) && /BOM|gambar kerja/.test(r.problems), r.problems.slice(0, 200))
+  check('4f gate melaporkan 0 terverifikasi', /terverifikasi 0/.test(r.gate || ''), r.gate)
+  check('4g NOL request mutasi ke Supabase', mutationRequests === 0, 'mutations=' + mutationRequests)
 }
 
 // ---------- 5) responsif: 4 viewport tanpa overflow ----------
@@ -253,17 +318,26 @@ for (const [w, h, mobile, label] of [[360, 780, true, '360 (HP kecil)'], [390, 8
   const r = await evalJs(`(() => {
     const sec = document.getElementById('mod-rap')
     const t = sec.textContent || ''
+    const txt = id => { const el = sec.querySelector('[data-testid="' + id + '"]'); return el ? el.textContent.replace(/\\s+/g, ' ').trim() : '' }
     return {
       aktual: /\\baktual\\b/i.test(t),
       draftSaja: /Draft saja/.test(t),
       localStorage: /localStorage/.test(t),
-      claimSaved: /(?<!belum )(?<!tidak )tersimpan/i.test(t)
+      claimSaved: /(?<!belum )(?<!tidak )tersimpan/i.test(t),
+      baselineLabel: txt('rap-baseline-label'),
+      baselineFlag: txt('rap-baseline-flag'),
+      statusHonest: txt('rap-status-honest'),
+      gateRule: txt('rap-pr-gate-rule')
     }
   })()`)
   check('6a tidak ada kata "aktual" pada angka RAP', r.aktual === false)
   check('6b penanda "Draft saja" ada', r.draftSaja === true)
   check('6c tidak memakai localStorage sebagai DB', r.localStorage === false)
   check('6d tidak ada klaim "tersimpan" tanpa penyangkalan', r.claimSaved === false)
+  check('6e label sumber acuan tampil (bukan klaim apel-vs-apel)', !!r.baselineLabel && /HARGA JUAL|UPAH|Manual|Tidak ada/i.test(r.baselineLabel), r.baselineLabel)
+  check('6f penanda "apel-vs-apel: TIDAK" ada', /apel-vs-apel/i.test(r.baselineFlag || '') && /TIDAK/.test(r.baselineFlag || ''), r.baselineFlag)
+  check('6g status diberi label bukan persetujuan resmi', /bukan persetujuan resmi/i.test(r.statusHonest || ''), r.statusHonest)
+  check('6h aturan gerbang BOM dijelaskan', /Gerbang BOM/.test(r.gateRule || ''), r.gateRule)
 }
 
 console.log(`\n=== HASIL E2E: ${pass} lulus, ${fail} gagal ===`)

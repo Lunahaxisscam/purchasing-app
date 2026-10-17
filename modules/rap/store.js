@@ -1,7 +1,8 @@
 // ============================================================
 // modules/rap/store.js — PENYIMPANAN DRAFT RAP (SESI, BUKAN DATABASE)
 // ============================================================
-// t_71d95cfe (S3/7). Kontrak penyimpanan RAP versi minimum.
+// t_71d95cfe (S3/7), diperkeras t_3b877fb5.
+// Kontrak penyimpanan RAP versi minimum.
 //
 // KENYATAAN YANG TIDAK BOLEH DISAMARKAN:
 //   * Tidak ada tabel `rap_versions` dan tidak ada RPC penyimpanan RAP.
@@ -15,10 +16,25 @@
 // Yang tetap disediakan supaya draft tidak hilang begitu saja: backup JSON
 // manual (rapToSnapshot) + pulihkan dari JSON (rapFromSnapshot) — keduanya
 // di file model.js dan diuji di harness.
+//
+// t_3b877fb5 — STATUS BUKAN PERSETUJUAN:
+//   `changeStatus` sengaja TIDAK bisa dipakai untuk "menyetujui" draft yang
+//   masih punya penghalang validasi. Hasil transisi selalu membawa
+//   `official: false` supaya pemanggil tidak bisa mengklaim approval resmi.
 // ============================================================
-import { createRapDraft, nextVersionLabel, RAP_STATUS, setRapStatus, validateRap, touchRap } from './model'
+import {
+  RAP_STATUS,
+  createRapDraft,
+  nextVersionLabel,
+  setRapStatus,
+  touchRap,
+  validateRap
+} from './model'
 
 export const PERSISTENCE_MODE = 'DRAFT_ONLY'
+
+// Status yang menuntut draft lolos validasi lebih dulu (bukan label kosong).
+const GATED_STATUSES = [RAP_STATUS.DIAJUKAN, RAP_STATUS.DISETUJUI]
 
 // Store sesi sederhana: array draft di memori + listener. Dibuat sebagai
 // factory (bukan singleton) supaya tiap test mendapat store bersih.
@@ -83,16 +99,37 @@ export function createRapStore(options = {}) {
   }
 
   // Transisi status memakai aturan model (bukan if-else liar di UI).
+  // Draft yang masih punya penghalang TIDAK bisa diajukan/disetujui.
   function changeStatus(to, meta = {}) {
     const active = drafts.find(d => d.id === activeId)
     if (!active) return { ok: false, problem: 'Belum ada draft RAP yang dipilih.' }
+
+    const target = String(to || '').toUpperCase()
+    if (GATED_STATUSES.indexOf(target) >= 0) {
+      const check = validateRap(active)
+      if (!check.ok) {
+        return {
+          ok: false,
+          rap: active,
+          problem: `Draft masih punya ${check.problems.length} penghalang — perbaiki dulu: ${check.problems[0]}`,
+          validation: check
+        }
+      }
+    }
+
     // Menyimpan draft TIDAK mengubah kenyataan penyimpanan: status hanya
     // label kerja internal, bukan bukti persetujuan resmi di server.
-    const result = setRapStatus(active, to, { now: now(), by: meta.by || '', note: meta.note || '' })
+    const result = setRapStatus(active, target, { now: now(), by: meta.by || '', note: meta.note || '' })
     if (!result.ok) return result
     drafts = drafts.map(d => (d.id === active.id ? result.rap : d))
     emit()
-    return result
+    return {
+      ...result,
+      // Eksplisit: status ini BUKAN approval resmi & belum tersimpan.
+      official: false,
+      persisted: false,
+      persistence: PERSISTENCE_MODE
+    }
   }
 
   function validation() {
