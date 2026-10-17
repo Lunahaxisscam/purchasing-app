@@ -220,6 +220,25 @@ for (const vp of [
   })()`)
   check(`4 ${vp.label}: tanpa scroll horizontal di body`, r.docOverflow <= 1, 'delta=' + r.docOverflow)
   check(`4 ${vp.label}: kartu antrean tidak memaksa overflow`, r.cardOverflow === 0, 'n=' + r.cardOverflow)
+  // Di HP tombol boleh wrap, tapi TIDAK boleh terpotong / hilang.
+  const vis = await evalJs(`(() => {
+    const c = document.querySelector('[data-testid^="queue-card-"]')
+    if (!c) return { err: 'no card' }
+    const id = c.getAttribute('data-testid').replace('queue-card-', '')
+    const ids = ['queue-act-gudang-', 'queue-act-tukang-', 'queue-problem-']
+    const out = {}
+    for (const p of ids) {
+      const b = c.querySelector('[data-testid="' + p + id + '"]')
+      if (!b) { out[p] = 'missing'; continue }
+      const r = b.getBoundingClientRect()
+      const inViewport = r.left >= -1 && r.right <= window.innerWidth + 1
+      out[p] = r.width > 30 && r.height > 8 && inViewport ? 'ok' : ('bad w=' + Math.round(r.width) + ' l=' + Math.round(r.left) + ' r=' + Math.round(r.right))
+    }
+    return out
+  })()`)
+  check(`4 ${vp.label}: 3 aksi terlihat penuh (tidak terpotong)`,
+    !vis.err && ['queue-act-gudang-', 'queue-act-tukang-', 'queue-problem-'].every(k => vis[k] === 'ok'),
+    JSON.stringify(vis))
 }
 
 check('5 nol request mutasi DB selama pemeriksaan tampilan', mutationRequests === 0, 'mutations=' + mutationRequests)

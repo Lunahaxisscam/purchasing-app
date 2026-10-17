@@ -72,7 +72,7 @@ horizontal di 4 viewport.
 | `run.py` | sandbox `/tmp/handover-compact-verify` — salin VERBATIM sumber, mock supabase perekam, transform SWC, jalankan 2 test |
 | `queue_ui_test.mjs` | **86 assertion** — A1–A13: visibilitas aksi, status teknis disembunyikan, label jujur, alasan tiap tombol nonaktif, nota bermasalah, fallback legacy, delegasi handler shell, multi-item ditolak, tidak ada field fisik ganda |
 | `purchase_scope_test.mjs` | **52 assertion** — B1–B5: Purchase tanpa kontrol fisik, status/kendala tidak tampil, token kolom fisik tidak bocor, jalur simpan tidak menulis kolom fisik, Handover satu-satunya pemilik aksi fisik |
-| `e2e_runtime_test.mjs` | **31 assertion** — Chrome CDP pada `/__smoke`: 3 tombol benar-benar terlihat & satu baris, kode status tidak bocor, nol overflow di 1440/1280/390/360, nol request mutasi DB |
+| `e2e_runtime_test.mjs` | **35 assertion** — Chrome CDP pada `/__smoke`: 3 tombol benar-benar terlihat & satu baris, kode status tidak bocor, nol overflow di 1440/1280/390/360, 3 aksi tidak terpotong di HP, nol request mutasi DB |
 
 ### `scripts/pr-purchase-compact-test/render_test.mjs` (1 assertion disesuaikan)
 
@@ -124,7 +124,7 @@ kompatibilitas impor lama tanpa manfaat.
 
 ```
 scripts/handover-compact-test   QUEUE 86 + PURCHASE 52          / 0 GAGAL   ← baru
-scripts/handover-compact-test/e2e (Chrome CDP)  31              / 0 GAGAL   ← baru
+scripts/handover-compact-test/e2e (Chrome CDP)  35              / 0 GAGAL   ← baru
 scripts/handover-flow-test      logic 61 + queue 66 + render 73 / 0 GAGAL
 scripts/purchase-flow-test      178 + 90                        / 0 GAGAL
 scripts/pr-purchase-compact-test  20 + 130                      / 0 GAGAL

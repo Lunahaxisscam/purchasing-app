@@ -3,8 +3,10 @@
 // ============================================================
 // t_b03c5228 (S2/7, arahan DAT) — DIPADATKAN & TANGGUNG JAWAB DIPISAH:
 //   Purchase berhenti di "barang dibeli". Modul ini SATU-SATUNYA tempat
-//   keputusan fisik barang:  📦 Masuk Stok Gudang · 👷 Serah Terima ke Tukang
-//   · ⚠ Bermasalah (Retur/Refund, aksi sekunder yang tidak menyolok).
+//   keputusan fisik barang, dalam TIGA aksi satu baris:
+//     📦 Masuk Stok Gudang · 👷 Serah Terima ke Tukang · ⚠ Bermasalah
+//   "Bermasalah" (Retur/Refund) sengaja TIDAK ditonjolkan — ia jalan keluar
+//   untuk barang cacat/salah kirim, bukan langkah normal.
 //   Konfirmasi "barang sudah diterima di lokasi" tetap ada sebagai LANGKAH
 //   PENUTUP (bukan aksi keempat yang setara) karena bukti fisik = diserahkan_at.
 //

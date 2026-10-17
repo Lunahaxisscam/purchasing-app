@@ -23,10 +23,10 @@
 //   thumbnail + tombol lihat; kolom "Catatan" menampilkan teksnya saja.
 // ============================================================
 
-// Antrean Distribusi Fisik (2 aksi utama gudang/tukang + Bermasalah + langkah
-// penutup "tandai diserahkan"). Dire-export dari queue.jsx supaya dispatcher
-// modules/shared/renderModuleCell menemukannya sebagai `banner` modul handovers
-// tanpa mengubah file shell.
+// Antrean Distribusi Fisik (3 aksi fisik: gudang / tukang / bermasalah, plus
+// langkah penutup "tandai diserahkan"). Dire-export dari queue.jsx supaya
+// dispatcher modules/shared/renderModuleCell menemukannya sebagai `banner`
+// modul handovers tanpa mengubah file shell.
 export { renderHandoverQueue as banner } from './queue'
 
 import React from 'react'
