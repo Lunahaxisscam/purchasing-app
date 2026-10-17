@@ -11,9 +11,9 @@
 | Hal | Nilai |
 |---|---|
 | Branch integrasi | `feat/integration-8h-18okt` |
-| Commit HEAD (branch) | `482f68d` — setelah `aab993e` hanya dokumen & skrip uji (tidak masuk bundel Next) |
-| Commit KODE terakhir | `3d6b0a6` (perubahan kode terakhir; sesudahnya hanya docs + `scripts/integration-test/`) |
-| Commit yang dibangun jadi artefak | `aab993e` (BUILD_ID `GyzaWYEcq009kHRu9esvy`, dicatat di `state/release-manifest.json`) |
+| Commit KODE terakhir | `3d6b0a6` (satu-satunya commit yang mengubah kode aplikasi setelah merge) |
+| Commit dokumen terakhir | `git log -1 --format=%h` di worktree integrasi (semua commit sesudah `3d6b0a6` hanya menyentuh `docs/` + `scripts/integration-test/`, **tidak** masuk bundel Next) |
+| Commit yang dibangun jadi artefak | `aab993e` — BUILD_ID & readback-nya dicatat di `state/release-manifest.json` (sumber kebenaran artefak) |
 | Base | `main` @ `18fb594` (tidak diubah, tidak di-push) |
 | Worktree integrasi | `/home/ubuntu/dev-workspaces/purchasing-8h-integration` |
 | Worktree artefak rilis | `/home/ubuntu/dev-workspaces/purchasing-8h-integration-release` |
@@ -163,7 +163,7 @@ Artefak rilis sudah dibangun & diuji **di tempat terpisah**, bukan di `.next` ya
 
 ## 9. Permintaan untuk Brooklyn (gerbang rilis)
 
-Mohon review commit **`482f68d`** (branch `feat/integration-8h-18okt`, worktree `purchasing-8h-integration`) dengan fokus:
+Mohon review branch **`feat/integration-8h-18okt`** di worktree `purchasing-8h-integration` (HEAD dokumen terakhir; kode terakhir `3d6b0a6`, artefak `aab993e` / BUILD_ID `GyzaWYEcq009kHRu9esvy`) dengan fokus:
 1. Resolusi CORE (§3) — apakah semua rute & guard admin utuh.
 2. Tiga perubahan perilaku (§4 no.1–3) — apakah instruksi rekonsiliasi & nama wajib sudah sesuai REVIEW-02.
 3. Klasifikasi merah (§5.3) — apakah bukti baseline cukup untuk menyebut `rab-boq-render` F1/F2 & `ui-olive` C sebagai pre-existing, dan E7/e2e-handover sebagai assertion usang.
