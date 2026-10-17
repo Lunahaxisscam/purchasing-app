@@ -582,7 +582,9 @@ console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak d
     // memang milik kartu S4. Tidak ada file modul S1/S2 yang dilonggarkan;
     // kontrak actions.js/logic.js handover tetap terkunci di atas.
     'modules/sales-invoice/view.jsx', 'modules/sales-invoice/CreateInvoiceModal.jsx',
-    'modules/sales-invoice/pdf.js', 'pages/api/sales-invoices.js',
+    'modules/sales-invoice/pdf.js', 'modules/sales-invoice/contract.js',
+    'modules/sales-invoice/store.js', 'modules/sales-invoice/auth.js',
+    'modules/sales-invoice/apiClient.js', 'pages/api/sales-invoices.js',
     // t_71d95cfe (S3/7) juga memiliki modul modules/rap/ sendiri. Assertion
     // ini sebelumnya tidak memuatnya sehingga GAGAL PRE-EXISTING sejak
     // ac71191 (bukan akibat kartu S4); didaftarkan eksplisit, bukan
