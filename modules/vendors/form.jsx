@@ -36,8 +36,14 @@ export function formBody(ctx) {
   return (
     <>
       {field('name', 'Nama Vendor', 'text', true)}
-      {field('phone', 'Kontak WA (No. WhatsApp)', 'text', false)}
-      {field('store_link', 'Link Toko (URL)', 'text', false)}
+      {/* t_31871b64 (Sprint 1, arahan DAT): label kontak DISERAGAMKAN —
+          satu nama untuk satu makna di form, kartu mobile, dan header tabel
+          (lihat pretty() di lib/constants.js):
+            phone      -> 'Kontak WA'
+            store_link -> 'Link Toko'
+          Kolom DB TIDAK berubah; hanya teks label yang seragam. */}
+      {field('phone', 'Kontak WA', 'text', false)}
+      {field('store_link', 'Link Toko', 'text', false)}
       {/* ============================================================
           KATEGORI MATERIAL YANG DISUPLAI — CHECKLIST MULTI-SELECT
           (t_e626b674). Checkbox bergaya Noir: tiap kategori = satu baris
@@ -66,7 +72,19 @@ export function formBody(ctx) {
           )
         })}
       </div>
-      {field('contact', 'Kontak / Email (opsional)', 'text', false)}
+      {/* t_31871b64 (Sprint 1, arahan DAT): email / kontak lain DIPINDAH ke
+          bagian LANJUTAN dan tetap OPSIONAL — vendor yang hanya punya WA
+          tidak perlu mengisi. Native <details>: tanpa state tambahan,
+          tetap terbaca oleh screen reader. Kolom DB `contact` tidak berubah. */}
+      <details className="vendor-form-advanced">
+        <summary className="vendor-form-advanced-summary">Lanjutan (opsional)</summary>
+        <div className="vendor-form-advanced-body">
+          {field('contact', 'Email / Kontak Lain', 'text', false)}
+          <p className="vendor-form-advanced-hint">
+            Boleh dikosongkan — cukup Kontak WA bila itu satu-satunya cara menghubungi vendor.
+          </p>
+        </div>
+      </details>
     </>
   )
 }

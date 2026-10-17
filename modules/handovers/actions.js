@@ -37,7 +37,7 @@ async function loadContext(handoverId) {
     .eq('id', handoverId)
     .maybeSingle()
   if (hoErr) return { error: hoErr.message }
-  if (!ho) return { error: 'Handover tidak ditemukan.' }
+  if (!ho) return { error: 'Serah Terima tidak ditemukan.' }
 
   let receiving = null
   let items = []
@@ -130,7 +130,7 @@ export async function tandaiDiserahkan(handoverId, { receivedBy = '' } = {}) {
   try {
     const ctx = await loadContext(handoverId)
     if (ctx.error) return fail(ctx.error)
-    if (ctx.handover.diserahkan_at) return ok('Handover ini sudah ditandai diserahkan sebelumnya.')
+    if (ctx.handover.diserahkan_at) return ok('Serah Terima ini sudah ditandai diserahkan sebelumnya.')
 
     const patch = {
       diserahkan_at: nowIso(),
@@ -142,7 +142,7 @@ export async function tandaiDiserahkan(handoverId, { receivedBy = '' } = {}) {
     const { error } = await supabase.from('handovers').update(patch).eq('id', handoverId)
     if (error) return fail(error.message)
 
-    return ok('Handover ditandai sudah diserahkan.')
+    return ok('Serah Terima ditandai sudah diserahkan.')
   } catch (err) {
     return fail(err.message)
   }

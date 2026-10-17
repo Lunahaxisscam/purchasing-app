@@ -67,7 +67,9 @@ export const modules = [
   },
   {
     id: 'receivings',
-    label: 'Purchase',
+    // t_31871b64 (Sprint 1, arahan DAT): label terlihat 'Purchase' ->
+    // 'Pembelian'. id modul, permission, source, files TIDAK berubah.
+    label: 'Pembelian',
     adminOnly: false,
     // t_9109cf5e (arahan DAT): Purchase punya HALAMAN SENDIRI (dua tab: Siap
     // Dibeli & Riwayat Pembelian + dialog Proses Pembelian), dirender langsung
@@ -87,7 +89,9 @@ export const modules = [
   },
   {
     id: 'handovers',
-    label: 'Handover',
+    // t_31871b64 (Sprint 1, arahan DAT): label terlihat 'Handover' ->
+    // 'Serah Terima'. id modul, permission, source, files TIDAK berubah.
+    label: 'Serah Terima',
     adminOnly: false,
     source: 'module',
     files: [
@@ -229,6 +233,72 @@ export const modules = [
       'modules/rap/README.md',
       'docs/rap-contract.md',
       'scripts/rap-test/run.py'
+    ]
+  },
+  {
+    // Modul "Stok Workshop" (t_02e5f5fd) — READ-ONLY, admin-only.
+    // Halaman sendiri (source:'core', dirender pages/index.js) seperti
+    // RAB & BOQ & Invoice Penjualan: tampilannya kumpulan kartu ringkas,
+    // bukan tabel CRUD. TIDAK ada tabel DB baru, tidak ada penulisan:
+    // hanya membaca rows.materials (katalog master). Angka stok berasal
+    // dari materials.current_stock (ditulis RPC receive_to_warehouse) —
+    // TIDAK pernah diturunkan dari status PR/header, dan yang tidak ada
+    // ditandai "Tidak tersedia". Detail keterbatasan: modules/stock/logic.js.
+    id: 'stock',
+    label: 'Stok Workshop',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/stock/view.jsx',
+      'modules/stock/logic.js',
+      'scripts/stock-view-test/run.py'
+    ]
+  },
+  {
+    // Modul "Perbandingan RAB vs RAP vs Aktual" (t_a5ba5f73) — READ-ONLY,
+    // admin-only. Halaman sendiri (source:'core', dirender pages/index.js)
+    // seperti RAB & BOQ & Stok Workshop. Tidak ada tabel DB baru, tidak ada
+    // penulisan: draft RAP hidup di memori halaman saja (React state), reset
+    // saat ganti proyek. Acuan RAB datang lewat prop (fixture/JSON) karena
+    // repo menyimpan RAB di memori halaman, bukan tabel boq_items; AKTUAL
+    // dibaca dari rows.receivings + rows.receiving_items. Aturan kejujuran:
+    // tidak ada aktual -> "Belum ada aktual" BUKAN Rp 0; pagu tidak dikirim
+    // -> "Pagu belum diketahui" BUKAN "aman"; yang dibandingkan nilai dasar
+    // baris (qty x harga), bukan grand total quotation yang sudah markup/PPN.
+    // Detail: modules/rap-compare/README.md.
+    id: 'rap_compare',
+    label: 'Perbandingan RAB/RAP/Aktual',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/rap-compare/view.jsx',
+      'modules/rap-compare/logic.js',
+      'modules/rap-compare/README.md',
+      'scripts/rap-compare-test/run.py'
+    ]
+  },
+  {
+    // Modul "Customer CRM" (t_7253b859) — READ-ONLY, admin-only.
+    // Halaman sendiri (source:'core', dirender pages/index.js) seperti
+    // Stok Workshop & Perbandingan RAB/RAP/Aktual. TIDAK ada tabel DB baru,
+    // TIDAK ada RPC, TIDAK ada migrasi, TIDAK ada penulisan: customer dari
+    // form hidup sebagai DRAF memori halaman dan diberi label "Draf halaman".
+    // Sumber data = prop `customers` dari host (atau rows.customers); tidak
+    // dikirim -> capability 'unavailable' dengan panel penjelasan, BUKAN
+    // daftar kosong yang terlihat seperti bug. Kontak kosong = "Tidak
+    // tersedia" (bukan string kosong); hitungan relasi invoice yang tidak
+    // dikirim host = "tidak dikirim", BUKAN 0. Tidak ada customer contoh.
+    // Detail: modules/crm/README.md.
+    id: 'crm',
+    label: 'Customer CRM',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/crm/view.jsx',
+      'modules/crm/selector.jsx',
+      'modules/crm/logic.js',
+      'modules/crm/README.md',
+      'scripts/crm-test/run.py'
     ]
   },
   {

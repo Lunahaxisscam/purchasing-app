@@ -38,9 +38,14 @@ import {
 // Shell ini hanya perlu disentuh bila mengubah kontrak bersama (mis. prop baru
 // dari pages/index.js) — perubahan itu harus lewat Tech Lead (docs/owners.md).
 // ============================================================
-export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onDelete, setPage }) {
+export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onDelete, setPage, projectTab: projectTabProp = 'active' }) {
   const [open, setOpen] = useState(false)
   const [projectFilter, setProjectFilter] = useState('active')
+  // t_31871b64 (Sprint 1): Projects & Past Project digabung jadi satu modul
+  // dengan dua tab — 'active' (belum selesai) dan 'done' (status DONE).
+  // Nilai awal dari prop: masuk lewat route lama `past_projects` langsung
+  // membuka tab "Selesai"; lewat menu Projects = tab default 'active'.
+  const [projectTab, setProjectTab] = useState(projectTabProp)
   const [receivingFilter, setReceivingFilter] = useState('all')
   const [prFilter, setPrFilter] = useState('all')
   // Antrean Approval default "Menunggu" (PENDING) — arahan DAT (t_0a35264f):
@@ -167,7 +172,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   // pencarian / urutan berubah — pengguna selalu mulai dari potongan awal.
   useEffect(() => {
     setListLimit(PAGE_SIZE)
-  }, [projectFilter, receivingFilter, prFilter, approvalFilter, materialFilter, vendorFilter, handoverFilter, searchQuery, sortKey, sortDir])
+  }, [projectFilter, receivingFilter, prFilter, approvalFilter, materialFilter, vendorFilter, handoverFilter, projectTab, searchQuery, sortKey, sortDir])
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
@@ -183,7 +188,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     let list = filterRows({
       page, rows, allProjects,
       projectFilter, receivingFilter, prFilter, approvalFilter,
-      materialFilter, vendorFilter, handoverFilter
+      materialFilter, vendorFilter, handoverFilter,
+      projectTab
     })
 
     if (searchQuery.trim()) {
@@ -202,6 +208,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     page, rows, allProjects,
     projectFilter, receivingFilter, prFilter, approvalFilter,
     materialFilter, vendorFilter, handoverFilter,
+    projectTab,
     searchQuery, sortKey, sortDir, H
   ])
 
@@ -232,6 +239,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     say, refresh,
     allProjects, allMaterials, allVendors, allRequests, allReceivings,
     projectFilter, setProjectFilter,
+    // t_31871b64: tab Aktif/Selesai — ikut reset limit (sama seperti filter
+    // lain) supaya pengguna selalu mulai dari potongan 10 data pertama.
+    projectTab, setProjectTab,
     receivingFilter, setReceivingFilter,
     prFilter, setPrFilter,
     approvalFilter, setApprovalFilter,
@@ -248,6 +258,10 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     acuanEntries, acuanForm, setAcuanForm, acuanFormError,
     onAcuanSubmit: submitAcuanManual,
     openAcuanForm,
+    // t_31871b64 (Sprint 1): sublabel kode material bisa diklik untuk
+    // mengurutkan — kolom 'Kode' dihapus dari daftar, jadi kemampuan
+    // urut-by-kode TIDAK boleh hilang bersama kolomnya.
+    toggleSort, sortKey, sortDir,
     setEditRow,
     onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang,
     onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem,

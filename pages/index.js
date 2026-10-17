@@ -12,6 +12,15 @@ import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
 import SalesInvoiceModule from '../modules/sales-invoice/view'
 import RapModule from '../modules/rap/view'
+// t_02e5f5fd: modul "Stok Workshop" — halaman source:'core' (read-only,
+// dirender langsung di sini), pola sama dengan RAB & BOQ / Invoice Penjualan.
+import StockModule from '../modules/stock/view'
+// t_a5ba5f73: modul "Perbandingan RAB vs RAP vs Aktual" — halaman
+// source:'core' (read-only dari sisi DB, draft RAP hanya di memori).
+import RapCompareModule from '../modules/rap-compare/view'
+// t_7253b859: modul "Customer CRM" — halaman source:'core' (read-only dari
+// sisi DB; customer dari form adalah draf memori halaman, tidak tersimpan).
+import CrmModule from '../modules/crm/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
@@ -337,13 +346,13 @@ export default function App() {
           status: 'DRAFT',
           note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
         })
-        if (hoErr) { setNotice(`Gagal membuat handover: ${hoErr.message}`); return }
+        if (hoErr) { setNotice(`Gagal membuat Serah Terima: ${hoErr.message}`); return }
 
         const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
-        if (error) { setNotice(`Handover dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
+        if (error) { setNotice(`Serah Terima dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
       }
 
-      setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk antrean Handover — tandai "Sudah Diserahkan" setelah serah terima fisik.`)
+      setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk antrean Serah Terima — tandai "Sudah Diserahkan" setelah serah terima fisik.`)
       loadAll()
     } catch (err) {
       setNotice(`Terjadi kesalahan saat kirim ke tukang: ${err.message}`)
@@ -667,7 +676,7 @@ export default function App() {
       )
       if (!okWarning) return
     }
-    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Purchase' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
+    const typeLabel = pageTarget === 'vendors' ? 'Vendor' : (pageTarget === 'materials' ? 'Material' : (pageTarget === 'requests' ? 'Purchase Request' : (pageTarget === 'receivings' ? 'Pembelian' : (pageTarget === 'handovers' ? 'Serah Terima' : (pageTarget === 'projects' || pageTarget === 'past_projects' ? 'Project' : 'Data')))))
     
     // Sesuaikan penentuan itemName berdasarkan pageTarget
     let itemName
@@ -738,6 +747,12 @@ export default function App() {
   const activeProjects = (rows.projects || []).filter(p => normalizeStatus(p.status) !== 'DONE')
   const pastProjects = (rows.projects || []).filter(p => normalizeStatus(p.status) === 'DONE')
   const currentRows = page === 'projects' ? activeProjects : (page === 'past_projects' ? pastProjects : (rows[page] || []))
+  // t_31871b64: route lama `past_projects` TETAP berfungsi (link/bookmark
+  // lama, kartu Dashboard, link dari modul lain). Ia dirender sebagai modul
+  // Projects yang sama, hanya dengan tab "Selesai" langsung aktif — jadi
+  // tidak ada data yang hilang dan tidak ada ID navigasi yang mati.
+  // Modules yang dirender ModuleView selain Projects memakai tab default.
+  const modulePage = page === 'past_projects' ? 'projects' : page
 
   return (
     <main className="shell">
@@ -751,7 +766,7 @@ export default function App() {
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
               disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'rap_compare', 'crm', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -811,6 +826,29 @@ export default function App() {
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
+        ) : page === 'crm' ? (
+          // ============================================================
+          // MODUL CUSTOMER CRM (t_7253b859) — READ-ONLY
+          // ============================================================
+          // Halaman sendiri (source:'core' di registry), bukan tabel
+          // ModuleView: tampilannya daftar + pencarian + form draf, bukan
+          // CRUD generik. TIDAK ada tabel customers, TIDAK ada RPC, TIDAK
+          // ada migrasi, TIDAK ada penulisan DB. Customer dari form hidup
+          // sebagai draf memori halaman dan diberi label "Draf halaman".
+          // Sumber data = prop `customers` (host) atau rows.customers; kalau
+          // tidak ada yang dikirim, modul menampilkan panel capability
+          // 'unavailable' — bukan daftar kosong yang terlihat seperti bug.
+          // Guard admin sama seperti modul admin lainnya.
+          role === 'admin' ? (
+            <CrmModule
+              rows={rows}
+              customers={rows.customers}
+              invoiceCounts={null}
+              say={setNotice}
+            />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
         ) : page === 'settings' ? (
           <Settings role={role} session={session} />
         ) : page === 'rap' ? (
@@ -829,6 +867,35 @@ export default function App() {
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
+        ) : page === 'rap_compare' ? (
+          // ============================================================
+          // MODUL PERBANDINGAN RAB vs RAP vs AKTUAL (t_a5ba5f73)
+          // ============================================================
+          // Read-only dari sisi DB: membaca rows.boq_items (acuan RAB)
+          // dan rows.receiving_items (aktual dari nota). Draft RAP hanya
+          // hidup di state komponen — tidak ada tabel/RPC/migrasi baru,
+          // tidak ada localStorage, dan itu ditulis jelas di layar.
+          // Guard admin sama seperti modul RAB & BOQ / Invoice.
+          role === 'admin' ? (
+            <RapCompareModule
+              rows={rows}
+              allProjects={rows.projects || []}
+              say={setNotice}
+            />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'stock' ? (
+          // ============================================================
+          // MODUL STOK WORKSHOP (t_02e5f5fd) — READ-ONLY
+          // ============================================================
+          // Halaman sendiri (source:'core' di registry), bukan tabel
+          // ModuleView: tampilannya kumpulan kartu ringkas, bukan CRUD.
+          // HANYA membaca rows.materials yang SUDAH dimuat loadAll() —
+          // tidak ada query Supabase tambahan, tidak ada penulisan DB,
+          // tidak ada perubahan schema. Angka stok tidak pernah diturunkan
+          // dari status PR/header; yang tidak ada ditandai "Tidak tersedia".
+          <StockModule allMaterials={rows.materials || []} />
         ) : page === 'receivings' ? (
           // ============================================================
           // MODUL PURCHASE — HALAMAN SENDIRI (t_9109cf5e, arahan DAT)
@@ -842,8 +909,11 @@ export default function App() {
           <PurchasePage rows={rows} refresh={loadAll} say={setNotice} />
         ) : (
           <Module
-            page={page}
+            page={modulePage}
             rows={currentRows}
+            // t_31871b64: masuk lewat route lama `past_projects` = langsung
+            // buka tab "Selesai". Lewat menu Projects = tab default 'active'.
+            projectTab={page === 'past_projects' ? 'done' : 'active'}
             allProjects={rows.projects || []}
             allMaterials={rows.materials || []}
             allPrItems={rows.pr_items || []}

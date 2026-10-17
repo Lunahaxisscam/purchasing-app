@@ -424,7 +424,7 @@ export function mobileCard(r, ctx) {
     <>
       <div className="mobile-card-header">
         <div>
-          <b className="mobile-card-title">{r.project_name || 'Handover'}</b>
+          <b className="mobile-card-title">{r.project_name || 'Serah Terima'}</b>
           <div className="mobile-card-sub">{r.received_by || 'Belum ditentukan'}</div>
         </div>
         <span className={`badge status-${delivered ? 'APPROVED' : 'DRAFT'}`} style={{ fontSize: '10px' }}>

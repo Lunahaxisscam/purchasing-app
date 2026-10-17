@@ -259,7 +259,7 @@ function ActionCard({ entry, ctx, onDone }) {
       <div style={S.head}>
         <div>
           <strong style={S.title} data-testid={`queue-title-${handover.id}`}>
-            {handover.received_by || 'Handover'}
+            {handover.received_by || 'Serah Terima'}
           </strong>
           <span style={S.sub} data-testid={`queue-summary-${handover.id}`}>
             {distributionLabel(summary)}

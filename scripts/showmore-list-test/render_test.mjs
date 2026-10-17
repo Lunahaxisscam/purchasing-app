@@ -207,9 +207,11 @@ console.log('\nC. Reset ke 10 saat pindah filter tab & saat sort (klik nyata)')
   // Sort reset
   click(showMoreBtn(document)); await tick()
   check('pra-uji sort: 20 baris', tbodyRows(document) === 20, `got ${tbodyRows(document)}`)
-  const th = [...document.querySelectorAll('.desktop-table-view thead th')].find(t => t.textContent.includes('Kode'))
-  click(th); await tick()
-  check('klik sort: limit kembali 10', tbodyRows(document) === 10, `got ${tbodyRows(document)}`)
+  // Sort reset: kolom "Kode" sudah digabung ke sublabel (t_31871b64) —
+  // urut-by-kode sekarang lewat tombol .cell-kode-sub, bukan header.
+  const kodeBtn = document.querySelector('.desktop-table-view .cell-kode-sub')
+  click(kodeBtn); await tick()
+  check('klik urut kode: limit kembali 10', tbodyRows(document) === 10, `got ${tbodyRows(document)}`)
   // Sort KODE asc di atas list hasil filter kategori = ALM-0003, 0008, … (bukan ALM-0001
   // yg kategorinya lain) — bukti sortir dijalankan di SELURUH list hasil filter.
   check('sort kode asc: baris pertama "ALM-0003" (list hasil filter)', (document.querySelector('.desktop-table-view tbody tr td')?.textContent || '').includes('ALM-0003'), document.querySelector('.desktop-table-view tbody tr td')?.textContent)

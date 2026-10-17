@@ -87,12 +87,20 @@ def main():
 
     print("\nE. Label grup navigasi di lib/constants.js (nama menu tak berubah)")
     konst = open(CONST, encoding='utf-8').read()
-    for lab in ["label: 'Operasional'", "label: 'Pengadaan'", "label: 'Arsip'", "label: 'Admin Suite'"]:
+    # t_31871b64 (Sprint 1, arahan DAT): grup "Arsip" DIHAPUS — menu
+    # "Past Project" digabung ke modul Projects sebagai tab "Selesai".
+    # Grup yang tersisa: Operasional, Pengadaan, Admin Suite.
+    for lab in ["label: 'Operasional'", "label: 'Pengadaan'", "label: 'Admin Suite'"]:
         check(f"{lab}", lab in konst)
+    check("grup 'Arsip' sudah tidak ada (digabung ke Projects)", "label: 'Arsip'" not in konst)
     # nama menu inti tetap sama (tidak diubah)
-    for item in ["['receivings', 'Purchase']", "['tukang_upah', 'Upah Tukang']",
+    for item in ["['tukang_upah', 'Upah Tukang']",
                  "['planning', 'Budgeting']", "['approvals', 'Approval']"]:
         check(f"nama menu tetap: {item}", item in konst)
+    # t_31871b64: label TERLIHAT receivings berubah 'Purchase' -> 'Pembelian'
+    # (hanya teks; ID route/permission/alur/schema tidak disentuh)
+    check("menu receivings kini berlabel 'Pembelian'", "['receivings', 'Purchase']" not in konst
+          and "['receivings', 'Pembelian']" in konst)
 
     print("\nF. Runtime: CSS yang disajikan preview memuat token olive")
     try:
