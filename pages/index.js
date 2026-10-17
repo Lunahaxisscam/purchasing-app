@@ -895,7 +895,17 @@ export default function App() {
           // tidak ada query Supabase tambahan, tidak ada penulisan DB,
           // tidak ada perubahan schema. Angka stok tidak pernah diturunkan
           // dari status PR/header; yang tidak ada ditandai "Tidak tersedia".
-          <StockModule allMaterials={rows.materials || []} />
+          //
+          // t_35cd0354 (integrasi): guard RENDER admin ditambahkan di sini.
+          // Sebelumnya cabang ini tidak punya guard, jadi non-admin yang
+          // memaksa page='stock' bisa membuka modul admin (menu memang
+          // disembunyikan, tapi guard menu bukan satu-satunya lapisan —
+          // pola sama dengan rab_boq/sales_invoice/rap/rap_compare/crm).
+          role === 'admin' ? (
+            <StockModule allMaterials={rows.materials || []} />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
         ) : page === 'receivings' ? (
           // ============================================================
           // MODUL PURCHASE — HALAMAN SENDIRI (t_9109cf5e, arahan DAT)

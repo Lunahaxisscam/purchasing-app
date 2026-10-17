@@ -9,6 +9,12 @@ import Create from '../components/CreateModal'
 import PurchasePage from '../modules/receivings/page'
 import RapModule from '../modules/rap/view'
 import SalesInvoiceModule from '../modules/sales-invoice/view'
+// t_35cd0354 (integrasi): modul Bit Dev yang kini ter-wire — dirender di
+// smoke build supaya error render tertangkap saat build, bukan saat dibuka
+// user. Semua read-only dan tanpa query Supabase tambahan.
+import RapCompareModule from '../modules/rap-compare/view'
+import StockModule from '../modules/stock/view'
+import CrmModule from '../modules/crm/view'
 
 // ------------------------------------------------------------
 // GUARD PRODUKSI (temuan audit Brooklyn #A.2):
@@ -181,6 +187,19 @@ export default function SmokePage() {
           allProjects={mock.projects}
           say={noop}
         />
+      </section>
+      {/* t_35cd0354 (integrasi): tiga modul Bit Dev yang sudah ter-wire ke
+          pages/index.js juga dirender di sini — supaya "bisa dibuka" dibuktikan
+          oleh build, bukan hanya oleh entri nav. Semua read-only: data dari
+          mock/rows, tanpa query Supabase, tanpa penulisan. */}
+      <section id="mod-rap-compare">
+        <RapCompareModule rows={mock} allProjects={mock.projects} say={noop} />
+      </section>
+      <section id="mod-stock">
+        <StockModule allMaterials={mock.materials} />
+      </section>
+      <section id="mod-crm">
+        <CrmModule rows={mock} customers={mock.customers} invoiceCounts={null} say={noop} />
       </section>
       {/* Form tambah/edit per modul (data mock) */}
       {PAGES.map(p => (
