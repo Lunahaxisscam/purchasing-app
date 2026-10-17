@@ -26,6 +26,7 @@ APP_NAME="purchasing-staging-3001"
 PORT=3001
 NEW_DIR="/home/ubuntu/dev-workspaces/purchasing-8h-integration-release"
 NEW_BUILD_ID_FILE="$NEW_DIR/.next/BUILD_ID"
+MANIFEST="$NEW_DIR/state/release-manifest.json"
 STATE_DIR="/home/ubuntu/dev-workspaces/purchasing-8h-integration-release/state"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 MODE="${1:-dry-run}"
@@ -37,13 +38,23 @@ die() { printf 'GAGAL: %s\n' "$*" >&2; exit 1; }
 NEW_BID="$(cat "$NEW_BUILD_ID_FILE")"
 [[ -n "$NEW_BID" ]] || die "BUILD_ID kosong"
 
+# BUILD_ID yang disajikan harus SAMA dengan yang tercatat di manifest rilis —
+# mencegah menyajikan .next yang tertimpa build lain tanpa verifikasi ulang.
+if [[ -f "$MANIFEST" ]]; then
+  MANIFEST_BID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["build_id"])' "$MANIFEST")"
+  MANIFEST_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$MANIFEST")"
+  [[ "$MANIFEST_BID" == "$NEW_BID" ]] || die "BUILD_ID artefak ($NEW_BID) != manifest ($MANIFEST_BID). Build/verifikasi ulang dulu."
+else
+  MANIFEST_COMMIT="(manifest tidak ada)"
+fi
+
 OLD_CWD="$(pm2 jlist | python3 -c 'import json,sys; d=json.load(sys.stdin); m=[p for p in d if p["name"]=="'"$APP_NAME"'"]; print(m[0]["pm2_env"].get("pm_cwd","") if m else "")')"
 OLD_BID=""
 [[ -n "$OLD_CWD" && -f "$OLD_CWD/.next/BUILD_ID" ]] && OLD_BID="$(cat "$OLD_CWD/.next/BUILD_ID")"
 
 say "=== RENCANA SWITCH $APP_NAME (port $PORT) ==="
 say "  sekarang : cwd=$OLD_CWD build_id=${OLD_BID:-tidak terbaca}"
-say "  menjadi  : cwd=$NEW_DIR build_id=$NEW_BID"
+say "  menjadi  : cwd=$NEW_DIR build_id=$NEW_BID (commit $MANIFEST_COMMIT)"
 say "  mode     : $MODE"
 
 if [[ "$MODE" == "dry-run" ]]; then

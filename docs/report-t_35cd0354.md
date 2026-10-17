@@ -16,7 +16,7 @@
 | Base | `main` @ `18fb594` (tidak diubah, tidak di-push) |
 | Worktree integrasi | `/home/ubuntu/dev-workspaces/purchasing-8h-integration` |
 | Worktree artefak rilis | `/home/ubuntu/dev-workspaces/purchasing-8h-integration-release` |
-| BUILD_ID artefak rilis | `lVh3j-vT5c1tDFVbHfcAI` (dibangun dari `ddf0c89`) |
+| BUILD_ID artefak rilis | dibaca dari `state/release-manifest.json` di worktree rilis (BUILD_ID Next di-generate ulang tiap build, jadi tidak ditulis mati di laporan) |
 | `origin/main` | tetap `3870ef7` — **tidak ada push** |
 | Staging 3001 sekarang | `purchasing-staging-3001`, cwd `purchasing-staging-3001`, BUILD_ID `A7HPMJyVcpqYZEuyRHkjd` (**belum dialihkan**) |
 
@@ -138,10 +138,10 @@ Catatan kejujuran: **tidak ada** assertion aplikasi yang saya longgarkan; yang s
 ## 7. Kesiapan staging & rollback (BELUM dieksekusi)
 
 Artefak rilis sudah dibangun & diuji **di tempat terpisah**, bukan di `.next` yang aktif:
-- `purchasing-8h-integration-release` = `.next` hasil build `ENABLE_SMOKE=1` (BUILD_ID `lVh3j-vT5c1tDFVbHfcAI`, dari commit `ddf0c89`) + `package.json`/`next.config.js`/`.npmrc`/`public` + symlink `node_modules`. Build sebelumnya (`0mTi4xm5…`) diarsipkan di `state/prev-build-0mTi4xm5/`.
+- `purchasing-8h-integration-release` = `.next` hasil build `ENABLE_SMOKE=1` + `package.json`/`next.config.js`/`.npmrc`/`public` + symlink `node_modules`. **BUILD_ID dan commit sumber dicatat di `state/release-manifest.json`** (satu-satunya sumber kebenaran; build sebelumnya diarsipkan di `state/prev-build-*/`).
 - Dijalankan di **port 3016** (server bayangan) dengan env staging: `/` 200, `/__smoke` 200, `/api/sales-invoices` **401**, HTML memuat BUILD_ID yang sama, chunk `_app` **200**.
 - `scripts/integration-test/switch_staging_3001.sh` siap: default **dry-run**, `--apply` hanya setelah approval, `--rollback` memulihkan snapshot (`state/before-*.json` + `pm2 jlist`), hanya menyentuh proses `purchasing-staging-3001`, dan **tidak** menjalankan `next build` di direktori aktif.
-- Dry-run terakhir mencetak: sekarang `purchasing-staging-3001`/`A7HPMJyVcpqYZEuyRHkjd` → menjadi `purchasing-8h-integration-release`/`lVh3j-vT5c1tDFVbHfcAI`.
+- Dry-run mencetak pasangan (cwd, BUILD_ID) sekarang → tujuan, dibaca langsung dari `state/release-manifest.json`.
 
 **Kenapa belum saya switch:** mandat berbunyi "AFTER independent Brooklyn approval … switch PM2 preview 3001". Approval itu belum ada untuk commit `ddf0c89`. Menyajikan lebih dulu berarti klaim rilis tanpa izin.
 
