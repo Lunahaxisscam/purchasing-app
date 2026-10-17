@@ -150,6 +150,7 @@ Artefak rilis sudah dibangun & diuji **di tempat terpisah**, bukan di `.next` ya
 
 ## 8. Blocker & batasan yang tetap terbuka
 
+0. **Bit S6 (UI Pipeline Lead, `t_31a1a9f9`) BELUM di-commit** — ada di working tree `agent-2-catalog` (`modules/marketing/{logic.js,view.jsx,README.md}` + diff `constants/registry/pages/index/globals.css`) tapi **tidak** masuk commit mana pun. Sesuai mandat ("staged latest COMMITTED only; jangan menunggu berjam-jam"), saya **tidak** mem-port-nya dan **tidak** menunggu. Modul `marketing` karenanya **tidak ada** di branch integrasi ini; endpoint `/api/marketing-contract` (milik Bamboo) tetap ada dan tetap 401.
 1. **Skema DB belum ada** (PGRST205): `sales_invoices`, `customers`, `leads`, `lead_touchpoints`, `campaigns`, `lead_handoffs`. Tanpa itu modul terkait menampilkan capability `BLOCKED`/"belum tersedia" — bukan 0.
 2. **Tidak ada RPC transaksional** untuk penerbitan invoice → masih CAS aplikasi + kompensasi best-effort; `SALES_INVOICE_REQUIRE_RPC=1` untuk fail-closed.
 3. **RAP tetap DRAFT_ONLY** (tanpa tabel `rap_versions`); "Disetujui" adalah label lokal, bukan approval resmi.
