@@ -178,7 +178,7 @@ CLI setara: `node scripts/marketing/cli.mjs [--readiness|--samples|--validate f.
 | 2 | Aksi keluar (`?action=send`, `?ads=1`, `?sync=1`, …) | **403** `ACTION_FORBIDDEN` | **sebelum** auth, supaya pemanggil tahu aksinya tidak ada — bukan "belum login" |
 | 3 | Otorisasi admin | **401** tanpa sesi / **403** non-admin / **503** fail closed | guard yang **sama** dengan `/api/sales-invoices` (S4), bukan salinan |
 
-Daftar aksi terlarang (48 nama, diuji satu per satu di harness B4):
+Daftar aksi terlarang (34 nama, diuji satu per satu di harness B4):
 
 ```
 send · send-message · broadcast · blast · publish · post · dm · email ·
@@ -448,7 +448,7 @@ terkunci.
 | Harness | Isi | Hasil |
 |---|---|---|
 | `contract_test.mjs` (A) | taksonomi, transisi, gerbang bukti, dedupe, rencana handoff, atribusi, perilaku fixture, kemurnian | **121 lulus / 0 gagal** |
-| `api_test.mjs` (B) | 401/403/503, 405, **403 untuk 48 aksi terlarang**, readiness BLOCKED, sample dry-run, bukti tanpa jalur tulis | **109 lulus / 0 gagal** |
+| `api_test.mjs` (B) | 401/403/503, 405, **403 untuk 34 aksi terlarang**, readiness BLOCKED, sample dry-run, bukti tanpa jalur tulis | **109 lulus / 0 gagal** |
 | `safety_test.mjs` (C) | nol tulis, nol transport/iklan/cron, probe tidak menyentuh tabel purchasing, purchasing tidak membaca tabel marketing, nol migrasi, nol file modul lain | **29 lulus / 0 gagal** |
 
 ```bash
