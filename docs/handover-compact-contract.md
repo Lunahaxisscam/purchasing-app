@@ -48,6 +48,10 @@ dan tetap memakai `runHandoverAction(ACT_TERIMA, …)` yang sama.
 Kode tidak pernah ditampilkan, tetapi **tidak pernah dihapus atau diubah** dari
 sumbernya. `logic.js` tetap membaca nilai-nilai itu untuk penjaga tombol.
 
+Satu nilai fisik = satu tempat tampil. Badge `Tujuan` muncul **sekali** di
+header kartu dan **tidak** diulang saat rincian barang dibuka — mencegah
+"field fisik ganda" (dua tempat berbeda yang bisa dibaca sebagai dua kebenaran).
+
 ### 2.3 Aksi nonaktif selalu punya alasan
 
 Tidak ada tombol mati tanpa penjelasan. Setiap tombol nonaktif membawa
@@ -137,7 +141,7 @@ aturan murni tetap di `logic.js`, dan tidak ada perilaku DB yang berubah.
 
 | Harness | Cakupan | Hasil |
 |---|---|---|
-| `scripts/handover-compact-test/run.py` → `queue_ui_test.mjs` (**baru**) | `queue.jsx` + `view.jsx` asli di jsdom interaktif: visibilitas 3 aksi, status teknis disembunyikan, label jujur, fallback legacy, Bermasalah lewat handler shell, tidak ada field fisik ganda | **86 lulus, 0 gagal** |
+| `scripts/handover-compact-test/run.py` → `queue_ui_test.mjs` (**baru**) | `queue.jsx` + `view.jsx` asli di jsdom interaktif: visibilitas 3 aksi, status teknis disembunyikan, label jujur, fallback legacy, Bermasalah lewat handler shell, tidak ada field fisik ganda | **87 lulus, 0 gagal** |
 | `scripts/handover-compact-test/run.py` → `purchase_scope_test.mjs` (**baru**) | `page.jsx` Purchase asli: tidak ada kontrol fisik, status/kendala tidak tampil, jalur simpan tidak menulis kolom fisik | **52 lulus, 0 gagal** |
 | `scripts/handover-compact-test/e2e_runtime_test.mjs` (**baru**) | Chrome sungguhan via CDP pada `/__smoke`: 3 tombol benar-benar terlihat & satu baris, kode status tidak bocor, nol overflow horizontal di 1440/1280/390/360, dan 3 aksi tidak terpotong di HP | **35 lulus, 0 gagal** |
 | `scripts/handover-flow-test/run.py` | regresi Handover lama (logic/queue/render) | 61 + 66 + 73 — 0 gagal |

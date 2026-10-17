@@ -273,15 +273,17 @@ console.log('\n=== A12. TIDAK ADA FIELD FISIK GANDA DI SATU KARTU ===\n')
   const occurrences = (cardText.match(/Tujuan:/g) || []).length
   check('A12a tujuan tampil tepat sekali (rincian tertutup)', occurrences === 1, 'n=' + occurrences)
   check('A12b hanya satu badge tujuan', doc.querySelectorAll('[data-testid="queue-dest-h1"]').length === 1)
-  // Buka rincian: tujuan boleh muncul lagi di sana sebagai konteks nota, tapi
-  // tidak boleh ada field fisik BARU (input/select) yang bisa mengubahnya.
+  // Buka rincian: tujuan TIDAK boleh diulang (satu nilai fisik = satu tempat
+  // tampil), dan tidak boleh ada field fisik baru yang bisa mengubahnya.
   click(tid(doc, 'queue-detail-h1')); await tick()
   const card = tid(doc, 'queue-card-h1')
-  check('A12c rincian tidak menambah input/select field fisik', card.querySelectorAll('input, select').length === 0)
+  const afterOpen = (card?.textContent?.match(/Tujuan:/g) || []).length
+  check('A12c membuka rincian TIDAK mengulang field tujuan', afterOpen === 1, 'n=' + afterOpen)
+  check('A12d rincian tidak menambah input/select field fisik', card.querySelectorAll('input, select').length === 0)
   // Satu-satunya input di kartu adalah nama penerima, dan hanya muncul setelah
   // tombol "Tandai Diserahkan" ditekan.
-  check('A12d tidak ada input sebelum langkah penutup dibuka', card.querySelectorAll('input').length === 0)
-  check('A12e tidak ada field status yang bisa diedit', card.querySelectorAll('select').length === 0)
+  check('A12e tidak ada input sebelum langkah penutup dibuka', card.querySelectorAll('input').length === 0)
+  check('A12f tidak ada field status yang bisa diedit', card.querySelectorAll('select').length === 0)
 }
 
 console.log('\n=== A13. DAFTAR HANDOVER: KENDALA NOTA = LABEL MANUSIA (view.jsx) ===\n')

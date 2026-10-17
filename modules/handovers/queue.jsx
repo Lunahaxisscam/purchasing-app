@@ -401,9 +401,10 @@ function ActionCard({ entry, ctx, onDone }) {
       </button>
       {showDetail && (
         <div style={S.detail} data-testid={`queue-detail-panel-${handover.id}`}>
+          {/* Tujuan TIDAK diulang di sini — sudah ada satu badge di header.
+              Satu nilai fisik = satu tempat tampil (tidak ada field ganda). */}
           <span style={S.detailLine}>
             Nota: {receiving?.invoice_no || receiving?.delivery_note || '—'}
-            {dest ? ` · Tujuan: ${dest}` : ''}
           </span>
           {items.length ? (
             <>
