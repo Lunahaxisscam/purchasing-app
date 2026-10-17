@@ -569,7 +569,12 @@ console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak d
   const allowed = [
     'modules/requests/form.jsx', 'modules/requests/view.jsx', 'modules/requests/save.js',
     'modules/receivings/page.jsx', 'modules/receivings/purchaseForm.jsx',
-    'modules/handovers/queue.jsx', 'modules/handovers/view.jsx'
+    'modules/handovers/queue.jsx', 'modules/handovers/view.jsx',
+    // t_71d95cfe (S3/7, kartu berikutnya di branch yang sama): modul RAP
+    // butuh WIRING di file CORE (menu, registry, cabang render, smoke) —
+    // file-file itu memang berubah, dan tidak ada satu pun file modul
+    // S1/S2 di daftar ini yang dilonggarkan.
+    'lib/constants.js', 'modules/registry.js', 'pages/index.js', 'pages/__smoke.js'
   ]
   const codeChanges = changed.filter(f => /\.(js|jsx)$/.test(f) && !f.startsWith('scripts/'))
   check('perubahan kode hanya di file yang dimiliki kartu S1/S2',

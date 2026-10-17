@@ -193,6 +193,7 @@ menjadi acuan harga **HISTORIS** di modul Material (`modules/materials/acuan.js`
 | Handover | `modules/handovers/` | _agent F_ | `handovers` | ✅ siap paralel |
 | Project | `modules/projects/` | _agent G_ | `projects` | ✅ siap paralel |
 | Budgeting | `components/Planning.js` | _agent H_ | `project_plans` | ✅ sudah terpisah |
+| RAP (Rencana Anggaran Pelaksana) | `modules/rap/` | bamboo-tech (t_71d95cfe) | — (**belum ada tabel**) | ✅ halaman sendiri, DRAFT_ONLY |
 | Project Finance | `components/ProjectFinance.js` | _agent H_ | (read-only) | ✅ sudah terpisah |
 | Finance & Closing | `components/Finance.js` | _agent I_ | `project_closings` | ✅ sudah terpisah |
 | Upah Tukang | `components/TukangUpah.js` | _agent J_ | `tukang_*` | ✅ sudah terpisah |

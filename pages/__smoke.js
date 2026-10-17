@@ -7,6 +7,7 @@ import React from 'react'
 import Module from '../components/ModuleView'
 import Create from '../components/CreateModal'
 import PurchasePage from '../modules/receivings/page'
+import RapModule from '../modules/rap/view'
 
 // ------------------------------------------------------------
 // GUARD PRODUKSI (temuan audit Brooklyn #A.2):
@@ -148,6 +149,16 @@ export default function SmokePage() {
           }}
           refresh={noop}
           say={noop}
+        />
+      </section>
+      {/* Modul RAP (t_71d95cfe): halaman sendiri, DRAFT_ONLY (tanpa tabel DB).
+          Dirender di smoke build supaya error render tertangkap saat build. */}
+      <section id="mod-rap">
+        <RapModule
+          projects={mock.projects}
+          say={noop}
+          setPage={noop}
+          session={null}
         />
       </section>
       {/* Form tambah/edit per modul (data mock) */}
