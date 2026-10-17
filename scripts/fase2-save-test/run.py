@@ -14,7 +14,7 @@ import os, re, shutil, subprocess, sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SB = '/tmp/fase2-save-test-sandbox'
-MODULES = ['requests', 'materials', 'vendors', 'projects', 'receivings', 'handovers']
+MODULES = ['requests', 'materials', 'vendors', 'projects', 'handovers']
 
 if os.path.exists(SB):
     shutil.rmtree(SB)
@@ -40,6 +40,10 @@ if os.path.isfile(f'{REPO}/modules/vendors/categories.js'):
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')
+# t_9109cf5e: modules/materials/acuan.js mengimpor lib/purchaseNote.js (parser
+# harga satuan riil nota belanja) — file pendamping ikut disalin.
+if os.path.isfile(f'{REPO}/lib/purchaseNote.js'):
+    shutil.copy(f'{REPO}/lib/purchaseNote.js', f'{SB}/lib/purchaseNote.js')
 shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mock-supabaseClient.js'), f'{SB}/lib/supabaseClient.js')
 shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test.mjs'), f'{SB}/test.mjs')
 

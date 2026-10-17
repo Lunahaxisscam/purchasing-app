@@ -58,18 +58,18 @@ const pD = find('insert', 'projects')?.data
 check('kode + code dari form.kode', pD?.kode === '99' && pD?.code === '99')
 check('status ikut', pD?.status === 'ON_GOING')
 
-// 3. Receivings mapping
-console.log('\n3. Receivings status & kendala')
+// 3. Receivings — DIPINDAH (t_9109cf5e)
+// Modul Purchase tidak lagi memakai CreateModal.save(): nota belanja disimpan
+// lewat modules/receivings/purchaseSave.js dari dialog "Proses Pembelian".
+// Perilaku baru diuji di scripts/purchase-flow-test (logika + simpan + render).
+console.log('\n3. Receivings (dipindah ke purchaseSave — lihat scripts/purchase-flow-test)')
 reset()
-await dispatchSave('receivings', baseCtx({
+const r3 = await dispatchSave('receivings', baseCtx({
   page: 'receivings',
-  form: { receiving_status: 'retur', pr_id: 'p1', project_id: 'pr1', delivery_note: 'SJ-1', invoice_no: 'INV-1', received_date: '2026-10-15', nominal: '450.000', nota_link: 'https://x', notes: 'ok' }
+  form: { invoice_no: 'INV-1' }
 }))
-const rcD = find('insert', 'receivings')?.data
-check('status uppercase', rcD?.status === 'RETUR')
-check('kendala = RETUR', rcD?.kendala === 'RETUR')
-check('note dibangun', typeof rcD?.note === 'string' && rcD.note.length > 0)
-check('purchase_request_id terisi', rcD?.purchase_request_id === 'p1')
+check('receivings TIDAK lagi ditangani saveDispatcher (bukan jalur CreateModal)', r3.handled === false)
+check('tidak ada insert receivings dari jalur lama', !find('insert', 'receivings'))
 
 // 4. Handovers mapping (t_b418827b: tambah = antrean DRAFT, bukan CONFIRMED)
 console.log('\n4. Handovers mapping')

@@ -6,6 +6,7 @@
 import React from 'react'
 import Module from '../components/ModuleView'
 import Create from '../components/CreateModal'
+import PurchasePage from '../modules/receivings/page'
 
 // ------------------------------------------------------------
 // GUARD PRODUKSI (temuan audit Brooklyn #A.2):
@@ -40,19 +41,24 @@ const mock = {
     { id: 'm2', kode: 'BHP-0001', name: 'Lem Fox', category: 'Bahan Habis Pakai', qty: 3, satuan: 'Kaleng', current_stock: 1, min_stock: 2, harga_acuan: 45000 }
   ],
   requests: [
-    { id: 'r1', pr_number: 'PR-001', project_name: '[99] Baroni', title: 'Material dinding', status: 'DRAFT', priority: 'URGENT', notes: 'catatan', materials_summary: '4 Lembar Triplek', created_at: '2026-10-02T00:00:00Z' },
-    { id: 'r2', pr_number: 'PR-002', project_name: '[83] Mabes', title: 'Finishing', status: 'SUBMITTED', priority: 'NORMAL', notes: '', materials_summary: '', created_at: '2026-10-03T00:00:00Z' }
+    { id: 'r1', pr_number: 'PR-001', project_name: '[99] Baroni', project_id: 'p1', title: 'Material dinding', status: 'DRAFT', priority: 'URGENT', notes: 'catatan', materials_summary: '4 Lembar Triplek', created_at: '2026-10-02T00:00:00Z' },
+    { id: 'r2', pr_number: 'PR-002', project_name: '[83] Mabes', project_id: 'p2', title: 'Finishing', status: 'SUBMITTED', priority: 'NORMAL', notes: '', materials_summary: '', created_at: '2026-10-03T00:00:00Z' }
   ],
   approvals: [
     { id: 'a1', pr_number: 'PR-001', project_name: '[99] Baroni', title: 'Material dinding', purchase_request_id: 'r1', step_number: 1, status: 'PENDING', note: 'note', decided_at: null }
   ],
   receivings: [
-    { id: 'rc1', invoice_no: 'INV-1', project_name: '[99] Baroni', status: 'NORMAL', received_date: '2026-10-04', note: 'nominal: 450.000 | nota: https://drive.google.com/x | extra', purchase_request_id: 'r1' },
-    { id: 'rc2', invoice_no: 'INV-2', project_name: '[83] Mabes', status: 'RETUR', received_date: '2026-10-05', note: '', purchase_request_id: 'r2' },
-    // rc3: kasus DAT 16 Okt — 2 item qty 0 (belum ada jumlah diterima).
-    // Ringkasan parent harus "Belum diterima (0/2)", BUKAN "PARSIAL (0/2)";
-    // dropdown status parent + tombol bulk (stok/tukang) TIDAK boleh tampil.
-    { id: 'rc3', invoice_no: 'INV-3', project_name: '[99] Baroni', status: 'NORMAL', received_date: null, note: '', purchase_request_id: 'r1', alokasi: 'LANGSUNG_LAPANGAN' }
+    // t_9109cf5e: nota DIBELI dari alur belanja baru (tab Riwayat Pembelian).
+    // Bukti nota & bukti transfer ditulis sebagai penanda di kolom catatan
+    // (data-URL 1×1 px supaya payload smoke tetap kecil).
+    { id: 'rc1', invoice_no: 'TB-88912', vendor_id: 'v1', project_name: '[99] Baroni', status: 'DIBELI', received_date: '2026-10-16',
+      note: '[Nominal: Rp 542.000] [BiayaLain: Rp 25.000] [BuktiNota: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==] [BuktiTransfer: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==] [Tahap: DIBELI] diambil sendiri',
+      purchase_request_id: 'r1', project_id: 'p1' },
+    // nota lama (sebelum rombak) — tampil di Riwayat dengan label "nota lama"
+    { id: 'rc2', invoice_no: 'INV-LAMA-2', vendor_id: 'v2', project_name: '[83] Mabes', status: 'NORMAL', received_date: '2026-10-05', note: '[Nominal: Rp 865.000] Nota lama TB Makmur', purchase_request_id: 'r2', project_id: 'p2' },
+    // cangkang otomatis dari Approval (belum dibeli) — TIDAK boleh tampil di
+    // tab mana pun; barangnya tetap muncul di tab Siap Dibeli.
+    { id: 'rc3', invoice_no: null, project_name: '[99] Baroni', status: 'NORMAL', received_date: null, note: 'Dibuat otomatis dari PR (barang disetujui).', purchase_request_id: 'r1', project_id: 'p1' }
   ],
   handovers: [
     // h1: bukti fisik ada (diserahkan_at) -> "Sudah Diserahkan" + rincian terstruktur.
@@ -69,18 +75,25 @@ const mock = {
   ],
   pr_items: [
     { id: 'pi1', pr_id: 'r1', material_id: 'm1', item_name: 'Triplek 9mm', kode: 'PLY-0001', unit: 'Lembar', quantity: 4, status: 'PENDING_APPROVAL', supplier_category: 'Plywood & Board', vendor_id: 'v1', estimated_price: 120000, sort_order: 0 },
-    { id: 'pi2', pr_id: 'r1', material_id: 'm2', item_name: 'Lem Fox', kode: 'BHP-0001', unit: 'Kaleng', quantity: 2, status: 'APPROVED', supplier_category: '', vendor_id: '', estimated_price: 45000, sort_order: 1 }
+    // t_9109cf5e: barang APPROVED yang BELUM dibeli -> muncul di tab
+    // "Siap Dibeli" modul Purchase (dengan vendor berbeda utk uji filter).
+    { id: 'pi2', pr_id: 'r1', material_id: 'm2', item_name: 'Lem Fox', kode: 'BHP-0001', unit: 'Kaleng', quantity: 2, status: 'APPROVED', supplier_category: '', vendor_id: 'v1', estimated_price: 45000, sort_order: 1 },
+    { id: 'pi5', pr_id: 'r2', material_id: 'm1', item_name: 'Triplek 12mm', kode: 'PLY-0002', unit: 'Lembar', quantity: 6, status: 'APPROVED', supplier_category: 'Plywood & Board', vendor_id: 'v2', estimated_price: 185000, sort_order: 2 }
   ],
   receiving_items: [
-    { id: 'ri1', receiving_id: 'rc1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', quantity_received: 3 },
-    { id: 'ri2', receiving_id: 'rc2', pr_item_id: 'pi2', item_name: 'Lem Fox', unit: 'Kaleng', quantity_received: 2 },
-    // rc3: 2 item (kasus DAT) — qty 0 semua, belum ada jumlah diterima.
-    { id: 'ri3', receiving_id: 'rc3', pr_item_id: 'pi1', item_name: 'Triplek (SF - 9mm)', unit: 'Lembar', quantity_received: 0 },
-    { id: 'ri4', receiving_id: 'rc3', pr_item_id: 'pi2', item_name: 'Triplek (Polos - 9mm - BBCC)', unit: 'Lembar', quantity_received: 0 }
+    // Nota DIBELI (rc1): dua barang yang SUDAH dibeli — pr_item_id sengaja
+    // tidak menunjuk pi1/pi2/pi5 supaya ketiganya tetap tampil di Siap Dibeli.
+    { id: 'ri1', receiving_id: 'rc1', pr_item_id: 'piLama1', item_name: 'Triplek 9mm', unit: 'Lembar', quantity_received: 4, note: '[Harga: 118000]' },
+    { id: 'ri2', receiving_id: 'rc1', pr_item_id: 'piLama2', item_name: 'Sekrup 3cm', unit: 'Box', quantity_received: 2, note: '[Harga: 35000]' },
+    // Nota lama (rc2): tanpa harga satuan (data sebelum rombak — jujur "—")
+    { id: 'ri3', receiving_id: 'rc2', pr_item_id: 'piLama3', item_name: 'HPL Putih', unit: 'Lembar', quantity_received: 8, note: null }
   ]
 }
 
-const PAGES = ['projects', 'past_projects', 'vendors', 'materials', 'requests', 'approvals', 'receivings', 'handovers']
+// t_9109cf5e: 'receivings' TIDAK lagi dirender lewat ModuleView (Purchase kini
+// halaman sendiri: dua tab + dialog Proses Pembelian) — diuji terpisah di
+// bawah lewat PurchasePage.
+const PAGES = ['projects', 'past_projects', 'vendors', 'materials', 'requests', 'approvals', 'handovers']
 
 export default function SmokePage() {
   return (
@@ -119,6 +132,24 @@ export default function SmokePage() {
           </section>
         )
       })}
+      {/* Modul Purchase (t_9109cf5e): halaman sendiri dengan dua tab + dialog
+          Proses Pembelian. Dirender di smoke build supaya error render
+          tertangkap saat build (termasuk tabel riwayat & kartu mobile). */}
+      <section id="mod-receivings">
+        <PurchasePage
+          rows={{
+            receivings: mock.receivings,
+            receiving_items: mock.receiving_items,
+            pr_items: mock.pr_items,
+            requests: mock.requests,
+            projects: mock.projects,
+            vendors: mock.vendors,
+            materials: mock.materials
+          }}
+          refresh={noop}
+          say={noop}
+        />
+      </section>
       {/* Form tambah/edit per modul (data mock) */}
       {PAGES.map(p => (
         <section key={`form-${p}`} id={`form-${p}`}>

@@ -27,7 +27,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 SB = '/tmp/pr-group-verify'
 
-REL_FILES = ['components/ModuleView.js', 'components/CreateModal.js', 'components/Common.js', 'lib/constants.js']
+REL_FILES = ['components/ModuleView.js', 'components/CreateModal.js', 'components/Common.js', 'lib/constants.js', 'lib/purchaseNote.js']
 for root, dirs, files in os.walk(os.path.join(REPO, 'modules')):
     dirs.sort()
     for f in sorted(files):

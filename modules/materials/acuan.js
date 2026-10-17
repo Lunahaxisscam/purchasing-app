@@ -54,6 +54,7 @@
 // ============================================================
 
 import { isReceivingKendala } from '../../lib/constants'
+import { parseItemPrice } from '../../lib/purchaseNote'
 
 // Normalisasi satuan untuk perbandingan: trim + lowercase.
 function normUnit(u) {
@@ -88,6 +89,22 @@ export function actualPurchasePrice(prItem) {
   }
   return null
 }
+
+// HARGA SATUAN RIIL DARI NOTA BELANJA (t_9109cf5e — rombak modul Purchase).
+// Modul Purchase menyimpan harga beli asli per unit di baris penerimaan
+// (kolom `note`, penanda [Harga: n]) karena skema belum punya kolom harga.
+// Bila kelak schema owner menambah kolom asli (unit_price / price_actual /
+// price), kolom itu yang dibaca lebih dulu — penanda hanya fallback.
+// Return null bila tidak ada harga valid (tidak pernah menebak dari total nota).
+export function receivingItemActualPrice(receivingItem) {
+  if (!receivingItem) return null
+  for (const k of ['unit_price', 'price_actual', 'actual_unit_price', 'price']) {
+    const p = validPrice(receivingItem[k])
+    if (p !== null) return p
+  }
+  return parseItemPrice(receivingItem.note)
+}
+
 
 // ============================================================
 // URUTAN SUMBER (sortKey kecil = tampil lebih atas):
@@ -152,16 +169,21 @@ export function makeAcuanHelpers({ allPrItems = [], allReceivingItems = [], allR
       const prUnit = String(prItem.unit ?? '').trim()
       if (!mUnit || !prUnit || normUnit(prUnit) !== normUnit(mUnit)) continue
       // 6) Klasifikasi PROVENANCE harga (P1 t_e88c28fb):
-      //    a) harga beli AKTUAL terverifikasi (nota/purchase line valid) →
-      //       HISTORIS PEMBELIAN. Ini satu-satunya jalur label ✅ Historis.
-      //    b) TANPA kolom aktual (atau kosong) tapi estimated_price ada →
-      //       PR_ESTIMATE: barang diterima TIDAK membuat estimasi menjadi
-      //       harga beli aktual — kategori terpisah, tidak dipromosikan.
+      //    a) harga beli AKTUAL terverifikasi → HISTORIS PEMBELIAN.
+      //       Sumber: harga satuan riil yang dicatat modul Purchase pada baris
+      //       penerimaan (t_9109cf5e — penanda [Harga: n], atau kolom asli
+      //       bila schema owner menambahkannya), ATAU kolom harga aktual pada
+      //       baris PR. Ini satu-satunya jalur label ✅ Historis.
+      //    b) TANPA harga aktual tapi estimated_price ada → PR_ESTIMATE:
+      //       barang diterima TIDAK membuat estimasi menjadi harga beli
+      //       aktual — kategori terpisah, tidak dipromosikan.
       //    c) dua-duanya kosong → baris dilewati (tanpa harga = bukan acuan).
       //    TOTAL INVOICE ([Nominal] note) sengaja TIDAK dipakai dan TIDAK
       //    menjadi fallback harga aktual — itu total nota (bisa ada ongkir/
       //    admin), bukan harga satuan material. (Test eksplisit di harness.)
-      const actual = actualPurchasePrice(prItem)
+      const actual = receivingItemActualPrice(ri) !== null
+        ? receivingItemActualPrice(ri)
+        : actualPurchasePrice(prItem)
       let price = null
       let source = null
       if (actual !== null) {

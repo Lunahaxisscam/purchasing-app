@@ -56,7 +56,7 @@ purchasing-app/
 │   ├── approvals/                 # view.jsx                       (Approval)
 │   ├── vendors/                   # view.jsx + form.jsx + save.js  (Vendor)
 │   ├── materials/                 # view.jsx + form.jsx + save.js  (Material + stok BHP)
-│   ├── receivings/                # view.jsx + form.jsx + save.js  (Purchase/Receiving)
+│   ├── receivings/                # page.jsx + purchaseForm.jsx + purchaseLogic.js + purchaseSave.js + attachments.js  (Purchase/belanja)
 │   ├── handovers/                 # view.jsx + form.jsx + save.js + display.js + confirm.js  (Handover)
 │   ├── projects/                  # view.jsx + form.jsx + save.js  (Project + Past Project)
 │   └── ...                        # planning, project-finance, finance, tukang-upah, settings
@@ -100,22 +100,44 @@ Modul TIDAK mengimpor shell — arah dependensi selalu shell → modul.
 |---|---|---|
 | `save(ctx)` | Seluruh logika simpan modul (insert/update + pesan + tutup modal) | modul tanpa simpan |
 
-Modul yang punya `save.js`: requests, materials, vendors, projects, receivings,
-handovers. Shell `CreateModal.js` memanggil `dispatchSave(page, ctx)` dari
-`modules/shared/saveDispatcher.js`; bila modul tidak terdaftar, shell menampilkan
-pesan "Modul X tidak didukung untuk penyimpanan."
+Modul yang punya `save.js`: requests, materials, vendors, projects, handovers.
+Purchase **tidak lagi** memakai jalur ini (t_9109cf5e — lihat bagian
+"Purchase — HALAMAN SENDIRI" di bawah). Shell `CreateModal.js` memanggil
+`dispatchSave(page, ctx)` dari `modules/shared/saveDispatcher.js`; bila modul
+tidak terdaftar, shell menampilkan pesan "Modul X tidak didukung untuk
+penyimpanan."
 
 **ctx untuk save** berisi: `page, form, isEdit, editRow, editItems, prItemsList,
 nextPrNum, allMaterials, allVendors, say, close, refresh, setSaving`.
 Perubahan daftar ini = perubahan KONTRAK (lewat Tech Lead).
 
-### Simpan khusus Purchase — `receiptSave.js` (t_5196b689)
+### Purchase — HALAMAN SENDIRI (t_9109cf5e, arahan DAT)
 
-Form "Terima Barang" (`modules/receivings/receiptForm.jsx`) TIDAK lewat
-`CreateModal.save()`; ia memanggil `saveReceipt()` di
-`modules/receivings/receiptSave.js` (compare-and-swap per item, idempoten) dan
-`loadItemsFromPr()` (nota lama tanpa item → salin item PR qty 0).
-Input qty TIDAK menulis DB saat mengetik — hanya tombol "Simpan Penerimaan".
+Modul Purchase **tidak lagi** memakai tabel generik `ModuleView` maupun
+`CreateModal`. Ia dirender langsung `pages/index.js` (registry: `source:'core'`)
+sebagai halaman dua tab:
+
+| File | Peran |
+|---|---|
+| `modules/receivings/page.jsx` | Halaman: tab **Siap Dibeli** (barang APPROVED, filter toko/proyek, centang banyak) + tab **Riwayat Pembelian** (nota selesai, total rupiah, lampiran bukti) |
+| `modules/receivings/purchaseForm.jsx` | Dialog **Proses Pembelian** per toko: tanggal, no. nota (wajib), tabel item (qty beli + harga satuan riil + subtotal), biaya lain/ongkir & diskon terpisah, total nota riil, 2 lampiran opsional, tombol "✓ Selesaikan Pembelian" |
+| `modules/receivings/purchaseLogic.js` | Logika murni: baris siap dibeli, filter, draft form, subtotal/total, validasi, klasifikasi riwayat |
+| `modules/receivings/purchaseSave.js` | Simpan satu nota: header + baris barang + antrean Handover (DRAFT). Anti dobel (vendor+no. nota), pakai ulang cangkang nota dari Approval, fallback bila CHECK constraint menolak status `DIBELI` |
+| `modules/receivings/attachments.js` | Lampiran bukti (foto nota / bukti transfer): batas 1 MB, perkecil via canvas bila perlu |
+| `lib/purchaseNote.js` | **Kontrak catatan** (satu-satunya parser/penulis penanda `[Nominal]`, `[BiayaLain]`, `[Diskon]`, `[Nota]`, `[BuktiNota]`, `[BuktiTransfer]`, `[Tahap]`, dan `[Harga: n]` per baris item) |
+
+**Dihapus dari Purchase** (arahan DAT): tombol *Masuk Stok Gudang*,
+*Serah Terima ke Tukang*, dropdown status nota, dan pilihan Retur/Refund.
+File `view.jsx` / `form.jsx` / `save.js` / `receiptForm.jsx` /
+`receiptLogic.js` / `receiptSave.js` lama **dihapus** — jangan dibuat ulang.
+Distribusi fisik barang = modul Handover.
+
+**Konsekuensi simpan:** nota berstatus DIBELI (atau ditandai `[Tahap: DIBELI]`
+bila kolom status dibatasi CHECK constraint) → barang hilang dari Siap Dibeli,
+muncul di Riwayat, dan satu dokumen Handover `DRAFT` dibuat otomatis untuk
+nota itu (rincian barang dibaca dari baris nota). Harga satuan riil per barang
+menjadi acuan harga **HISTORIS** di modul Material (`modules/materials/acuan.js`
+→ `receivingItemActualPrice`).
 
 ### Handover — display/confirm (t_b418827b)
 
@@ -128,11 +150,10 @@ Input qty TIDAK menulis DB saat mengetik — hanya tombol "Simpan Penerimaan".
   (`onMarkHandoverDelivered`).
 - Kontrak & gap: `docs/handover-gap-proposal.md` (tabel `handover_items`
   menunggu izin DAT — jangan packing ke note).
-- Purchase (t_b418827b, arahan DAT): dropdown status parent + aksi bulk
-  (Masuk Stok Gudang / Serah ke Tukang) HANYA utk nota ≤1 item dan ada jumlah
-  diterima; nota multi-item memakai ringkasan read-only hasil item
-  (`parentSummary`/`bulkActionState` di `receiptLogic.js`) — kondisi & tujuan
-  per barang menunggu skema.
+- Purchase (t_9109cf5e): modul Purchase **tidak lagi** punya aksi gudang /
+  tukang / retur / refund (arahan DAT: Purchase berhenti di "barang dibeli").
+  Nota yang selesai dibeli otomatis membuat satu dokumen Handover `DRAFT`
+  (`purchaseSave.js`) sehingga barang masuk antrean distribusi fisik di sini.
 
 ### `ctx` yang disediakan shell
 
@@ -168,7 +189,7 @@ Input qty TIDAK menulis DB saat mengetik — hanya tombol "Simpan Penerimaan".
 | Approval | `modules/approvals/` | _agent B_ | `approval_steps` | ✅ siap paralel |
 | Vendor | `modules/vendors/` | _agent C_ | `vendors` | ✅ siap paralel |
 | Material | `modules/materials/` | _agent D_ | `materials` | ✅ siap paralel |
-| Purchase/Receiving | `modules/receivings/` | _agent E_ | `receivings`, `receiving_items` | ✅ siap paralel |
+| Purchase (belanja) | `modules/receivings/` | _agent E_ | `receivings`, `receiving_items` | ✅ halaman sendiri (t_9109cf5e) |
 | Handover | `modules/handovers/` | _agent F_ | `handovers` | ✅ siap paralel |
 | Project | `modules/projects/` | _agent G_ | `projects` | ✅ siap paralel |
 | Budgeting | `components/Planning.js` | _agent H_ | `project_plans` | ✅ sudah terpisah |

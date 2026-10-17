@@ -10,6 +10,7 @@ import TukangUpah from '../components/TukangUpah'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
+import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants' 
 import { sendPrAlert } from '../lib/telegramAlert'
@@ -189,6 +190,15 @@ export default function App() {
     }
   }
 
+  // ============================================================
+  // CATATAN (t_9109cf5e): handler status nota + gudang/tukang di bawah TIDAK
+  // LAGI dipakai modul Purchase — halaman Purchase baru (dua tab + dialog
+  // Proses Pembelian) tidak punya tombol gudang/tukang maupun dropdown
+  // retur/refund. Distribusi fisik barang = modul Handover (task terpisah).
+  // Handler dibiarkan ada (bukan dihapus) supaya modul Handover bisa memakai
+  // jalur RPC yang sama tanpa duplikasi logika stok; jangan dipanggil dari
+  // Purchase lagi.
+  // ============================================================
   async function updateReceivingStatus(receiving, newStatus) {
     if (!supabase) return
     const up = String(newStatus || '').toUpperCase()
@@ -791,6 +801,17 @@ export default function App() {
           )
         ) : page === 'settings' ? (
           <Settings role={role} session={session} />
+        ) : page === 'receivings' ? (
+          // ============================================================
+          // MODUL PURCHASE — HALAMAN SENDIRI (t_9109cf5e, arahan DAT)
+          // ============================================================
+          // Purchase BUKAN lagi tabel generik: ia punya dua tab (Siap Dibeli /
+          // Riwayat Pembelian) dan dialog "Proses Pembelian". Dirender di sini
+          // (source:'core' di registry) supaya tidak memaksa shell tabel
+          // generik menampung state tab & checkbox — dan supaya tidak ada satu
+          // pun tombol gudang/tukang/retur/refund yang tersisa dari alur lama.
+          // Data & callback yang dipakai hanya baca (rows) + refresh/say.
+          <PurchasePage rows={rows} refresh={loadAll} say={setNotice} />
         ) : (
           <Module
             page={page}

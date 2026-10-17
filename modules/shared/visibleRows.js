@@ -26,7 +26,6 @@ export const PAGINATED_MODULE_PAGES = [
   'materials',
   'requests',
   'approvals',
-  'receivings',
   'handovers'
 ]
 

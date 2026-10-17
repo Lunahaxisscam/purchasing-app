@@ -1,5 +1,13 @@
 # Kontrak Alur "Terima Barang" (Purchase) — t_5196b689
 
+> ⚠️ **SUPERSEDED (17 Okt 2026, t_9109cf5e).** Alur "Terima Barang" beserta
+> tombol gudang/tukang/retur/refund sudah **DIHAPUS** dari modul Purchase
+> sesuai arahan DAT (Purchase berhenti di "barang dibeli"; distribusi fisik
+> pindah ke Handover). Dokumen ini dipertahankan sebagai **arsip keputusan** —
+> kontrak yang berlaku sekarang ada di `docs/purchase-flow-contract.md`.
+> File yang disebut di bawah (`receiptForm.jsx`, `receiptLogic.js`,
+> `receiptSave.js`, `view.jsx`) sudah tidak ada di repo.
+
 Tanggal: 16 Okt 2026 · Owner: bamboo-tech · Untuk task lanjutan: **t_b418827b (Handover)**
 Status migrasi DB: **BEKU** — tidak ada migration/SQL yang dijalankan oleh task ini.
 

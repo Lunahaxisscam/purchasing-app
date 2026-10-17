@@ -212,7 +212,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   )
 
   const columns = headersFor(page, displayRows)
-  const hasDeleteAction = ['vendors', 'materials', 'requests', 'receivings', 'handovers', 'projects', 'past_projects'].includes(page)
+  const hasDeleteAction = ['vendors', 'materials', 'requests', 'handovers', 'projects', 'past_projects'].includes(page)
 
   // Empty state jelas per konteks — arahan DAT (t_0a35264f): antrean Approval
   // "Menunggu" yang kosong TIDAK boleh fallback menampilkan data APPROVED;
@@ -300,7 +300,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
               ← Ke Project Aktif
             </button>
           )}
-          {['projects', 'vendors', 'materials', 'requests', 'receivings', 'handovers'].includes(page) && (
+          {['projects', 'vendors', 'materials', 'requests', 'handovers'].includes(page) && (
             <button type="button" className="btn-create-module" onClick={() => setOpen(true)}>
               + Tambah {title}
             </button>

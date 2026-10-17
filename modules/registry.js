@@ -69,17 +69,20 @@ export const modules = [
     id: 'receivings',
     label: 'Purchase',
     adminOnly: false,
-    source: 'module',
+    // t_9109cf5e (arahan DAT): Purchase punya HALAMAN SENDIRI (dua tab: Siap
+    // Dibeli & Riwayat Pembelian + dialog Proses Pembelian), dirender langsung
+    // pages/index.js — bukan tabel generik ModuleView. Karena itu source =
+    // 'core'. Tombol gudang/tukang/retur/refund dari alur lama DIHAPUS;
+    // distribusi fisik barang pindah ke modul Handover.
+    source: 'core',
     files: [
-      'modules/receivings/view.jsx',
-      'modules/receivings/form.jsx',
-      'modules/receivings/save.js',
-      // Form "Terima Barang" (t_5196b689): satu pintu input qty penerimaan
-      // (logika murni, simpan idempoten, komponen modal).
-      'modules/receivings/receiptLogic.js',
-      'modules/receivings/receiptSave.js',
-      'modules/receivings/receiptForm.jsx',
-      'scripts/receipt-flow-test/run.py'
+      'modules/receivings/page.jsx',
+      'modules/receivings/purchaseForm.jsx',
+      'modules/receivings/purchaseLogic.js',
+      'modules/receivings/purchaseSave.js',
+      'modules/receivings/attachments.js',
+      'lib/purchaseNote.js',
+      'scripts/purchase-flow-test/run.py'
     ]
   },
   {

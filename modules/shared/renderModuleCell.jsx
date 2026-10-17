@@ -10,9 +10,13 @@ import * as vendors from '../vendors/view'
 import * as materials from '../materials/view'
 import * as requests from '../requests/view'
 import * as approvals from '../approvals/view'
-import * as receivings from '../receivings/view'
 import * as handovers from '../handovers/view'
 
+// CATATAN (t_9109cf5e): modul Purchase (receivings) TIDAK lagi terdaftar di
+// dispatcher ini. Purchase kini halaman sendiri (modules/receivings/page.jsx,
+// dua tab + dialog Proses Pembelian) yang dirender pages/index.js, sehingga
+// tidak ada lagi kolom/tombol generik alur lama (status nota, gudang, tukang,
+// retur/refund) yang bisa muncul.
 // projects & past_projects berbagi modul yang sama (kolom identik).
 const MODULES = {
   projects,
@@ -21,7 +25,6 @@ const MODULES = {
   materials,
   requests,
   approvals,
-  receivings,
   handovers
 }
 

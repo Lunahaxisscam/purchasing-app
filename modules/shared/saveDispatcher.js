@@ -9,15 +9,16 @@ import { save as requestsSave } from '../requests/save'
 import { save as materialsSave } from '../materials/save'
 import { save as vendorsSave } from '../vendors/save'
 import { save as projectsSave } from '../projects/save'
-import { save as receivingsSave } from '../receivings/save'
 import { save as handoversSave } from '../handovers/save'
 
+// CATATAN (t_9109cf5e): Purchase tidak lagi memakai CreateModal.save().
+// Nota belanja disimpan lewat modules/receivings/purchaseSave.js
+// (dipanggil dialog "Proses Pembelian"). save.js lama DIHAPUS.
 const SAVES = {
   requests: requestsSave,
   materials: materialsSave,
   vendors: vendorsSave,
   projects: projectsSave,
-  receivings: receivingsSave,
   handovers: handoversSave
 }
 

@@ -154,7 +154,7 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
     const t = d.textContent
     return {
       open: true,
-      purchase: /INV-2/.test(t),
+      purchase: /INV-LAMA-2/.test(t),
       pr: /PR-002/.test(t),
       penerima: /Pak Joko|Pak Andi|Mandor Tono/.test(t),
       rincian: /Rincian barang belum tersedia/.test(t),
@@ -251,40 +251,33 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
   await sleep(300)
 }
 
-// ---------- 5) purchase list: parent read-only + gate bulk ----------
+// ---------- 5) modul Purchase: alur belanja baru (t_9109cf5e) ----------
+// Modul Purchase SUDAH DIROMBAK: tombol gudang/tukang/retur/refund serta
+// dropdown status nota DIHAPUS TOTAL dari halaman ini (distribusi fisik
+// pindah ke Handover). Verifikasi penuh alur belanja ada di
+// scripts/purchase-flow-test/e2e_runtime_test.mjs — di sini cukup memastikan
+// TIDAK ADA sisa aksi lama yang bocor.
 {
   const r = await evalJs(`(() => {
     const sec = document.getElementById('mod-receivings')
     if (!sec) return { err: 'no section' }
-    const t = sec.querySelector('.desktop-table-view')
-    const text = t ? t.textContent : ''
-    // Baris rc3 = nota multi-item (kasus DAT). Cari <tr> yang memuat INV-3.
-    const rows = [...sec.querySelectorAll('.desktop-table-view tbody tr')]
-    const rowRc3 = rows.find(tr => /INV-3/.test(tr.textContent))
-    const rt = rowRc3 ? rowRc3.textContent : ''
-    const rowRc1 = rows.find(tr => /INV-1/.test(tr.textContent))
+    const text = sec.textContent || ''
     return {
-      hasParsial: /PARSIAL/.test(text),
-      hasBelum: /Belum diterima/.test(text),
-      // Bulk utk rc1 (1 item) masih boleh tampil; utk rc3 multi-item DILARANG.
-      rc3BulkStock: /Masuk Stok Gudang/.test(rt),
-      rc3BulkTukang: /Serah Terima ke Tukang/.test(rt),
-      rc3Select: rowRc3 ? !!rowRc3.querySelector('select') : null,
-      rc3NotaInfo: !!rowRc3?.querySelector('[data-testid="nota-info-rc3"]'),
-      rc3PerBarangInfo: /per barang/.test(rt),
-      rc1BulkOk: rows.some(tr => /INV-1/.test(tr.textContent) && /Masuk Stok Gudang/.test(tr.textContent)),
-      rc1NotaSelect: rowRc1 ? !!rowRc1.querySelector('select') : null
+      hasTabReady: !!sec.querySelector('[data-testid="tab-ready"]'),
+      hasTabHistory: !!sec.querySelector('[data-testid="tab-history"]'),
+      hasBulkStock: /Masuk Stok Gudang/.test(text),
+      hasBulkTukang: /Serah Terima ke Tukang|Serah ke Tukang/.test(text),
+      hasStatusSelect: sec.querySelectorAll('select.status-select').length,
+      hasTerimaBtn: sec.querySelectorAll('[data-testid^="btn-terima"]').length,
+      hasReturRefund: /Retur|Refund/.test(text)
     }
   })()`)
-  check('5a TIDAK ada "PARSIAL" menyesatkan', r.hasParsial === false)
-  check('5b ringkasan "Belum diterima" tampil (turunan item)', r.hasBelum === true)
-  check('5c baris multi-item (rc3): TIDAK ada dropdown status', r.rc3Select === false, JSON.stringify(r))
-  check('5d baris multi-item (rc3): bulk Masuk Stok Gudang TIDAK tampil', r.rc3BulkStock === false, JSON.stringify(r))
-  check('5e baris multi-item (rc3): bulk Serah Terima ke Tukang TIDAK tampil', r.rc3BulkTukang === false)
-  check('5f baris multi-item (rc3): info status nota read-only tampil', r.rc3NotaInfo === true)
-  check('5g baris multi-item (rc3): info "per barang" tampil', r.rc3PerBarangInfo === true)
-  check('5h baris 1-item (rc1): bulk masih boleh (keterbatasan skema)', r.rc1BulkOk === true)
-  check('5i baris 1-item (rc1): dropdown NOTA tetap ada (dimensi terpisah)', r.rc1NotaSelect === true)
+  check('5a modul Purchase memakai dua tab baru', r.hasTabReady === true && r.hasTabHistory === true, JSON.stringify(r))
+  check('5b TIDAK ada tombol "Masuk Stok Gudang" di Purchase', r.hasBulkStock === false)
+  check('5c TIDAK ada tombol "Serah Terima ke Tukang" di Purchase', r.hasBulkTukang === false)
+  check('5d TIDAK ada dropdown status nota di Purchase', r.hasStatusSelect === 0)
+  check('5e TIDAK ada tombol "Terima Barang" lama', r.hasTerimaBtn === 0)
+  check('5f TIDAK ada teks Retur/Refund di Purchase', r.hasReturRefund === false)
 }
 
 // ---------- 6) mobile ----------
@@ -295,27 +288,20 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
     const h = document.getElementById('mod-handovers')
     const rec = document.getElementById('mod-receivings')
     const hc = h ? h.querySelector('.mobile-cards-view') : null
-    const rc = rec ? rec.querySelector('.mobile-cards-view') : null
-    // Kartu mobile rc3 (multi-item, kasus DAT): cari kartu yang memuat INV-3.
-    const cards = rc ? [...rc.querySelectorAll('.mobile-card')] : []
-    const cardRc3 = cards.find(c => /INV-3/.test(c.textContent))
-    const ct = cardRc3 ? cardRc3.textContent : ''
-    const cardRc1 = cards.find(c => /INV-1/.test(c.textContent))
+    const rcText = rec ? (rec.textContent || '') : ''
     return {
       handoverRincian: hc ? /Rincian barang belum tersedia/.test(hc.textContent) : false,
       handoverDeliverBtn: hc ? !!hc.querySelector('[data-testid^="btn-deliver-mobile-"]') : false,
-      rc3BulkStock: /Masuk Stok Gudang/.test(ct),
-      rc3BulkTukang: /Serah ke Tukang|Serah Terima ke Tukang/.test(ct),
-      rc3PerBarang: /per barang/.test(ct),
-      rc1BulkOk: cardRc1 ? /Masuk Stok Gudang/.test(cardRc1.textContent) : false
+      purchaseBulkStock: /Masuk Stok Gudang/.test(rcText),
+      purchaseBulkTukang: /Serah ke Tukang|Serah Terima ke Tukang/.test(rcText),
+      purchaseHasCards: rec ? rec.querySelectorAll('.mobile-cards-view .mobile-card').length : 0
     }
   })()`)
   check('6a kartu handover menampilkan label rincian jujur', r.handoverRincian === true)
   check('6b tombol konfirmasi mobile ada', r.handoverDeliverBtn === true)
-  check('6c mobile kartu multi-item (rc3): bulk stok TIDAK tampil', r.rc3BulkStock === false, JSON.stringify(r))
-  check('6d mobile kartu multi-item (rc3): bulk tukang TIDAK tampil', r.rc3BulkTukang === false)
-  check('6e mobile kartu multi-item (rc3): info "per barang" tampil', r.rc3PerBarang === true)
-  check('6f mobile kartu 1-item (rc1): bulk masih boleh', r.rc1BulkOk === true)
+  check('6c mobile Purchase: kartu tampil', r.purchaseHasCards > 0, 'cards=' + r.purchaseHasCards)
+  check('6d mobile Purchase: TIDAK ada bulk stok', r.purchaseBulkStock === false)
+  check('6e mobile Purchase: TIDAK ada bulk tukang', r.purchaseBulkTukang === false)
 }
 
 console.log(`\nE2E: ${pass}/${pass + fail} lulus${fail ? ' — GAGAL: ' + failures.join(' | ') : ''}`)
