@@ -200,6 +200,25 @@ export const modules = [
     ]
   },
   {
+    // Modul "Stok Workshop" (t_02e5f5fd) — READ-ONLY, admin-only.
+    // Halaman sendiri (source:'core', dirender pages/index.js) seperti
+    // RAB & BOQ & Invoice Penjualan: tampilannya kumpulan kartu ringkas,
+    // bukan tabel CRUD. TIDAK ada tabel DB baru, tidak ada penulisan:
+    // hanya membaca rows.materials (katalog master). Angka stok berasal
+    // dari materials.current_stock (ditulis RPC receive_to_warehouse) —
+    // TIDAK pernah diturunkan dari status PR/header, dan yang tidak ada
+    // ditandai "Tidak tersedia". Detail keterbatasan: modules/stock/logic.js.
+    id: 'stock',
+    label: 'Stok Workshop',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/stock/view.jsx',
+      'modules/stock/logic.js',
+      'scripts/stock-view-test/run.py'
+    ]
+  },
+  {
     id: 'settings',
     label: 'Settings',
     adminOnly: true,

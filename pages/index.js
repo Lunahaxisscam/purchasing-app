@@ -11,6 +11,9 @@ import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
 import SalesInvoiceModule from '../modules/sales-invoice/view'
+// t_02e5f5fd: modul "Stok Workshop" — halaman source:'core' (read-only,
+// dirender langsung di sini), pola sama dengan RAB & BOQ / Invoice Penjualan.
+import StockModule from '../modules/stock/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
@@ -818,6 +821,17 @@ export default function App() {
           )
         ) : page === 'settings' ? (
           <Settings role={role} session={session} />
+        ) : page === 'stock' ? (
+          // ============================================================
+          // MODUL STOK WORKSHOP (t_02e5f5fd) — READ-ONLY
+          // ============================================================
+          // Halaman sendiri (source:'core' di registry), bukan tabel
+          // ModuleView: tampilannya kumpulan kartu ringkas, bukan CRUD.
+          // HANYA membaca rows.materials yang SUDAH dimuat loadAll() —
+          // tidak ada query Supabase tambahan, tidak ada penulisan DB,
+          // tidak ada perubahan schema. Angka stok tidak pernah diturunkan
+          // dari status PR/header; yang tidak ada ditandai "Tidak tersedia".
+          <StockModule allMaterials={rows.materials || []} />
         ) : page === 'receivings' ? (
           // ============================================================
           // MODUL PURCHASE — HALAMAN SENDIRI (t_9109cf5e, arahan DAT)
