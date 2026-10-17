@@ -7240,3 +7240,346 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
   .crm-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
+
+/* ============================================================
+   MODUL ACTUAL LABOR & STOK (t_62e41e91) — READ-ONLY
+   Halaman admin: Actual Labor (aktual vs estimasi) + Workshop
+   Stock. Tidak ada penulisan DB. Prefix .ls- biar tidak tabrakan
+   dengan .crm-/.stock-. Nilai tidak tersedia diberi warna muted
+   supaya jelas berbeda dari angka nyata.
+   ============================================================ */
+.ls-root {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ls-intro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--slate-50, #f8fafc);
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 10px;
+}
+.ls-intro-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 640px;
+}
+.ls-intro-copy strong {
+  font-size: 15px;
+  color: var(--slate-900, #0f172a);
+}
+.ls-intro-copy span {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--slate-600, #475569);
+}
+.ls-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.ls-badge {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  white-space: nowrap;
+}
+.ls-btn {
+  font-size: 12px;
+  min-height: 32px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--slate-300, #cbd5e1);
+  background: #fff;
+  color: var(--slate-700, #334155);
+  cursor: pointer;
+}
+.ls-btn:hover:not(:disabled) {
+  background: var(--slate-50, #f8fafc);
+}
+.ls-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ls-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 12px;
+}
+.ls-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.ls-section-title {
+  margin: 0;
+  font-size: 15px;
+  color: var(--slate-900, #0f172a);
+}
+.ls-section-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--slate-600, #475569);
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.ls-capability {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.ls-capability strong { font-size: 13px; }
+.ls-capability--unavailable {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+.ls-capability--empty {
+  background: #f8fafc;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  color: var(--slate-600, #475569);
+}
+
+.ls-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.ls-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--slate-50, #f8fafc);
+  border: 1px solid var(--slate-200, #e2e8f0);
+}
+.ls-kpi-lbl {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-500, #64748b);
+}
+.ls-kpi-val {
+  font-size: 17px;
+  color: var(--slate-900, #0f172a);
+}
+.ls-kpi-sub {
+  font-size: 11px;
+  color: var(--slate-500, #64748b);
+}
+.ls-c-ok { color: #047857; }
+.ls-c-warn { color: #b45309; }
+.ls-c-muted { color: var(--slate-500, #64748b); }
+.ls-na {
+  color: var(--slate-400, #94a3b8);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.ls-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.ls-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+.ls-field--grow { flex: 1 1 200px; }
+.ls-field span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-500, #64748b);
+}
+.ls-field select,
+.ls-field input {
+  font-size: 13px;
+  padding: 7px 9px;
+  border: 1px solid var(--slate-300, #cbd5e1);
+  border-radius: 8px;
+  background: #fff;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ls-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 10px;
+}
+.ls-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.ls-table th {
+  text-align: left;
+  padding: 9px 10px;
+  background: var(--slate-50, #f8fafc);
+  color: var(--slate-600, #475569);
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--slate-200, #e2e8f0);
+}
+.ls-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--slate-100, #f1f5f9);
+  vertical-align: top;
+}
+.ls-row:last-child td { border-bottom: none; }
+.ls-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ls-pill {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ls-pill-ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.ls-pill-warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.ls-pill-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.ls-pill-muted { background: var(--slate-100, #f1f5f9); color: var(--slate-600, #475569); border: 1px solid var(--slate-200, #e2e8f0); }
+
+.ls-btn-more {
+  align-self: flex-start;
+  font-size: 12px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--slate-300, #cbd5e1);
+  background: #fff;
+  color: var(--slate-600, #475569);
+  cursor: pointer;
+}
+
+.ls-empty {
+  padding: 22px 14px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--slate-500, #64748b);
+  border: 1px dashed var(--slate-300, #cbd5e1);
+  border-radius: 10px;
+}
+
+.ls-stock-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.ls-stock-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 10px;
+}
+.ls-stock-card-head {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.ls-stock-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ls-stock-card-title b {
+  font-size: 13.5px;
+  color: var(--slate-900, #0f172a);
+}
+.ls-kode {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--slate-500, #64748b);
+}
+.ls-stock-meta {
+  font-size: 11.5px;
+  color: var(--slate-600, #475569);
+}
+.ls-stock-nums {
+  display: flex;
+  gap: 16px;
+}
+.ls-stock-nums > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ls-stock-nums small {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-500, #64748b);
+}
+.ls-stock-nums b {
+  font-size: 14px;
+  color: var(--slate-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+
+.ls-limitations {
+  font-size: 12px;
+  color: var(--slate-600, #475569);
+  padding: 14px 16px;
+  background: var(--slate-50, #f8fafc);
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 10px;
+}
+.ls-limitations strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--slate-800, #1e293b);
+}
+.ls-limitations ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Tablet: KPI 2 per baris, stok 2 kolom */
+@media (min-width: 700px) {
+  .ls-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ls-stock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Desktop: KPI 4 sebaris, stok 3 kolom */
+@media (min-width: 1100px) {
+  .ls-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ls-stock-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

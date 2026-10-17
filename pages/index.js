@@ -20,6 +20,7 @@ import RapCompareModule from '../modules/rap-compare/view'
 // t_7253b859: modul "Customer CRM" — halaman source:'core' (read-only dari
 // sisi DB; customer dari form adalah draf memori halaman, tidak tersimpan).
 import CrmModule from '../modules/crm/view'
+import LaborStockModule from '../modules/labor-stock/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
@@ -41,7 +42,15 @@ export default function App() {
     receivings: [],
     handovers: [],
     pr_items: [],
-    receiving_items: []
+    receiving_items: [],
+    // t_62e41e91 — modul Actual Labor & Stok. Default null (BUKAN [])
+    // supaya modul bisa membedakan "sumber belum dimuat" dari "tabel
+    // kosong": modul menampilkan panel 'unavailable', bukan angka 0 yang
+    // terbaca seperti "aktual nol rupiah". Kedua tabel ini tidak punya
+    // kolom project_id sehingga join proyek di bawah tidak bisa membuat
+    // label project — nama project diambil apa adanya dari barisnya.
+    tukang_projects: null,
+    project_plans: null
   })
   const [notice, setNotice] = useState('')
   const [actionBusy, setActionBusy] = useState(false)
@@ -116,7 +125,14 @@ export default function App() {
       ['receivings', 'receivings'],
       ['handovers', 'handovers'],
       ['pr_items', 'pr_items'],
-      ['receiving_items', 'receiving_items']
+      ['receiving_items', 'receiving_items'],
+      // t_62e41e91 — sumber Actual Labor (aktual: tukang_projects) &
+      // estimasi (project_plans). Read-only, hanya untuk modul
+      // 'labor_stock' yang admin-only. Kalau tabel/RLS belum ada di
+      // environment tertentu, supabase balas error dan field dibiarkan
+      // null — modul lalu menampilkan panel "belum tersedia", bukan 0.
+      ['tukang_projects', 'tukang_projects'],
+      ['project_plans', 'project_plans']
     ]
     const result = { ...rows }
     const { data: allProj } = await supabase.from('projects').select('*')
@@ -765,7 +781,7 @@ export default function App() {
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
               disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap_compare', 'crm', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap_compare', 'crm', 'labor_stock', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -843,6 +859,36 @@ export default function App() {
               rows={rows}
               customers={rows.customers}
               invoiceCounts={null}
+              say={setNotice}
+            />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'labor_stock' ? (
+          // ============================================================
+          // MODUL ACTUAL LABOR & STOK (t_62e41e91) — READ-ONLY
+          // ============================================================
+          // Halaman sendiri (source:'core'), bukan tabel ModuleView: satu
+          // halaman untuk dua ringkasan yang sudah ada di repo.
+          //   1) ACTUAL LABOR — rows.tukang_projects (total_upah = aktual,
+          //      sinkron Google Sheets tim finance) dibanding rows.
+          //      project_plans (labor_cost = ESTIMASI rencana). Estimasi
+          //      dan aktual TIDAK pernah dijumlahkan atau ditukar; selisih
+          //      hanya dihitung bila keduanya ada.
+          //   2) WORKSHOP STOCK — ringkasan rows.materials (memakai
+          //      kembali modules/stock/logic.js supaya aturan "bukan 0"
+          //      konsisten dengan modul Stok Workshop).
+          // TIDAK ada tabel DB baru, TIDAK ada RPC, TIDAK ada migrasi,
+          // TIDAK ada penulisan, dan formula finance TIDAK disentuh.
+          // Sumber yang tidak dikirim host tampil sebagai panel capability
+          // 'unavailable' — bukan angka 0 yang terbaca "aktual nol rupiah".
+          // Guard admin sama seperti modul admin lainnya.
+          role === 'admin' ? (
+            <LaborStockModule
+              rows={rows}
+              laborRows={rows.tukang_projects}
+              estimateRows={rows.project_plans}
+              materials={rows.materials}
               say={setNotice}
             />
           ) : (

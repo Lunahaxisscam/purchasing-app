@@ -266,6 +266,32 @@ export const modules = [
     ]
   },
   {
+    // Modul "Actual Labor & Workshop Stock" (t_62e41e91) — READ-ONLY,
+    // admin-only. Halaman sendiri (source:'core', dirender pages/index.js)
+    // seperti Stok Workshop, Perbandingan RAB/RAP/Aktual, dan Customer CRM.
+    // TIDAK ada tabel DB baru, TIDAK ada RPC, TIDAK ada migrasi, TIDAK ada
+    // penulisan, dan formula finance TIDAK disentuh: halaman ini hanya
+    // menghadirkan dua ringkasan yang sudah ada di repo.
+    //   1) ACTUAL LABOR  — tukang_projects.total_upah (aktual, hasil sync
+    //      Google Sheets tim finance) dibandingkan dengan project_plans.
+    //      labor_cost (estimasi). Estimasi dan aktual TIDAK pernah
+    //      dijumlahkan/ditukar; sumber tidak dikirim -> panel penjelasan,
+    //      BUKAN angka 0; nilai tidak ada -> "Tidak tersedia".
+    //   2) WORKSHOP STOCK — ringkasan rows.materials (membaca kembali
+    //      modules/stock/logic.js supaya aturan "bukan 0" konsisten).
+    // Detail: modules/labor-stock/README.md.
+    id: 'labor_stock',
+    label: 'Actual Labor & Stok',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/labor-stock/view.jsx',
+      'modules/labor-stock/logic.js',
+      'modules/labor-stock/README.md',
+      'scripts/labor-stock-test/run.py'
+    ]
+  },
+  {
     id: 'settings',
     label: 'Settings',
     adminOnly: true,
