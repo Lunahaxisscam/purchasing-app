@@ -220,8 +220,8 @@ perbaikan review.
 | `scripts/pr-estimator-test` | unit 48/48, render 46/46, save 14/14 |
 | `scripts/pr-group-test` | unit 31/31, render 54/54 |
 | `scripts/flow-gap-repro-test` | 14/25 gap terbukti (status quo; GAP yang jadi milik task ini tetap konsisten) |
-| `npx next build` (produksi) | hijau (`BUILD_ID b956VViDVCMSyLhqGcJgN`) |
-| `ENABLE_SMOKE=1 npx next build` + `next start -p 3131` | hijau, `/__smoke` 200 (`BUILD_ID tdHb2zr8o9GFHS_H0aJ6P`) |
+| `npx next build` (produksi) | hijau (`BUILD_ID P214h1sd3HwX2zftcgnmh`) |
+| `ENABLE_SMOKE=1 npx next build` + `next start -p 3131` | hijau, `/__smoke` 200 (`BUILD_ID VhwlU6iHIEbbS7kiSpG6E`) |
 
 Runtime: build ~60–75 s; harness logic+render ~35 s; e2e CDP ~25 s per suite.
 
@@ -351,3 +351,14 @@ yang merusak. Keduanya sudah diperbaiki, diuji, dan didokumentasikan.
   (bukan dilonggarkan) — keduanya sekarang menuntut event berstatus retur TIDAK
   ditawarkan lagi.
 - Tidak ada SQL dijalankan, tidak ada data live ditulis, tidak ada merge/deploy.
+
+### BUG-3 (MINOR, kejujuran) — banner mengklaim retur tersimpan saat dimatikan
+
+- **Reproduksi:** `return_lines` belum ada, tetapi `receiving_events` +
+  `handover_items` sudah ada → `capability.ready = true`, `returnReady = false`.
+  Banner hijau tetap berbunyi "… retur … tersimpan per barang" padahal tombol
+  Retur justru disembunyikan.
+- **Perbaikan:** banner membaca `returnReady`. Bila retur mati, warna berubah ke
+  kuning dan teks menyebut kondisi/tujuan/serah terima aktif **tetapi** retur
+  belum aktif, beserta alasan tombolnya disembunyikan.
+- **Bukti:** dirender ulang lewat harness render (43/43) + e2e 15/15.
