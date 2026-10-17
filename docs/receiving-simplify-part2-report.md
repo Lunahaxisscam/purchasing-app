@@ -6,6 +6,10 @@ Kontrak skema: `docs/receiving-events-contract.md` (permintaan ke schema owner
 Status: **tidak ada migrasi/SQL dijalankan**, **tidak ada DB ditulis**,
 **tidak ada deploy produksi**. Semua bukti dari harness sandbox + probe read-only.
 
+Branch: `feat/receiving-simplify/t_7bc6246b` (rebase di atas `origin/main`
+`3870ef7`, commit `eb169da`, sudah di-push & diverifikasi `git ls-remote` =
+hash lokal). **Belum merge ke `main`/belum deploy** — menunggu review Brooklyn.
+
 ---
 
 ## 0. Ringkas: apa yang berubah & apa yang TIDAK
