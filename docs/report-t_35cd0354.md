@@ -11,12 +11,13 @@
 | Hal | Nilai |
 |---|---|
 | Branch integrasi | `feat/integration-8h-18okt` |
-| Commit HEAD (kode + uji + laporan) | `ddf0c892a11ff053b5e8e9d96789b06ace2a86da` (`ddf0c89`) |
-| Commit kode terakhir sebelum laporan | `3d6b0a6` (isi kode identik; `ddf0c89` hanya menambah dokumen + bukti) |
+| Commit HEAD (branch) | `482f68d` — setelah `aab993e` hanya dokumen & skrip uji (tidak masuk bundel Next) |
+| Commit KODE terakhir | `3d6b0a6` (perubahan kode terakhir; sesudahnya hanya docs + `scripts/integration-test/`) |
+| Commit yang dibangun jadi artefak | `aab993e` (BUILD_ID `GyzaWYEcq009kHRu9esvy`, dicatat di `state/release-manifest.json`) |
 | Base | `main` @ `18fb594` (tidak diubah, tidak di-push) |
 | Worktree integrasi | `/home/ubuntu/dev-workspaces/purchasing-8h-integration` |
 | Worktree artefak rilis | `/home/ubuntu/dev-workspaces/purchasing-8h-integration-release` |
-| BUILD_ID artefak rilis | dibaca dari `state/release-manifest.json` di worktree rilis (BUILD_ID Next di-generate ulang tiap build, jadi tidak ditulis mati di laporan) |
+| BUILD_ID artefak rilis | `GyzaWYEcq009kHRu9esvy` (dibaca juga dari `state/release-manifest.json` di worktree rilis) |
 | `origin/main` | tetap `3870ef7` — **tidak ada push** |
 | Staging 3001 sekarang | `purchasing-staging-3001`, cwd `purchasing-staging-3001`, BUILD_ID `A7HPMJyVcpqYZEuyRHkjd` (**belum dialihkan**) |
 
@@ -143,7 +144,7 @@ Artefak rilis sudah dibangun & diuji **di tempat terpisah**, bukan di `.next` ya
 - `scripts/integration-test/switch_staging_3001.sh` siap: default **dry-run**, `--apply` hanya setelah approval, `--rollback` memulihkan snapshot (`state/before-*.json` + `pm2 jlist`), hanya menyentuh proses `purchasing-staging-3001`, dan **tidak** menjalankan `next build` di direktori aktif.
 - Dry-run mencetak pasangan (cwd, BUILD_ID) sekarang → tujuan, dibaca langsung dari `state/release-manifest.json`.
 
-**Kenapa belum saya switch:** mandat berbunyi "AFTER independent Brooklyn approval … switch PM2 preview 3001". Approval itu belum ada untuk commit `ddf0c89`. Menyajikan lebih dulu berarti klaim rilis tanpa izin.
+**Kenapa belum saya switch:** mandat berbunyi "AFTER independent Brooklyn approval … switch PM2 preview 3001". Approval itu belum ada. Menyajikan lebih dulu berarti klaim rilis tanpa izin.
 
 ---
 
@@ -162,7 +163,7 @@ Artefak rilis sudah dibangun & diuji **di tempat terpisah**, bukan di `.next` ya
 
 ## 9. Permintaan untuk Brooklyn (gerbang rilis)
 
-Mohon review commit **`ddf0c89`** (branch `feat/integration-8h-18okt`, worktree `purchasing-8h-integration`) dengan fokus:
+Mohon review commit **`482f68d`** (branch `feat/integration-8h-18okt`, worktree `purchasing-8h-integration`) dengan fokus:
 1. Resolusi CORE (§3) — apakah semua rute & guard admin utuh.
 2. Tiga perubahan perilaku (§4 no.1–3) — apakah instruksi rekonsiliasi & nama wajib sudah sesuai REVIEW-02.
 3. Klasifikasi merah (§5.3) — apakah bukti baseline cukup untuk menyebut `rab-boq-render` F1/F2 & `ui-olive` C sebagai pre-existing, dan E7/e2e-handover sebagai assertion usang.
