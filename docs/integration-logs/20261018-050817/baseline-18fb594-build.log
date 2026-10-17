@@ -1,0 +1,42 @@
+
+> purchasing-app@1.0.0 build
+> next build
+
+   ▲ Next.js 14.1.0
+   - Environments: .env.local
+
+   Linting and checking validity of types ...
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Collecting page data ...
+   Generating static pages (0/4) ...
+   Generating static pages (1/4) 
+   Generating static pages (2/4) 
+   Generating static pages (3/4) 
+ ✓ Generating static pages (4/4) 
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (pages)                             Size     First Load JS
+┌ ○ /                                     74.5 kB         267 kB
+├ ● /__smoke                              2.12 kB         194 kB
+├   /_app                                 0 B            78.1 kB
+├ ○ /404                                  180 B          78.3 kB
+├ λ /api/alerts/telegram                  0 B            78.1 kB
+├ λ /api/check-columns                    0 B            78.1 kB
+├ λ /api/columns                          0 B            78.1 kB
+├ λ /api/inspect                          0 B            78.1 kB
+├ λ /api/sales-invoices                   0 B            78.1 kB
+├ λ /api/schema                           0 B            78.1 kB
+├ λ /api/seed-simulation                  0 B            78.1 kB
+└ λ /api/sync-materials                   0 B            78.1 kB
++ First Load JS shared by all             90.4 kB
+  ├ chunks/framework-468ce5dd7efb3afb.js  45.2 kB
+  ├ chunks/main-7e7e2895cea8dade.js       31.7 kB
+  ├ css/9b1f0f8a1cbf7798.css              12.2 kB
+  └ other shared chunks (total)           1.23 kB
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses getStaticProps)
+λ  (Dynamic)  server-rendered on demand using Node.js
+

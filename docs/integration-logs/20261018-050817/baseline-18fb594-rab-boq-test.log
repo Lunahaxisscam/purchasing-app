@@ -1,0 +1,6 @@
+JS_TOTAL 74, FAIL 0
+JS_PDF_TOTAL 16, FAIL 0
+
+=== HASIL scripts/rab-boq-test ===
+[FAIL] E7: exclude dari tombol refresh global — expected=True actual=False
+19/20 cek lulus

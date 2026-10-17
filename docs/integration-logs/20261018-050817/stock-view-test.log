@@ -1,0 +1,172 @@
+Sandbox: /tmp/stock-view-verify
+
+SWC: 5 file dikompilasi ke dist/
+
+[A] toNumberOrNull — angka hilang TIDAK jadi 0
+  ok   null -> null
+  ok   undefined -> null
+  ok   '' -> null
+  ok   '   ' -> null
+  ok   'abc' -> null (bukan 0)
+  ok   '3 dus' -> null (teks dengan satuan)
+  ok   '12,5 pcs' -> null
+  ok   '0' -> 0 (nol eksplisit sah)
+  ok   0 -> 0
+  ok   '7' -> 7
+  ok   7 -> 7
+  ok   '12,5' -> 12.5 (koma desimal)
+  ok   hasNumber('') false
+  ok   hasNumber('0') true (eksplisit)
+
+[B] stockStatus — kejujuran per material
+  ok   tanpa angka -> state UNAVAILABLE
+  ok   tanpa angka -> current null (BUKAN 0)
+  ok   hasNumber(current_stock) false
+  ok   current_stock '' -> UNAVAILABLE
+  ok   current_stock 0 EKSPLISIT -> bukan UNAVAILABLE
+  ok   current_stock 0 EKSPLISIT -> current 0
+  ok   BHP di atas min -> TIDAK_DIPANTAU (bukan MENIPIS)
+  ok   BHP <= min -> MENIPIS
+  ok   BHP current == min -> MENIPIS (batas inklusif)
+  ok   min_stock 0 = pemantauan nonaktif -> bukan MENIPIS
+  ok   non-BHP di bawah min -> BUKAN MENIPIS (hanya BHP dipantau)
+  ok   kode BHP-0010 terdeteksi BHP walau kategori lain
+  ok   kode 'BHPX-1' BUKAN BHP (harus '-' + digit)
+  ok   BHP tanpa min_stock -> bukan MENIPIS (tak ada ambang)
+
+[C] summarizeStock — KPI hitungan baris saja
+  ok   total = jumlah baris
+  ok   adaAngka = 3
+  ok   tanpaAngka = 2
+  ok   menipis = 1
+  ok   bhp = 2
+  ok   TIDAK ada KPI total stok / nilai persediaan (anti fabrikasi)
+  ok   summarizeStock([]) aman
+
+[D] buildCategoryOptions & filterStockRows
+  ok   kategori hanya yang ADA di data
+  ok   kategori terurut abjad
+  ok   kategori '' tidak dimasukkan
+  ok   filter kategori 'Bahan Habis Pakai' -> 2 baris
+  ok   filter kategori tidak case-sensitive
+  ok   filter 'all' -> semua
+  ok   filter kategori kosong (tidak ada datanya) -> 0 baris
+  ok   pencarian 'ply' cocok Plywood
+  ok   pencarian kode 'BHP-0002' cocok
+  ok   pencarian '' -> semua
+  ok   kombinasi kategori + pencarian
+
+[E] toCsv — angka kosong = kosong, BUKAN 0
+  ok   CSV punya header
+  ok   baris tanpa angka: kolom Stok kosong (bukan 0)
+  ok   baris tanpa angka: kolom Min Stok kosong (bukan 0)
+  ok   baris tanpa angka: status UNAVAILABLE
+  ok   baris menipis: stok 3
+  ok   baris menipis: min 5
+  ok   baris menipis: status MENIPIS
+  ok   toCsv([]) tetap punya header saja
+  ok   nama berkoma dikutip
+
+[F] ANTI-STATUS-DOKUMEN & READ-ONLY (pemeriksaan statis sumber)
+  ok   logic.js TIDAK membandingkan field status dokumen
+  ok   view.jsx TIDAK membandingkan field status dokumen
+  ok   tidak membaca tabel 'purchase_requests'
+  ok   tidak membaca tabel 'pr_items'
+  ok   tidak membaca tabel 'receivings'
+  ok   tidak membaca tabel 'receiving_items'
+  ok   tidak membaca tabel 'handovers'
+  ok   tidak membaca tabel 'approval_steps'
+  ok   tidak ada operasi tulis: .insert(
+  ok   tidak ada operasi tulis: .update(
+  ok   tidak ada operasi tulis: .delete(
+  ok   tidak ada operasi tulis: .rpc(
+  ok   tidak ada operasi tulis: supabase.from(
+  ok   tidak mengimpor supabaseClient
+  ok   DATA_LIMITATIONS terisi
+  ok   DATA_LIMITATIONS menyebut ledger/movement
+  ok   label UNAVAILABLE eksplisit
+
+[G] BARANG KELUAR TIDAK DIKURANGI (batasan yang diakui)
+  ok   tidak ada logika pengurangan: deductStock
+  ok   tidak ada logika pengurangan: kurangiStok
+  ok   tidak ada logika pengurangan: stockOut
+  ok   tidak ada logika pengurangan: barangKeluar
+
+============================================================
+HASIL LOGIC TEST: 76/76 lulus
+============================================================
+
+[A] Render awal — angka stok jujur
+  ok   root modul tampil
+  ok   8 material bernama dirender (tanpa nama dibuang) — dapat 8
+  ok   kartu Engsel (tanpa angka) ada
+  ok   Engsel menampilkan 'Tidak tersedia'
+  ok   Engsel TIDAK menampilkan angka 0 sbg stok
+  ok   Engsel pakai kelas st-na (penanda bukan angka)
+  ok   Engsel status pill 'Belum ada angka'
+  ok   Sekrup (current_stock '') juga 'Tidak tersedia'
+  ok   Bracket (field tidak ada) juga 'Tidak tersedia'
+  ok   Amplas menampilkan angka 3
+  ok   Amplas pill 'Stok menipis'
+  ok   Plywood menampilkan angka 40
+  ok   Plywood pill 'Terpantau' (bukan menipis)
+  ok   HPL di bawah min TIDAK ditandai menipis (non-BHP)
+  ok   Meteran (min_stock 0) TIDAK menipis
+  ok   Meteran menampilkan angka 0 eksplisit (bukan 'Tidak tersedia')
+
+[B] KPI
+  ok   KPI pertama = 8 material terfilter
+  ok   KPI 'Ada Angka Stok' = 5
+  ok   KPI 'Stok Menipis' = 1
+  ok   KPI 'Belum Ada Angka' = 3
+
+[C] Filter kategori (klik tab)
+  ok   tab 'Semua' ada
+  ok   tab kategori hanya yang ada di data (4 kategori)
+  ok   tidak ada tab kategori kosong/karangan
+  ok   tab 'Bahan Habis Pakai' ada
+  ok   klik tab BHP -> 3 kartu
+  ok   tab BHP jadi aktif
+  ok   semua kartu BHP adalah BHP
+  ok   kembali ke 'Semua' -> 8 kartu
+  ok   tab Plywood -> 1 kartu
+
+[D] Pencarian
+  ok   input pencarian ada
+  ok   cari 'plywood' -> 1 kartu
+  ok   cari kode 'BHP-0002' -> 1 kartu
+  ok   cari yang tidak ada -> empty state
+
+[E] Panel batasan data
+  ok   panel batasan data dirender
+  ok   panel menyebut ledger/movement
+  ok   panel menyebut penurunan stok barang keluar
+
+[F] Tampilkan semua (>12 kartu)
+  ok   hanya 12 kartu tampil lebih dulu
+  ok   tombol 'Tampilkan semua (15)' ada
+  ok   setelah diklik -> 15 kartu
+  ok   tombol berubah jadi 'Tampilkan lebih sedikit'
+  ok   diklik lagi -> kembali 12 kartu
+
+[G] Read-only (tidak ada aksi tulis)
+  ok   tidak ada tombol Simpan
+  ok   tidak ada tombol Tambah/Buat
+  ok   tidak ada tombol Hapus
+  ok   tidak ada tombol Keluar/Masuk gudang
+  ok   tombol yang ada hanya: Semua, kategori, Unduh CSV
+  ok   tidak ada <form> (bukan halaman input)
+  ok   tidak ada <textarea>
+
+[H] Tanpa material sama sekali
+  ok   tanpa material -> empty state
+  ok   tanpa material -> KPI 0
+  ok   tanpa material -> panel batasan data tetap tampil (edukasi)
+
+[I] Ekspor CSV
+  ok   tombol 'Unduh CSV' ada
+  ok   klik 'Unduh CSV' tidak melempar & memicu unduhan
+
+============================================================
+HASIL RENDER TEST: 53/53 lulus
+============================================================

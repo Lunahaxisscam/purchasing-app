@@ -1,0 +1,48 @@
+  ✓ /__smoke HTTP 200 (server scratch)
+
+=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b) ===
+
+  ✓ 1a seksi Handover ada dgn kolom Barang
+  ✓ 1b data lama -> "Rincian barang belum tersedia"
+  ✓ 1c status lama CONFIRMED tampil dgn catatan (bukan diklaim)
+  ✓ 1d ada baris "Sudah Diserahkan" (bukti fisik h1)
+  ✓ 1e tombol konfirmasi ✓ ada utk belum diserahkan
+  ✓ 1f tanda ✓ statis utk sudah diserahkan
+  ✓ 1g TIDAK ada dropdown status handover di daftar
+  ✓ 1h aksi berbentuk baris inline (tidak bertumpuk)
+  ✓ 2a klik Detail membuka detail
+  ✓ 2b referensi Purchase asal tampil
+  ✓ 2c PR asal tampil
+  ✓ 2d penerima tampil
+  ✓ 2e label rincian jujur di detail
+  ✓ 2e2 catatan status lama tampil (bukan diklaim)
+  ✓ 2f prototype per-item tampil
+  ✓ 2g prototype jujur belum tersimpan
+  ✓ 2h NOL request mutasi DB sejauh ini
+  ✗ 3a modal Edit Handover terbuka  {"open":false,"count":8}
+  ✗ 3b TIDAK ada dropdown Penerimaan di edit  
+  ✗ 3c TIDAK ada dropdown Project di edit  
+  ✗ 3d TIDAK ada dropdown Status di edit  
+  ✗ 3e nol <select> di modal edit  selects=undefined
+  ✗ 3f ringkasan sumber read-only tampil  
+  ✗ 3g daftar rincian barang wajib terlihat  
+  ✗ 3h label rincian jujur di modal  
+  ✗ 3i field metadata tetap (teks/tanggal/foto)  
+  ✗ 4a modal Tambah Handover terbuka  {"open":false}
+  ✗ 4b dropdown Penerimaan ada (link wajib)  
+  ✗ 4c dropdown penerimaan required  
+  ✗ 4d TIDAK ada dropdown status di tambah  
+  ✗ 4e keterangan link wajib tampil  
+  ✓ 5a modul Purchase memakai dua tab baru
+  ✓ 5b TIDAK ada tombol "Masuk Stok Gudang" di Purchase
+  ✓ 5c TIDAK ada tombol "Serah Terima ke Tukang" di Purchase
+  ✓ 5d TIDAK ada dropdown status nota di Purchase
+  ✓ 5e TIDAK ada tombol "Terima Barang" lama
+  ✓ 5f TIDAK ada teks Retur/Refund di Purchase
+  ✓ 6a kartu handover menampilkan label rincian jujur
+  ✓ 6b tombol konfirmasi mobile ada
+  ✓ 6c mobile Purchase: kartu tampil
+  ✓ 6d mobile Purchase: TIDAK ada bulk stok
+  ✓ 6e mobile Purchase: TIDAK ada bulk tukang
+
+E2E: 29/43 lulus — GAGAL: 3a modal Edit Handover terbuka | 3b TIDAK ada dropdown Penerimaan di edit | 3c TIDAK ada dropdown Project di edit | 3d TIDAK ada dropdown Status di edit | 3e nol <select> di modal edit | 3f ringkasan sumber read-only tampil | 3g daftar rincian barang wajib terlihat | 3h label rincian jujur di modal | 3i field metadata tetap (teks/tanggal/foto) | 4a modal Tambah Handover terbuka | 4b dropdown Penerimaan ada (link wajib) | 4c dropdown penerimaan required | 4d TIDAK ada dropdown status di tambah | 4e keterangan link wajib tampil

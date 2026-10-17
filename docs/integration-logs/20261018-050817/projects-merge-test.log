@@ -1,0 +1,79 @@
+Sandbox: /tmp/projects-merge-verify
+
+SWC: 74 file dikompilasi ke dist/
+=== VERIFIKASI MERGE PROJECTS + PAST PROJECT (jsdom interaktif, ModuleView.js asli) ===
+
+A. Navigasi — menu Projects & Past Project digabung, ID lama tetap valid
+  ✓ menu "Projects" ada di sidebar
+  ✓ menu "Past Project" TIDAK lagi jadi baris sidebar terpisah
+  ✓ grup "Arsip" tidak lagi dirender di sidebar
+  ✓ RUTE "projects" tetap terdaftar di objek modules
+  ✓ labels.past_projects masih ada (ID navigasi lama valid)
+B. Tab Aktif / Selesai di modul Projects
+  ✓ tab "Aktif" ada
+  ✓ tab "Selesai" ada
+  ✓ tab Aktif menampilkan jumlah project non-DONE (3)
+  ✓ tab Selesai menampilkan jumlah project DONE (2)
+  ✓ tab "Aktif" aktif secara default
+  ✓ tab "Selesai" tidak aktif di awal
+  ✓ klik tab Selesai -> hanya project DONE yang tampil
+  ✓ klik tab Selesai -> project aktif TIDAK tampil
+  ✓ klik tab Selesai -> tab "Selesai" jadi aktif
+  ✓ klik kembali tab Aktif -> hanya project non-DONE yang tampil
+  ✓ klik kembali tab Aktif -> project DONE TIDAK tampil
+C. Default modul Projects menampilkan project aktif (perilaku lama utuh)
+  ✓ default: 3 baris project aktif tampil
+  ✓ default: project DONE tidak tampil
+  ✓ counter toolbar menyebut jumlah data aktif
+D. Route lama "past_projects" tetap menampilkan project selesai
+  ✓ route lama: 2 project DONE tampil
+  ✓ route lama: project DONE benar tampil
+  ✓ route lama: project aktif TIDAK tercampur
+  ✓ route lama: tab "Selesai" langsung aktif
+  ✓ filter status lama tetap ada di dalam tab
+E. Label terlihat — Purchase -> Pembelian, Handover -> Serah Terima
+  ✓ labels.receivings === 'Pembelian'
+  ✓ labels.handovers === 'Serah Terima'
+  ✓ kunci 'receivings' masih ada (ID route/permission utuh)
+  ✓ kunci 'handovers' masih ada (ID route/permission utuh)
+  ✓ labels.projects tetap 'Project'
+  ✓ labels.vendors tetap 'Vendor'
+  ✓ labels.materials tetap 'Material'
+  ✓ labels.past_projects tetap ada (ID route lama valid)
+  ✓ registry masih mendaftarkan id 'projects'
+  ✓ registry masih mendaftarkan id 'past_projects'
+  ✓ registry masih mendaftarkan id 'handovers' (alur utuh)
+  ✓ registry masih mendaftarkan id 'receivings' (alur utuh)
+F. Material — kolom Kode dihilangkan, kode tampil di bawah nama
+  ✓ header tabel Material TIDAK punya kolom "Kode"
+  ✓ header tabel Material masih punya kolom "Nama"
+  ✓ kode material TETAP tampil (sbg sublabel di bawah nama)
+  ✓ nama material tetap tampil di baris
+  ✓ sublabel kode punya kelas .cell-kode-sub
+  ✓ kartu mobile: nama material jadi judul
+  ✓ kartu mobile: kode tampil sbg sublabel
+  ✓ data material mock punya field kode utuh
+G. Vendor — label kontak seragam, email/kontak lain di bagian Lanjutan
+  ✓ pretty('phone') === 'Kontak WA'
+  ✓ pretty('store_link') === 'Link Toko'
+  ✓ pretty('contact') === 'Email / Kontak Lain'
+  ✓ form vendor: field phone berlabel 'Kontak WA'
+  ✓ form vendor: field store_link berlabel 'Link Toko'
+  ✓ form vendor: email/kontak lain ada di blok LANJUTAN (details)
+  ✓ form vendor: label email 'Email / Kontak Lain'
+  ✓ form vendor: email/kontak lain tetap OPSIONAL (required=false)
+  ✓ vendor: tombol hapus muted + konfirmasi bertingkat tetap ada (t_e626b674)
+  ✓ vendor: kartu mobile pakai link hapus kecil, bukan tombol merah (t_e626b674)
+  ✓ kolom vendor di headersFor tidak berubah
+H. Fitur wajib utuh — acuan (t_090127ad), show-more (t_cf05c96f), export (t_27e26b0e)
+  ✓ acuan harga: tombol toggle "+ Acuan Harga" masih ada (t_090127ad)
+  ✓ acuan harga: baris expand rincian masih ada (t_090127ad)
+  ✓ export: kolom Kode TETAP ada di ekspor CSV/PDF (t_27e26b0e)
+  ✓ show-more: ModuleView masih memakai limitRows (t_cf05c96f)
+I. Tidak ada label terlihat lama tersisa di UI
+  ✓ pages/index.js: tidak ada teks terlihat 'Purchase'/'Handover' yang terlewat
+  ✓ components/Dashboard.js: tidak ada teks terlihat 'Purchase'/'Handover' yang terlewat
+  ✓ components/Settings.js: tidak ada teks terlihat 'Purchase'/'Handover' yang terlewat
+  ✓ Settings log-aktivitas: label terlihat 'Pembelian'/'Serah Terima'
+
+=== HASIL: 63 LULUS, 0 GAGAL ===

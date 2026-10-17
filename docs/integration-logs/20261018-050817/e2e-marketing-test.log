@@ -1,0 +1,61 @@
+fake-supabase : HTTP 200
+next app      : HTTP 401 (401 = endpoint menolak tanpa sesi, benar)
+
+=== D. RUNTIME NYATA (http://127.0.0.1:57379) ===
+  ok D1a GET tanpa sesi → 401/503
+  ok D1b tidak membocorkan kontrak
+  ok D1c error berbentuk {ok:false, code}
+  ok D1d token pratinjau salah ditolak
+  ok D2a JWT non-admin bukan 200
+  ok D3a JWT admin → 200
+  ok D3b dry_run true
+  ok D3c read_only true
+  ok D3d side_effects menyatakan nol kirim
+  ok D3e side_effects menyatakan nol iklan
+  ok D3f side_effects menyatakan nol tulis
+  ok D3g authorized_as admin
+  ok D3h taksonomi sumber lead ikut
+  ok D3i status kualifikasi ikut
+  ok D3j gerbang bukti ikut
+  ok D3k kepemilikan tabel ikut
+  ok D3l invarian purchasing ikut
+  ok D3m rute hanya GET
+  ok D3n purchase_requests ditandai haram disentuh
+  ok D4-POST POST → 405
+  ok D4-POST-code POST kode METHOD_NOT_ALLOWED
+  ok D4-PATCH PATCH → 405
+  ok D4-PATCH-code PATCH kode METHOD_NOT_ALLOWED
+  ok D4-PUT PUT → 405
+  ok D4-PUT-code PUT kode METHOD_NOT_ALLOWED
+  ok D4-DELETE DELETE → 405
+  ok D4-DELETE-code DELETE kode METHOD_NOT_ALLOWED
+  ok D5a semua aksi keluar → 403 ACTION_FORBIDDEN
+  ok D5b guard aksi mendahului auth (tanpa sesi tetap 403)
+  ok D5c respons 403 menyatakan nol efek samping
+  ok D6a readiness → 200
+  ok D6b leads dilaporkan tidak tersedia
+  ok D6c kode error SCHEMA_UNAVAILABLE
+  ok D6d projects terbaca (2 baris dari server palsu)
+  ok D6e data_ready false
+  ok D6f status degraded
+  ok D6g lead_pipeline BLOCKED dengan alasan "bukan berarti kosong"
+  ok D6h customer_handoff BLOCKED
+  ok D6i semua query SELECT
+  ok D6j tidak ada tabel purchasing di daftar query
+  ok D7a sample → 200
+  ok D7b semua contoh divalidasi
+  ok D7c tidak ada yang dieksekusi
+  ok D7d ada contoh lulus
+  ok D7e ada contoh gagal karena gerbang bukti
+  ok D7f ada rencana LINK_EXISTING (anti-duplikat)
+  ok D7g semua rencana would_write=false
+  ok D7h sample tunggal → 1 hasil
+  ok D8a tidak ada POST/PATCH/DELETE ke Supabase selama uji
+  ok D9a tidak ada pembacaan tabel purchasing sama sekali
+  ok D10a /api/sales-invoices tetap menolak tanpa sesi
+  ok D10b /api/reminders tetap menolak tanpa sesi
+
+  HASIL D: 52 LULUS, 0 GAGAL
+
+================ HASIL E2E ================
+E2E RUNTIME LULUS

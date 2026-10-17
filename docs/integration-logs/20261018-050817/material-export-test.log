@@ -1,0 +1,68 @@
+Sandbox: /tmp/material-export-verify
+
+SWC: 76 file dikompilasi ke dist/
+
+[A.1] buildMaterialCsv unit langsung
+  ✓ CSV diawali BOM \ufeff
+  ✓ Header kolom persis sesuai arahan
+  ✓ Jumlah baris data = 3 (+BOM baris header)
+  ✓ Sel berisi koma/kutip di-quote & di-escape
+  ✓ Master harga_acuan masuk kolom acuan dgn label sumber
+  ✓ Material tanpa acuan = kolom kosong (bukan 0)
+  ✓ Stok kosong → sel kosong, satuan kosong → ""
+
+[A.2] Label acuan jujur: HISTORIS ≠ estimasi PR
+  ✓ HISTORIS dgn price_actual 115.000 tampil
+  ✓ Estimasi PR dilabel eksplisit BUKAN harga beli
+
+[B] Tombol toolbar di Modul Material
+  ✓ Tombol 📥 Export CSV tampil di toolbar
+  ✓ Tombol 📄 Export PDF tampil di toolbar
+  ✓ Tombol di sebelah search/baris + Tambah Material (toolbar-actions)
+  ✓ Counter toolbar: "339 data tersedia" (seluruh dataset)
+  ✓ Footer Show More: 10 dari 339 (default tetap 10)
+  ✓ Klik CSV → 1 unduhan terjadi
+  ✓ CSV: UTF-8 BOM di 3 byte pertama (EF BB BF)
+  ✓ CSV: header kolom benar
+  ✓ CSV: 339 baris data penuh (TANPA potongan Show More 10)
+  ✓ CSV: baris pertama berisi data ALM-0001
+  ✓ CSV: HPL-9001 dgn histori AKTUAL 115.000 + vendor
+  ✓ CSV: HPL-9004 dgn estimasi dilabel BUKAN harga beli
+  ✓ CSV: HPL-9002 master 175.000 label Master
+  ✓ CSV: ALM-0004 (BHP) kategori & stok ter-extract benar
+
+[C] Klik Export PDF → biner valid & pdftotext
+  ✓ Klik PDF → 1 unduhan terjadi
+  ✓ PDF magic bytes: %PDF-1.4
+  ✓ PDF diakhiri %%EOF
+  ✓ PDF ukuran wajar (> 30KB utk 358 baris multi-halaman)
+  ✓ PDF: header NOIR LIVING tampil
+  ✓ PDF: judul MASTER MATERIAL tampil
+  ✓ PDF: tanggal ekspor DD/MM/YYYY tampil
+  ✓ PDF: header kolom No/Kode/Nama/Kategori/Satuan/Stok tampil
+  ✓ PDF: data material terlihat (ALM-0001)
+  ✓ PDF: item khusus HPL-9006 (baris terakhir) dirender
+  ✓ PDF: MediaBox A4 595.28x841.89
+
+[B.2] Export mengikuti pencarian aktif
+  ✓ Search → CSV hanya data terfilter (2 baris data)
+  ✓ Search terfilter baris 1 tetap utuh dgn kolom acuan historis
+
+[B.3] Tombol hanya di modul Material
+  ✓ Toolbar Vendor tanpa tombol export
+
+[A.3] Nama file unduhan
+  ✓ Nama file CSV = Master_Material_YYYY-MM-DD.csv
+  ✓ Nama file PDF = Master_Material_YYYY-MM-DD.pdf
+  ✓ Stamp = tanggal hari ini
+
+[D] Regresi: + Acuan expandable & Show More 10
+  ✓ Kolom "Acuan Harga" tetap TIDAK ada di header desktop
+  ✓ Expand + Acuan: tombol "+ Acuan Harga" tampil di baris
+  ✓ Default tertutup (Show More 10 baris + aksi): 10 parent
+  ✓ Klik toggle membuka 1 baris expand (11 baris total)
+  ✓ Show More tidak reset: tetap "10 dari 339"
+  ✓ Rincian expand berisi "Belum ada acuan harga" (material tanpa histori)
+
+=== HASIL: 46 PASS, 0 FAIL ===
+Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.

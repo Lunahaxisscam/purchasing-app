@@ -1,0 +1,134 @@
+Sandbox: /tmp/pr-group-verify
+
+SWC: 76 file dikompilasi ke dist/
+=== UNIT: grouping helper (modules/requests/view.jsx) ===
+
+1. materialMapFrom — peta master material
+  ✓ ukuran = 5
+  ✓ lookup by id → objek material
+  ✓ array kosong/null → map kosong (tanpa error)
+
+2. attachMaterialIds — zip 1:1 pr_items → baris tampilan
+  ✓ material_id tertempel utk item dgn relasi
+  ✓ tanpa relasi → material_id tidak disetel (bukan string kosong palsu)
+  ✓ panjang beda (legacy ringkasan teks) → baris asli apa adanya
+  ✓ TIDAK memutasi objek baris asli
+  ✓ raw kosong → baris asli apa adanya
+
+3. groupItemsByCategory — multi-kategori (kasus PR-007)
+  ✓ 3 grup (Plywood, HPL, Hardware) — kemunculan pertama
+  ✓ item Plywood = Triplek + Blockboard (urutan asli dipertahankan)
+  ✓ item HPL = 2 (AC lalu DP — urutan asli)
+  ✓ subtotal kategori = jumlah savedSubtotal item grup
+  ✓ TIDAK ada grup tebakan dari nama/prefix vendor
+
+4. satu kategori — TANPA heading duplikat, tetap satu grup
+  ✓ tepat 1 grup HPL & Edging
+  ✓ 3 item utuh di dalamnya
+
+5. missing master / kategori kosong → Belum Berkategori (jujur)
+  ✓ 2 grup: Belum Berkategori (pertama — kemunculan pertama) + kategori
+  ✓ grup tanpa kategori heading null
+  ✓ label tampilan = "Belum Berkategori" (tanpa mengarang)
+  ✓ grup berkategori = HPL
+  ✓ 4 item masuk Belum Berkategori
+  ✓ label UNCATEGORIZED_LABEL konsisten
+  ✓ heading kategori utuh (TIDAK dipotong)
+
+6. ordering stabil — grup & item ikut urutan input (sort_order)
+  ✓ urutan grup = urutan kemunculan pertama (HWF→HPL→WPC)
+  ✓ item grup 1 = posisi 1 & 4 input
+  ✓ item grup 3 = posisi 3 & 5 input
+  ✓ input dibalik → hasil dibalik (fungsinya tidak mengurutkan sendiri)
+
+7. subtotal kategori — hanya nominal valid, bukan jumlah qty
+  ✓ subtotal = 120.000 + 0 (item tanpa harga di-skip, bukan dianggap 0 palsu utk kelengkapan)
+  ✓ grup tanpa satu pun harga → estSubtotal undefined (bukan 0 palsu)
+
+8. Total Estimasi (t_ac0b39c0) — kontrak tidak berubah oleh grouping
+  ✓ total 240.000 + 1 item belum lengkap
+  ✓ items kosong → hasItems false
+
+9. nama kategori panjang & karakter khusus — utuh, tidak diubah
+  ✓ nama kategori panjang dipertahankan apa adanya
+
+=== HASIL UNIT: 31 LULUS, 0 GAGAL ===
+SEMUA UNIT GROUPING LULUS
+=== RENDER: pengelompokan kategori PR & Approval (ModuleView asli) ===
+
+A. Daftar PR desktop — heading kategori, satu kali, urutan stabil
+  ✓ heading grup = [Plywood & Board, HPL & Edging, Hardware & Fitting, Belum Berkategori]
+  ✓ tiap judul kategori tampil SEKALI (4 heading utk 8 item)
+  ✓ TIDAK ada grup dari nama/prefix vendor (Taco tidak jadi heading)
+  ✓ urutan item stabil: Plywood (Triplek→Blockboard) sebelum HPL
+  ✓ item tanpa relasi & kategori kosong → masuk Belum Berkategori (di akhir, urutan input)
+  ✓ rowSpan parent mencakup 4 heading + 8 item + 1 total = 13
+  ✓ parent PR tetap satu sel (8 sel dgn rowSpan 13: prio+noPR+project+judul+status+aksi blok)
+  ✓ nilai Total Estimasi ada di kolom Estimasi Harga (sejajar subtotal item)
+  ✓ grid PR multi-kategori: setiap baris menutup tepat 10 kolom (grid konsisten)
+
+B. Row-per-child — Qty, Item, Vendor, Estimasi sejajar fisik
+  ✓ baris item berisi qty 8 Pcs + nama + dash vendor + 200.000 di tr yang SAMA
+  ✓ baris item punya 4 sel area item (qty/item/vendor/price)
+  ✓ grid PR row-per-child B: setiap baris menutup tepat 10 kolom (grid konsisten)
+  ✓ item tanpa harga tampil dash (bukan 0 palsu)
+
+C. Total Estimasi — nilai sama sebelum/sesudah grouping
+  ✓ Total Estimasi 2.205.000 (belum lengkap — 1 item tanpa harga)
+  ✓ tepat 1 baris total per PR
+
+D. Satu kategori, semua tak berkategori, PR tanpa item
+  ✓ satu kategori → 1 heading HPL & Edging (tanpa duplikat)
+  ✓ 2 item tetap tampil (nama saja, tanpa heading ganda)
+  ✓ legacy (materials_summary) → item tampil via fallback (Triplek & Engsel, qty 4 Lembar / 2 Pcs)
+  ✓ legacy ringkasan teks → grup Belum Berkategori (tidak menebak kategori)
+  ✓ grid PR satu kategori: setiap baris menutup tepat 10 kolom (grid konsisten)
+  ✓ grid PR legacy ringkasan: setiap baris menutup tepat 10 kolom (grid konsisten)
+
+E. Kartu mobile PR — heading kategori & subtotal per item
+  ✓ heading grup mobile = 4 (.mobile-group-label)
+  ✓ urutan grup mobile sama dgn desktop
+  ✓ subtotal snapshot per item tampil (150.000 utk Triplek)
+  ✓ item tanpa harga: label "belum ada harga" (bukan 0)
+  ✓ Total Estimasi mobile 2.205.000 (belum lengkap)
+  ✓ qty per item mobile: "8 Pcs" menempel pada item Engsel
+
+F. Show More — hitung parent PR, bukan heading/item/total
+  ✓ 10 PR pertama tampil: 10 × (8 item + 4 heading + 1 total) = 130 baris fisik
+  ✓ heading grup = 10 × 4 = 40 (semua di dalam 10 PR)
+  ✓ baris total tepat 10 (1 per PR)
+  ✓ PR-11 TIDAK bocor
+  ✓ footer "Menampilkan 10 dari 12"
+  ✓ Show More: 12 PR → 156 baris fisik utuh
+  ✓ grid PR batch 12 (setelah Show More): setiap baris menutup tepat 10 kolom (grid konsisten)
+
+G. Approval desktop — grup kategori + row-per-child (Qty sejajar)
+  ✓ heading grup approval = sama dgn PR (4 grup, satu kali)
+  ✓ baris item Approval berisi nama + qty "8 Pcs" di tr SAMA (tidak melenceng)
+  ✓ rowSpan parent approval = 4 heading + 8 item + 1 total = 13
+  ✓ Total Estimasi approval: 2 sel (label area item + nilai di kolom Qty), tanpa filler kolom hantu
+  ✓ nilai Total Estimasi approval memakai sel pr-item-qty (sejajar kolom Qty item)
+  ✓ grid Approval desktop: setiap baris menutup tepat 10 kolom (grid konsisten)
+  ✓ baris Total Estimasi read-only ada (2.205.000, belum lengkap)
+  ✓ approval legacy tanpa pr_items → 1 baris dash, tanpa heading grup
+
+H. Approval perluasan — tabel per grup + subtotal kategori
+  ✓ panel perluasan terbuka (SEKALI — tidak dobel)
+  ✓ 4 tabel grup + heading: Plywood, HPL, Hardware, Belum Berkategori
+  ✓ subtotal kategori valid: Plywood 1.380.000 (150k+180k+5×210k)
+  ✓ tombol aksi per item tetap ada (✓ Setujui / Sudah Order)
+  ✓ Total Estimasi tetap TUNGGAL di akhir panel (bukan per grup)
+  ✓ item dalam grup tetap punya kode + satuan (PLY-, Lembar)
+
+I. Approval mobile — grup kategori + total estimasi
+  ✓ heading grup mobile approval = 4
+  ✓ qty per item mobile approval ("8 Pcs" pada Engsel)
+  ✓ Total Estimasi kini tampil di mobile approval (2.205.000, belum lengkap)
+  ✓ tombol Setujui/Tolak/Revisi tetap ada
+
+J. Regresi — antrean Menunggu default, catatan, material (module lain)
+  ✓ default antrean tetap ⏳ Menunggu (t_0a35264f)
+  ✓ legacy note tetap disembunyikan hanya via displayNote (dash di cell) — helper tidak berubah
+
+=== HASIL RENDER: 54 LULUS, 0 GAGAL ===
+SEMUA RENDER GROUPING LULUS

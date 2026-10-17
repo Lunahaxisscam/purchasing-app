@@ -1,0 +1,50 @@
+  ✓ /__smoke HTTP 200 (server scratch)
+
+=== E2E BROWSER NYATA (Chrome CDP) — modul Purchase (t_9109cf5e) ===
+
+  ✓ 1a seksi Purchase ada di halaman
+  ✓ 1b tab "Siap Dibeli" tampil
+  ✓ 1c tab "Riwayat Pembelian" tampil
+  ✓ 1d tab default = Siap Dibeli
+  ✓ 1e ada baris barang siap dibeli
+  ✓ 1f ada checkbox per barang
+  ✓ 2a TIDAK ada teks Gudang / Tukang
+  ✓ 2b TIDAK ada teks RETUR / REFUND
+  ✓ 2c TIDAK ada dropdown status nota
+  ✓ 2d TIDAK ada tombol Terima Barang lama
+  ✓ 2e tombol hanya tab/filter/proses
+  ✓ 2f dropdown hanya filter toko & proyek
+  ✓ 3a centang 1 -> tombol aktif
+  ✓ 3b label tombol menyebut jumlah
+  ✓ 3c centang 2 -> (2)
+  ✓ 3d dialog "Proses Pembelian" terbuka
+  ✓ 3e field Toko / Tanggal / No. Nota ada
+  ✓ 3f 2 baris item belanja
+  ✓ 3g qty default dari PR
+  ✓ 3h harga riil awalnya kosong (bukan estimasi)
+  ✓ 3i kolom biaya lain & diskon dipisah
+  ✓ 3j dua slot lampiran (nota & transfer)
+  ✓ 3k tombol "✓ Selesaikan Pembelian" ada
+  ✓ 3l tombol submit nonaktif sebelum lengkap
+  ✓ 4a subtotal baris 1 = Rp 472.000
+  ✓ 4b total material = Rp 542.000
+  ✓ 4c + ongkir 25.000 = Rp 567.000
+  ✓ 4d − diskon 10.000 = Rp 557.000
+  ✓ 4e total material tetap 542.000 (diskon terpisah)
+  ✓ 4f tombol submit aktif setelah lengkap
+  ✓ 4g dialog bisa ditutup tanpa menyimpan
+  ✓ 5a tab riwayat menampilkan nota
+  ✓ 5b kolom Total Nota ada
+  ✓ 5c kolom Bukti ada
+  ✓ 5d total belanja tercatat tampil
+  ✓ 5e tombol rincian per nota ada
+  ✓ 5f rincian nota berisi harga satuan & subtotal
+  ✓ 5g rincian berisi total nota
+  ✓ 6a kartu mobile tampil
+  ✓ 6b tabel desktop disembunyikan di mobile
+  ✓ 6c checkbox mobile ada
+  ✓ 6d mobile tetap tanpa aksi gudang/tukang/retur
+  ✓ 6e tidak ada scroll horizontal (lebar badan ≤ viewport+2)
+  ✓ 7 nol request mutasi Supabase (halaman mock, tidak menyentuh DB)
+
+=== HASIL E2E: 45 lulus, 0 gagal ===

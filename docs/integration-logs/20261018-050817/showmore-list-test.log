@@ -1,0 +1,68 @@
+Sandbox: /tmp/showmore-verify
+
+SWC: 74 file dikompilasi ke dist/
+=== VERIFIKASI DAFTAR RINGKAS + SHOW MORE (React SSR/jsdom interaktif, ModuleView.js asli) ===
+
+A. Material 335 data — default ringkas 10 + Show More
+  ✓ tabel hanya merender 10 baris (bukan 335)
+  ✓ kartu mobile juga 10
+  ✓ footer .list-show-more ada
+  ✓ indikator "Menampilkan 10 dari 335"
+  ✓ tombol "Show More / Tampilkan Lebih Banyak" ada
+  ✓ tombol "Ringkas" TIDAK ada di awal (masih di batch pertama)
+  ✓ baris ke-11 TIDAK dirender
+  ✓ data baris ke-10 ada
+  ✓ counter "335 data tersedia" memakai dataset penuh
+  ✓ tab "Semua (335)" memakai dataset penuh
+  ✓ banner stok menipis dari dataset penuh (67)
+
+A2. Klik Show More (+10) lalu Ringkas (klik nyata via jsdom)
+  ✓ awal: 10 baris
+  ✓ klik 1: 20 baris
+  ✓ indikator jadi "Menampilkan 20 dari 335"
+  ✓ tombol "Ringkas" muncul setelah expand
+  ✓ klik 2: 30 baris
+  ✓ klik berulang sampai habis: 335 baris semua tampil
+  ✓ footer Show More HILANG saat semua data tampil
+  ✓ "Ringkas" kembali ke 10 baris
+  ✓ indikator kembali "Menampilkan 10 dari 335"
+
+B. Search menemukan item DI LUAR 10 baris pertama (filter di seluruh dataset)
+  ✓ item di luar batch awal DITEMUKAN (1 baris muncul)
+  ✓ tanpa footer Show More saat hasil <= 10
+  ✓ counter hasil pencarian "1 data tersedia"
+
+C. Reset ke 10 saat pindah filter tab & saat sort (klik nyata)
+  ✓ pra-uji: 30 baris setelah 2x Show More
+  ✓ ganti filter: baris kembali ke 10
+  ✓ filter kategori: 67 data (335/5 kategori)
+  ✓ tab count kategori memakai dataset penuh: "Hardware & Fitting (67)"
+  ✓ footer muncul lagi setelah reset (67 > 10)
+  ✓ pra-uji sort: 20 baris
+  ✓ klik urut kode: limit kembali 10
+  ✓ sort kode asc: baris pertama "ALM-0003" (list hasil filter)
+  ✓ footer tetap ada setelah sort (67 data, tampil 10)
+
+D. PR master-detail & perluasan Approval tetap utuh
+  ✓ 10 PR pertama tampil utuh (50 baris fisik = 10×(3 item+1 heading+1 total))
+  ✓ baris total estimasi tepat 10 (1 per PR, tidak bocor ke PR-11)
+  ✓ PR-11 tidak tampil (judul 10 PR pertama lengkap, tanpa PR-11)
+  ✓ indikator "Menampilkan 10 dari 16" (1 PR approved disembunyikan filter)
+  ✓ tab "Semua Aktif (16)" memakai dataset penuh
+  ✓ perluasan material approval tetap bisa dibuka di dalam batch 10
+  ✓ baris level-atas: 10 PR×(3 item+1 heading+1 total) + 1 expand = 51 (parent-child utuh)
+  ✓ item perluasan utuh di dalam baris expand (3 item, tidak terpotong)
+  ✓ baris Total Estimasi ada di perluasan (3 item + 1 total = 4 nested)
+  ✓ footer approval dari hasil filter penuh: "Menampilkan 10 dari 12"
+  ✓ tab approval dari dataset penuh: "⏳ Menunggu (12)"
+
+E. Empty state, daftar pendek tanpa footer, vendor juga ringkas
+  ✓ empty state tetap tampil saat search tanpa hasil
+  ✓ empty state: TANPA footer Show More
+  ✓ vendor 23 data -> 10 baris + footer
+  ✓ vendor: toolbar tetap tanpa counter/pill (regresi vendors-toolbar)
+  ✓ tepat 10 data: semua tampil TANPA footer
+  ✓ 0 data: empty state desktop & mobile, tanpa footer
+
+=== HASIL: 49 LULUS, 0 GAGAL ===
+SEMUA VERIFIKASI SHOW MORE LULUS

@@ -1,0 +1,461 @@
+
+================ A. KONTRAK & VALIDASI ================
+  ok A1a status dikenal lengkap
+  ok A1b TERBIT termasuk status terbit
+  ok A1c DRAFT bukan status terbit
+  ok A1d DRAFT hanya boleh ke TERBIT/BATAL
+  ok A1e DRAFT -> TERKIRIM DITOLAK (tidak boleh lompat)
+  ok A1e2 TERBIT -> LUNAS diizinkan (gerbangnya bukti bayar)
+  ok A1e3 TERBIT -> DISETUJUI ditolak
+  ok A1f DRAFT -> LUNAS DITOLAK
+  ok A1g kode penolakan DRAFT->LUNAS
+  ok A1h LUNAS final (tidak bisa ke mana pun)
+  ok A1i BATAL final
+  ok A1j kode penolakan dari status final
+  ok A1k transisi sah TERKIRIM -> LUNAS
+  ok A1l status tidak dikenal ditolak
+  ok A1m kode status tujuan tak dikenal
+  ok A1n noop (status sama) ditolak
+  ok A1o normalisasi status lowercase
+  ok A2a format nomor invoice
+  ok A2b parse nomor invoice
+  ok A2c periode dari tanggal
+  ok A2d nomor tidak sesuai format ditolak parse
+  ok A2e urutan berikutnya = max+1 pada periode sama
+  ok A2f periode lain tidak mempengaruhi urutan
+  ok A2g format periode salah ditolak (throw)
+  ok A2h urutan 0 ditolak (throw)
+  ok A3a kode proyek berikutnya = max+1
+  ok A3b fallback tanpa proyek
+  ok A3c kode non-numerik diabaikan
+  ok A3d kode proyek terpakai terdeteksi
+  ok A3e kode proyek terpakai case-insensitive
+  ok A4a payload valid diterima
+  ok A4b status awal DIPAKSA DRAFT
+  ok A4c tax_amount dihitung server
+  ok A4d grand_total dihitung server
+  ok A4e tax_amount karangan klien diabaikan
+  ok A4f grand_total karangan klien diabaikan
+  ok A4g nama customer kosong ditolak
+  ok A4h kode error nama kosong
+  ok A4i nominal 0 ditolak
+  ok A4j nominal negatif ditolak
+  ok A4k nominal bukan angka ditolak
+  ok A4l PPN > 100 ditolak
+  ok A4m jatuh tempo sebelum terbit ditolak
+  ok A4n kode error jatuh tempo
+  ok A4o tanggal format salah ditolak
+  ok A4p POST dengan status TERKIRIM ditolak
+  ok A4q kode error status awal
+  ok A4r POST dengan status DRAFT eksplisit diterima
+  ok A4s invoice_no dari klien ditolak
+  ok A4t kode error invoice_no
+  ok A4u mode existing tanpa project_id ditolak
+  ok A4v mode proyek ngawur ditolak
+  ok A4w kode proyek dengan karakter aneh ditolak
+  ok A5a TERKIRIM tanpa kanal ditolak
+  ok A5b kode error kanal
+  ok A5c TERKIRIM dengan kanal diterima
+  ok A5d kanal tersimpan
+  ok A5e LUNAS tanpa bukti ditolak
+  ok A5f LUNAS tanpa bukti menyebut semua field
+  ok A5g LUNAS dengan bukti lengkap diterima
+  ok A5h verified_by dari body TIDAK dipakai
+  ok A5i transisi tanpa id ditolak
+  ok A5j transisi status ngawur ditolak
+  ok A6a field beku setelah terbit
+  ok A6b field tidak beku tidak dilaporkan
+  ok A6c invoice_no termasuk field beku
+  ok A7a draft TIDAK membawa nomor invoice
+  ok A7b draft tanpa issued_at
+  ok A7c total tetap dihitung
+  ok A7d status terbit membawa nomor
+  ok A7e status terbit punya issued_at
+  ok A7f status terbit belum terkirim
+  ok A8a issue_date kosong ditolak (server tidak mengarang tanggal)
+  ok A8b kode error tanggal wajib
+  ok A8c issue_date tidak dikirim juga ditolak
+  ok A8d PPN tidak dikirim = 0 (bukan 11%)
+  ok A8e tax_amount 0 saat PPN tidak dikirim
+  ok A8f termin tidak dikarang
+  ok A8g catatan tidak dikarang
+  ok A9a default format = Buku
+  ok A9b default tidak diblokir
+  ok A9c INV/NL tanpa ACK diblokir
+  ok A9d kode gate
+  ok A9e INV/NL dengan ACK = aktif
+  ok A9f discrepancy tetap dilaporkan
+  ok A9g format Buku membentuk NL2610001
+  ok A9h format Buku tanpa bulan ditolak (tidak menebak)
+  ok A9i prefix Buku untuk LIKE
+  ok A9j periode Buku = tahunan
+  ok A9k periode INV/NL = bulanan
+  ok A9l reset tahunan: urut mulai 1 di tahun baru
+  ok A9m nomor INV/NL tidak dihitung sebagai nomor Buku
+
+=== A. KONTRAK: 92 LULUS, 0 GAGAL ===
+
+
+================ B. STORE / IDEMPOTENSI / NEGATIVE CASES ================
+  ok B1a draft dibuat dengan status DRAFT
+  ok B1b draft TIDAK punya nomor invoice
+  ok B1c draft TIDAK punya nomor proyek
+  ok B1d draft tidak menandai proyek terbit
+  ok B1e draft belum punya issued_at
+  ok B1f peringatan menyebut nomor dialokasikan saat terbit
+  ok B1g tersimpan 1 baris
+  ok B2a retry dengan key sama mengembalikan invoice yang SAMA
+  ok B2b retry ditandai replayed
+  ok B2c tidak ada duplikat di store
+  ok B2d key berbeda membuat invoice baru
+  ok B2e dua invoice berbeda key
+  ok B2f key sama dengan isi berbeda ditolak (IDEMPOTENCY_KEY_REUSED)
+  ok B2g idempotensi bertahan setelah restart
+  ok B2h tetap 2 invoice setelah restart
+  ok B3a nomor invoice format Buku (NL<yymm><XXX>)
+  ok B3b status menjadi TERBIT (bukan TERKIRIM)
+  ok B3c TERBIT belum berarti terkirim
+  ok B3d issued_at terisi
+  ok B3e format nomor aktif dicatat di record
+  ok B3f invoice berikutnya dapat urut 002
+  ok B3g bulan baru tahun sama meneruskan urutan tahunan
+  ok B3h tahun baru mulai dari 001 (reset tahunan)
+  ok B3i menerbitkan invoice yang sudah terbit ditolak (NOT_A_DRAFT)
+  ok B3j peringatan proyek belum terbit (mode pratinjau)
+  ok B3k project_issued tetap false di mode pratinjau
+  ok B4a draf tersimpan lewat store supabase
+  ok B4b belum ada proyek dibuat saat draf
+  ok B4c penerbitan gagal saat simpan invoice gagal (UPDATE_FAILED)
+  ok B4d TIDAK ada proyek yatim saat invoice gagal
+  ok B4e setelah pulih, invoice terbit bernomor
+  ok B4f proyek baru diterbitkan TEPAT satu
+  ok B4g kode proyek terpakai dari intent
+  ok B4h project_issued true setelah proyek terbit
+  ok B4i project_id tertaut ke invoice
+  ok B4x1 invoice tetap terbit dengan nomor
+  ok B4x2 project_issued jujur false
+  ok B4x3 peringatan menyebut nomor proyek gagal
+  ok B4x4 tidak ada proyek setengah jadi
+  ok B4y1 invoice tetap terbit (nomor sah)
+  ok B4y2 proyek yang baru dibuat DIHAPUS (tidak yatim)
+  ok B4y3 penghapusan kompensasi benar-benar dipanggil
+  ok B4y4 project_issued jujur false
+  ok B4y5 peringatan menyebut kompensasi, bukan klaim transaksional
+  ok B4y6 error tautan disimpan di invoice untuk audit
+  ok B4y7 capabilities TIDAK mengklaim transaksional
+  ok B4z1 proyek tetap ada karena penghapusan gagal
+  ok B4z2 peringatan menyebut PERBAIKAN MANUAL + id proyek
+  ok B4z3 tidak mengklaim sukses
+  ok B5a kode proyek bentrok ditolak
+  ok B5b server menyarankan nomor berikutnya
+  ok B5c invoice TIDAK terbit saat kode bentrok
+  ok B5d nomor invoice tidak terpakai sia-sia
+  ok B6a TERBIT -> DISETUJUI tidak diizinkan (lompat) (INVALID_TRANSITION)
+  ok B6b status menjadi TERKIRIM
+  ok B6c kanal pengiriman tersimpan
+  ok B6d sent_at terisi
+  ok B6e LUNAS dengan nominal kurang ditolak (PAYMENT_AMOUNT_MISMATCH)
+  ok B6f LUNAS dengan nominal 0 ditolak (EVIDENCE_REQUIRED)
+  ok B6g LUNAS dengan pembayaran penuh diterima
+  ok B6h referensi pembayaran tersimpan
+  ok B6i verifikator pembayaran tersimpan
+  ok B6j LUNAS tidak bisa diubah lagi (TERMINAL_STATUS)
+  ok B7a koreksi draf ikut terhitung ulang
+  ok B7b invoice terbit dengan nilai terkoreksi
+  ok B7c ubah nominal invoice terbit ditolak (ISSUED_INVOICE_FROZEN)
+  ok B7d nominal tidak berubah setelah percobaan
+  ok B8a status BATAL
+  ok B8b nomor invoice TIDAK didaur ulang
+  ok B8c peringatan nomor tetap terpakai
+  ok B8d nomor berikutnya tetap 002 (tidak mendaur ulang)
+  ok B8e BATAL tidak bisa dihidupkan lagi (TERMINAL_STATUS)
+  ok B9a balapan nomor diselesaikan dengan urutan berikutnya
+  ok B9b total invoice tetap 2 (tidak ada duplikat)
+  ok B10a produksi menolak store file
+  ok B10b alasan blokir file di produksi
+  ok B10c produksi tanpa kredensial = blocked
+  ok B10d blokir karena kredensial
+  ok B10e dev tanpa kredensial = pratinjau file
+  ok B10f produksi dengan kredensial = supabase
+  ok B10g dev boleh memaksa file
+  ok B10h status store pratinjau menyatakan tidak durable
+  ok B10i status TIDAK mengklaim transaksional
+  ok B11a tabel belum ada → SCHEMA_UNAVAILABLE
+  ok B11b status HTTP 503 + penanda blocker
+  ok B12a replay supabase mengembalikan invoice sama
+  ok B12b hanya satu baris tersimpan
+  ok B13-TERBIT TERBIT → TERBIT + fields ditolak (NOT_A_DRAFT)
+  ok B13-TERBIT-b TERBIT: kode penolakan jujur (NOT_A_DRAFT)
+  ok B13-TERBIT-c TERBIT: NOL penulisan ke sales_invoices
+  ok B13-TERBIT-d TERBIT: data identik setelah penolakan
+  ok B13-TERBIT-e TERBIT: nominal tetap 100 (tidak beku-berubah)
+  ok B13-TERBIT-f TERBIT: tidak ada proyek/ nomor baru
+  ok B13-TERKIRIM TERKIRIM → TERBIT + fields ditolak (NOT_A_DRAFT)
+  ok B13-TERKIRIM-b TERKIRIM: kode penolakan jujur (NOT_A_DRAFT)
+  ok B13-TERKIRIM-c TERKIRIM: NOL penulisan ke sales_invoices
+  ok B13-TERKIRIM-d TERKIRIM: data identik setelah penolakan
+  ok B13-TERKIRIM-e TERKIRIM: nominal tetap 100 (tidak beku-berubah)
+  ok B13-TERKIRIM-f TERKIRIM: tidak ada proyek/ nomor baru
+  ok B13-LUNAS LUNAS → TERBIT + fields ditolak (NOT_A_DRAFT)
+  ok B13-LUNAS-b LUNAS: kode penolakan jujur (NOT_A_DRAFT)
+  ok B13-LUNAS-c LUNAS: NOL penulisan ke sales_invoices
+  ok B13-LUNAS-d LUNAS: data identik setelah penolakan
+  ok B13-LUNAS-e LUNAS: nominal tetap 100 (tidak beku-berubah)
+  ok B13-LUNAS-f LUNAS: tidak ada proyek/ nomor baru
+  ok B13-BATAL BATAL → TERBIT + fields ditolak (NOT_A_DRAFT)
+  ok B13-BATAL-b BATAL: kode penolakan jujur (NOT_A_DRAFT)
+  ok B13-BATAL-c BATAL: NOL penulisan ke sales_invoices
+  ok B13-BATAL-d BATAL: data identik setelah penolakan
+  ok B13-BATAL-e BATAL: nominal tetap 100 (tidak beku-berubah)
+  ok B13-BATAL-f BATAL: tidak ada proyek/ nomor baru
+  ok B13x1 TERBIT → TERKIRIM + fields ditolak (beku) (ISSUED_INVOICE_FROZEN)
+  ok B13x2 nol penulisan untuk percobaan beku
+  ok B13x3 data identik
+  ok B13y1 LUNAS nominal kurang ditolak tanpa menulis (PAYMENT_AMOUNT_MISMATCH)
+  ok B13y2 nol penulisan pada penolakan pembayaran
+  ok B13y3 data identik
+  ok B13z1 patch ke invoice_no dari klien ditolak (FIELD_NOT_PATCHABLE)
+  ok B13z2 invoice_no tidak berubah
+  ok B14a tepat satu penerbitan berhasil
+  ok B14b tepat satu penerbitan kalah
+  ok B14c yang kalah gagal dengan kode jujur
+  ok B14d hanya SATU proyek dibuat
+  ok B14e invoice tetap satu baris
+  ok B14f nomor invoice tidak terganti
+  ok B14g proyek tertaut tepat satu
+  ok B14h CAS gagal (null) bila status sudah berubah
+  ok B14i CAS yang kalah tidak menulis apa pun
+  ok B14j nomor invoice tidak dipakai
+  ok B14k invoice pertama menerbitkan proyek 106
+  ok B14l kode proyek yang sudah diklaim invoice lain ditolak (DUPLICATE_PROJECT_CODE)
+  ok B14m invoice kedua tetap draf tanpa nomor
+  ok B14n tetap hanya SATU proyek baru
+  ok B14o percobaan kedua tidak menulis invoice kedua
+  ok B15a wajib RPC tapi RPC tidak ada → ditolak (ISSUE_REQUIRES_RPC)
+  ok B15b status 503 (fail closed)
+  ok B15c nol proyek, nol nomor
+  ok B15d capabilities jujur: atomicSequence false
+  ok B15e capabilities jujur: requireRpc true
+  ok B15f pesan menyebut SALES_INVOICE_REQUIRE_RPC
+  ok B16a default = format Buku (authoritative)
+  ok B16b default disepakati (agreed true)
+  ok B16c INV/NL tanpa ACK = BLOCKED
+  ok B16d kode gate format
+  ok B16e pesan menyebut belum disepakati
+  ok B16f INV/NL dengan ACK diizinkan
+  ok B16g tetap ditandai belum disepakati (discrepancy)
+  ok B16h format tidak dikenal ditolak
+  ok B16i format Buku: NL2610001
+  ok B16j format INV/NL tetap bisa dibentuk
+  ok B16k parse nomor Buku
+  ok B16l parse nomor INV/NL tidak salah format
+  ok B16m nomor ngawur tidak diparse
+  ok B16n reset tahunan: 2027 mulai 001
+  ok B16o urutan tahun berjalan = max+1
+  ok B16p format belum disepakati → penerbitan ditolak (NUMBER_FORMAT_NOT_AGREED)
+  ok B16q pesan menyebut format authoritative Buku
+  ok B16r nol nomor & nol proyek saat gate menolak
+  ok B16s sebaran format dilaporkan apa adanya
+  ok B16t tidak ada penulisan ulang nomor lama
+
+=== B. STORE: 160 LULUS, 0 GAGAL ===
+
+
+================ C+D. OTORISASI SERVER & API HANDLER ================
+  ok C1a tanpa Authorization = 401 UNAUTHORIZED
+  ok C1b skema Authorization bukan Bearer = 401
+  ok C1c JWT tidak valid = 401 INVALID_SESSION
+  ok C1d peran non-admin = 403 FORBIDDEN
+  ok C1e pesan 403 menyebut khusus administrator
+  ok C1f gagal membaca profiles = 503 (fail closed)
+  ok C1g admin sah diterima
+  ok C1h identitas user diteruskan
+  ok C1i tanpa kredensial & tanpa token pratinjau = 503
+  ok C1j token pratinjau salah = 401
+  ok C1k token pratinjau benar diterima
+  ok C2a-GET GET tanpa sesi = 401
+  ok C2a-GET-b GET tidak membocorkan data
+  ok C2a-POST POST tanpa sesi = 401
+  ok C2a-POST-b POST tidak membocorkan data
+  ok C2a-PATCH PATCH tanpa sesi = 401
+  ok C2a-PATCH-b PATCH tidak membocorkan data
+  ok C2b-GET GET non-admin = 403
+  ok C2b-POST POST non-admin = 403
+  ok C2b-PATCH PATCH non-admin = 403
+  ok C2c tidak ada file pratinjau dibuat oleh permintaan tak sah
+  ok D1a GET admin = 200
+  ok D1b daftar kosong
+  ok D1c status penyimpanan menyatakan pratinjau
+  ok D1d peringatan tidak durable disertakan
+  ok D1e cache-control no-store
+  ok D1f peran pelaku dilaporkan
+  ok D2a POST sah = 201
+  ok D2b invoice lahir sebagai DRAFT
+  ok D2c draf tanpa nomor invoice
+  ok D2d status penyimpanan ikut dikembalikan
+  ok D2e retry key sama = 200
+  ok D2f retry ditandai replayed
+  ok D2g id invoice sama (tidak duplikat)
+  ok D2h POST dengan status TERKIRIM = 400
+  ok D2i kode error status awal
+  ok D2j POST dengan invoice_no karangan = 400
+  ok D2k kode error nomor dari klien
+  ok D2l POST nominal 0 = 400
+  ok D2m total dihitung ulang server
+  ok D2n hanya invoice sah yang tersimpan (2)
+  ok D3a PATCH TERBIT = 200
+  ok D3b nomor invoice dialokasikan (format Buku NL<yymm><XXX>)
+  ok D3c status TERBIT
+  ok D3d peringatan proyek belum terbit jujur
+  ok D3e TERBIT → DISETUJUI ditolak (belum terkirim)
+  ok D3f kode error transisi
+  ok D3g TERKIRIM tanpa kanal = 400
+  ok D3h kode error bukti kanal
+  ok D3i TERKIRIM dengan kanal = 200
+  ok D3j kanal tersimpan
+  ok D3k LUNAS tanpa bukti = 400
+  ok D3l error menyebut field bukti
+  ok D3m LUNAS nominal kurang = 409
+  ok D3n kode error nominal
+  ok D3o nominal yang diharapkan dilaporkan
+  ok D3p LUNAS lengkap = 200
+  ok D3q status LUNAS
+  ok D3r verifikator dari sesi, bukan body
+  ok D3s PATCH tanpa id = 400
+  ok D3t PATCH id tidak ada = 404
+  ok D4a DELETE = 405
+  ok D4b header Allow diisi
+  ok D4c store diblokir = 503
+  ok D4d kode blocker dilaporkan
+  ok D4e TIDAK ada tulisan file saat store diblokir
+  ok D4f tabel belum ada = 503
+  ok D4g kode SCHEMA_UNAVAILABLE
+  ok D4h blocker disebut supaya UI bisa menjelaskan
+  ok D5a koreksi draf saat terbit dihitung ulang
+  ok D5b nilai berubah dari sebelumnya
+  ok D6a tanpa service role: peran admin tetap terbaca (RLS + JWT)
+  ok D6b sesi user diteruskan ke klien peran
+  ok D6c klien peran memakai anon key + JWT user (bukan service role)
+  ok D6d mode sesi dilaporkan jujur
+  ok D6e token sesi diteruskan ke pemanggil
+  ok D6f GET dengan sesi = 200 (store memakai JWT user)
+  ok D6g klien STORE membawa JWT sesi user
+  ok D6h klien STORE tidak anonim
+  ok D6i tidak ada klien anon tanpa JWT dipakai untuk profiles/store
+  ok D6j service role: GET = 200
+  ok D6k service role dipakai untuk klien store
+  ok D6l mode sesi service-role dilaporkan
+  ok D6m tanpa JWT & tanpa service role = 401 (bukan klien anon)
+  ok D7a TERKIRIM → TERBIT + fields = 409
+  ok D7b kode error NOT_A_DRAFT
+  ok D7c respons tidak mengklaim sukses
+  ok D7d DATA IDENTIK byte-per-byte setelah penolakan
+  ok D7e nominal beku tetap 85000000
+  ok D7f nominal bukan 999
+  ok D7g grand_total tidak berubah
+  ok D7-LUNAS LUNAS: ditolak tanpa mengubah nominal
+  ok D7-BATAL BATAL: ditolak tanpa mengubah nominal
+
+=== C+D. AUTH & API: 93 LULUS, 0 GAGAL ===
+
+
+================ E+F. PDF, RENDER, WIRING ================
+  ok E1 PDF magic bytes %PDF-1.4
+  ok E2 PDF diakhiri %%EOF
+  ok E3 PDF memuat nama customer
+  ok E4 PDF memuat nomor invoice
+  ok E5 PDF memuat nomor proyek [106]
+  ok E6 PDF memuat PPN dari record (11%)
+  ok E7 TIDAK ada nomor rekening karangan 527-189-9900
+  ok E8 TIDAK ada nama PT karangan
+  ok E9 TIDAK ada telepon karangan
+  ok E10 TIDAK ada website karangan
+  ok E11 TIDAK mengklaim bank BCA tanpa data
+  ok E12 menandai rekening belum diisi
+  ok E13 tidak mencetak identitas penerbit palsu
+  ok E14 identitas terverifikasi dicetak bila diberikan
+  ok E15 rekening terverifikasi dicetak bila diberikan
+  ok E16 nama bank terverifikasi dicetak
+  ok E17 tidak lagi menandai BELUM DIISI saat data lengkap
+  ok E18 draf diberi watermark DRAF
+  ok E19 draf menyatakan belum bernomor
+  ok E20 invoice batal diberi tanda TIDAK BERLAKU
+  ok E21 tanpa pajak tidak mengarang PPN 11%
+  ok E22 field penerbit yang kosong terdeteksi
+  ok E23 field rekening yang kosong terdeteksi
+  ok E24 data lengkap tidak melaporkan kekurangan
+  ok F1a judul modul tampil
+  ok F1b empty state tampil
+  ok F1c tombol buat invoice tersedia
+  ok F1d intro menyebut RAB & nomor proyek
+  ok F1e KPI 4 kartu
+  ok F1f empty state menjelaskan draf dulu
+  ok F2a tabel merender 4 baris
+  ok F2b draf ditandai "draf" (tanpa nomor)
+  ok F2c draf punya tombol Terbitkan
+  ok F2d invoice TERBIT tidak punya tombol Terbitkan
+  ok F2e draf tidak menampilkan tombol Lunas (belum terbit)
+  ok F2f draf tidak menampilkan tombol Sudah dikirim
+  ok F2g invoice terbit punya tombol Sudah dikirim
+  ok F2h invoice terbit punya tombol Lunas
+  ok F2i invoice LUNAS tidak punya tombol aksi status lagi
+  ok F2j referensi pembayaran tampil untuk LUNAS
+  ok F2k kanal pengiriman tampil
+  ok F3a dialog bukti pembayaran terbuka
+  ok F3b dialog meminta nominal diterima
+  ok F3c dialog meminta tanggal pembayaran
+  ok F3d dialog meminta referensi pembayaran
+  ok F3e dialog menjelaskan pembayaran sebagian tidak lunas
+  ok F3f status belum berubah sebelum konfirmasi
+  ok F3g dialog bisa dibatalkan tanpa perubahan
+  ok F4a dialog kanal pengiriman terbuka
+  ok F4b dialog menegaskan TERKIRIM = benar-benar terkirim
+  ok F5a tanpa sesi: pesan jujur diminta login ulang
+  ok F6a badge DRAFT
+  ok F6b badge TERBIT
+  ok F6c badge LUNAS
+  ok F6d badge BATAL
+  ok F6e format nominal
+  ok F6f kolom detail tetap sesuai kesepakatan
+  ok G1 modul 'sales_invoice' terdaftar di registry
+  ok G2 registry: adminOnly true
+  ok G3 registry: source core
+  ok G4 registry memuat file kontrak & store baru
+  ok G5 registry memuat harness baru
+  ok G6 menu admin: sales_invoice ada
+  ok G7 labels: Invoice Penjualan
+  ok G8 guard render: non-admin ditolak
+  ok G9 guard render: modul dirender dengan projects
+  ok G10 API memanggil verifyAdmin
+  ok G11 API tidak lagi menulis JSON tanpa syarat
+  ok G12 API memakai resolveStorePlan (fail closed)
+  ok G13 API menangani 405 dengan Allow
+  ok G14 API mengisi verifikator dari sesi
+  ok G15 modal TIDAK meng-insert projects dari browser
+  ok G16 modal TIDAK memaksa status TERKIRIM
+  ok G17 modal memakai Idempotency-Key
+  ok G18 view tidak lagi memanggil fetch langsung
+  ok G19 view memakai apiClient
+  ok G20 view menyatakan banner penyimpanan
+  ok G21 view menampilkan discrepancy format nomor
+  ok G22 format authoritative = legacy-buku (Buku)
+  ok G23 gate konfigurasi INV/NL (ACK) ada
+  ok G24 tidak ada migrasi nomor existing
+  ok G25 PDF tidak mengarang rekening/identitas (kode, bukan komentar)
+  ok G26 PDF mencetak tarif PPN dari record (bukan 11% hardcode)
+  ok G27 modal tidak mengisi tanggal hari ini otomatis
+  ok G28 modal tidak default PPN 11%
+  ok G29 modal tidak default termin "DP / Termin"
+  ok G30 store memvalidasi transisi sebelum menulis
+  ok G31 store memakai CAS (updateIf) untuk perubahan status
+  ok G32 store tidak mengklaim transaksional tanpa RPC
+  ok G33 store menyediakan gate RPC fail closed
+  ok G34 store mengompensasi proyek yatim (deleteProject)
+  ok G35 auth meneruskan sesi user (createSessionClient)
+  ok G36 API tidak memakai anon tanpa JWT untuk store
+
+=== E+F+G. PDF/RENDER/WIRING: 93 LULUS, 0 GAGAL ===
+
+
+================ HASIL AKHIR ================
+SEMUA HARNESS LULUS

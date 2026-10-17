@@ -1,0 +1,271 @@
+
+================ A. MESIN ATURAN (MURNI) ================
+
+=== A. MESIN ATURAN REMINDER (MURNI) ===
+  ok A1a katalog punya 7 jenis reminder
+  ok A1b setiap jenis punya label & severity valid
+  ok A1c setiap ambang punya default angka
+  ok A1d jenis dengan required_sources hanya menyebut sumber yang dikenal
+  ok A2a tanpa override → semua default
+  ok A2b sumber semua "default"
+  ok A2c env menimpa default
+  ok A2d sumber tercatat "env"
+  ok A2e query menang atas env
+  ok A2f sumber tercatat "query"
+  ok A2g nilai di luar 0..365 ditolak (tetap default)
+  ok A2h nilai bukan angka ditolak (tetap default)
+  ok A2i penolakan dilaporkan, bukan disembunyikan
+  ok A2j 0 hari diterima
+  ok A3a toDateOnly memotong timestamp
+  ok A3b toDateOnly null → null
+  ok A3c daysBetween 10 hari
+  ok A3d daysBetween negatif bila tanggal di masa depan
+  ok A3e isPastDue benar
+  ok A3f isPastDue salah pada hari H
+  ok A4a PR SUBMITTED 10 hari → 1 reminder
+  ok A4b umur dihitung dari langkah approval PENDING
+  ok A4c severity critical (>2× ambang)
+  ok A4d action hint ada
+  ok A4e PR 2 hari (di bawah ambang 3) → tidak ada reminder
+  ok A4f tepat di ambang (3 hari) tetap dilaporkan
+  ok A4g tanpa jejak approval → bukti approval_steps dicatat kurang
+  ok A4h severity warning pada ambang
+  ok A4i PR DRAFT tidak masuk pr_overdue_approval
+  ok A4j status PR SUBMITTED tanpa langkah PENDING tetap dilaporkan
+  ok A4k umur jatuh ke created_at PR
+  ok A5a draft 17 hari → 1 reminder
+  ok A5b severity info
+  ok A5c umur benar
+  ok A5d draft 2 hari → tidak ada
+  ok A5e status non-DRAFT tidak masuk
+  ok A6a item APPROVED belum dibeli 17 hari → 1 reminder
+  ok A6b umur dihitung dari decided_at approval
+  ok A6c estimasi dijumlahkan qty × harga
+  ok A6d nama proyek ikut di rincian
+  ok A6e item sudah dibeli penuh → tidak ada reminder
+  ok A6f item milik PR DRAFT tidak dianggap urusan pembelian
+  ok A6g cangkang nota tanpa nomor/tanggal 10 hari → 1 reminder
+  ok A6h ditandai sebagai sub "shell"
+  ok A6i bukti yang kurang dicatat
+  ok A6j nota bernominal bukan cangkang
+  ok A7a handover belum diserahkan 12 hari → 1 reminder
+  ok A7b umur dari handover_date
+  ok A7c nomor nota ikut
+  ok A7d sudah diserahkan → tidak ada
+  ok A7e 1 hari (di bawah ambang 3) → tidak ada
+  ok A7f handover_date kosong → jatuh ke created_at
+  ok A8a invoice lewat jatuh tempo 8 hari → 1 reminder
+  ok A8b severity critical
+  ok A8c overdue_days terisi
+  ok A8d jatuh tempo 3 hari lagi → 1 reminder
+  ok A8e severity warning
+  ok A8f sub "due_soon"
+  ok A8g jatuh tempo jauh → tidak ada
+  ok A8h LUNAS tidak ditagih lagi
+  ok A8i DRAFT tidak masuk invoice_due
+  ok A8j BATAL tidak masuk invoice_due
+  ok A8k outstanding tanpa due_date tetap dilaporkan
+  ok A8l sub "no_due_date" + bukti kurang due_date
+  ok A8m DISETUJUI dengan paid_amount parsial tetap outstanding
+  ok A8n draft invoice 8 hari → reminder
+  ok A8o severity info
+  ok A9a handover CONFIRMED tanpa diserahkan_at = critical
+  ok A9b handover tanpa penerima = warning
+  ok A9c handover DRAFT tidak dilaporkan
+  ok A9d nota tanpa bukti nota & transfer dilaporkan info
+  ok A9e nota tanpa tanggal dilaporkan
+  ok A9f nota dengan bukti lengkap tidak dilaporkan proof
+  ok A9g nota tanpa rincian barang dilaporkan
+  ok A9h nota dengan rincian tidak dilaporkan no_items
+  ok A9i PR APPROVED tanpa langkah approval dilaporkan
+  ok A9i2 PR APPROVED tanpa item sama sekali dilaporkan
+  ok A9i3 PR yang lengkap (approval + item) tidak dilaporkan
+  ok A9i4 tanpa sumber pr_items, pemeriksaan "tanpa item" dilewati
+  ok A9j LUNAS tanpa bukti = critical
+  ok A9k LUNAS dengan bukti lengkap tidak dilaporkan
+  ok A9l TERKIRIM tanpa kanal dilaporkan
+  ok A10a invoice_due BLOCKED saat sales_invoices tidak ada
+  ok A10b invoice_draft_stale BLOCKED
+  ok A10c jenis lain tetap dievaluasi
+  ok A10d status laporan degraded
+  ok A10e data_ready false
+  ok A10f alasan BLOCKED menyebut "bukan berarti bersih"
+  ok A10g catatan menyebut sumber yang hilang
+  ok A10h handover_pending BLOCKED saat handovers tidak ada
+  ok A10i missing_evidence tetap jalan & melaporkan pemeriksaan yang dilewati
+  ok A10j semua sumber hilang → status unavailable
+  ok A10k tidak ada item karangan
+  ok A10l semua jenis yang butuh data dilaporkan BLOCKED
+  ok A11a buildReport tidak mengubah dataset masukan
+  ok A11b laporan selalu dry_run
+  ok A11c laporan selalu read_only
+  ok A11d side_effects: tidak ada pengiriman keluar
+  ok A11e side_effects: tidak ada pembayaran
+  ok A11f side_effects: tidak ada mutasi cron
+  ok A11g side_effects: 0 query tulis
+  ok A11h side_effects: 0 perubahan status
+  ok A12a ambang default 7 hari → draft 2 hari tidak muncul
+  ok A12b ambang 1 hari → draft 2 hari muncul
+  ok A12c threshold_days pada item mengikuti ambang yang dipakai
+  ok A13a item diurutkan critical → warning → info
+  ok A13b ringkasan total = panjang item
+  ok A13c by_severity menjumlah sama
+  ok A13d oldest_age_days = umur terbesar
+  ok A14a kinds membatasi jenis
+  ok A14b hanya item jenis itu
+  ok A14c jenis tak dikenal → 0 item
+  ok A14d jenis tak dikenal dilaporkan di catatan
+  ok A15a judul menyatakan DRY-RUN & READ-ONLY
+  ok A15b menyatakan tidak ada pengiriman/pembayaran/cron
+  ok A15c mencetak ambang yang dipakai
+  ok A15d mencetak status sumber data
+  ok A15e mencetak rincian temuan
+  ok A15f BLOCKED dicetak di teks
+  ok A16a nominal bertitik dibaca benar
+  ok A16b tanpa penanda → null
+  ok A16c bukti nota terbaca
+  ok A16d note null aman
+
+  HASIL A: 123 LULUS, 0 GAGAL
+
+================ B. OTORISASI & ENDPOINT /api/reminders ================
+
+=== B. OTORISASI & ENDPOINT /api/reminders ===
+  ok B1a tanpa kredensial & tanpa token pratinjau → 503
+  ok B1b kode AUTH_NOT_CONFIGURED
+  ok B1c tidak ada pembacaan data saat auth gagal
+  ok B1d token pratinjau salah → 401
+  ok B1e token pratinjau benar → 200
+  ok B1f via auth tercatat preview-token
+  ok B2a tanpa sesi valid → 401
+  ok B2b kode INVALID_SESSION
+  ok B2c tidak ada pembacaan data
+  ok B2d non-admin → 403
+  ok B2e kode FORBIDDEN
+  ok B2f gagal membaca peran → 503 (fail closed)
+  ok B2g admin → 200
+  ok B2h peran tercatat di readiness
+  ok B2i via auth = jwt
+  ok B3-POSTa POST → 405
+  ok B3-POSTb POST tidak memanggil pembacaan data
+  ok B3-POSTc POST menyebut hanya GET
+  ok B3-PUTa PUT → 405
+  ok B3-PUTb PUT tidak memanggil pembacaan data
+  ok B3-PUTc PUT menyebut hanya GET
+  ok B3-PATCHa PATCH → 405
+  ok B3-PATCHb PATCH tidak memanggil pembacaan data
+  ok B3-PATCHc PATCH menyebut hanya GET
+  ok B3-DELETEa DELETE → 405
+  ok B3-DELETEb DELETE tidak memanggil pembacaan data
+  ok B3-DELETEc DELETE menyebut hanya GET
+  ok B4a ok true
+  ok B4b dry_run true
+  ok B4c read_only true
+  ok B4d as_of dipakai dari query
+  ok B4e readiness.dry_run true
+  ok B4f readiness.no_outbound_send true
+  ok B4g readiness.no_payment true
+  ok B4h readiness.no_cron_mutation true
+  ok B4i readiness.sources_available memuat tabel yang ada
+  ok B4j readiness.sources_unavailable memuat sales_invoices
+  ok B4k readiness.kinds_blocked memuat invoice_due
+  ok B4l data_ready false karena ada sumber hilang
+  ok B4m status degraded
+  ok B4n thresholds_used = default
+  ok B4o threshold_defaults dicetak untuk pembanding
+  ok B4p collect dipanggil sekali dengan rowLimit default
+  ok B4q semua query tercatat SELECT
+  ok B4r PR overdue muncul sebagai item
+  ok B5a ambang dari query dipakai
+  ok B5b sumber ambang "query"
+  ok B5c PR 10 hari tidak lagi masuk (ambang 30)
+  ok B5d ambang di luar batas ditolak
+  ok B5e penolakan dilaporkan
+  ok B5f catatan menyebut ambang diabaikan
+  ok B6a format=text → 200
+  ok B6b content-type text/plain
+  ok B6c isi teks memuat DRY-RUN
+  ok B6d isi teks memuat BLOCKED
+  ok B6e cache-control no-store
+  ok B6f format tak dikenal → 400
+  ok B7a items dibatasi max_items
+  ok B7b items_truncated true
+  ok B7c items_total lebih besar dari yang ditampilkan
+  ok B7d all=1 menampilkan semua
+  ok B7e kinds membatasi jenis yang dievaluasi
+  ok B8a pembacaan gagal → 502
+  ok B8b kode COLLECT_FAILED
+  ok B8c tetap menyatakan dry_run
+  ok B9a tidak ada .insert( di lapisan reminder
+  ok B9b tidak ada .update( di lapisan reminder
+  ok B9c tidak ada .delete( di lapisan reminder
+  ok B9d tidak ada .upsert( di lapisan reminder
+  ok B9e tidak ada .rpc( di lapisan reminder
+  ok B9f tidak ada pemanggilan pengiriman keluar
+  ok B9g tidak ada fetch/axios keluar dari collect
+  ok B9h tidak ada penjadwalan/cron nyata di lapisan reminder
+  ok B9i pages/api/reminders.js hanya re-export (logika tunggal di handler.js)
+  ok B9j pages/api/reminders.js mendokumentasikan dry-run
+  ok B10a collect memakai select()
+  ok B10b collect tidak memakai insert/update/delete/upsert/rpc
+  ok B10c collect memakai count exact (untuk mendeteksi pemotongan)
+  ok B10d collect mendeteksi PGRST205 sebagai SCHEMA_UNAVAILABLE
+  ok B10e tanpa kredensial tidak melempar
+  ok B10f semua sumber tidak tersedia
+  ok B10g alasan kredensial dilaporkan
+  ok B10h dataset kosong tapi kunci lengkap
+  ok B10i row_limit dihormati & dilaporkan
+  ok B11a handler dengan client palsu → 200
+  ok B11b sales_invoices dilaporkan tidak tersedia
+  ok B11c purchase_requests dilaporkan tersedia
+  ok B11d PR overdue ditemukan dari data nyata (client palsu)
+  ok B11e invoice_due BLOCKED (bukan 0 temuan)
+  ok B12a invoice_source_durable false saat tabel hilang
+  ok B12b invoice_due tetap BLOCKED (pratinjau tidak dianggap data)
+  ok B12c file pratinjau terdeteksi
+  ok B12d pratinjau ditandai tidak durable
+  ok B12e catatan melarang pemakaian untuk penagihan
+  ok B12f direktori tanpa file → exists false
+
+  HASIL B: 95 LULUS, 0 GAGAL
+STDERR: reminders collect error: Error: jaringan mati
+    at collect (file:///home/ubuntu/dev-workspaces/purchasing-8h-integration/scripts/reminders-test/api_test.mjs:288:34)
+    at handler (file:///home/ubuntu/dev-workspaces/purchasing-8h-integration/scripts/reminders/handler.js:86:25)
+    at async call (file:///home/ubuntu/dev-workspaces/purchasing-8h-integration/scripts/reminders-test/api_test.mjs:120:3)
+    at async file:///home/ubuntu/dev-workspaces/purchasing-8h-integration/scripts/reminders-test/api_test.mjs:291:15
+
+
+================ C. PARITAS PARSER & BUKTI READ-ONLY ================
+
+=== C. PARITAS PARSER & BUKTI READ-ONLY ===
+  ok C1a paritas penanda nota atas 12 kasus (0 beda)
+  ok C1b paritas atas 3 catatan nota nyata/contoh
+  ok C2a lapisan reminder punya 5 file
+  ok C2b-insert tidak ada .insert( di kode (komentar dibuang)
+  ok C2b-update tidak ada .update( di kode (komentar dibuang)
+  ok C2b-delete tidak ada .delete( di kode (komentar dibuang)
+  ok C2b-upsert tidak ada .upsert( di kode (komentar dibuang)
+  ok C2b-rpc tidak ada .rpc( di kode (komentar dibuang)
+  ok C2c tidak ada panggilan HTTP keluar di rules/handler/auth
+  ok C2d collect.js hanya memakai client Supabase (tidak ada endpoint lain)
+  ok C2e tidak ada vercel.json dengan crons
+  ok C2f tidak ada paket penjadwal baru di package.json
+  ok C2g tidak ada script npm yang menjalankan reminder otomatis
+  ok C2h side_effects.write_queries = 0
+  ok C2i side_effects.outbound_send = false
+  ok C2j side_effects.payment = false
+  ok C2k side_effects.cron_mutation = false
+  ok C2l side_effects.status_changes = 0
+  ok C3a CLI offline keluar tanpa error
+  ok C3b CLI offline menyatakan mode offline
+  ok C3c CLI offline mencetak BLOCKED untuk invoice
+  ok C3d CLI offline mencetak peringatan tidak ada pengiriman
+  ok C3e CLI --json menghasilkan JSON valid
+  ok C3f CLI --json punya readiness sumber
+  ok C3g CLI --json menandai sales_invoices tidak tersedia
+
+  HASIL C: 25 LULUS, 0 GAGAL
+
+================ HASIL AKHIR ================
+TOTAL: 243 LULUS, 0 GAGAL
+SEMUA HARNESS REMINDER LULUS

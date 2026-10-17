@@ -1,0 +1,39 @@
+=== E2E CHROME NYATA — antrean distribusi fisik (t_b03c5228) ===
+
+  ✓ 1a banner antrean tampil di modul Handover
+  ✓ 1b baris aksi fisik berisi tepat 3 tombol (gudang/tukang/bermasalah)
+  ✓ 1c tombol Gudang benar-benar terlihat (layout nyata)
+  ✓ 1d tombol Tukang benar-benar terlihat
+  ✓ 1e tombol Bermasalah terlihat
+  ✓ 1f Bermasalah ada di baris aksi fisik yang sama
+  ✓ 1g Bermasalah tidak lebih menonjol dari aksi utama
+  ✓ 1i 3 aksi berada di satu baris (ringkas, tidak bertumpuk)
+  ✓ 1h langkah penutup (tandai diserahkan) ada
+  ✓ 1i tidak ada kode status mentah di kartu
+  ✓ 2a modul Handover bebas KE_GUDANG
+  ✓ 2b modul Handover bebas KE_TUKANG
+  ✓ 2c modul Handover bebas DI_GUDANG
+  ✓ 2d modul Handover bebas DI_TUKANG
+  ✓ 2e modul Handover bebas RETUR/REFUND mentah
+  ✓ 2f label jujur "Rincian barang belum tersedia" tetap ada
+  ✓ 2g label tujuan memakai bahasa manusia (bukan kode DB)
+  ✓ 2h tanpa alokasi tercatat -> tujuan TIDAK dikarang
+  ✓ 3a modul Purchase ada (dua tab)
+  ✓ 3b tidak ada tombol Masuk Stok Gudang
+  ✓ 3c tidak ada tombol Serah Terima ke Tukang
+  ✓ 3d tidak ada Retur/Refund
+  ✓ 4 desktop-1440: tanpa scroll horizontal di body
+  ✓ 4 desktop-1440: kartu antrean tidak memaksa overflow
+  ✓ 4 desktop-1440: 3 aksi terlihat penuh (tidak terpotong)
+  ✓ 4 desktop-1280: tanpa scroll horizontal di body
+  ✓ 4 desktop-1280: kartu antrean tidak memaksa overflow
+  ✓ 4 desktop-1280: 3 aksi terlihat penuh (tidak terpotong)
+  ✓ 4 mobile-390: tanpa scroll horizontal di body
+  ✓ 4 mobile-390: kartu antrean tidak memaksa overflow
+  ✓ 4 mobile-390: 3 aksi terlihat penuh (tidak terpotong)
+  ✓ 4 mobile-360: tanpa scroll horizontal di body
+  ✓ 4 mobile-360: kartu antrean tidak memaksa overflow
+  ✓ 4 mobile-360: 3 aksi terlihat penuh (tidak terpotong)
+  ✓ 5 nol request mutasi DB selama pemeriksaan tampilan
+
+E2E: 35/35 lulus

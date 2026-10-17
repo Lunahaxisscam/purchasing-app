@@ -1,0 +1,19 @@
+
+=== H. RUNTIME NYATA (http://127.0.0.1:3014) ===
+  ✓ GET tanpa sesi → bukan 2xx
+  ✓ GET tanpa sesi tidak membocorkan daftar
+  ✓ POST tanpa sesi → bukan 2xx
+  ✓ POST tanpa sesi tidak membocorkan daftar
+  ✓ PATCH tanpa sesi → bukan 2xx
+  ✓ PATCH tanpa sesi tidak membocorkan daftar
+  ✓ endpoint menolak (401/503), bukan 200
+  ✓ token pratinjau salah ditolak
+  ✓ POST tanpa sesi ditolak sebelum validasi
+  ✓ DELETE ditolak (401/405/503)
+  ✓ /__smoke dapat dirender
+  ✓ modul invoice ikut ter-render di smoke
+  ✓ struktur modul (KPI/panel) ter-render
+
+  (lewat H4 alur penuh: jalankan server dengan SALES_INVOICE_PREVIEW_TOKEN)
+
+=== HASIL RUNTIME: 13 LULUS, 0 GAGAL ===
