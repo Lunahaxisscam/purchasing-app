@@ -6529,3 +6529,307 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
   color: var(--slate-500, #64748b);
   margin: 0;
 }
+
+/* ========================================================
+   MODUL PERBANDINGAN RAB vs RAP vs AKTUAL (t_a5ba5f73)
+   Halaman admin read-only + drawer ringkas. Mobile-first:
+   kartu menumpuk di 360/390, tabel jadi scroll horizontal
+   sendiri (bukan halaman yang melebar) di 768/1440.
+   ======================================================== */
+.rc-root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px 24px;
+}
+.rc-intro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.rc-intro-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 62ch;
+  font-size: 13px;
+  color: var(--slate-600, #475569);
+}
+.rc-intro-copy strong {
+  font-size: 15px;
+  color: var(--slate-800, #1e293b);
+}
+.rc-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rc-badge-draft {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  white-space: nowrap;
+}
+.rc-btn-csv,
+.rc-btn-import,
+.rc-btn-more,
+.rc-drawer-close {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--olive-400, #94a3b8);
+  background: #fff;
+  color: var(--slate-700, #334155);
+  cursor: pointer;
+}
+.rc-btn-csv:hover,
+.rc-btn-import:hover,
+.rc-btn-more:hover,
+.rc-drawer-close:hover {
+  background: var(--slate-50, #f8fafc);
+}
+.rc-btn-import {
+  background: var(--olive-600, #0f172a);
+  border-color: var(--olive-600, #0f172a);
+  color: #fff;
+}
+.rc-btn-import:hover {
+  background: var(--olive-700, #1e293b);
+}
+.rc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.rc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--slate-600, #475569);
+  min-width: 220px;
+  flex: 1 1 220px;
+}
+.rc-field select {
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--olive-400, #94a3b8);
+  background: #fff;
+  color: var(--slate-800, #1e293b);
+}
+.rc-draft-meta {
+  font-size: 11px;
+  color: var(--slate-500, #64748b);
+  padding-bottom: 8px;
+}
+.rc-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.rc-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--slate-200, #e2e8f0);
+}
+.rc-kpi-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-500, #64748b);
+}
+.rc-kpi-val {
+  font-size: 18px;
+  color: var(--slate-800, #1e293b);
+}
+.rc-kpi-sub {
+  font-size: 11px;
+  color: var(--slate-500, #64748b);
+}
+.rc-c-muted { color: var(--slate-400, #94a3b8); }
+.rc-c-warn { color: #b45309; }
+.rc-c-ok { color: #15803d; }
+
+/* ---- Status pagu (peringatan rencana melewati batas) ---- */
+.rc-ceiling {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  background: var(--slate-50, #f8fafc);
+  font-size: 12px;
+  color: var(--slate-600, #475569);
+}
+.rc-ceiling strong { font-size: 13px; }
+.rc-ceiling-nums {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--slate-500, #64748b);
+}
+.rc-ceil-none { background: var(--slate-50, #f8fafc); }
+.rc-ceil-ok { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.rc-ceil-near { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.rc-ceil-over { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+/* ---- Tabel: scroll sendiri, tidak melebarkan halaman ---- */
+.rc-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 10px;
+  background: #fff;
+}
+.rc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.rc-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-500, #64748b);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--slate-200, #e2e8f0);
+  white-space: nowrap;
+}
+.rc-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--slate-100, #f1f5f9);
+  color: var(--slate-700, #334155);
+}
+.rc-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rc-row { cursor: pointer; }
+.rc-row:hover { background: var(--slate-50, #f8fafc); }
+.rc-row-active { background: #eef2ff; }
+.rc-row-open { color: var(--slate-400, #94a3b8); }
+.rc-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.rc-pill-ok { background: #dcfce7; color: #166534; }
+.rc-pill-warn { background: #fee2e2; color: #991b1b; }
+.rc-pill-muted { background: var(--slate-100, #f1f5f9); color: var(--slate-500, #64748b); }
+
+/* ---- Drawer ringkas ---- */
+.rc-drawer {
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rc-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--slate-800, #1e293b);
+}
+.rc-drawer-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rc-drawer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+  font-size: 12px;
+  border-bottom: 1px dashed var(--slate-100, #f1f5f9);
+  padding-bottom: 5px;
+}
+.rc-drawer-row dt {
+  color: var(--slate-500, #64748b);
+  font-weight: 600;
+}
+.rc-drawer-row dd {
+  margin: 0;
+  color: var(--slate-800, #1e293b);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.rc-drawer-row dd[data-present="no"] {
+  color: var(--slate-400, #94a3b8);
+  font-style: italic;
+}
+.rc-drawer-notes {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 11px;
+  color: var(--slate-500, #64748b);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rc-coverage,
+.rc-limitations {
+  border: 1px solid var(--slate-200, #e2e8f0);
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--slate-600, #475569);
+}
+.rc-coverage strong,
+.rc-limitations strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--slate-800, #1e293b);
+}
+.rc-coverage ul,
+.rc-limitations ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Tablet: 2 kartu per baris */
+@media (min-width: 700px) {
+  .rc-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Desktop: 4 kartu sebaris, drawer di samping tidak perlu karena
+   drawer tampil sebagai panel penuh di bawah tabel */
+@media (min-width: 1100px) {
+  .rc-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

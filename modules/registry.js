@@ -219,6 +219,29 @@ export const modules = [
     ]
   },
   {
+    // Modul "Perbandingan RAB vs RAP vs Aktual" (t_a5ba5f73) — READ-ONLY,
+    // admin-only. Halaman sendiri (source:'core', dirender pages/index.js)
+    // seperti RAB & BOQ & Stok Workshop. Tidak ada tabel DB baru, tidak ada
+    // penulisan: draft RAP hidup di memori halaman saja (React state), reset
+    // saat ganti proyek. Acuan RAB datang lewat prop (fixture/JSON) karena
+    // repo menyimpan RAB di memori halaman, bukan tabel boq_items; AKTUAL
+    // dibaca dari rows.receivings + rows.receiving_items. Aturan kejujuran:
+    // tidak ada aktual -> "Belum ada aktual" BUKAN Rp 0; pagu tidak dikirim
+    // -> "Pagu belum diketahui" BUKAN "aman"; yang dibandingkan nilai dasar
+    // baris (qty x harga), bukan grand total quotation yang sudah markup/PPN.
+    // Detail: modules/rap-compare/README.md.
+    id: 'rap_compare',
+    label: 'Perbandingan RAB/RAP/Aktual',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/rap-compare/view.jsx',
+      'modules/rap-compare/logic.js',
+      'modules/rap-compare/README.md',
+      'scripts/rap-compare-test/run.py'
+    ]
+  },
+  {
     id: 'settings',
     label: 'Settings',
     adminOnly: true,

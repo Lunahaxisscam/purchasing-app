@@ -14,6 +14,9 @@ import SalesInvoiceModule from '../modules/sales-invoice/view'
 // t_02e5f5fd: modul "Stok Workshop" — halaman source:'core' (read-only,
 // dirender langsung di sini), pola sama dengan RAB & BOQ / Invoice Penjualan.
 import StockModule from '../modules/stock/view'
+// t_a5ba5f73: modul "Perbandingan RAB vs RAP vs Aktual" — halaman
+// source:'core' (read-only dari sisi DB, draft RAP hanya di memori).
+import RapCompareModule from '../modules/rap-compare/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
@@ -759,7 +762,7 @@ export default function App() {
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
               disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap_compare', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -821,6 +824,24 @@ export default function App() {
           )
         ) : page === 'settings' ? (
           <Settings role={role} session={session} />
+        ) : page === 'rap_compare' ? (
+          // ============================================================
+          // MODUL PERBANDINGAN RAB vs RAP vs AKTUAL (t_a5ba5f73)
+          // ============================================================
+          // Read-only dari sisi DB: membaca rows.boq_items (acuan RAB)
+          // dan rows.receiving_items (aktual dari nota). Draft RAP hanya
+          // hidup di state komponen — tidak ada tabel/RPC/migrasi baru,
+          // tidak ada localStorage, dan itu ditulis jelas di layar.
+          // Guard admin sama seperti modul RAB & BOQ / Invoice.
+          role === 'admin' ? (
+            <RapCompareModule
+              rows={rows}
+              allProjects={rows.projects || []}
+              say={setNotice}
+            />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
         ) : page === 'stock' ? (
           // ============================================================
           // MODUL STOK WORKSHOP (t_02e5f5fd) — READ-ONLY
