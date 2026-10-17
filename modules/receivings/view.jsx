@@ -32,9 +32,22 @@ export function banner(ctx) {
   const { capability } = ctx
   if (!capability) return null
   if (capability.ready) {
+    // Jangan mengklaim retur tersimpan bila return_lines belum ada: tombol
+    // Retur memang disembunyikan, dan banner harus menyebut alasannya.
+    const returOff = !capability.returnReady
     return (
-      <div data-testid="receipt-capability-banner" style={{ background: '#e6f4ea', border: '1px solid #ceead6', color: '#137333', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
-        ✓ Penyimpanan per barang aktif — kondisi (baik/rusak), tujuan (Workshop/Tukang), retur, dan rincian serah terima tersimpan per barang.
+      <div
+        data-testid="receipt-capability-banner"
+        style={{
+          background: returOff ? '#fef6e7' : '#e6f4ea',
+          border: `1px solid ${returOff ? '#fcdfa6' : '#ceead6'}`,
+          color: returOff ? '#7a4a08' : '#137333',
+          borderRadius: '8px', padding: '8px 12px', fontSize: '12px', lineHeight: 1.45
+        }}
+      >
+        {returOff
+          ? '✓ Kondisi (baik/rusak), tujuan (Workshop/Tukang), dan rincian serah terima tersimpan per barang. ⚠️ Retur barang rusak belum aktif (tabel riwayat retur belum ada) — tombol Retur disembunyikan agar tidak ada retur yang tercatat ganda.'
+          : '✓ Penyimpanan per barang aktif — kondisi (baik/rusak), tujuan (Workshop/Tukang), retur, dan rincian serah terima tersimpan per barang.'}
       </div>
     )
   }
