@@ -72,6 +72,8 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [storage, setStorage] = useState(null)
+  const [numbering, setNumbering] = useState(null)
+  const [formatsInUse, setFormatsInUse] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [search, setSearch] = useState('')
@@ -105,6 +107,8 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
       const json = await listInvoices({ token })
       setItems(Array.isArray(json.invoices) ? json.invoices : [])
       setStorage(json.storage || null)
+      setNumbering(json.numbering || (json.storage && json.storage.number_format) || null)
+      setFormatsInUse(json.number_formats_in_use || null)
     } catch (err) {
       setLoadError(err.message || 'Gagal memuat daftar invoice.')
       setItems([])
@@ -225,6 +229,31 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
     }
   })()
 
+  // DISCREPANCY FORMAT NOMOR — jangan disembunyikan, jangan migrasi otomatis.
+  const numberingBanner = (() => {
+    if (!numbering) return null
+    const mixed = formatsInUse && formatsInUse['legacy-buku'] > 0 && formatsInUse['inv-nl'] > 0
+    if (numbering.blocked) {
+      return {
+        tone: 'err',
+        text: `Format nomor invoice BELUM DISEPAKATI (${numbering.code || 'NUMBER_FORMAT_NOT_AGREED'}): ${numbering.message || ''} Penerbitan ditolak sampai konfigurasi diperbaiki. Format authoritative Buku: NL<yymm><XXX>.`
+      }
+    }
+    if (numbering.format === 'inv-nl') {
+      return {
+        tone: 'warn',
+        text: `Format nomor AKTIF = INV/NL/TAHUN/BULAN/URUT (bukan format Buku NL<yymm><XXX>). Diaktifkan eksplisit lewat SALES_INVOICE_NO_FORMAT_ACK=1. Nomor lama TIDAK dimigrasi${mixed ? ' — dua format hidup berdampingan' : ''}.`
+      }
+    }
+    if (mixed) {
+      return {
+        tone: 'warn',
+        text: `Ditemukan ${formatsInUse['legacy-buku']} nomor format Buku dan ${formatsInUse['inv-nl']} nomor format INV/NL. Nomor lama TIDAK dimigrasi; penerbitan baru memakai format Buku.`
+      }
+    }
+    return { tone: 'ok', text: `Format nomor: Buku (Obsidian) NL<yymm><XXX>, urut 3 digit, reset tahunan.` }
+  })()
+
   return (
     <div className="si-root" data-testid="sales-invoice-root">
       {/* HEADER */}
@@ -246,6 +275,12 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
       {storageBanner && (
         <div className={`si-store-banner si-store-${storageBanner.tone}`} data-testid="si-storage-banner">
           {storageBanner.text}
+        </div>
+      )}
+
+      {numberingBanner && (
+        <div className={`si-store-banner si-store-${numberingBanner.tone}`} data-testid="si-numbering-banner">
+          {numberingBanner.text}
         </div>
       )}
 
@@ -561,6 +596,7 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         .si-store-banner { border-radius: 8px; padding: 9px 13px; font-size: 12px; margin-bottom: 12px; line-height: 1.5; }
         .si-store-ok { background: #eef4ea; border: 1px solid #cfe0c4; color: #33502a; }
         .si-store-warn { background: #fef6e7; border: 1px solid #f0d9a8; color: #7a4a08; font-weight: 600; }
+        .si-store-err { background: #fdecec; border: 1px solid #f3c2c2; color: #8a1f1f; font-weight: 600; }
 
         .si-alert { border-radius: 8px; padding: 9px 13px; font-size: 12.5px; margin-bottom: 12px; }
         .si-alert-err { background: #fde8e8; border: 1px solid #f5c6c6; color: #b71c1c; }

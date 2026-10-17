@@ -40,7 +40,19 @@ function serviceCredentials(env) {
   return { url, serviceKey, anonKey }
 }
 
-// verifyAdmin(req, env) -> { ok:true, user:{id,email}, role:'admin', via } 
+// Klien yang membawa JWT pengguna yang SUDAH diverifikasi.
+// Ini penting: klien anon TANPA JWT tidak melihat baris apa pun di bawah RLS,
+// jadi peran admin tidak akan pernah terbaca dan `profiles` tampak "kosong".
+// Dengan meneruskan sesi user, RLS tetap menegakkan aturan DB (bukan bypass).
+export function createSessionClient(url, anonKey, token, deps = {}) {
+  const makeClient = deps.createClient || createClient
+  return makeClient(url, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  })
+}
+
+// verifyAdmin(req, env) -> { ok:true, user:{id,email}, role:'admin', via, sessionToken }
 // Melempar AuthError untuk semua kegagalan (dipetakan handler ke 401/403).
 export async function verifyAdmin(req, env = process.env, deps = {}) {
   const makeClient = deps.createClient || createClient
@@ -68,7 +80,7 @@ export async function verifyAdmin(req, env = process.env, deps = {}) {
 
   const token = bearerToken(req)
   if (!token) {
-    throw new AuthError('UNAUTHORIZED', 'Permintaan wajib menyertakan sesi login (Authorization: Bearer <token>).', 401)
+    throw new AuthError('UNAUTHORIZED', 'Permintaan wajib menyertakan sesi login (header Authorization: Bearer <token>).', 401)
   }
 
   const verifier = makeClient(url, anonKey || serviceKey, {
@@ -92,9 +104,14 @@ export async function verifyAdmin(req, env = process.env, deps = {}) {
   }
 
   // 2) Peran HARUS dari tabel profiles (server data), bukan dari klien.
-  const roleClient = makeClient(url, serviceKey || anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  })
+  //    Klien peran memakai SESI USER yang sudah diverifikasi bila service role
+  //    tidak tersedia — supaya RLS `profiles` (admin-only) tetap berlaku dan
+  //    permintaan tidak bergantung pada akses anon. Klien anon TANPA JWT
+  //    melihat 0 baris di bawah RLS → peran selalu tampak kosong → 403 palsu.
+  const roleKey = serviceKey || anonKey
+  const roleClient = serviceKey
+    ? makeClient(url, roleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+    : createSessionClient(url, roleKey, token, { createClient: makeClient })
   const { data: profile, error: roleErr } = await roleClient
     .from('profiles')
     .select('role')
@@ -109,7 +126,16 @@ export async function verifyAdmin(req, env = process.env, deps = {}) {
     throw new AuthError('FORBIDDEN', 'Halaman ini khusus administrator.', 403)
   }
 
-  return { ok: true, user: { id: user.id, email: user.email || null }, role: 'admin', via: 'jwt' }
+  // Token sesi diteruskan ke store supaya mutasi memakai identitas user
+  // (RLS tetap menegakkan admin), bukan klien anon tanpa JWT.
+  return {
+    ok: true,
+    user: { id: user.id, email: user.email || null },
+    role: 'admin',
+    via: 'jwt',
+    sessionToken: token,
+    sessionClientMode: serviceKey ? 'service-role' : 'user-session'
+  }
 }
 
 // Dipakai handler: ubah AuthError menjadi respons JSON yang konsisten.

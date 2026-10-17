@@ -156,5 +156,52 @@ check('A7d', 'status terbit membawa nomor', 'INV/NL/2026/10/001', recIssued.invo
 ok('A7e', 'status terbit punya issued_at', !!recIssued.issued_at)
 ok('A7f', 'status terbit belum terkirim', recIssued.sent_at === null)
 
+// ---------- A8. TANPA DEFAULT KARANGAN (tanggal / PPN / termin) ----------
+// Review Brooklyn: PDF & form hanya boleh memakai data verified. Server tidak
+// boleh mengisi tanggal hari ini, PPN 11%, atau termin default tanpa izin.
+{
+  const noDate = C.normalizeNewInvoice({ ...base, issue_date: '' })
+  ok('A8a', 'issue_date kosong ditolak (server tidak mengarang tanggal)', !noDate.ok)
+  check('A8b', 'kode error tanggal wajib', 'ISSUE_DATE_REQUIRED', noDate.errors[0].code)
+  const noDate2 = C.normalizeNewInvoice({ ...base, issue_date: undefined })
+  ok('A8c', 'issue_date tidak dikirim juga ditolak', !noDate2.ok)
+
+  const noTax = C.normalizeNewInvoice({ ...base, tax_rate: undefined })
+  check('A8d', 'PPN tidak dikirim = 0 (bukan 11%)', 0, noTax.value.tax_rate)
+  check('A8e', 'tax_amount 0 saat PPN tidak dikirim', 0, noTax.value.tax_amount)
+
+  const noTerms = C.normalizeNewInvoice({ ...base })
+  check('A8f', 'termin tidak dikarang', '', noTerms.value.payment_terms)
+  check('A8g', 'catatan tidak dikarang', '', noTerms.value.notes)
+}
+
+// ---------- A9. GATE FORMAT NOMOR (Buku authoritative) ----------
+{
+  const def = C.resolveInvoiceNumberFormat({})
+  check('A9a', 'default format = Buku', 'legacy-buku', def.format)
+  ok('A9b', 'default tidak diblokir', !def.blocked)
+
+  const blocked = C.resolveInvoiceNumberFormat({ SALES_INVOICE_NO_FORMAT: 'inv-nl' })
+  ok('A9c', 'INV/NL tanpa ACK diblokir', blocked.blocked === true)
+  check('A9d', 'kode gate', 'NUMBER_FORMAT_NOT_AGREED', blocked.code)
+
+  const ack = C.resolveInvoiceNumberFormat({ SALES_INVOICE_NO_FORMAT: 'inv-nl', SALES_INVOICE_NO_FORMAT_ACK: '1' })
+  check('A9e', 'INV/NL dengan ACK = aktif', 'inv-nl', ack.format)
+  ok('A9f', 'discrepancy tetap dilaporkan', ack.discrepancy === true && ack.agreed === false)
+
+  check('A9g', 'format Buku membentuk NL2610001', 'NL2610001',
+    C.formatInvoiceNoFor('legacy-buku', { period: '2026', month: '10', seq: 1 }))
+  ok('A9h', 'format Buku tanpa bulan ditolak (tidak menebak)', (() => {
+    try { C.formatInvoiceNoFor('legacy-buku', { period: '2026', seq: 1 }); return false } catch { return true }
+  })())
+  check('A9i', 'prefix Buku untuk LIKE', 'NL26', C.invoiceNoPrefix('legacy-buku', '2026'))
+  check('A9j', 'periode Buku = tahunan', '2026', C.numberingPeriod('legacy-buku', '2026-10-17'))
+  check('A9k', 'periode INV/NL = bulanan', '2026-10', C.numberingPeriod('inv-nl', '2026-10-17'))
+  check('A9l', 'reset tahunan: urut mulai 1 di tahun baru', 1,
+    C.nextSequenceForFormat([{ invoice_no: 'NL2612012' }], 'legacy-buku', '2027'))
+  ok('A9m', 'nomor INV/NL tidak dihitung sebagai nomor Buku',
+    C.nextSequenceForFormat([{ invoice_no: 'INV/NL/2026/10/009' }], 'legacy-buku', '2026') === 1)
+}
+
 console.log(`\n=== A. KONTRAK: ${pass} LULUS, ${fail} GAGAL ===`)
 if (fail) { console.log('Gagal: ' + failures.join(', ')); process.exit(1) }

@@ -124,7 +124,9 @@ if (!TOKEN) {
   const issue = await call('PATCH', '/api/sales-invoices', { headers: H, body: { id, status: 'TERBIT' } })
   check('PATCH TERBIT = 200', issue.status === 200, `status=${issue.status} ${JSON.stringify(issue.json).slice(0, 200)}`)
   const no = issue.json?.invoice?.invoice_no
-  check('nomor invoice dialokasikan server (format kanonik)', /^INV\/NL\/\d{4}\/\d{2}\/\d{3}$/.test(no || ''), String(no))
+  // Format authoritative = Buku (Obsidian): NL<yymm><urut 3 digit>.
+  check('nomor invoice dialokasikan server (format Buku NL<yymm><XXX>)', /^NL\d{4}\d{3,}$/.test(no || ''), String(no))
+  check('format nomor tercatat di record', issue.json?.invoice?.number_format === 'legacy-buku', JSON.stringify(issue.json?.invoice?.number_format))
   check('status jadi TERBIT', issue.json?.invoice?.status === 'TERBIT')
   check('peringatan proyek belum terbit disertakan', (issue.json?.warnings || []).length > 0, JSON.stringify(issue.json?.warnings))
 
@@ -171,6 +173,24 @@ if (!TOKEN) {
   const i3 = await call('PATCH', '/api/sales-invoices', { headers: H, body: { id: c3.json?.invoice?.id, status: 'TERBIT' } })
   check('invoice kedua dapat nomor berbeda', i3.json?.invoice?.invoice_no && i3.json?.invoice?.invoice_no !== no,
     `${i3.json?.invoice?.invoice_no} vs ${no}`)
+
+  // ---- H5. P0 lewat HTTP: TERBIT + fields pada invoice non-draf ----
+  const c4 = await call('POST', '/api/sales-invoices', { headers: { ...H, 'Idempotency-Key': `e2e3-${Date.now()}` }, body: { ...VALID, customer_name: 'Beku HTTP' } })
+  const id4 = c4.json?.invoice?.id
+  await call('PATCH', '/api/sales-invoices', { headers: H, body: { id: id4, status: 'TERBIT' } })
+  await call('PATCH', '/api/sales-invoices', { headers: H, body: { id: id4, status: 'TERKIRIM', evidence: { sent_channel: 'Email' } } })
+  const listBefore = await call('GET', '/api/sales-invoices', { headers: H })
+  const beforeRow = (listBefore.json?.invoices || []).find(r => r.id === id4)
+
+  const atk = await call('PATCH', '/api/sales-invoices', { headers: H, body: { id: id4, status: 'TERBIT', fields: { nominal: 999 } } })
+  check('H5a TERKIRIM → TERBIT + fields = 409', atk.status === 409, `status=${atk.status}`)
+  check('H5b kode NOT_A_DRAFT', atk.json?.code === 'NOT_A_DRAFT', JSON.stringify(atk.json))
+
+  const listAfter = await call('GET', '/api/sales-invoices', { headers: H })
+  const afterRow = (listAfter.json?.invoices || []).find(r => r.id === id4)
+  check('H5c data identik setelah penolakan (JSON)', JSON.stringify(beforeRow), JSON.stringify(afterRow))
+  check('H5d nominal beku tidak berubah', 85000000, afterRow?.nominal)
+  check('H5e status tetap TERKIRIM', 'TERKIRIM', afterRow?.status)
 }
 
 console.log(`\n=== HASIL RUNTIME: ${pass} LULUS, ${fail} GAGAL ===`)

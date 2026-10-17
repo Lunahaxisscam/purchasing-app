@@ -280,7 +280,7 @@ const AUTH_HEADER = { authorization: 'Bearer token-admin' }
   const issued = mockRes()
   await handler(mockReq({ method: 'PATCH', headers: AUTH_HEADER, body: { id, status: 'TERBIT' } }), issued)
   check('D3a', 'PATCH TERBIT = 200', 200, issued.statusCode)
-  check('D3b', 'nomor invoice dialokasikan', 'INV/NL/2026/10/001', issued.body.invoice.invoice_no)
+  check('D3b', 'nomor invoice dialokasikan (format Buku NL<yymm><XXX>)', 'NL2610001', issued.body.invoice.invoice_no)
   check('D3c', 'status TERBIT', 'TERBIT', issued.body.invoice.status)
   ok('D3d', 'peringatan proyek belum terbit jujur', issued.body.warnings.join(' ').length > 0)
 
@@ -408,6 +408,151 @@ const AUTH_HEADER = { authorization: 'Bearer token-admin' }
   } }), edited)
   check('D5a', 'koreksi draf saat terbit dihitung ulang', 99900000, edited.body.invoice.grand_total)
   ok('D5b', 'nilai berubah dari sebelumnya', before.nominal !== edited.body.invoice.nominal)
+}
+
+// ============================================================
+// D6. RLS: SESI USER DITERUSKAN KE role SELECT & STORE (temuan Brooklyn)
+// ============================================================
+// Sebelumnya: roleClient dibuat dari klien ANON TANPA JWT, dan
+// defaultBuildStore juga anon tanpa JWT. Di bawah RLS `profiles` (admin-only)
+// klien anon melihat 0 baris → peran admin tidak pernah terbaca; store anon
+// juga tidak bisa menulis. Sekarang sesi user terverifikasi diteruskan.
+{
+  const seen = []
+  // Stub yang MEREKAM opsi klien (headers) dan mensimulasikan RLS:
+  // klien tanpa Authorization hanya melihat 0 baris profiles.
+  function recordingClient(url, key, opts = {}) {
+    const auth = (opts && opts.global && opts.global.headers && opts.global.headers.Authorization) || null
+    seen.push({ url, key, auth, opts })
+    return {
+      auth: {
+        async getUser() { return { data: { user: { id: 'u-admin', email: 'admin@noir.id' } }, error: null } }
+      },
+      from(table) {
+        const api = {
+          select() { return api },
+          eq() { return api },
+          order() { return api },
+          limit() { return api },
+          like() { return api },
+          insert() { return api },
+          update() { return api },
+          delete() { return api },
+          maybeSingle() {
+            if (table === 'profiles') {
+              // RLS: tanpa JWT user (dan tanpa service role) tidak ada baris
+              // yang terlihat. Service role bypass RLS (seperti Supabase asli).
+              if (!auth && key !== 'service-key') return Promise.resolve({ data: null, error: null })
+              return Promise.resolve({ data: { role: 'admin' }, error: null })
+            }
+            return Promise.resolve({ data: null, error: null })
+          },
+          then(resolve) { return Promise.resolve({ data: [], error: null }).then(resolve) }
+        }
+        return api
+      }
+    }
+  }
+
+  const envNoService = {
+    NODE_ENV: 'test',
+    NEXT_PUBLIC_SUPABASE_URL: 'https://stub.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key'
+  }
+
+  // 1) verifyAdmin: peran dibaca dengan JWT user (bukan anon).
+  seen.length = 0
+  const actor = await A.verifyAdmin(mockReq({ headers: AUTH_HEADER }), envNoService, { createClient: recordingClient })
+  check('D6a', 'tanpa service role: peran admin tetap terbaca (RLS + JWT)', 'admin', actor.role)
+  check('D6b', 'sesi user diteruskan ke klien peran', 'Bearer token-admin', seen[seen.length - 1].auth)
+  ok('D6c', 'klien peran memakai anon key + JWT user (bukan service role)',
+    seen[seen.length - 1].key === 'anon-key' && /^Bearer /.test(String(seen[seen.length - 1].auth)))
+  check('D6d', 'mode sesi dilaporkan jujur', 'user-session', actor.sessionClientMode)
+  check('D6e', 'token sesi diteruskan ke pemanggil', 'Bearer token-admin', `Bearer ${actor.sessionToken}`)
+
+  // 2) defaultBuildStore: klien store juga membawa JWT user.
+  seen.length = 0
+  const handler = API.createSalesInvoiceHandler({
+    env: envNoService,
+    createClient: recordingClient,
+    authDeps: { createClient: recordingClient },
+    plan: { kind: 'supabase' }
+  })
+  const res = mockRes()
+  await handler(mockReq({ method: 'GET', headers: AUTH_HEADER }), res)
+  check('D6f', 'GET dengan sesi = 200 (store memakai JWT user)', 200, res.statusCode)
+  const storeClient = seen[seen.length - 1]
+  check('D6g', 'klien STORE membawa JWT sesi user', 'Bearer token-admin', storeClient.auth)
+  ok('D6h', 'klien STORE tidak anonim', !!storeClient.auth && storeClient.key === 'anon-key')
+  ok('D6i', 'tidak ada klien anon tanpa JWT dipakai untuk profiles/store',
+    seen.every(s => !!s.auth), JSON.stringify(seen.map(s => s.auth)))
+
+  // 3) Service role tersedia → klien store memakai service key (tetap dilaporkan).
+  seen.length = 0
+  const envService = { ...envNoService, SUPABASE_SERVICE_ROLE_KEY: 'service-key' }
+  const svcHandler = API.createSalesInvoiceHandler({
+    env: envService,
+    createClient: recordingClient,
+    authDeps: { createClient: recordingClient },
+    plan: { kind: 'supabase' }
+  })
+  const res2 = mockRes()
+  await svcHandler(mockReq({ method: 'GET', headers: AUTH_HEADER }), res2)
+  check('D6j', 'service role: GET = 200', 200, res2.statusCode)
+  check('D6k', 'service role dipakai untuk klien store', 'service-key', seen[seen.length - 1].key)
+  check('D6l', 'mode sesi service-role dilaporkan', 'service-role', res2.body.auth.session_mode)
+
+  // 4) Tanpa service role DAN tanpa token → fail closed, bukan anon.
+  const noTokenHandler = API.createSalesInvoiceHandler({
+    env: envNoService,
+    createClient: recordingClient,
+    authDeps: { createClient: recordingClient, getUser: async () => ({ id: 'u-admin', email: 'a@b.c' }) },
+    plan: { kind: 'supabase' }
+  })
+  const res3 = mockRes()
+  await noTokenHandler(mockReq({ method: 'GET', headers: {} }), res3)
+  check('D6m', 'tanpa JWT & tanpa service role = 401 (bukan klien anon)', 401, res3.statusCode)
+}
+
+// ============================================================
+// D7. P0 API — TERBIT + fields pada invoice non-draf TIDAK menulis
+// ============================================================
+// Persis temuan Brooklyn lewat jalur HTTP handler: normalizeTransition
+// ({id,to:'TERBIT',fields:{nominal:999}}) → respons gagal, data identik.
+{
+  const file = tmpFile()
+  const handler = makeHandler({ file })
+  const created = mockRes()
+  await handler(mockReq({ method: 'POST', headers: AUTH_HEADER, body: VALID_BODY }), created)
+  const id = created.body.invoice.id
+
+  const issued = mockRes()
+  await handler(mockReq({ method: 'PATCH', headers: AUTH_HEADER, body: { id, status: 'TERBIT' } }), issued)
+  const sent = mockRes()
+  await handler(mockReq({ method: 'PATCH', headers: AUTH_HEADER, body: { id, status: 'TERKIRIM', evidence: { sent_channel: 'WhatsApp' } } }), sent)
+
+  const beforeRaw = fs.readFileSync(file, 'utf8')
+  const before = JSON.parse(beforeRaw).find(r => r.id === id)
+
+  const attack = mockRes()
+  await handler(mockReq({ method: 'PATCH', headers: AUTH_HEADER, body: { id, status: 'TERBIT', fields: { nominal: 999 } } }), attack)
+  check('D7a', 'TERKIRIM → TERBIT + fields = 409', 409, attack.statusCode)
+  check('D7b', 'kode error NOT_A_DRAFT', 'NOT_A_DRAFT', attack.body.code)
+  ok('D7c', 'respons tidak mengklaim sukses', attack.body.ok === false)
+
+  const afterRaw = fs.readFileSync(file, 'utf8')
+  const after = JSON.parse(afterRaw).find(r => r.id === id)
+  check('D7d', 'DATA IDENTIK byte-per-byte setelah penolakan', beforeRaw, afterRaw)
+  check('D7e', 'nominal beku tetap 85000000', 85000000, after.nominal)
+  ok('D7f', 'nominal bukan 999', after.nominal !== 999)
+  check('D7g', 'grand_total tidak berubah', before.grand_total, after.grand_total)
+
+  // Variasi LUNAS / BATAL juga tidak menulis.
+  for (const st of ['LUNAS', 'BATAL']) {
+    const res = mockRes()
+    await handler(mockReq({ method: 'PATCH', headers: AUTH_HEADER, body: { id, status: 'TERBIT', fields: { nominal: 999 } } }), res)
+    ok(`D7-${st}`, `${st}: ditolak tanpa mengubah nominal`, res.statusCode === 409 && JSON.parse(fs.readFileSync(file, 'utf8')).find(r => r.id === id).nominal === 85000000)
+  }
 }
 
 console.log(`\n=== C+D. AUTH & API: ${pass} LULUS, ${fail} GAGAL ===`)

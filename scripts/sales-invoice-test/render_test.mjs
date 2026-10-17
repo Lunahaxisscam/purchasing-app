@@ -229,6 +229,7 @@ check('F6f', 'kolom detail tetap sesuai kesepakatan',
   const idx = read('pages/index.js')
   const constants = read('lib/constants.js')
   const api = read('pages/api/sales-invoices.js')
+  const store = read('modules/sales-invoice/store.js')
 
   ok('G1', "modul 'sales_invoice' terdaftar di registry", /id: 'sales_invoice'/.test(registry))
   ok('G2', 'registry: adminOnly true', /id: 'sales_invoice',[\s\S]{0,400}?adminOnly: true/.test(registry))
@@ -262,6 +263,33 @@ check('F6f', 'kolom detail tetap sesuai kesepakatan',
   ok('G18', 'view tidak lagi memanggil fetch langsung', !/fetch\('\/api\/sales-invoices/.test(view))
   ok('G19', 'view memakai apiClient', /from '\.\/apiClient'/.test(view))
   ok('G20', 'view menyatakan banner penyimpanan', /si-storage-banner/.test(view))
+  ok('G21', 'view menampilkan discrepancy format nomor', /si-numbering-banner/.test(view) && /NL<yymm><XXX>/.test(view))
+
+  // Nomor invoice: authoritative Buku, bukan INV/NL diam-diam.
+  const contract = read('modules/sales-invoice/contract.js')
+  ok('G22', 'format authoritative = legacy-buku (Buku)', /AUTHORITATIVE_NUMBER_FORMAT = 'legacy-buku'/.test(contract))
+  ok('G23', 'gate konfigurasi INV/NL (ACK) ada', /SALES_INVOICE_NO_FORMAT_ACK/.test(contract))
+  ok('G24', 'tidak ada migrasi nomor existing', !/update\([^)]*invoice_no/i.test(contract) && !/migrat/i.test(store.replace(/TIDAK dimigrasi|tidak dimigrasi/g, '')))
+
+  // PDF hanya data verified; tidak ada default tanggal/PPN/termin baru.
+  const pdf = read('modules/sales-invoice/pdf.js')
+  const pdfCode = pdf.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
+  ok('G25', 'PDF tidak mengarang rekening/identitas (kode, bukan komentar)', !/527-189-9900|NOIR LIVING/.test(pdfCode))
+  ok('G26', 'PDF mencetak tarif PPN dari record (bukan 11% hardcode)', !/11\s*%/.test(pdf) || /taxRate/.test(pdf))
+
+  // Form tidak lagi mengarang tanggal / PPN / termin default.
+  ok('G27', 'modal tidak mengisi tanggal hari ini otomatis', !/new Date\(\)\.toISOString\(\)\.slice\(0, 10\)/.test(modal))
+  ok('G28', 'modal tidak default PPN 11%', !/useState\(11\)/.test(modal))
+  ok('G29', 'modal tidak default termin "DP / Termin"', !/payment_terms: 'DP \/ Termin'/.test(modal))
+
+  // P0: validasi sebelum mutasi.
+  ok('G30', 'store memvalidasi transisi sebelum menulis', /assertTransitionAllowed/.test(store))
+  ok('G31', 'store memakai CAS (updateIf) untuk perubahan status', /updateIf\(/.test(store))
+  ok('G32', 'store tidak mengklaim transaksional tanpa RPC', /transactional: hasIssueRpc/.test(store))
+  ok('G33', 'store menyediakan gate RPC fail closed', /SALES_INVOICE_REQUIRE_RPC/.test(store))
+  ok('G34', 'store mengompensasi proyek yatim (deleteProject)', /deleteProject/.test(store))
+  ok('G35', 'auth meneruskan sesi user (createSessionClient)', /createSessionClient/.test(read('modules/sales-invoice/auth.js')))
+  ok('G36', 'API tidak memakai anon tanpa JWT untuk store', !/anonKey\s*\|\|\s*serviceKey/.test(api))
 }
 
 console.log(`\n=== E+F+G. PDF/RENDER/WIRING: ${pass} LULUS, ${fail} GAGAL ===`)

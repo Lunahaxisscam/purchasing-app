@@ -43,8 +43,12 @@ export default function CreateInvoiceModal({
   const [dueDate, setDueDate] = useState('')
   const [nominal, setNominal] = useState('')
   const [includeTax, setIncludeTax] = useState(false)
-  const [taxRate, setTaxRate] = useState(11)
-  const [notes, setNotes] = useState('Termin pembayaran pertama (DP) pekerjaan interior.')
+  // Tarif PPN TIDAK default 11%: kosong sampai admin mengisinya.
+  const [taxRate, setTaxRate] = useState('')
+  // Catatan & termin dikosongkan: server/UI TIDAK mengarang default termin
+  // atau PPN. Admin mengisi sendiri bila memang ada kesepakatan.
+  const [notes, setNotes] = useState('')
+  const [paymentTerms, setPaymentTerms] = useState('')
 
   const [projectOption, setProjectOption] = useState('new') // 'new' | 'existing' | 'none'
   const [newProjectCode, setNewProjectCode] = useState('')
@@ -59,10 +63,10 @@ export default function CreateInvoiceModal({
 
   useEffect(() => {
     if (!isOpen) return
-    const today = new Date().toISOString().slice(0, 10)
-    const due = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
-    setIssueDate(today)
-    setDueDate(due)
+    // Tanggal TIDAK diisi otomatis: dokumen yang menagih klien harus memakai
+    // tanggal yang benar-benar dipilih admin (temuan review Brooklyn).
+    setIssueDate('')
+    setDueDate('')
     setNewProjectCode(nextNumericProjectCode(projects))
     setError('')
     setNotice('')
@@ -77,7 +81,8 @@ export default function CreateInvoiceModal({
     : false
 
   const rawNominal = parseFloat(nominal) || 0
-  const taxAmount = includeTax ? Math.round(rawNominal * (taxRate / 100)) : 0
+  const taxRateNum = parseFloat(taxRate) || 0
+  const taxAmount = includeTax ? Math.round(rawNominal * (taxRateNum / 100)) : 0
   const grandTotal = rawNominal + taxAmount
 
   if (!isOpen) return null
@@ -90,9 +95,10 @@ export default function CreateInvoiceModal({
       project_name: projectName.trim(),
       rab_reff: rabReff.trim(),
       nominal: rawNominal,
-      tax_rate: includeTax ? taxRate : 0,
+      tax_rate: includeTax ? taxRateNum : 0,
       notes: notes.trim(),
-      payment_terms: 'DP / Termin',
+      // Termin TIDAK diisi default oleh UI: hanya dari input admin.
+      payment_terms: String(paymentTerms || '').trim(),
       issue_date: issueDate,
       due_date: dueDate,
       // status TIDAK dikirim: draf selalu DRAFT (server menolak status lain)
@@ -380,7 +386,7 @@ export default function CreateInvoiceModal({
                 <div className="si-field">
                   <label>Nomor Dokumen Invoice</label>
                   <input type="text" value="(otomatis saat terbit)" readOnly disabled />
-                  <small>Dialokasikan server: INV/NL/TAHUN/BULAN/URUT.</small>
+                  <small>Dialokasikan server saat terbit, mengikuti format Buku (Obsidian): NL&lt;yymm&gt;&lt;urut 3 digit&gt;, urut reset tiap tahun.</small>
                 </div>
                 <div className="si-field">
                   <label>Tanggal Diterbitkan</label>
@@ -427,9 +433,23 @@ export default function CreateInvoiceModal({
                         onChange={e => setIncludeTax(e.target.checked)}
                         disabled={saving}
                       />
-                      <span>Tambah PPN ({taxRate}%)</span>
+                      <span>Tambah PPN</span>
                     </label>
+                    {includeTax && (
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        style={{ width: 90, marginLeft: 8 }}
+                        placeholder="tarif %"
+                        value={taxRate}
+                        onChange={e => setTaxRate(e.target.value)}
+                        disabled={saving}
+                      />
+                    )}
                   </div>
+                  <small>Tarif PPN tidak diasumsikan: isi sendiri bila memang dipungut.</small>
                 </div>
               </div>
 
@@ -440,7 +460,7 @@ export default function CreateInvoiceModal({
                 </div>
                 {includeTax && (
                   <div className="si-calc-row">
-                    <span>PPN {taxRate}%:</span>
+                    <span>PPN {taxRateNum}%:</span>
                     <b>Rp {taxAmount.toLocaleString('id-ID')}</b>
                   </div>
                 )}
@@ -463,6 +483,19 @@ export default function CreateInvoiceModal({
                   placeholder="Catatan termin pembayaran..."
                   disabled={saving}
                 />
+              </div>
+
+              <div className="si-field">
+                <label>Termin / Skema Pembayaran (opsional)</label>
+                <input
+                  type="text"
+                  maxLength={LIMITS.payment_terms}
+                  value={paymentTerms}
+                  onChange={e => setPaymentTerms(e.target.value)}
+                  placeholder="Kosongkan bila belum ada kesepakatan termin"
+                  disabled={saving}
+                />
+                <small>Tidak diisi otomatis: termin hanya dicetak bila admin mengisinya.</small>
               </div>
             </div>
           </div>

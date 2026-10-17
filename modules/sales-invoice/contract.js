@@ -114,10 +114,76 @@ export function checkTransition(from, to) {
 }
 
 // ---------- 2. NOMOR INVOICE ----------
-// Format kanonik: INV/NL/<tahun 4>/<bulan 2>/<urut >=3 digit>.
-// Nomor hanya dialokasikan SERVER saat invoice TERBIT (DRAFT tidak punya nomor).
-export const INVOICE_NO_PATTERN = /^INV\/NL\/(\d{4})\/(\d{2})\/(\d{3,6})$/
+// DUA format yang beredar di lapangan — dan satu-satunya yang AUTHORITATIVE
+// adalah format Buku (Obsidian): NL<yymm><XXX>, urut 3 digit, RESET TAHUNAN.
+//
+//   legacy-buku : NL2610001  (NL + yy + mm + urut 3 digit; urut reset tiap tahun)
+//   inv-nl      : INV/NL/2026/10/001  (format BARU, BELUM DISEPAKATI)
+//
+// Format `inv-nl` TIDAK boleh dipakai diam-diam: ia hanya aktif bila operator
+// menyetel SALES_INVOICE_NO_FORMAT=inv-nl DAN SALES_INVOICE_NO_FORMAT_ACK=1
+// (gerbang konfigurasi). Tanpa itu penerbitan ditolak (fail closed) alih-alih
+// menciptakan nomor dengan format yang tidak disepakati.
+//
+// Nomor invoice LAMA tidak pernah dimigrasi/ditulis ulang: alokasi hanya
+// membaca nomor yang sudah ada, dan `summarizeNumberFormats` (store.js)
+// melaporkan sebarannya supaya discrepancy terlihat.
+export const NUMBER_FORMATS = Object.freeze(['legacy-buku', 'inv-nl'])
+export const AUTHORITATIVE_NUMBER_FORMAT = 'legacy-buku'
 
+export const INVOICE_NO_PATTERN = /^INV\/NL\/(\d{4})\/(\d{2})\/(\d{3,6})$/
+export const LEGACY_INVOICE_NO_PATTERN = /^NL(\d{2})(\d{2})(\d{3,6})$/
+
+// resolveInvoiceNumberFormat(env) -> { format, blocked?, code?, ... }
+export function resolveInvoiceNumberFormat(env = process.env) {
+  const requested = String((env && env.SALES_INVOICE_NO_FORMAT) || '').trim().toLowerCase()
+  const acknowledged = String((env && env.SALES_INVOICE_NO_FORMAT_ACK) || '').trim() === '1'
+  const base = {
+    authoritative: AUTHORITATIVE_NUMBER_FORMAT,
+    agreed: false,
+    discrepancy: true
+  }
+  if (!requested || requested === AUTHORITATIVE_NUMBER_FORMAT) {
+    return {
+      ...base,
+      format: AUTHORITATIVE_NUMBER_FORMAT,
+      configured: false,
+      agreed: true,
+      note: 'Format nomor mengikuti Buku (Obsidian): NL<yymm><XXX>, urut 3 digit, reset tahunan. Format INV/NL tidak dipakai.'
+    }
+  }
+  if (requested === 'inv-nl') {
+    if (!acknowledged) {
+      return {
+        ...base,
+        format: null,
+        configured: true,
+        blocked: true,
+        code: 'NUMBER_FORMAT_NOT_AGREED',
+        message: 'SALES_INVOICE_NO_FORMAT=inv-nl belum disepakati. Format authoritative Buku adalah NL<yymm><XXX>. Set SALES_INVOICE_NO_FORMAT_ACK=1 hanya bila pemilik bisnis sudah menyetujui format baru; nomor yang sudah terbit tidak akan dimigrasi.',
+        note: 'Gerbang konfigurasi: format INV/NL menunggu persetujuan.'
+      }
+    }
+    return {
+      ...base,
+      format: 'inv-nl',
+      configured: true,
+      agreed: false,
+      note: 'Format INV/NL aktif atas persetujuan eksplisit (ACK=1). Nomor lama berformat Buku TIDAK dimigrasi; kedua format akan hidup berdampingan.'
+    }
+  }
+  return {
+    ...base,
+    format: null,
+    configured: true,
+    blocked: true,
+    code: 'NUMBER_FORMAT_UNKNOWN',
+    message: `SALES_INVOICE_NO_FORMAT="${requested}" tidak dikenal. Pilihan: ${NUMBER_FORMATS.join(', ')}.`,
+    note: 'Konfigurasi format nomor tidak valid.'
+  }
+}
+
+// Periode untuk format `inv-nl` = YYYY-MM (bulanan).
 export function invoicePeriod(dateISO) {
   const raw = String(dateISO || '').trim()
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
@@ -127,29 +193,80 @@ export function invoicePeriod(dateISO) {
   return `${safe.getUTCFullYear()}-${String(safe.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-export function formatInvoiceNo(period, seq) {
-  const p = String(period || '').trim()
-  const m = /^(\d{4})-(\d{2})$/.exec(p)
+// Periode untuk alokasi nomor: `legacy-buku` = TAHUN (reset tahunan),
+// `inv-nl` = YYYY-MM.
+export function numberingPeriod(format, dateISO) {
+  const ymd = invoicePeriod(dateISO) // YYYY-MM
+  return format === 'legacy-buku' ? ymd.slice(0, 4) : ymd
+}
+
+// Prefix LIKE untuk membaca nomor yang sudah terpakai pada satu periode.
+export function invoiceNoPrefix(format, period) {
+  if (format === 'legacy-buku') {
+    const y = /^(\d{4})/.exec(String(period || '').trim())
+    if (!y) throw new Error(`Periode nomor invoice tidak valid: "${period}" (harus YYYY).`)
+    return `NL${y[1].slice(2)}`
+  }
+  const m = /^(\d{4})-(\d{2})$/.exec(String(period || '').trim())
   if (!m) throw new Error(`Periode invoice tidak valid: "${period}" (harus YYYY-MM).`)
-  const n = Number(seq)
-  if (!Number.isInteger(n) || n < 1) throw new Error(`Urutan invoice tidak valid: "${seq}".`)
-  return `INV/NL/${m[1]}/${m[2]}/${String(n).padStart(3, '0')}`
+  return `INV/NL/${m[1]}/${m[2]}/`
+}
+
+// formatInvoiceNo(period, seq) — format INV/NL (bulanan).
+export function formatInvoiceNo(period, seq) {
+  return formatInvoiceNoFor('inv-nl', { period, seq })
+}
+
+// formatInvoiceNoFor(format, { period, seq, month }) — satu-satunya pembentuk
+// nomor invoice yang sah. `month` dipakai format Buku (yy + mm + urut).
+export function formatInvoiceNoFor(format, opts = {}) {
+  const p = String(opts.period || '').trim()
+  const n = Number(opts.seq)
+  if (!Number.isInteger(n) || n < 1) throw new Error(`Urutan invoice tidak valid: "${opts.seq}".`)
+  if (format === 'legacy-buku') {
+    const m = /^(\d{4})$/.exec(p)
+    if (!m) throw new Error(`Periode nomor invoice tidak valid: "${opts.period}" (harus YYYY).`)
+    const month = String(opts.month || '').trim()
+    if (!/^\d{2}$/.test(month)) throw new Error(`Bulan penerbitan wajib untuk format Buku (didapat "${opts.month}").`)
+    return `NL${m[1].slice(2)}${month}${String(n).padStart(3, '0')}`
+  }
+  if (format === 'inv-nl') {
+    const m = /^(\d{4})-(\d{2})$/.exec(p)
+    if (!m) throw new Error(`Periode invoice tidak valid: "${opts.period}" (harus YYYY-MM).`)
+    return `INV/NL/${m[1]}/${m[2]}/${String(n).padStart(3, '0')}`
+  }
+  throw new Error(`Format nomor invoice tidak dikenal: "${format}".`)
 }
 
 export function parseInvoiceNo(invoiceNo) {
   const m = INVOICE_NO_PATTERN.exec(String(invoiceNo || '').trim())
   if (!m) return null
-  return { period: `${m[1]}-${m[2]}`, year: Number(m[1]), month: Number(m[2]), seq: Number(m[3]) }
+  return { format: 'inv-nl', period: `${m[1]}-${m[2]}`, year: Number(m[1]), month: Number(m[2]), seq: Number(m[3]) }
+}
+
+export function parseLegacyInvoiceNo(invoiceNo) {
+  const m = LEGACY_INVOICE_NO_PATTERN.exec(String(invoiceNo || '').trim())
+  if (!m) return null
+  return { format: 'legacy-buku', period: `20${m[1]}`, year: 2000 + Number(m[1]), month: Number(m[2]), seq: Number(m[3]) }
+}
+
+// parseAnyInvoiceNo — membaca kedua format tanpa menebak-nebak.
+export function parseAnyInvoiceNo(invoiceNo) {
+  return parseInvoiceNo(invoiceNo) || parseLegacyInvoiceNo(invoiceNo)
 }
 
 // Urutan berikutnya = max(seq) + 1 dari invoice yang SUDAH terbit pada
 // periode yang sama. Draft tidak dihitung (draft memang tidak punya nomor).
 export function nextSequenceFromExisting(invoices, period) {
+  return nextSequenceForFormat(invoices, 'inv-nl', period)
+}
+
+export function nextSequenceForFormat(invoices, format, period) {
   const p = String(period || '').trim()
   let max = 0
   for (const inv of Array.isArray(invoices) ? invoices : []) {
-    const parsed = parseInvoiceNo(inv && inv.invoice_no)
-    if (!parsed || parsed.period !== p) continue
+    const parsed = parseAnyInvoiceNo(inv && inv.invoice_no)
+    if (!parsed || parsed.format !== format || parsed.period !== p) continue
     if (parsed.seq > max) max = parsed.seq
   }
   return max + 1
@@ -254,8 +371,15 @@ export function normalizeNewInvoice(body = {}) {
     push('tax_rate', 'INVALID_TAX_RATE', 'Tarif PPN harus di antara 0 dan 100 persen.')
   }
 
-  const issueDate = String(b.issue_date || '').trim() || new Date().toISOString().slice(0, 10)
-  if (!isIsoDate(issueDate)) push('issue_date', 'INVALID_DATE', 'Tanggal terbit harus format YYYY-MM-DD.')
+  // Tanggal terbit WAJIB eksplisit. Server TIDAK mengarang tanggal hari ini:
+  // tanggal dokumen yang dipakai menagih klien harus datang dari admin
+  // (temuan review Brooklyn: jangan default tanggal tanpa izin).
+  const issueDate = String(b.issue_date || '').trim()
+  if (!issueDate) {
+    push('issue_date', 'ISSUE_DATE_REQUIRED', 'Tanggal terbit wajib diisi eksplisit — server tidak mengisinya otomatis.')
+  } else if (!isIsoDate(issueDate)) {
+    push('issue_date', 'INVALID_DATE', 'Tanggal terbit harus format YYYY-MM-DD.')
+  }
 
   const dueDate = String(b.due_date || '').trim()
   if (dueDate && !isIsoDate(dueDate)) {
@@ -418,12 +542,15 @@ export function composeInvoice(input, opts = {}) {
     project_code: opts.project_code || null,
     project_id: opts.project_id || null,
     project_issued: !!opts.project_issued,
+    project_claim: opts.project_claim || null,
+    project_issue_error: null,
     project_intent: { mode: intent.mode || 'none', code: intent.code || '', project_id: intent.project_id || '' },
     rab_reff: input.rab_reff || '',
     nominal,
     tax_rate: taxRate,
     tax_amount: taxAmount,
     grand_total: nominal + taxAmount,
+    number_format: issued ? (opts.number_format || null) : null,
     notes: input.notes || '',
     payment_terms: input.payment_terms || '',
     issue_date: input.issue_date || now.slice(0, 10),

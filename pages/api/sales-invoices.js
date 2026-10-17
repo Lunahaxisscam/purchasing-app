@@ -12,9 +12,12 @@
 //     Mode pratinjau lokal butuh SALES_INVOICE_PREVIEW_TOKEN (fail closed).
 //   * Store dipilih eksplisit (SALES_INVOICE_STORE): Supabase = kanonik.
 //     File JSON hanya pratinjau non-produksi, dan DITOLAK di produksi.
+//   * Sesi user TERVERIFIKASI diteruskan ke klien store. Bila service role
+//     tidak tersedia, mutasi tetap memakai JWT user → RLS menegakkan admin
+//     (tidak ada klien anon tanpa JWT yang bisa melihat/menulis 0 baris).
 //   * POST hanya membuat DRAFT (tanpa nomor invoice, tanpa nomor proyek).
-//   * PATCH status menerapkan mesin transisi + bukti (TERKIRIM butuh kanal,
-//     LUNAS butuh bukti pembayaran terverifikasi & nominal penuh).
+//   * PATCH memvalidasi status/transisi/isi/bukti SEBELUM menulis apa pun
+//     (review Brooklyn P0: mutasi invoice beku).
 //   * Idempotency-Key didukung: retry jaringan / double-click tidak
 //     membuat invoice kedua.
 //
@@ -22,7 +25,7 @@
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js'
-import { AuthError, authFailure, verifyAdmin } from '../../modules/sales-invoice/auth.js'
+import { AuthError, authFailure, createSessionClient, verifyAdmin } from '../../modules/sales-invoice/auth.js'
 import {
   StoreError,
   createFileStore,
@@ -31,9 +34,10 @@ import {
   listInvoices,
   patchInvoice,
   resolveStorePlan,
-  storeStatus
+  storeStatus,
+  summarizeNumberFormats
 } from '../../modules/sales-invoice/store.js'
-import { normalizeNewInvoice, normalizeTransition } from '../../modules/sales-invoice/contract.js'
+import { normalizeNewInvoice, normalizeTransition, resolveInvoiceNumberFormat } from '../../modules/sales-invoice/contract.js'
 
 const ALLOWED_METHODS = ['GET', 'POST', 'PATCH']
 
@@ -64,17 +68,35 @@ export function createSalesInvoiceHandler(deps = {}) {
   const buildStore = deps.buildStore || function defaultBuildStore(plan, ctx) {
     if (plan.kind === 'supabase') {
       const url = env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL
-      // Mutasi invoice & penerbitan proyek memakai service role bila tersedia
-      // (RLS tetap berlaku di DB untuk klien sesi; server memvalidasi admin
-      // lebih dulu lewat verifyAdmin).
-      const key = env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      const client = makeClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+      const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY
+      const token = ctx && ctx.actor && ctx.actor.sessionToken
+      let client
+      if (serviceKey) {
+        // Server memvalidasi admin lebih dulu lewat verifyAdmin; service role
+        // dipakai untuk mutasi (RLS di DB tetap aktif untuk klien lain).
+        client = makeClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+      } else if (token && anonKey) {
+        // TANPA service role: JANGAN pakai anon tanpa JWT (RLS → 0 baris,
+        // peran tidak terbaca). Teruskan sesi user terverifikasi.
+        client = createSessionClient(url, anonKey, token, { createClient: makeClient })
+      } else {
+        throw new StoreError(
+          'STORE_SESSION_REQUIRED',
+          'Penyimpanan Supabase butuh kredensial server atau sesi admin terverifikasi. Permintaan ditolak (fail closed).',
+          503,
+          { blocker: 'MISSING_CREDENTIALS' }
+        )
+      }
       return createSupabaseStore(client, {
         hasIssueRpc: env.SALES_INVOICE_ISSUE_RPC === '1',
-        issueRpcName: env.SALES_INVOICE_ISSUE_RPC_NAME || undefined
+        issueRpcName: env.SALES_INVOICE_ISSUE_RPC_NAME || undefined,
+        requireRpc: env.SALES_INVOICE_REQUIRE_RPC === '1',
+        numbering: resolveInvoiceNumberFormat(env),
+        env
       })
     }
-    if (plan.kind === 'file-preview') return createFileStore({ file: deps.previewFile })
+    if (plan.kind === 'file-preview') return createFileStore({ file: deps.previewFile, numbering: resolveInvoiceNumberFormat(env), env })
     return null
   }
 
@@ -122,7 +144,9 @@ export function createSalesInvoiceHandler(deps = {}) {
           ok: true,
           invoices,
           storage: storeStatus(store),
-          auth: { role: actor.role, via: actor.via }
+          numbering: store.numbering || resolveInvoiceNumberFormat(env),
+          number_formats_in_use: summarizeNumberFormats(invoices),
+          auth: { role: actor.role, via: actor.via, session_mode: actor.sessionClientMode || null }
         })
       } catch (err) {
         return fail(res, err)
@@ -175,7 +199,7 @@ export function createSalesInvoiceHandler(deps = {}) {
           // supaya tidak bisa dikarang klien.
           evidence: { ...(normalized.value.evidence || {}), verified_by: actor.user.id }
         },
-        {}
+        { numbering: store.numbering || resolveInvoiceNumberFormat(env) }
       )
       return res.status(200).json({
         ok: true,
