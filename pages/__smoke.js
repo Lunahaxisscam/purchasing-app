@@ -15,6 +15,7 @@ import SalesInvoiceModule from '../modules/sales-invoice/view'
 import RapCompareModule from '../modules/rap-compare/view'
 import StockModule from '../modules/stock/view'
 import CrmModule from '../modules/crm/view'
+import LaborStockModule from '../modules/labor-stock/view'
 
 // ------------------------------------------------------------
 // GUARD PRODUKSI (temuan audit Brooklyn #A.2):
@@ -200,6 +201,17 @@ export default function SmokePage() {
       </section>
       <section id="mod-crm">
         <CrmModule rows={mock} customers={mock.customers} invoiceCounts={null} say={noop} />
+      </section>
+      {/* t_62e41e91 (S5, Bit): Actual Labor & Stok — sumber sengaja null
+          supaya jalur "belum tersedia" (bukan 0) ikut ter-render saat build. */}
+      <section id="mod-labor-stock">
+        <LaborStockModule
+          rows={mock}
+          laborRows={null}
+          estimateRows={null}
+          materials={mock.materials}
+          say={noop}
+        />
       </section>
       {/* Form tambah/edit per modul (data mock) */}
       {PAGES.map(p => (

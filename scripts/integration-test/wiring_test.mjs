@@ -32,7 +32,7 @@ const sidebar = read('components/Sidebar.js')
 const dashboard = read('components/Dashboard.js')
 
 console.log('\n=== A. MENU & LABEL (rute bisa dibuka user) ===')
-for (const id of ['rap', 'rap_compare', 'stock', 'crm']) {
+for (const id of ['rap', 'rap_compare', 'stock', 'crm', 'labor_stock']) {
   check(`A: '${id}' ada di navSections (menu terlihat)`,
     new RegExp(`\\['${id}',\\s*'`).test(constants))
   check(`A: labels.${id} ada (judul halaman tidak undefined)`,
@@ -48,7 +48,7 @@ check('A: rute lama past_projects tetap terdaftar di labels (bookmark lama)',
   /past_projects:\s*'/.test(constants))
 
 console.log('\n=== B. REGISTRY (adminOnly + source core) ===')
-for (const id of ['rap', 'rap_compare', 'stock', 'crm']) {
+for (const id of ['rap', 'rap_compare', 'stock', 'crm', 'labor_stock']) {
   const re = new RegExp(`id: '${id}'[\\s\\S]{0,400}?adminOnly: true[\\s\\S]{0,200}?source: 'core'`)
   check(`B: registry ${id} adminOnly + source:'core'`, re.test(registry))
 }
@@ -57,7 +57,7 @@ check('B: registry tidak menghapus modul lama',
     .every(id => new RegExp(`id: '${id}'`).test(registry)))
 
 console.log('\n=== C. PAGES/INDEX (cabang render + guard admin) ===')
-for (const [id, comp] of [['rap', 'RapModule'], ['rap_compare', 'RapCompareModule'], ['stock', 'StockModule'], ['crm', 'CrmModule']]) {
+for (const [id, comp] of [['rap', 'RapModule'], ['rap_compare', 'RapCompareModule'], ['stock', 'StockModule'], ['crm', 'CrmModule'], ['labor_stock', 'LaborStockModule']]) {
   check(`C: ${comp} diimpor di pages/index.js`, new RegExp(`import ${comp} from`).test(index))
   const m = index.match(new RegExp(`page === '${id}' \\? \\(([\\s\\S]*?)\\n        \\) : page === `))
   const block = m ? m[1] : ''
@@ -71,14 +71,14 @@ check('C: cabang lama tidak hilang (rab_boq, sales_invoice, planning, finance, r
     .every(id => new RegExp(`page === '${id}' \\?`).test(index)))
 
 console.log('\n=== D. SMOKE (komponen benar-benar dirender saat build) ===')
-for (const [id, comp] of [['mod-rap', 'RapModule'], ['mod-sales-invoice', 'SalesInvoiceModule'], ['mod-rap-compare', 'RapCompareModule'], ['mod-stock', 'StockModule'], ['mod-crm', 'CrmModule']]) {
+for (const [id, comp] of [['mod-rap', 'RapModule'], ['mod-sales-invoice', 'SalesInvoiceModule'], ['mod-rap-compare', 'RapCompareModule'], ['mod-stock', 'StockModule'], ['mod-crm', 'CrmModule'], ['mod-labor-stock', 'LaborStockModule']]) {
   check(`D: /__smoke punya section #${id}`, new RegExp(`id="${id}"`).test(smoke))
   check(`D: section #${id} merender <${comp}>`, new RegExp(`<${comp}`).test(smoke))
 }
 check('D: /__smoke tetap 404 tanpa ENABLE_SMOKE=1', /ENABLE_SMOKE !== '1'/.test(smoke) && /notFound: true/.test(smoke))
 
 console.log('\n=== E. DASHBOARD SHORTCUT (modul baru punya pintu masuk) ===')
-for (const id of ['rap', 'rap_compare', 'stock', 'crm']) {
+for (const id of ['rap', 'rap_compare', 'stock', 'crm', 'labor_stock']) {
   check(`E: kartu dashboard ${id} ada`, new RegExp(`\\['${id}',`).test(dashboard))
 }
 

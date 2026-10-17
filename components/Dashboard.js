@@ -20,6 +20,7 @@ const CARD_ICONS = {
   rap_compare: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   stock: <path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" />,
   crm: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
+  labor_stock: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   settings: <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
 }
 
@@ -65,6 +66,7 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     ['rap_compare', 'Perbandingan RAB/RAP/Aktual', 'Read-only', 'tone-neutral'],
     ['stock', 'Stok Workshop', 'Read-only', 'tone-neutral'],
     ['crm', 'Customer CRM', 'Read-only', 'tone-neutral'],
+    ['labor_stock', 'Actual Labor & Stok', 'Read-only', 'tone-neutral'],
     ['planning', 'Budgeting', 'Rencana', 'tone-neutral'],
     ['project_finance', 'Project Finance', 'Laba/rugi', 'tone-neutral'],
     ['finance', 'Finance', 'Ringkasan', 'tone-neutral'],
