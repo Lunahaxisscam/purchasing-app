@@ -115,16 +115,26 @@ export function isProblemNoted(receiving) {
 //
 // Aturan (semua berasal dari keterbatasan nyata, bukan pilihan gaya):
 //   1. Tidak ada nota (data lama / handover orphan) -> tidak ada yang bisa
-//      ditandai; arahkan ke modul Purchase.
+//      ditandai. TIDAK mengarahkan ke modul Purchase: Purchase berhenti di
+//      "barang dibeli" dan form penerimaan fisik sudah dibuang (arahan DAT).
+//      Instruksi = rekonsiliasi manual yang jujur di Handover.
 //   2. Nota sudah bermasalah -> jangan tandai dua kali.
 //   3. Handler shell tidak tersedia -> jangan berpura-pura bisa menulis.
 //   4. Nota tanpa rincian barang -> tidak jelas barang mana yang bermasalah.
 //   5. Nota multi-item -> `updateReceivingStatus` di shell MENOLAK mengubah
 //      status parent (bisa meng-override kondisi barang anak); pencatatan
-//      per barang menunggu skema. Ditampilkan apa adanya.
+//      per barang menunggu skema. Ditampilkan apa adanya + jalur rekonsiliasi.
+//
+// REVISI integrasi t_35cd0354 (temuan Brooklyn REVIEW-02 P1): semua alasan
+// yang dulu berbunyi "catat lewat modul Purchase" DIGANTI instruksi
+// reconciliation manual di Handover, karena modul Purchase sudah tidak punya
+// form fisik. Teks ini juga dipakai assertion test (lihat
+// scripts/handover-compact-test/queue_ui_test.mjs A11l/A11m).
+export const RECON_NOTE = 'Catat masalahnya di kolom Catatan handover ini, lalu eskalasi ke admin untuk rekonsiliasi manual dengan supplier (nota koreksi/kredit).'
+
 export function problemPlan(receiving, itemCount = 0, hasHandler = true) {
   if (!receiving) {
-    return { ok: false, reason: 'Dokumen ini belum terhubung ke nota pembelian — masalah barang dicatat dari modul Purchase.' }
+    return { ok: false, reason: `Dokumen ini belum terhubung ke nota pembelian, jadi tidak ada barang yang bisa diretur. ${RECON_NOTE}` }
   }
   if (isProblemNoted(receiving)) {
     return { ok: false, reason: 'Nota ini sudah ditandai bermasalah (Retur/Refund) — tidak bisa ditandai dua kali.' }
@@ -134,10 +144,10 @@ export function problemPlan(receiving, itemCount = 0, hasHandler = true) {
   }
   const n = Number(itemCount) || 0
   if (!n) {
-    return { ok: false, reason: 'Nota ini belum punya rincian barang — masalah barang dicatat dari modul Purchase.' }
+    return { ok: false, reason: `Nota ini belum punya rincian barang, jadi tidak jelas barang mana yang bermasalah. ${RECON_NOTE}` }
   }
   if (n >= 2) {
-    return { ok: false, reason: 'Nota multi-item: Retur/Refund dicatat per barang, dan penyimpanan per barang belum aktif (menunggu persetujuan skema). Catat lewat modul Purchase.' }
+    return { ok: false, reason: `Nota multi-item: Retur/Refund dicatat per barang, dan penyimpanan per barang belum aktif (menunggu persetujuan skema). ${RECON_NOTE}` }
   }
   return { ok: true, reason: '' }
 }
@@ -197,7 +207,7 @@ function ActionCard({ entry, ctx, onDone }) {
       return { ...a, ok: false, reason: 'Nota sudah ditandai bermasalah (Retur/Refund) — barang tidak didistribusikan.' }
     }
     if (!receiving) {
-      return { ...a, ok: false, reason: 'Belum terhubung ke nota pembelian — distribusi fisik dicatat dari nota di modul Purchase.' }
+      return { ...a, ok: false, reason: 'Belum terhubung ke nota pembelian — tidak ada barang yang bisa didistribusikan. Rekonsiliasi manual: catat di Catatan handover lalu eskalasi ke admin.' }
     }
     return a
   })
@@ -226,6 +236,13 @@ function ActionCard({ entry, ctx, onDone }) {
 
   const submitTerima = async () => {
     if (busy) return
+    // Nama penerima WAJIB (temuan Brooklyn REVIEW-02 P1): bukti serah terima
+    // tanpa nama tidak bisa dipertanggungjawabkan. Tidak mengirim request
+    // sama sekali bila kosong — bukan sekadar tombol yang dinonaktifkan.
+    if (!receivedBy.trim()) {
+      say('Nama penerima wajib diisi sebelum menandai diserahkan.')
+      return
+    }
     setBusy(true)
     const res = await runHandoverAction(ACT_TERIMA, handover.id, { receivedBy })
     setBusy(false)
@@ -367,7 +384,7 @@ function ActionCard({ entry, ctx, onDone }) {
         {showTerima && (
           <div data-testid={`queue-terima-form-${handover.id}`} style={{ marginTop: 8 }}>
             <label style={S.label}>
-              Diterima oleh (opsional)
+              Diterima oleh (wajib — nama tukang/penerima)
               <input
                 type="text"
                 style={S.input}
@@ -375,10 +392,16 @@ function ActionCard({ entry, ctx, onDone }) {
                 onChange={e => setReceivedBy(e.target.value)}
                 data-testid={`queue-terima-nama-${handover.id}`}
                 placeholder="Nama penerima"
+                aria-required="true"
               />
             </label>
+            {!receivedBy.trim() && (
+              <div style={{ ...S.panelText, color: '#a15309' }} data-testid={`queue-terima-wajib-${handover.id}`}>
+                Nama penerima wajib diisi supaya bukti serah terima bisa dipertanggungjawabkan.
+              </div>
+            )}
             <div style={S.row}>
-              <button type="button" onClick={submitTerima} disabled={busy} data-testid={`queue-terima-ok-${handover.id}`}>
+              <button type="button" onClick={submitTerima} disabled={busy || !receivedBy.trim()} data-testid={`queue-terima-ok-${handover.id}`}>
                 Konfirmasi
               </button>
               <button type="button" className="outline" onClick={() => setShowTerima(false)}>

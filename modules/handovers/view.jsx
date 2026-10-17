@@ -445,7 +445,7 @@ export function mobileCard(r, ctx) {
         )}
         {problem && (
           <div className="mobile-card-note" style={{ color: '#a15309' }} data-testid={`problem-mobile-${r.id}`}>
-            ⚠ Nota bermasalah — barang tidak didistribusikan (Retur/Refund dicatat dari modul Purchase).
+            ⚠ Nota bermasalah — barang tidak didistribusikan. Retur/Refund dicatat di Catatan handover ini + rekonsiliasi manual admin dengan supplier.
           </div>
         )}
         {foto && (

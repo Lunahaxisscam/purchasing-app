@@ -326,6 +326,20 @@ console.log('\n=== A11. LOGIKA LABEL (fungsi murni queue.jsx) ===\n')
   check('A11i 5 jalur penolakan semuanya ok=false', plans.every(p => p.ok === false))
   check('A11j semuanya punya alasan terbaca', plans.every(p => typeof p.reason === 'string' && p.reason.length > 10), JSON.stringify(plans.map(p => p.reason)))
   check('A11k nota normal 1 item -> boleh', Q.problemPlan({ status: 'NORMAL' }, 1, true).ok === true)
+  // Integrasi t_35cd0354 (Brooklyn REVIEW-02 P1): jalan keluar UI TIDAK boleh
+  // menyuruh mencatat lewat modul Purchase (form fisik sudah dibuang) dan
+  // harus memberi instruksi rekonsiliasi yang jujur di Handover.
+  const blocked = [
+    Q.problemPlan(null, 1, true),
+    Q.problemPlan({ status: 'NORMAL' }, 0, true),
+    Q.problemPlan({ status: 'NORMAL' }, 2, true)
+  ]
+  check('A11l tidak ada alasan yang menyuruh "catat lewat modul Purchase"',
+    plans.every(p => !/modul Purchase/i.test(p.reason)) && blocked.every(p => !/modul Purchase/i.test(p.reason)),
+    JSON.stringify(plans.map(p => p.reason)))
+  check('A11m alasan penolakan memberi jalur rekonsiliasi manual di Handover',
+    blocked.every(p => /rekonsiliasi manual/i.test(p.reason) && /Catatan handover/i.test(p.reason)),
+    JSON.stringify(blocked.map(p => p.reason)))
 }
 
 console.log(`\nqueue_ui_test: ${pass}/${pass + fail} lulus${fail ? ' — GAGAL: ' + failures.join(' | ') : ''}`)
