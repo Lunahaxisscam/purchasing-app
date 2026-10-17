@@ -539,6 +539,14 @@ console.log('\nE4. data-testid lama tetap ada (kontrak harness lama dijaga)')
 // ============================================================
 // F. TANPA PERUBAHAN SCHEMA / FILE TERLARANG
 // ============================================================
+// CATATAN KEPEMILIKAN (t_b03c5228 / S2/7): pemeriksaan ini semula hanya
+// mengizinkan file milik kartu S1 (requests + receivings) dan menuntut
+// modules/handovers/ TIDAK berubah sama sekali. Kartu S2 memang PEMILIK
+// modules/handovers/queue.jsx + view.jsx, jadi daftar izin diperluas ke dua
+// file itu — sementara larangan yang sebenarnya tetap dipertahankan dan
+// dipertegas: migrasi tidak boleh ada, materials/vendors tidak boleh disentuh,
+// dan KONTRAK actions.js/logic.js tidak boleh berubah (dibuktikan terpisah
+// di scripts/handover-compact-test).
 console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak disentuh')
 {
   const { execSync } = require('node:child_process')
@@ -550,15 +558,21 @@ console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak d
       .split('\n').map(s => s.trim()).filter(Boolean)
   } catch (e) { changed = [] }
   check('tidak ada file migrations/ yang berubah', !changed.some(f => f.startsWith('migrations/')), changed.filter(f => f.startsWith('migrations/')).join(', '))
-  check('tidak ada file modules/handovers/ yang berubah', !changed.some(f => f.startsWith('modules/handovers/')), changed.filter(f => f.startsWith('modules/handovers/')).join(', '))
+  // Handover: hanya file UX yang dimiliki S2 (queue.jsx / view.jsx). Kontrak
+  // penulis DB (actions.js) & aturan aksi (logic.js) HARAM berubah.
+  const handoverTouched = changed.filter(f => f.startsWith('modules/handovers/'))
+  const handoverAllowed = ['modules/handovers/queue.jsx', 'modules/handovers/view.jsx']
+  check('modules/handovers/: hanya queue.jsx & view.jsx (kontrak actions/logic utuh)',
+    handoverTouched.every(f => handoverAllowed.includes(f)), handoverTouched.join(', '))
   check('tidak ada file modules/materials/ yang berubah', !changed.some(f => f.startsWith('modules/materials/')), changed.filter(f => f.startsWith('modules/materials/')).join(', '))
   check('tidak ada file modules/vendors/ yang berubah', !changed.some(f => f.startsWith('modules/vendors/')), changed.filter(f => f.startsWith('modules/vendors/')).join(', '))
   const allowed = [
     'modules/requests/form.jsx', 'modules/requests/view.jsx', 'modules/requests/save.js',
-    'modules/receivings/page.jsx', 'modules/receivings/purchaseForm.jsx'
+    'modules/receivings/page.jsx', 'modules/receivings/purchaseForm.jsx',
+    'modules/handovers/queue.jsx', 'modules/handovers/view.jsx'
   ]
   const codeChanges = changed.filter(f => /\.(js|jsx)$/.test(f) && !f.startsWith('scripts/'))
-  check('perubahan kode hanya di file milik modul ini (requests/receivings)',
+  check('perubahan kode hanya di file yang dimiliki kartu S1/S2',
     codeChanges.every(f => allowed.includes(f)), codeChanges.join(', '))
 }
 
