@@ -187,7 +187,7 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
   await sleep(600)
   const m = await evalJs(`(() => {
     const forms = [...document.querySelectorAll('.modal form.dialog')]
-    const f = forms.find(x => /Edit Handover/.test(x.textContent))
+    const f = forms.find(x => /Edit (Handover|Serah Terima)/.test(x.textContent))
     if (!f) return { open: false, count: forms.length }
     const t = f.textContent
     const selects = [...f.querySelectorAll('select')].map(s => (s.previousSibling || {}).textContent || '')
@@ -215,7 +215,7 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
   check('3h label rincian jujur di modal', m.rincianUnavailable === true)
   check('3i field metadata tetap (teks/tanggal/foto)', m.textInput && m.dateInput && m.fileInput)
   // Tutup modal (Batal)
-  await evalJs(`(() => { const f = [...document.querySelectorAll('.modal form.dialog')].find(x => /Edit Handover/.test(x.textContent)); if (f) { const b = [...f.querySelectorAll('.actions button')].find(x => x.textContent.trim() === 'Batal'); b && b.click(); } return true })()`)
+  await evalJs(`(() => { const f = [...document.querySelectorAll('.modal form.dialog')].find(x => /Edit (Handover|Serah Terima)/.test(x.textContent)); if (f) { const b = [...f.querySelectorAll('.actions button')].find(x => x.textContent.trim() === 'Batal'); b && b.click(); } return true })()`)
   await sleep(300)
 }
 
@@ -223,7 +223,7 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
 {
   const r = await evalJs(`(() => {
     const sec = document.getElementById('mod-handovers')
-    const b = [...sec.querySelectorAll('.toolbar button')].find(x => /Tambah Handover/.test(x.textContent))
+    const b = [...sec.querySelectorAll('.toolbar button')].find(x => /Tambah (Handover|Serah Terima)/.test(x.textContent))
     if (!b) return { found: false }
     b.click()
     return { found: true }
@@ -231,7 +231,7 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
   await sleep(600)
   const m = await evalJs(`(() => {
     const forms = [...document.querySelectorAll('.modal form.dialog')]
-    const f = forms.find(x => /Tambah Handover/.test(x.textContent))
+    const f = forms.find(x => /Tambah (Handover|Serah Terima)/.test(x.textContent))
     if (!f) return { open: false }
     const sel = [...f.querySelectorAll('select')].find(s => /Pilih Penerimaan/.test(s.textContent))
     return {
@@ -247,7 +247,7 @@ console.log('\n=== E2E BROWSER NYATA (Chrome CDP) — alur Handover (t_b418827b)
   check('4c dropdown penerimaan required', m.required === true)
   check('4d TIDAK ada dropdown status di tambah', m.noStatusDropdown === true)
   check('4e keterangan link wajib tampil', m.linkNote === true)
-  await evalJs(`(() => { const f = [...document.querySelectorAll('.modal form.dialog')].find(x => /Tambah Handover/.test(x.textContent)); if (f) { const b = [...f.querySelectorAll('.actions button')].find(x => x.textContent.trim() === 'Batal'); b && b.click(); } return true })()`)
+  await evalJs(`(() => { const f = [...document.querySelectorAll('.modal form.dialog')].find(x => /Tambah (Handover|Serah Terima)/.test(x.textContent)); if (f) { const b = [...f.querySelectorAll('.actions button')].find(x => x.textContent.trim() === 'Batal'); b && b.click(); } return true })()`)
   await sleep(300)
 }
 
