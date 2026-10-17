@@ -597,7 +597,14 @@ console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak d
     // scripts/). Hanya SATU file .js non-scripts/ yang ditambahkan kartu S5,
     // dan itu endpoint miliknya sendiri — tidak ada file modul S1/S2 yang
     // dilonggarkan, kontrak actions.js/logic.js handover tetap terkunci.
-    'pages/api/reminders.js'
+    'pages/api/reminders.js',
+    // t_1fd27ad9 (S6/7): kontrak integrasi Marketing → CRM/Project. Sama
+    // seperti S5: seluruh logikanya di scripts/marketing/ dan hanya SATU file
+    // .js non-scripts/ yang ditambahkan (endpoint kontraknya sendiri). Kartu
+    // S6 TIDAK menyentuh UI/registry/pages milik modul lain; tidak ada file
+    // modul S1/S2 yang dilonggarkan, kontrak actions.js/logic.js tetap
+    // terkunci.
+    'pages/api/marketing-contract.js'
   ]
   const codeChanges = changed.filter(f => /\.(js|jsx)$/.test(f) && !f.startsWith('scripts/'))
   check('perubahan kode hanya di file yang dimiliki kartu S1/S2',
