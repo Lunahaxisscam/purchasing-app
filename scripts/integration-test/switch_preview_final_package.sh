@@ -53,7 +53,11 @@ if [[ "$MODE" == "--rollback" ]]; then
   PREV_BID="$(cat "$PREV_DIR/.next/BUILD_ID")"
   say "  kembali ke build_id=$PREV_BID"
   pm2 delete "$APP_NAME" >/dev/null 2>&1 || true
-  ( cd "$PREV_DIR" && PORT=$PORT pm2 start npm --name "$APP_NAME" -- start -p "$PORT" ) >/dev/null
+  # CATATAN (Brooklyn t_987f2c96): `-- start -p PORT` diteruskan npm ke
+  # `next start 3001` sehingga Next membacanya sebagai DIREKTORI PROYEK
+  # ("Invalid project directory ... /3001"). Port cukup lewat env PORT.
+  ( cd "$PREV_DIR" && PORT=$PORT ENABLE_SMOKE=1 NEXT_TELEMETRY_DISABLED=1 \
+      pm2 start npm --name "$APP_NAME" -- start ) >/dev/null
   sleep 4
   say "  sekarang : cwd=$(pm2_cwd) build_id=$(cat "$(pm2_cwd)/.next/BUILD_ID" 2>/dev/null || echo '?')"
   exit 0
@@ -86,13 +90,27 @@ printf '{"name":"%s","cwd":"%s","build_id":"%s","stamp":"%s"}\n' \
 
 say "Switch atomik (delete + start di cwd baru; TIDAK rebuild)..."
 pm2 delete "$APP_NAME" >/dev/null 2>&1 || true
+# Port HANYA lewat env PORT. Jangan `-- start -p $PORT`: npm meneruskannya
+# menjadi `next start 3001`, dan Next memperlakukan "3001" sebagai direktori
+# proyek -> EADDRINUSE + "Invalid project directory". Ditemukan saat verifikasi
+# Brooklyn t_987f2c96 (switch pertama gagal start, preview sempat down ~3 menit).
 ( cd "$NEW_DIR" && ENABLE_SMOKE=1 NEXT_TELEMETRY_DISABLED=1 PORT=$PORT \
-    pm2 start npm --name "$APP_NAME" -- start -p "$PORT" ) >/dev/null
-sleep 5
+    pm2 start npm --name "$APP_NAME" -- start ) >/dev/null
+sleep 8
 
 NOW_CWD="$(pm2_cwd)"
 NOW_BID="$(cat "$NOW_CWD/.next/BUILD_ID" 2>/dev/null || echo '?')"
 say "  sekarang : cwd=$NOW_CWD build_id=$NOW_BID"
 [[ "$NOW_BID" == "$NEW_BID" ]] || die "readback BUILD_ID tidak cocok ($NOW_BID != $NEW_BID)"
-say "  HTTP / : $(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/")"
+# Tunggu siap (maks ~20s) lalu readback HTTP + BUILD_ID dari HTML yang disajikan.
+CODE=000
+for i in $(seq 1 20); do
+  CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/")"
+  [[ "$CODE" == "200" ]] && break
+  sleep 1
+done
+say "  HTTP / : $CODE"
+SERVED_BID="$(curl -s "http://127.0.0.1:$PORT/" | grep -o 'buildId":"[^"]*' | head -1 | cut -d'"' -f3)"
+say "  BUILD_ID tersaji di HTML: ${SERVED_BID:-tidak terbaca}"
+[[ "$SERVED_BID" == "$NEW_BID" ]] || die "BUILD_ID di HTML tidak cocok ($SERVED_BID != $NEW_BID)"
 say "SELESAI."
