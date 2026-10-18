@@ -1,0 +1,28 @@
+
+A. Item PENDING — tombol "✓ Setujui" terjangkau dari drawer
+  ok   drawer detail terbuka (role=dialog)
+  ok   drawer memuat rincian material (PLY-0003 & HPL-0001)
+  ok   tombol per-item "✓ Setujui" ADA di drawer (2 item PENDING)
+  ok   klik memanggil onApproveItem tepat 1x
+  ok   payload item utuh (id/kode/nama/quantity)
+  ok   drawer TIDAK menambah keputusan tingkat PR (Setujui/Tolak/Revisi PR tidak dipanggil)
+  ok   drawer tidak menampilkan tombol Tolak/Revisi tingkat PR
+
+B. Item APPROVED & PR APPROVED — tombol "🛒 Sudah Order" terjangkau
+  ok   tombol "🛒 Sudah Order" ADA (2 item APPROVED)
+  ok   tombol "✓ Setujui" TIDAK tampil lagi (item sudah APPROVED)
+  ok   klik memanggil onMarkPrItemOrdered tepat 1x
+  ok   payload item kedua yang dikirim (HPL-0001)
+
+C. Gerbang izin — PR REJECTED tidak boleh menampilkan aksi item
+  ok   PR REJECTED: nol tombol aksi per-item
+  ok   rincian item tetap bisa dibaca (tidak menyembunyikan data)
+  ok   item ORDERED: tidak ada tombol "Sudah Order" lagi
+  ok   item ORDERED tetap menampilkan status "✓ Sudah Order"
+
+D. Satu jangkar saja — tidak ada panel dobel
+  ok   grup material di drawer dirender SEKALI per kategori (2)
+  ok   hanya SATU drawer terbuka
+  ok   panel perluasan tbody lama TIDAK dirender (tidak ada panel dobel)
+
+=== HASIL: 18 ok, 0 FAIL ===

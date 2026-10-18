@@ -117,8 +117,7 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
           <button
             type="button"
-            className="outline"
-            style={{ fontSize: '12px', padding: '8px 12px' }}
+            className="outline btn-export-all"
             onClick={() => exportWorkbook([
               ['Projects', rows.projects || [], headersFor('projects', rows.projects || [])],
               ['Vendors', rows.vendors || [], headersFor('vendors', rows.vendors || [])],

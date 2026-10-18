@@ -8334,3 +8334,25 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
 @media (min-width: 1400px) {
   .mk-board { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+/* ============================================================
+   PAKET AKHIR (t_2e5ef03c) — target sentuh Dashboard
+   ============================================================
+   Tombol "Export Semua Data (Excel)" tadinya memakai inline style
+   font-size 12px / padding 8px 12px (tinggi 33px) sehingga di 768px
+   menjadi satu-satunya target sentuh < 44px yang tersisa. Inline style
+   dihapus dari komponen; ukuran dipindah ke sini supaya bisa diatur
+   per-breakpoint tanpa !important.
+   ============================================================ */
+.btn-export-all {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+@media (max-width: 1024px) {
+  .btn-export-all {
+    min-height: 44px;
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+}

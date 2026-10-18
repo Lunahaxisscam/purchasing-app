@@ -1,0 +1,293 @@
+Sandbox: /tmp/rap-compare-verify
+
+SWC: 6 file dikompilasi ke dist/
+
+[1] Konversi harga & qty — null, bukan 0
+  ok   1500000 -> 1500000
+  ok   '1.500.000' -> 1500000
+  ok   'Rp 1.500.000' -> 1500000
+  ok   null -> null (BUKAN 0)
+  ok   '' -> null
+  ok   -5 -> null (negatif ditolak)
+  ok   'abc' -> null
+  ok   0 -> 0 (nol yang sah tetap 0)
+  ok   qty 2 -> 2
+  ok   qty 0 -> null (tidak dipaksa 1)
+  ok   qty -3 -> null
+  ok   qty '' -> null
+  ok   qty '2.5' -> 2.5
+  ok   lineValue(2, 1500000) = 3000000
+  ok   lineValue(null, 1500000) = null
+  ok   lineValue(2, null) = null
+
+[2] Baca baris RAB (beberapa bentuk field)
+  ok   3 baris bernama (tanpa nama dibuang)
+  ok   baris 1 value = 3.000.000
+  ok   baris 2 value = 8.000.000
+  ok   baris tanpa harga -> value null (jujur)
+  ok   bentuk JSON string + item_name/quantity/estimated_price
+  ok   JSON rusak -> [] (tidak melempar)
+  ok   array polos diterima
+
+[3] Baca baris RAP (draft)
+  ok   2 baris RAP
+  ok   RAP baris 1 value = 2.800.000
+  ok   RAP bentuk quantity/harga_satuan
+  ok   RAP non-array -> []
+  ok   RAP nama kosong dibuang
+
+[4] Baca baris AKTUAL (nota) — null, bukan 0
+  ok   3 baris aktual
+  ok   aktual 1 (harga dari note) = 2.700.000
+  ok   aktual 2 (price langsung) = 7.900.000
+  ok   aktual tanpa harga -> value null
+  ok   aktual tanpa qty -> value null
+
+[5] buildComparison — inti perbandingan
+  ok   6 baris di tabel
+  ok   Wardrobe: RAB 3.000.000
+  ok   Wardrobe: RAP 2.800.000
+  ok   Wardrobe: aktual 2.700.000
+  ok   Wardrobe: selisih = RAP - RAB = -200.000
+  ok   Wardrobe: status under (di bawah acuan)
+  ok   Meja: RAB ada, RAP belum -> rapMissing
+  ok   Meja: diff null (bukan 0)
+  ok   Meja: aktual missing -> 'Belum ada aktual' di UI
+  ok   Rak Buku: RAP tanpa acuan RAB -> rabMissing
+  ok   Rak Buku: diff null
+  ok   Baut: aktual tanpa RAB/RAP
+  ok   total RAB = 13.500.000
+  ok   total RAP = 12.300.000 (2,8 + 8 + 1,5 juta)
+  ok   total aktual = 2.750.000
+  ok   total selisih = RAP - RAB = -1.200.000
+  ok   baris RAB tanpa harga tetap tampil
+  ok   baris RAB tanpa harga -> rab null
+  ok   total RAB tidak termasuk baris tanpa harga (13,5 juta)
+
+[6] Coverage & honesty
+  ok   rabOnly (RAB belum masuk RAP) = 1 (Meja)
+  ok   rapOnly (RAP di luar acuan) = 1 (Rak Buku)
+  ok   actualWithoutPlan = 1 (Baut)
+  ok   missingActual = 3 (Meja, Rak Buku, Kitchen set)
+  ok   hasActual true (ada nota)
+  ok   label aktual menyebut nota pembelian
+
+[7] Tanpa aktual sama sekali -> jujur "belum ada"
+  ok   total aktual null (BUKAN 0)
+  ok   hasActual false
+  ok   label menyebut 'Belum ada aktual'
+  ok   diff null karena aktual tidak dipakai di selisih
+
+[8] Nama dicocokkan longgar (case & spasi)
+  ok   1 baris (bukan 2)
+  ok   selisih +200.000
+  ok   status over (melebihi acuan)
+
+[9] Dua baris RAB nama sama -> dijumlah, bukan menimpa
+  ok   1 baris
+  ok   nilai dijumlah = 1.500.000
+
+[10] CSV
+  ok   header 7 kolom
+  ok   6 baris data + header = 7 baris
+  ok   CSV berisi nama Wardrobe
+  ok   CSV menandai status unknown untuk baris tanpa RAP
+  ok   CSV menandai status over/under sesuai selisih
+  ok   CSV baris tanpa angka -> 'tidak lengkap'
+
+=== HASIL LOGIC TEST: 73 lulus, 0 gagal ===
+
+[A] Render awal — KPI jujur
+  ok   root modul tampil
+  ok   badge draft "belum tersimpan di server" tampil
+  ok   tabel perbandingan tampil
+  ok   KPI RAB = Rp 13.500.000 (3 baris p1 saja)
+  ok   KPI RAP "—" sebelum draft (BUKAN Rp 0)
+  ok   KPI Aktual = Rp 2.700.000 (dari nota)
+  ok   catatan aktual menyebut nota pembelian
+  ok   KPI Selisih "—" (RAP belum ada)
+
+[B] Tabel per baris
+  ok   3 baris proyek p1 (proyek p2 tidak ikut)
+  ok   baris Wardrobe ada
+  ok   Wardrobe RAB Rp 3.000.000
+  ok   Wardrobe RAP "—" (belum draft)
+  ok   Wardrobe Aktual Rp 2.700.000
+  ok   Wardrobe Selisih "—" bukan Rp 0
+  ok   Wardrobe status "Tidak bisa dihitung"
+
+[C] Coverage "yang belum lengkap"
+  ok   rabOnly = 3 (belum ada draft)
+  ok   rapOnly = 0
+  ok   actualWithoutPlan = 0
+  ok   missingActual = 2 (Kitchen set & Meja Tamu)
+
+[D] Impor RAB -> draft RAP (di memori)
+  ok   meta draft tampil (RAP-01 · Draft · 3 baris)
+  ok   KPI RAP jadi Rp 13.500.000 (salin acuan)
+  ok   KPI Selisih jadi Rp 0 (sama dengan acuan)
+  ok   Wardrobe RAP jadi Rp 3.000.000
+  ok   Wardrobe status "Sesuai acuan"
+  ok   coverage rabOnly turun ke 0
+
+[E] Ganti proyek -> draft direset (tidak bocor antar proyek)
+  ok   pindah ke p2: RAB = Rp 100.000
+  ok   pindah ke p2: RAP kembali "—" (draft direset)
+  ok   pindah ke p2: Aktual "Belum ada aktual" (bukan Rp 0)
+  ok   catatan aktual menyebut "Belum ada aktual"
+
+[F] Proyek tanpa data -> empty state
+  ok   empty state tampil
+  ok   tabel tidak dirender
+  ok   KPI RAB "—"
+  ok   impor tanpa data -> draft tidak dibuat
+
+[G] Read-only: tidak ada aksi tulis DB
+  ok   hanya 2 tombol di toolbar (Unduh CSV + Buat draft)
+  ok   tidak ada tombol "Simpan"
+  ok   tidak ada tombol "Tambah"
+  ok   tidak ada tombol "Hapus"
+  ok   tidak ada input teks bebas (hanya select proyek)
+  ok   tidak ada elemen <form> (tidak ada submit ke mana pun)
+  ok   tidak ada atribut onSubmit
+
+[H] Ekspor CSV
+  ok   Blob CSV dibuat
+  ok   nama file menyebut perbandingan + kode proyek
+  ok   CSV punya header 7 kolom
+  ok   CSV berisi Wardrobe
+
+[I] Panel batasan tampil (edukasi)
+  ok   menyebut draft hanya di memori
+  ok   menyebut "Belum ada aktual" bukan Rp 0
+  ok   menyebut markup/PPN tidak ikut dibandingkan
+  ok   menyebut localStorage tidak dipakai
+
+[I] Status pagu (peringatan rencana melewati batas)
+  ok   tanpa pagu -> status "Pagu belum diketahui"
+  ok   level = none (bukan within/aman)
+  ok   tidak ada klaim "aman" saat pagu tidak diketahui
+  ok   angka pagu tidak dikarang (tidak ada teks Rp pada nums)
+  ok   rencana melewati pagu -> level "over"
+  ok   peringatan memakai role="alert"
+  ok   label "Rencana melewati pagu"
+  ok   angka pagu tampil
+  ok   seberapa melewati tampil (Rp 3.500.000)
+  ok   rencana di bawah pagu -> level "within"
+  ok   label "Rencana di bawah pagu"
+  ok   persentase terpakai tampil (27%)
+  ok   pagu ada, draft belum -> level "unknown"
+  ok   label "Pagu menunggu rencana"
+
+[J] Drawer ringkas (asal tiap angka)
+  ok   drawer tertutup sebelum baris diklik
+  ok   baris Kitchen set ada di tabel
+  ok   drawer terbuka setelah baris diklik
+  ok   drawer menyebut nama baris
+  ok   drawer menampilkan 3 sumber + selisih
+  ok   drawer: RAB & RAP ada angkanya
+  ok   drawer: aktual tidak ada -> ditulis "tidak ada data", BUKAN 0
+  ok   drawer: angka "0" hanya muncul sebagai selisih, bukan sumber
+  ok   drawer: sumber yang hilang tidak pernah jadi "0"
+  ok   drawer punya catatan "belum ada nota"
+  ok   drawer Wardrobe: aktual nyata Rp 2.700.000 (bukan "tidak ada data")
+  ok   drawer Wardrobe: tidak ada "tidak ada data" (ketiga sumber ada)
+  ok   tombol tutup menutup drawer
+
+=== HASIL RENDER TEST: 75 lulus, 0 gagal ===
+  ok   blok CSS modul ada di styles/globals.css
+
+[1] Lebar — halaman tidak melebar melewati viewport
+  ok   .rc-root memakai flex column (mengikuti lebar induk)
+  ok   .rc-root tidak punya width tetap (tidak memaksa lebar)
+  ok   .rc-root tidak punya min-width (tidak melebar di ponsel)
+  ok   .rc-root tidak ada position fixed/absolute (mengalir normal)
+  ok   .rc-toolbar flex-wrap: wrap (tumpuk di ponsel)
+  ok   .rc-intro flex-wrap: wrap (judul & tombol tumpuk)
+  ok   .rc-intro-copy dibatasi max-width (tidak melebar)
+
+[2] Tabel — yang scroll pembungkusnya, bukan halaman
+  ok   .rc-table-wrap overflow-x: auto (tabel scroll sendiri)
+  ok   .rc-table-wrap -webkit-overflow-scrolling: touch (mulus di iOS)
+  ok   .rc-table width: 100% (mengikuti pembungkus, bukan lebar tetap)
+  ok   .rc-table tidak punya width piksel tetap / min-width (tidak overflow halaman)
+  ok   .rc-num white-space: nowrap (angka tidak terpotong jadi 2 baris)
+  ok   .rc-num text-align: right + tabular-nums (kolom selaras)
+  ok   header tabel white-space: nowrap (tidak berantakan saat scroll)
+
+[3] KPI — 1 kolom ponsel, 2 tablet, 4 desktop
+  ok   KPI dasar 1 kolom (ponsel 360/390)
+  ok   ada breakpoint 700px (tablet 768)
+  ok   tablet: KPI 2 kolom
+  ok   ada breakpoint 1100px (desktop 1440)
+  ok   desktop: KPI 4 kolom
+  ok   grid memakai minmax(0, 1fr) — kolom tidak melebar karena isi panjang
+
+[4] Touch target — minimal 32px tombol, 44px baris
+  ok   semua tombol memakai aturan min-height 32px yang sama
+  ok   setiap aturan .rc-btn-* yang menimpa padding/height tetap punya min-height
+  ok   tombol pakai cursor: pointer
+  ok   select proyek min-height 36px (target sentuh nyaman)
+  ok   baris tabel padding 9px atas/bawah (baris ~44px)
+  ok   baris tabel cursor: pointer (seluruh baris bisa diklik di ponsel)
+
+[5] Drawer — panel penuh di bawah tabel, tetap terbaca
+  ok   drawer memakai flex column (mengikuti lebar induk)
+  ok   drawer tidak position fixed (tidak menutupi layar ponsel)
+  ok   drawer tidak punya width/min-width piksel
+  ok   drawer row flex-wrap: wrap (label & angka tumpuk di 360)
+  ok   drawer angka text-align: right (selaras dengan tabel)
+  ok   drawer angka tabular-nums (selaras antar baris)
+  ok   drawer menandai nilai yang tidak ada (data-present="no")
+
+[6] Verifikasi render nyata di 360/390/768/1440
+  ok   360px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   360px: rap-compare-root tampil
+  ok   360px: rap-compare-table tampil
+  ok   360px: rap-compare-ceiling tampil
+  ok   360px: rap-compare-drawer tampil
+  ok   360px: drawer terbuka & berisi asal angka
+  ok   360px: drawer menyebut baris yang diklik
+  ok   360px: drawer menyebut label sumber (RAB/RAP/Aktual)
+  ok   360px: 2 baris perbandingan tampil
+  ok   360px: 4 kartu KPI tampil
+  ok   360px: tidak ada NaN/undefined di layar
+  ok   360px: uang tampil dengan format Rp (bukan angka mentah 1500000)
+  ok   390px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   390px: rap-compare-root tampil
+  ok   390px: rap-compare-table tampil
+  ok   390px: rap-compare-ceiling tampil
+  ok   390px: rap-compare-drawer tampil
+  ok   390px: drawer terbuka & berisi asal angka
+  ok   390px: drawer menyebut baris yang diklik
+  ok   390px: drawer menyebut label sumber (RAB/RAP/Aktual)
+  ok   390px: 2 baris perbandingan tampil
+  ok   390px: 4 kartu KPI tampil
+  ok   390px: tidak ada NaN/undefined di layar
+  ok   390px: uang tampil dengan format Rp (bukan angka mentah 1500000)
+  ok   768px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   768px: rap-compare-root tampil
+  ok   768px: rap-compare-table tampil
+  ok   768px: rap-compare-ceiling tampil
+  ok   768px: rap-compare-drawer tampil
+  ok   768px: drawer terbuka & berisi asal angka
+  ok   768px: drawer menyebut baris yang diklik
+  ok   768px: drawer menyebut label sumber (RAB/RAP/Aktual)
+  ok   768px: 2 baris perbandingan tampil
+  ok   768px: 4 kartu KPI tampil
+  ok   768px: tidak ada NaN/undefined di layar
+  ok   768px: uang tampil dengan format Rp (bukan angka mentah 1500000)
+  ok   1440px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   1440px: rap-compare-root tampil
+  ok   1440px: rap-compare-table tampil
+  ok   1440px: rap-compare-ceiling tampil
+  ok   1440px: rap-compare-drawer tampil
+  ok   1440px: drawer terbuka & berisi asal angka
+  ok   1440px: drawer menyebut baris yang diklik
+  ok   1440px: drawer menyebut label sumber (RAB/RAP/Aktual)
+  ok   1440px: 2 baris perbandingan tampil
+  ok   1440px: 4 kartu KPI tampil
+  ok   1440px: tidak ada NaN/undefined di layar
+  ok   1440px: uang tampil dengan format Rp (bukan angka mentah 1500000)
+
+=== HASIL RESPONSIVE TEST: 82 lulus, 0 gagal ===

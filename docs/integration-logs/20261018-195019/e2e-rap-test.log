@@ -1,0 +1,54 @@
+=== E2E CHROME NYATA — RAP internal versi minimum (t_71d95cfe) ===
+
+  ✓ 1a modul RAP ter-render di dalam aplikasi (section #mod-rap)
+  ✓ 1b banner "belum tersimpan di server" TERLIHAT (layout nyata)
+  ✓ 1c banner menyebut tabel rap_versions / migrasi beku
+  ✓ 1d empty state terlihat sebelum draft
+  ✓ 1e tombol impor punya ukuran klik layak
+  ✓ 1f input versi nonaktif sebelum ada draft
+  ✓ 2a klik impor berhasil (tidak ada error)
+  ✓ 2b dua baris RAB jadi baris RAP
+  ✓ 2c empty state hilang
+  ✓ 2d total acuan RAB = Rp 11.000.000
+  ✓ 2e total RAP awal = acuan
+  ✓ 2f selisih awal nol
+  ✓ 2g status awal Draft
+  ✓ 2h label versi otomatis RAP-01
+  ✓ 3a edit harga berhasil (baris ditemukan)
+  ✓ 3b total RAP turun jadi Rp 10.800.000
+  ✓ 3c acuan RAB TIDAK ikut berubah
+  ✓ 3d selisih jadi negatif (di bawah acuan)
+  ✓ 3b1 input harga TETAP -100 (tidak berubah jadi 0)
+  ✓ 3b2 hint menyatakan ditolak (negatif)
+  ✓ 3b3 validasi memunculkan penghalang negatif
+  ✓ 3b4 draft berpenghalang tidak bisa Diajukan
+  ✓ 3b5 alasan penolakan pengajuan terbaca
+  ✓ 4a pratinjau PR tampil di browser (transparan)
+  ✓ 4b meta menyatakan penulisan DB: 0
+  ✓ 4c TIDAK ada item pekerjaan lolos ke PR material
+  ✓ 4d payload TIDAK disusun saat gerbang menolak (fail-closed)
+  ✓ 4e alasan penolakan menyebut MATERIAL BAKU + langkah perbaikan
+  ✓ 4f gate melaporkan 0 terverifikasi
+  ✓ 4g NOL request mutasi ke Supabase
+  ✓ 5a 360 (HP kecil): tidak ada overflow horizontal
+  ✓ 5b 360 (HP kecil): banner tetap terlihat
+  ✓ 5c 360 (HP kecil): tombol aksi tetap terlihat & bisa diklik
+  ✓ 5a 390 (HP): tidak ada overflow horizontal
+  ✓ 5b 390 (HP): banner tetap terlihat
+  ✓ 5c 390 (HP): tombol aksi tetap terlihat & bisa diklik
+  ✓ 5a 768 (tablet): tidak ada overflow horizontal
+  ✓ 5b 768 (tablet): banner tetap terlihat
+  ✓ 5c 768 (tablet): tombol aksi tetap terlihat & bisa diklik
+  ✓ 5a 1440 (desktop): tidak ada overflow horizontal
+  ✓ 5b 1440 (desktop): banner tetap terlihat
+  ✓ 5c 1440 (desktop): tombol aksi tetap terlihat & bisa diklik
+  ✓ 6a tidak ada kata "aktual" pada angka RAP
+  ✓ 6b penanda "Draft saja" ada
+  ✓ 6c tidak memakai localStorage sebagai DB
+  ✓ 6d tidak ada klaim "tersimpan" tanpa penyangkalan
+  ✓ 6e label sumber acuan tampil (bukan klaim apel-vs-apel)
+  ✓ 6f penanda "apel-vs-apel: TIDAK" ada
+  ✓ 6g status diberi label bukan persetujuan resmi
+  ✓ 6h aturan gerbang BOM dijelaskan
+
+=== HASIL E2E: 50 lulus, 0 gagal ===

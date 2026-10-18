@@ -1,0 +1,87 @@
+Sandbox: /home/ubuntu/.hermes/profiles/bamboo-tech/cache/scratch/staging-verify-fsym6hc6
+
+[0] Prefix kode material sinkron dgn lib/constants.js
+  PASS  blok MATERIAL_KODE_PREFIXES ditemukan di constants.js
+  PASS  constants.js punya >=7 kategori
+  PASS  prefix JS == validator
+[1] Template CSV kosong — header saja, tanpa data dummy
+  PASS  materials.csv: hanya 1 baris header (tanpa contoh data)
+  PASS  price_references.csv: hanya 1 baris header (tanpa contoh data)
+  PASS  projects.csv: hanya 1 baris header (tanpa contoh data)
+  PASS  vendor_categories.csv: hanya 1 baris header (tanpa contoh data)
+  PASS  vendors.csv: hanya 1 baris header (tanpa contoh data)
+  PASS  kelima template entitas ada
+[2] Vendors — mandatory ID, duplikat, conflict, schema existing
+  PASS  exit code 1 (ada REJECTED)
+  PASS  V-001 valid insert
+  PASS  V-002 valid update existing
+  PASS  V-002 resolve vendor_id master
+  PASS  V-003 kategori tak dikenal ditolak
+  PASS  V-004 tanpa kategori ditolak
+  PASS  V-005 external_ref duplikat ditolak
+  PASS  V-007 nama duplikat casefold ditolak
+  PASS  V-008 INSERT vs master = CONFLICT message
+  PASS  V-009 UPDATE tanpa master match ditolak
+  PASS  counts konsisten
+  PASS  plan hanya berisi baris valid
+  PASS  plan apply_blocked + alasan DRY_RUN
+  PASS  vendor existing schema — TIDAK masuk PLAN_STAGING
+  PASS  sha256 input tercatat (reconciliation)
+  PASS  phone disimpan sbg teks apa adanya
+[3] Materials — kode per kategori, harga, evidence, natural key
+  PASS  exit code 1
+  PASS  M-001 valid (format harga Indonesia diterima)
+  PASS  M-002 kode HWF-0002 valid
+  PASS  M-003 kode prefix salah kategori ditolak
+  PASS  M-004 harga negatif ditolak eksplisit
+  PASS  M-005 harga tanpa evidence ditolak
+  PASS  M-006 satuan wajib ditolak
+  PASS  M-007 UPDATE intent, satuan beda master = warning tetap valid
+  PASS  M-008 natural key duplikat ditolak
+  PASS  M-009 INSERT vs master = CONFLICT
+  PASS  counts materials konsisten
+  PASS  totals harga input tercatat (reconciliation)
+  PASS  totals planned == hanya baris valid
+[4] Price references — evidence wajib + PLAN_STAGING (schema pending)
+  PASS  exit code 1
+  PASS  P-001 valid -> PLAN_STAGING (bukan PLAN_INSERT)
+  PASS  P-001 resolve material_id master
+  PASS  P-002 material tak dikenal ditolak (mandatory ID)
+  PASS  P-003 harga tanpa evidence ditolak
+  PASS  P-004 tanggal non-ISO ditolak
+  PASS  P-005 vendor referensi tak dikenal ditolak
+  PASS  P-001 dup ref + dup natural key di baris lain ditolak
+  PASS  apply_block_reason menyebut owner schema t_03b41644
+  PASS  plan requires admin_approve + approved batch
+[5] Projects — enum status, dedupe, SKIP_UNCHANGED, tanpa FK customer palsu
+  PASS  exit code 1
+  PASS  PRJ-001 valid insert, customer_note teks bebas
+  PASS  PRJ-001 tidak mengklaim FK customer_id (menunggu skema t_03b41644)
+  PASS  PRJ-002 status non-enum ditolak
+  PASS  PRJ-003 tanpa project_code ditolak
+  PASS  PRJ-004 kode duplikat batch ditolak
+  PASS  PRJ-005 update nilai sama = SKIP_UNCHANGED
+  PASS  PRJ-006 INSERT vs master = CONFLICT
+  PASS  counts projects konsisten
+[6] Vendor categories — FK vendor + PLAN_STAGING, tanpa delimiter hack
+  PASS  exit code 1
+  PASS  VC-001 valid -> PLAN_STAGING
+  PASS  VC-001 resolve vendor_id master
+  PASS  VC-002 vendor tak dikenal ditolak
+  PASS  VC-003 kategori non-kanonik ditolak
+  PASS  VC-004 pasangan duplikat ditolak
+  PASS  VC-005 sudah ada di master = SKIP_UNCHANGED
+[7] Reconciliation — schema drift warning, retry idempoten (SKIP)
+  PASS  schema drift menimbulkan WARNING
+  PASS  retry identik master = SKIP_UNCHANGED, exit 0
+  PASS  plan kosong saat semua unchanged
+  PASS  batch id dari argumen dipakai
+  PASS  header salah -> REJECTED + sebab kolom
+[8] Dry-run only — tidak ada koneksi/write DB di validator
+  PASS  tidak ada import supabase/pg/psycopg/requests/urllib/socket
+  PASS  tidak ada string koneksi postgres
+  PASS  tidak ada .update(/.delete(/upsert ke client DB
+  PASS  apply_blocked hard-coded True (desain dry-run)
+
+Total check: 73; gagal: 0
+SEMUA TEST STAGING VALIDATOR HIJAU

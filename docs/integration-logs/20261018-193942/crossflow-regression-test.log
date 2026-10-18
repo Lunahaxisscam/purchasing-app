@@ -1,0 +1,157 @@
+Sandbox: /tmp/crossflow-regression-verify
+
+SWC: 76 file dikompilasi ke dist/
+
+===== crossflow_test.mjs =====
+
+A. ALUR PENUH PR -> Approval -> Purchase -> Handover
+  ok   A1 item APPROVED masuk antrean (2)
+  ok   A1 cangkang approval = qty PR penuh (bukan 0)
+  ok   A1 estimasi ditampilkan sebagai pembanding
+  ok   A1 form valid sebelum simpan
+  ok   A1 total nota = material + biaya lain
+  ok   A2 simpan nota berhasil
+  ok   A2 header TIDAK diduplikasi (pakai ulang cangkang)
+  ok   A2 baris item TIDAK diduplikasi
+  ok   A2 nota jadi DIBELI
+  ok   A2 no nota tercatat
+  ok   A2 penanda tahap DIBELI di catatan
+  ok   A2 baris item 1 qty tercatat
+  ok   A2 baris item 2 qty tercatat
+  ok   A2 header nota menyimpan PR asal
+  ok   A2 header nota menyimpan proyek
+  ok   A2 insert handover DRAFT dibuat SEKALI
+  ok   A2 handover terhubung ke nota
+  ok   A2 handover status DRAFT (belum diklaim diserahkan)
+  ok   A2 handover belum punya diserahkan_at
+  ok   A3 item yang sudah dibeli penuh hilang dari antrean
+  ok   A4 ringkasan total dari qty PR (10+20)
+  ok   A4 belum ada yang terdistribusi
+  ok   A4 aksi gudang diizinkan
+  ok   A4 aksi terima DITOLAK (belum ada barang bergerak)
+  ok   A4 alasan tolak terima jujur
+  ok   A4 setelah aksi gudang semua terdistribusi
+  ok   A4 allDone benar
+  ok   A4 aksi gudang kedua DITOLAK (idempoten)
+  ok   A4 aksi terima kini diizinkan
+  ok   A4 konfirmasi pertama berhasil
+  ok   A4 diserahkan_at tercatat
+  ok   A4 status CONFIRMED
+  ok   A4 re-confirm = no-op (already)
+  ok   A4 waktu penyerahan TIDAK ditimpa
+  ok   A4 handover selesai keluar dari antrean
+
+[A] lulus=35 gagal=0
+
+===== guard_test.mjs =====
+
+B. ANTI-DOUBLE-COST (nota ganda / baris ganda / handover ganda)
+  ok   B1 simpan pertama berhasil
+  ok   B1 simpan kedua DITOLAK
+  ok   B1 pesan menyuruh buka nota lama (bukan simpan ulang)
+  ok   B1 TIDAK ada nota baru
+  ok   B1 TIDAK ada baris item baru
+  ok   B1 TIDAK ada handover baru
+  ok   B2 tidak ada baris item ganda untuk pi1
+  ok   B2 tidak ada baris item ganda untuk pi2
+  ok   B2 qty tercatat tidak menggandakan (10 + 20 sekali)
+  ok   B2 TEMUAN: handover DRAFT ganda saat balapan double-click
+  ok   B3 satu nota = satu handover setelah 1 simpan
+  ok   B3 nota kedua (hari berbeda) berhasil sebagai dokumen terpisah
+  ok   B3 nota lama TIDAK ditimpa (no nota lama utuh)
+  ok   B3 nota lama tetap DIBELI
+  ok   B3 total nota riil = 2 dokumen terpisah
+  ok   B3 handover per nota dibuat sekali-masing
+  ok   B3 rincian nota lama utuh (2 barang)
+  ok   B4 nota untuk item tersisa berhasil
+  ok   B4 header nota pertama tidak berubah
+  ok   B4 header baru dibuat (bukan reuse shell selesai)
+  ok   B5 hanya SATU penulisan diserahkan_at (CAS)
+  ok   B5 hanya satu update handovers yang benar-benar menulis
+  ok   B5 waktu penyerahan tunggal
+  ok   B5 konfirmasi ketiga = no-op
+
+C. PARSIAL QTY
+  ok   C1 pembelian sebagian berhasil
+  ok   C1 item yang dibeli sebagian TETAP di antrean
+  ok   C1 qty sisa = 10 - 4
+  ok   C1 qty sudah dibeli tercatat
+  ok   C1 item belum dibeli tetap qty PR penuh
+  ok   C1 draft form qty = sisa (bukan qty PR)
+  ok   C2 item dengan qty PR penuh hilang dari antrean
+  ok   C3 item penuh TIDAK ditawarkan ulang
+  ok   C3 qty tercatat di nota = 30 (10+20), tidak membengkak
+  ok   C3 hanya satu nota riil
+
+E. RETURN / REFUND READINESS (kesiapan, bukan implementasi)
+  ok   E1 siklus hidup item punya 5 status
+  ok   E1 status nota mendukung RETUR dan REFUND
+  ok   E1 TEMUAN: item TIDAK punya status retur sendiri — hanya nota
+  ok   E2 nota tercatat sebagai biaya nyata (DIBELI)
+  ok   E2 qty tercatat sebelum retur = 30
+  ok   E3 retur sebagian tercatat (Sekrup 10 -> 8)
+  ok   E3 nota TIDAK dihapus saat retur
+  ok   E3 qty bersih setelah retur = 28
+  ok   E3 sisa kebutuhan setelah retur kembali ke antrean
+  ok   E4 TEMUAN: refund tidak punya entitas sendiri
+
+[B+C+E] lulus=44 gagal=0
+
+===== reporting_test.mjs =====
+
+D1. RAB vs RAP vs AKTUAL (rap-compare)
+  ok   D1 total RAB = 2.000.000
+  ok   D1 total RAP = 2.360.000
+  ok   D1 total aktual hanya dari baris bernilai
+  ok   D1 selisih RAP-RAB = 360.000
+  ok   D1 baris tanpa harga aktual = null (bukan 0)
+  ok   D1 baris tanpa harga ditandai actualMissing
+  ok   D1 drawer bilang "bukan nol"
+  ok   D1 sel tertampil sebagai — (bukan 0)
+  ok   D1 aktual tanpa acuan terlihat (1)
+  ok   D1 baris berencana tanpa aktual terlihat (1)
+  ok   D1 honesty: ada aktual
+  ok   D1 honesty label menyebut sumber nota
+  ok   D1b total aktual null (bukan 0)
+  ok   D1b honesty.hasActual false
+  ok   D1b label jujur: belum ada nota
+  ok   D1b pagu belum diketahui
+  ok   D1c rencana melewati pagu
+  ok   D1c kelebihan = 500.000
+
+D2. Aktual labor (tukang_projects) vs estimasi (project_plans)
+  ok   D2 aktual Proyek A = 5.000.000 (2 baris dijumlah)
+  ok   D2 project tanpa angka TIDAK masuk peta aktual
+  ok   D2 estimasi Proyek A = 4.000.000
+  ok   D2 estimasi Proyek B = 800.000
+  ok   D2 total aktual = 5.000.000
+  ok   D2 total estimasi = 4.800.000
+  ok   D2 aktual & estimasi TIDAK dijumlahkan
+  ok   D2 kedua sumber dilaporkan TERPISAH
+  ok   D2 actualTanpaAngka = baris tanpa angka (bukan dead field)
+  ok   D2 baris tanpa angka = rows - rowsAngka (3-2)
+  ok   D2 konsisten: actualRowsAngka + actualTanpaAngka = actualRows
+  ok   D2 selisih = aktual - estimasi
+  ok   D2 state LENGKAP
+  ok   D2 aktual saja -> estimasi null (bukan 0)
+  ok   D2 state AKTUAL_SAJA
+  ok   D2 sumber belum dikirim -> KOSONG (bukan daftar kosong)
+  ok   D2b null -> null (bukan 0)
+  ok   D2b teks acak -> null (bukan 0)
+  ok   D2b format ID "3.500.000" -> 3500000
+  ok   D2b "Rp 1.500.000,50" -> 1500000.5
+  ok   D2b sumber null -> peta kosong
+  ok   D2b tanpa peta nama project -> estimasi null (tidak dikarang)
+
+D3/D4. Sales Invoice: KPI & piutang (kontrak S4)
+  ok   D3 total sah (LUNAS+TERBIT) = 80.000.000
+  ok   D3 draft/batal/ditolak TIDAK dihitung
+  ok   D3 total mentah semua status = 297.000.000 (cacat bila dipakai)
+  ok   D4 outstanding = 150.000.000 - 50.000.000 DP
+  ok   D4 paid_amount parsial mengurangi (bukan nominal penuh)
+  ok   D4 LUNAS tanpa paid_amount terdeteksi sebagai temuan
+
+[D] lulus=46 gagal=0
+
+============================================================
+SEMUA TEST LULUS
