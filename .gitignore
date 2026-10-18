@@ -6,6 +6,9 @@ scripts/simulasi-150-test/
 .DS_Store
 scripts/*/dist/
 
+# Artefak kompilasi harness (SWC) — jangan pernah di-commit.
+*.compiled.mjs
+
 # ============================================================
 # KREDENSIAL — JANGAN PERNAH DI-COMMIT
 # ============================================================
