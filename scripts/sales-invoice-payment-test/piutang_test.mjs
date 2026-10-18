@@ -94,10 +94,62 @@ function itemsOf(rep, kind) {
 }
 
 // F-C8: tidak ada aging bucket (0-30/31-60/61-90/>90) — hanya overdue + soon.
+//
+// CATATAN (korektif t_472efa7d): versi lama me-regex SELURUH JSON report,
+// termasuk `generated_at` (new Date().toISOString()). Bila waktu run memuat
+// :30 / :60 / :90 (menit atau detik), regex /30|60|90 hari/ cocok pada
+// timestamp -> FAIL palsu (flaky, bukan cacat aplikasi). Sekarang yang diuji
+// hanya bagian report yang MENYATAKAN aging (kinds, summary, thresholds, notes,
+// judul item, dan nama key), dan `generated_at` dibuang eksplisit.
+// Dataset sengaja berisi invoice berumur 1/47/139 hari + belum jatuh tempo
+// supaya assertion tidak pernah lulus secara vakum.
 {
-  const rep = report({ sales_invoices: [] }, '2026-10-18')
-  const text = JSON.stringify(rep)
-  ok('C8', 'tidak ada aging bucket 30/60/90 hari', !/aging|30|60|90 hari/.test(text))
+  const ds = {
+    sales_invoices: [
+      { id: 'ag1', status: 'TERBIT', invoice_no: 'NL2610101', customer_name: 'A', grand_total: 1000, due_date: '2026-10-17', issue_date: '2026-10-01' },
+      { id: 'ag2', status: 'TERBIT', invoice_no: 'NL2610102', customer_name: 'B', grand_total: 1000, due_date: '2026-09-01', issue_date: '2026-08-01' },
+      { id: 'ag3', status: 'TERBIT', invoice_no: 'NL2610103', customer_name: 'C', grand_total: 1000, due_date: '2026-06-01', issue_date: '2026-05-01' },
+      { id: 'ag4', status: 'TERBIT', invoice_no: 'NL2610104', customer_name: 'D', grand_total: 1000, due_date: '2026-12-20', issue_date: '2026-12-01' }
+    ]
+  }
+  const rep = report(ds, '2026-10-18')
+  const items = itemsOf(rep, 'invoice_due')
+  // Bagian report yang mendeklarasikan kategori/aging — timestamp TIDAK ikut.
+  const deklarasi = {
+    kinds: rep.kinds.map(k => ({ key: k.key, label: k.label, threshold_key: k.threshold_key })),
+    summary: rep.summary,
+    thresholds: rep.thresholds,
+    notes: rep.notes,
+    items: items.map(i => ({ kind: i.kind, severity: i.severity, title: i.title, detail: i.detail }))
+  }
+  const text = JSON.stringify({ ...deklarasi, generated_at: undefined })
+  // Hanya pola yang benar-benar berarti "bucket umur": kata aging/bucket,
+  // atau rentang numerik 0-30 / 31-60 / 61-90 / >90. Angka umur tunggal
+  // ("lewat jatuh tempo 139 hari") BUKAN bucket dan tidak boleh memicu.
+  const BUCKET = /aging|bucket|(?:^|[^\d])(?:0|1)\s*[-\u2013]\s*30(?:[^\d]|$)|31\s*[-\u2013]\s*60|61\s*[-\u2013]\s*90|>\s*90(?:[^\d]|$)/i
+  const hit = text.match(BUCKET)
+  // Penjaga regresi deterministik: paksa `generated_at` memuat :30, :60 dan :90
+  // (persis pemicu flaky lama). Assertion harus tetap hijau -> bukti bahwa
+  // hasil C8 tidak lagi bergantung pada jam dinding.
+  const repTs = R.buildReport({
+    dataset: ds,
+    asOf: '2026-10-18',
+    sources: sources(),
+    thresholds: R.DEFAULT_THRESHOLDS,
+    generatedAt: '2026-10-18T13:30:60.090Z'
+  })
+  const tsDeklarasi = JSON.stringify({
+    kinds: repTs.kinds.map(k => ({ key: k.key, label: k.label, threshold_key: k.threshold_key })),
+    summary: repTs.summary,
+    thresholds: repTs.thresholds,
+    notes: repTs.notes,
+    items: itemsOf(repTs, 'invoice_due').map(i => ({ kind: i.kind, severity: i.severity, title: i.title, detail: i.detail })),
+    generated_at: undefined
+  })
+  const hitTs = tsDeklarasi.match(BUCKET)
+  ok('C8', 'tidak ada aging bucket 30/60/90 hari',
+    items.length >= 3 && !hit && !hitTs && repTs.generated_at === '2026-10-18T13:30:60.090Z',
+    `items=${items.length}${hit ? ` match=${JSON.stringify(hit[0])}` : ''}${hitTs ? ` matchTs=${JSON.stringify(hitTs[0])}` : ''}`)
 }
 
 // F-C9: batas baca 1000 baris — piutang di atas itu terpotong tanpa tanda.
