@@ -1063,7 +1063,13 @@ export default function Planning({ rows, say, setPage, refresh }) {
 
               <div className="budget-card-details">
                 <div className="budget-detail-row">
-                  <span className="budget-detail-label">Pengeluaran Riil (WBS):</span>
+                  {/* FN-EST_LABEL (REVIEW-03): angka ini berasal dari
+                      project_plans.labor_cost — RENCANA upah di WBS Budgeting,
+                      bukan upah yang sudah dibayar. Label lama "Pengeluaran
+                      Riil" membuat rencana terbaca sebagai realisasi. Upah
+                      terbayar ada di tukang_projects (modul Tukang Upah /
+                      Actual Labor & Stok) dan tidak dijumlahkan di sini. */}
+                  <span className="budget-detail-label" title="Estimasi rencana dari WBS Budgeting (project_plans.labor_cost) — bukan upah yang sudah dibayar.">Estimasi Upah WBS:</span>
                   <span className={`budget-detail-val ${budget.isLaborOver ? 'danger-text' : ''}`}>
                     {rupiah(budget.realLabor)}
                   </span>

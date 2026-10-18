@@ -34,6 +34,11 @@ const SOURCES = {
   'ProjectFinance.mjs': path.join(SB, 'components/ProjectFinance.js'),
   'supabaseClient.mjs': path.join(SB, 'lib/supabaseClient.js'),
   'constants.mjs': path.join(SB, 'lib/constants.js'),
+  // FN-EST_LABEL / FN-TARGET70 (REVIEW-03): komponen Finance & ProjectFinance
+  // kini mengimpor dua modul murni ini — harus ikut dikompilasi & di-rewrite,
+  // kalau tidak harness akan gagal resolve (bukan gagal assertion).
+  'money.mjs': path.join(SB, 'lib/money.js'),
+  'laborSource.mjs': path.join(SB, 'lib/laborSource.js'),
 }
 for (const [out, src] of Object.entries(SOURCES)) {
   const compiled = swc.transformSync(fs.readFileSync(src, 'utf8'), {
@@ -45,6 +50,8 @@ for (const [out, src] of Object.entries(SOURCES)) {
   const rewritten = compiled
     .replace(/from ['"]\.\.\/lib\/supabaseClient['"]/g, `from './supabaseClient.mjs'`)
     .replace(/from ['"]\.\.\/lib\/constants['"]/g, `from './constants.mjs'`)
+    .replace(/from ['"]\.\.\/lib\/money['"]/g, `from './money.mjs'`)
+    .replace(/from ['"]\.\.\/lib\/laborSource['"]/g, `from './laborSource.mjs'`)
   fs.writeFileSync(path.join(distDir, out), rewritten)
 }
 
@@ -144,12 +151,76 @@ console.log('\nE. ProjectFinance — 4 kartu murni tanpa petty cash')
   const cards = [...doc.querySelectorAll('.card')].map(c => c.textContent)
   check('kartu Revenue ada', cards.some(c => c.includes('Revenue')))
   check('kartu Actual Material ada', cards.some(c => c.includes('Actual Material')))
-  check('kartu Actual Tukang ada', cards.some(c => c.includes('Actual Tukang')))
+  // FN-EST_LABEL (REVIEW-03): kartu upah WAJIB berlabel estimasi WBS, bukan
+  // "Actual Tukang" — angkanya dari project_plans.labor_cost (rencana), jadi
+  // menyebutnya "Actual" adalah temuan audit yang harus tetap tertutup.
+  check('kartu Estimasi Upah WBS ada', cards.some(c => c.includes('Estimasi Upah WBS')))
+  check('label menyesatkan "Actual Tukang" TIDAK ada lagi', !cards.some(c => c.includes('Actual Tukang')))
+  check('kartu upah menyatakan sumber aktual terpisah (tukang_projects / belum ada)',
+    cards.some(c => /Aktual tersinkron|Aktual upah: belum ada catatan tersinkron/.test(c)))
   check('kartu Project Margin (Gross Profit) ada', cards.some(c => c.includes('Project Margin')))
   check('% Margin proyek tampil (50,00% utk Baroni: 20jt/40jt)', text.includes('50,00%'))
   check('angka petty cash 800.000 TIDAK muncul', !text.includes('800.000'))
   check('tanpa kartu "Biaya Tukang" label lama', !cards.some(c => c.includes('Biaya Tukang')))
   check('tanpa label lama "Margin (Laba Kotor)"', !cards.some(c => c.includes('Laba Kotor')))
+}
+
+// ---------- F: FN-EST_LABEL — aktual tukang_projects TIDAK dicampur ----------
+console.log('\nF. FN-EST_LABEL — estimasi WBS vs aktual tukang_projects')
+{
+  // Proyek Baroni (revenue 40jt, estimasi upah 5jt). tukang_projects
+  // menyimpan AKTUAL 4,25jt untuk proyek yang sama (nama beda kapitalisasi
+  // + spasi ganda → harus tetap cocok lewat projectKey).
+  const TUKANG = [
+    { tukang_key: 'mandor-a', project_name: '  baroni  ', total_upah: 4000000 },
+    { tukang_key: 'mandor-b', project_name: 'BARONI', total_upah: 250000 }
+  ]
+  const html = renderToStaticMarkup(React.createElement(ProjectFinance, {
+    rows: { ...ROWS, tukang_projects: TUKANG },
+    initialDriveRows: DRIVE,
+    initialPlans: PLANS
+  }))
+  const dom = new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`)
+  const text = dom.window.document.body.textContent || ''
+  const cards = [...dom.window.document.querySelectorAll('.card')].map(c => c.textContent)
+
+  check('estimasi WBS tetap 5jt (proyek terpilih = proyek pertama aktif)',
+    cards.some(c => c.includes('Estimasi Upah WBS') && c.includes('Rp 5.000.000')), cards.join(' | '))
+  check('aktual tukang_projects tampil terpisah = Rp 4.250.000 (2 baris, cocok walau beda kapitalisasi)',
+    cards.some(c => c.includes('Aktual tersinkron: Rp 4.250.000') && c.includes('2 baris')))
+  check('estimasi & aktual TIDAK dijumlahkan (9.250.000 tidak muncul)', !text.includes('9.250.000'))
+  check('margin tetap memakai estimasi WBS (40 − 15 − 5 = 20jt), bukan aktual',
+    cards.some(c => c.includes('Project Margin') && c.includes('Rp 20.000.000')))
+  check('kartu TIDAK mengklaim aktual sebagai angka utama', !cards.some(c => /^👷 Aktual Tukang/.test(c.trim())))
+}
+
+// ---------- G: FN-EST_LABEL — aktual belum ada -> "belum ada", bukan Rp 0 ----
+console.log('\nG. FN-EST_LABEL — aktual belum ada ditulis jujur (bukan Rp 0)')
+{
+  const html = renderToStaticMarkup(React.createElement(ProjectFinance, {
+    rows: { ...ROWS, tukang_projects: [] },
+    initialDriveRows: DRIVE,
+    initialPlans: PLANS
+  }))
+  const dom = new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`)
+  const cards = [...dom.window.document.querySelectorAll('.card')].map(c => c.textContent)
+  check('tulis "Aktual upah: belum ada catatan tersinkron"',
+    cards.some(c => c.includes('Aktual upah: belum ada catatan tersinkron')))
+  check('TIDAK menampilkan "Aktual tersinkron: Rp 0"', !cards.some(c => c.includes('Aktual tersinkron: Rp 0')))
+}
+
+// ---------- H: FN-TARGET70 — target 70% selalu rupiah utuh ----------
+console.log('\nH. FN-TARGET70 — target 70% dibulatkan sekali ke rupiah utuh')
+{
+  const { targetBudget70 } = await import(pathToFileURL(path.join(distDir, 'money.mjs')).href)
+  check('revenue 43.300.000 -> 30.310.000 tepat', targetBudget70(43300000) === 30310000, String(targetBudget70(43300000)))
+  check('revenue desimal 99.999.999,99 -> BILANGAN BULAT (tidak ada pecahan sen)',
+    Number.isInteger(targetBudget70(99999999.99)), String(targetBudget70(99999999.99)))
+  check('revenue desimal dibulatkan ke rupiah terdekat (70.000.000)',
+    targetBudget70(99999999.99) === 70000000, String(targetBudget70(99999999.99)))
+  check('revenue 1.234.567,89 -> integer', Number.isInteger(targetBudget70(1234567.89)))
+  check('revenue 0 / negatif / NaN -> 0 (tidak ada pagu karangan)',
+    targetBudget70(0) === 0 && targetBudget70(-5) === 0 && targetBudget70('abc') === 0)
 }
 
 console.log(`\n=== HASIL: ${pass} pass, ${fail} fail ===`)

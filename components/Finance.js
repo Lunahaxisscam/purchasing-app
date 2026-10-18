@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
 import { rupiah, formatDateTime, timeAgo, persen } from '../lib/constants'
+import { targetBudget70 } from '../lib/money'
+import { WBS_ESTIMATE_LABEL } from '../lib/laborSource'
 
 // ============================================================
 // Modul FINANCE — khusus role admin.
@@ -9,8 +11,9 @@ import { rupiah, formatDateTime, timeAgo, persen } from '../lib/constants'
 //   (Total Revenue, Total Project Margin, Beban Operasional WS,
 //   Net Margin Perusahaan) + tabel gross margin per proyek + rekap pos umum
 //   Operasional WS. Gross Profit proyek MURNI = Revenue − Actual Material −
-//   Actual Tukang; petty cash/operasional TIDAK memotong margin proyek —
-//   dilaporkan sebagai pos umum WS.
+//   Estimasi Upah WBS; petty cash/operasional TIDAK memotong margin proyek —
+//   dilaporkan sebagai pos umum WS. FN-EST_LABEL (REVIEW-03): komponen upah
+//   adalah ESTIMASI WBS (project_plans.labor_cost), bukan upah terbayar.
 // Filter Periode (arahan DAT): pilihan cepat Semua Periode (default),
 //   Bulan Ini, Bulan Lalu, Kustom Tanggal (Dari/Sampai). Angka utama Drive
 //   tetap akumulasi (sumber kumulatif tanpa riwayat bulanan); periode
@@ -305,15 +308,21 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
 
   // ============================================================
   // OPSI C — RINGKASAN PERUSAHAAN (Net Margin WS)
-  // Gross Profit per proyek = Revenue − Actual Material − Actual Tukang
+  // Gross Profit per proyek = Revenue − Actual Material − ESTIMASI Upah WBS
   //   (MURNI — petty cash tidak memotong margin proyek).
+  // FN-EST_LABEL (REVIEW-03): komponen upah di sini berasal dari
+  //   project_plans.labor_cost = RENCANA WBS Budgeting, bukan upah yang
+  //   sudah dibayar. Upah AKTUAL (tukang_projects.total_upah, sync Google
+  //   Sheets) TIDAK dijumlahkan ke margin ini — mencampur keduanya akan
+  //   menghitung upah dua kali dan menyembunyikan selisih rencana vs realisasi.
   // Beban Operasional WS = pos umum workshop di Drive data: baris dengan
   //   project_no "operasional ws" (kolom cumulative_cost = OPEX kumulatif,
   //   kolom current_week_expense = OPEX minggu berjalan).
   // Net Margin Perusahaan = Σ Gross Profit seluruh proyek − Beban Operasional WS.
   // ============================================================
   const opsC = useMemo(() => {
-    // 👷 Actual Tukang per proyek — dari modul Budgeting (project_plans).
+    // 👷 Estimasi upah WBS per proyek — dari modul Budgeting (project_plans).
+    // (BUKAN Actual Tukang; lihat catatan FN-EST_LABEL di atas.)
     const laborByProject = {}
     for (const pl of plans) {
       if (!pl.project_id) continue
@@ -441,11 +450,12 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
   //   Revenue        : dari project_cost_summary.revenue (sync REV PROJECT)
   //   Material       : project_cost_summary.cumulative_cost (COST ITEMS CONFIRMED)
   //   Petty Cash     : project_cost_summary.petty_cash (tab PETTY CASH)
-  //   Biaya Tukang   : SUM(project_plans.labor_cost) per proyek (modul Budgeting)
+  //   Estimasi Upah : SUM(project_plans.labor_cost) per proyek (WBS Budgeting;
+  //                   RENCANA — FN-EST_LABEL, bukan upah terbayar)
   //   Budget Target  : 70% × Revenue
-  //   Cost Kumulatif : Material + Petty Cash + Tukang
+  //   Cost Kumulatif : Material + Petty Cash + Estimasi Upah
   //   Margin         : Revenue − Cost Kumulatif (Rp & %)
-  //   Labor Ratio    : Tukang ÷ Cost Kumulatif × 100%
+  //   Labor Ratio    : Estimasi Upah ÷ Cost Kumulatif × 100%
   // ============================================================
   const closingRows = useMemo(() => {
     const projects = rows.projects || []
@@ -472,10 +482,12 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
       const petty = Number(drive?.petty_cash) || 0
       const labor = laborByProject[p.id] || 0
       const total = material + petty + labor
-      // L1: revenue*0.7 bisa menghasilkan float (mis. 30309999.999999996);
-      // dibulatkan ke rupiah supaya perbandingan HEMAT/OVER-BUDGET tepat di
-      // batas pas 70%.
-      const target = Math.round(revenue * 70) / 100
+      // FN-TARGET70 (REVIEW-03): target 70% dihitung lewat lib/money.js
+      // (revenue*7/10 lalu dibulatkan SEKALI ke rupiah utuh). Nilai ini yang
+      // dibandingkan HEMAT/OVER-BUDGET dan yang dikirim ke RPC close_project
+      // sebagai target_budget, jadi layar, keputusan, dan snapshot memakai
+      // angka yang sama — tanpa pecahan sen tersisa.
+      const target = targetBudget70(revenue)
       const margin = revenue - total
       const marginPct = revenue === 0 ? 0 : (margin / revenue) * 100
       const laborRatio = total === 0 ? 0 : (labor / total) * 100
@@ -701,7 +713,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
       {/* ==== 4 KARTU RINGKASAN ATAS — OPSI C (Ringkasan Perusahaan) ====
           1. Total Revenue        = akumulasi revenue seluruh proyek (Drive)
           2. Total Project Margin = akumulasi Gross Profit seluruh proyek
-             (Revenue − Actual Material − Actual Tukang, murni)
+             (Revenue − Actual Material − Estimasi Upah WBS, murni)
           3. Beban Operasional WS = pos umum workshop (baris "operasional ws"
              di data Drive — petty cash / operasional TIDAK memotong margin proyek)
           4. Net Margin Perusahaan= Total Project Margin − Beban Operasional WS
@@ -713,7 +725,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
           <strong style={{ fontSize: '22px' }}>{opsC.totalRevenue > 0 ? rupiah(opsC.totalRevenue) : '—'}</strong>
           <small>{opsC.projectRows.length} proyek · {opsC.periodOn ? 'akumulasi penuh (Drive kumulatif)' : 'akumulasi seluruh proyek'}</small>
         </div>
-        <div className="card" title="Total Project Margin = Σ (Revenue − Actual Material − Actual Tukang) seluruh proyek — gross profit murni, tanpa petty cash/operasional">
+        <div className="card" title={`Total Project Margin = Σ (Revenue − Actual Material − ${WBS_ESTIMATE_LABEL}) seluruh proyek — gross profit murni, tanpa petty cash/operasional. Komponen upah memakai ESTIMASI WBS, bukan upah terbayar (lihat Actual Labor & Stok untuk aktual tukang_projects).`}>
           <span>📈 Total Project Margin</span>
           <strong style={{ fontSize: '22px', color: opsC.totalGross < 0 ? 'var(--danger)' : 'var(--ok)' }}>
             {opsC.projectRows.length ? rupiah(opsC.totalGross) : '—'}
@@ -856,7 +868,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <th>Proyek</th>
                   <th style={{ textAlign: 'right' }}>💰 Revenue</th>
                   <th style={{ textAlign: 'right' }}>🧱 Material</th>
-                  <th style={{ textAlign: 'right' }}>👷 Tukang</th>
+                  <th style={{ textAlign: 'right' }} title="Estimasi upah dari WBS Budgeting (project_plans.labor_cost) — RENCANA, bukan upah terbayar">👷 Estimasi Upah WBS</th>
                   {opsC.periodOn && (
                     <th style={{ textAlign: 'right' }} title="Biaya transaksi ber-tanggal pada periode terpilih: nominal riil Penerimaan Barang + rencana biaya tukang Budgeting">🗓️ Biaya Periode</th>
                   )}
@@ -963,7 +975,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                 <div className="mobile-card-body">
                   <div className="mobile-card-row"><span className="mobile-label">Revenue:</span><span className="mobile-val">{r.revenue > 0 ? rupiah(r.revenue) : '—'}</span></div>
                   <div className="mobile-card-row"><span className="mobile-label">Material:</span><span className="mobile-val">{r.material > 0 ? rupiah(r.material) : '—'}</span></div>
-                  <div className="mobile-card-row"><span className="mobile-label">Tukang:</span><span className="mobile-val">{r.labor > 0 ? rupiah(r.labor) : '—'}</span></div>
+                  <div className="mobile-card-row"><span className="mobile-label">Estimasi Upah WBS:</span><span className="mobile-val">{r.labor > 0 ? rupiah(r.labor) : '—'}</span></div>
                   {opsC.periodOn && (
                     <div className="mobile-card-row"><span className="mobile-label">Biaya Periode:</span><span className="mobile-val" style={{ fontWeight: 700, color: r.periodTotal > 0 ? 'var(--olive-700)' : 'var(--text-muted)' }}>{r.periodTotal > 0 ? rupiah(r.periodTotal) : '—'}</span></div>
                   )}
@@ -1040,7 +1052,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ fontWeight: 700 }}>{rupiah(row.total)}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          Mat {rupiah(row.material)} · PC {rupiah(row.petty)} · Tukang {rupiah(row.labor)}
+                          Mat {rupiah(row.material)} · PC {rupiah(row.petty)} · Est. Upah WBS {rupiah(row.labor)}
                         </div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
@@ -1505,7 +1517,16 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                         </tr>
                         <tr>
                           <td style={{ textAlign: 'center' }}>3</td>
-                          <td style={{ paddingLeft: '18px' }}>Realisasi Biaya Tukang <small>(Upah Borongan Mandor)</small></td>
+                          {/* FN-EST_LABEL (REVIEW-03): angka tersimpan
+                              (project_closings.labor_cost) berasal dari
+                              SUM(project_plans.labor_cost) = ESTIMASI WBS
+                              Budgeting, bukan upah yang sudah dibayar. Label
+                              "Realisasi Biaya Tukang" pada dokumen resmi
+                              membuat pembaca menandatanganinya sebagai
+                              realisasi. Upah aktual (tukang_projects) belum
+                              ikut dihitung ke snapshot closing — dinyatakan
+                              apa adanya di catatan bawah tabel. */}
+                          <td style={{ paddingLeft: '18px' }}>Estimasi Biaya Tukang <small>(WBS Budgeting)</small></td>
                           <td style={{ textAlign: 'right' }}>{rupiah(printDoc.labor_cost || 0)}</td>
                           <td style={{ textAlign: 'right' }}>{pctOf(printDoc.labor_cost)}</td>
                         </tr>
@@ -1517,13 +1538,25 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                         </tr>
                         <tr className="print-row-total">
                           <td />
-                          <td><b>TOTAL HPP RIIL (2 + 3 + 4)</b></td>
+                          {/* Komposisi jujur: baris 3 masih ESTIMASI WBS, jadi
+                              total ini tidak boleh disebut "HPP RIIL" penuh.
+                              Label diberi keterangan sumber di catatan bawah
+                              tabel agar dokumen tidak mengklaim realisasi atas
+                              angka rencana (FN-EST_LABEL). */}
+                          <td><b>TOTAL BIAYA TERCATAT (2 + 3 + 4)</b></td>
                           <td style={{ textAlign: 'right', fontWeight: 800 }}>{rupiah(printDoc.total_cost || 0)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 800 }}>{pctOf(printDoc.total_cost)}</td>
                         </tr>
                         <tr className={Number(printDoc.margin_nominal) < 0 ? 'print-row-loss' : 'print-row-profit'}>
                           <td />
-                          <td><b>GROSS MARGIN / KEUNTUNGAN KOTOR (1 − 5)</b></td>
+                          {/* FN-PRINTREF (REVIEW-03): rujukan lama "(1 − 5)"
+                              menunjuk baris 5 yang TIDAK ADA di tabel ini
+                              (penomoran: 1 Revenue, 2 Material, 3 Tukang,
+                              4 Petty Cash, lalu TOTAL HPP RIIL tanpa nomor).
+                              Pembaca dokumen resmi mencari baris 5 yang tidak
+                              pernah ada. Rujukan diganti ke nomor baris nyata:
+                              Revenue (1) dikurangi TOTAL HPP RIIL (2 + 3 + 4). */}
+                          <td><b>GROSS MARGIN / KEUNTUNGAN KOTOR (1 − TOTAL BIAYA TERCATAT)</b></td>
                           <td style={{ textAlign: 'right', fontWeight: 800 }}>{rupiah(printDoc.margin_nominal || 0)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 800 }}>
                             {Number(printDoc.margin_percentage || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
@@ -1623,7 +1656,10 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
                   <td style={{ textAlign: 'right' }}>{rupiah(closingModal.petty)}</td>
                 </tr>
                 <tr>
-                  <td style={{ paddingLeft: '26px', color: 'var(--text-muted)' }}>c. Biaya Tukang <small>(Brokoli / Budgeting)</small></td>
+                  {/* FN-EST_LABEL (REVIEW-03): komponen ini = SUM(project_plans
+                      .labor_cost) dari WBS Budgeting = RENCANA, bukan upah
+                      terbayar. Label lama "Biaya Tukang" ambigu. */}
+                  <td style={{ paddingLeft: '26px', color: 'var(--text-muted)' }}>c. Estimasi Upah Tukang <small>(WBS Budgeting / project_plans)</small></td>
                   <td style={{ textAlign: 'right' }}>{rupiah(closingModal.labor)}</td>
                 </tr>
                 <tr style={{ background: 'var(--olive-50)' }}>

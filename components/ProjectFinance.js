@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatusStyle } from '../lib/constants'
+import { targetBudget70 } from '../lib/money'
+import { WBS_ESTIMATE_LABEL, WBS_ESTIMATE_NOTE, actualLaborForProject } from '../lib/laborSource'
 
 // ============================================================
 // Modul PROJECT FINANCE — khusus role admin (READ-ONLY).
@@ -11,7 +13,10 @@ import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatu
 //                 internal (estimasi PR vs purchase riil dari nota)
 // Plus kartu ringkasan — Project Margin (Gross Profit) MURNI sesuai keputusan
 // brainstorm DAT:
-//   Gross Profit = Revenue − Actual Material − Actual Tukang.
+//   Gross Profit = Revenue − Actual Material − Estimasi Upah WBS.
+//   FN-EST_LABEL (REVIEW-03): komponen upah di margin ini adalah ESTIMASI
+//   WBS Budgeting (project_plans.labor_cost), bukan upah terbayar. Upah
+//   AKTUAL (tukang_projects) ditampilkan terpisah dan tidak dijumlahkan.
 //   Petty cash / operasional TIDAK lagi memotong margin proyek — pos itu
 //   dilaporkan sebagai Beban Operasional WS (pos umum) di modul Finance.
 // TIDAK ada input di modul ini — semua angka berasal dari sumbernya
@@ -103,6 +108,14 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
     [laborRows]
   )
 
+  // 👷 AKTUAL upah — tukang_projects.total_upah hasil sync Google Sheets.
+  // SENGAJA dipisah dari estimasi WBS di atas: FN-EST_LABEL (REVIEW-03).
+  // null = belum ada catatan aktual untuk proyek ini (bukan Rp 0).
+  const actualLabor = useMemo(
+    () => (project ? actualLaborForProject(rows.tukang_projects, project.name) : null),
+    [project, rows.tukang_projects]
+  )
+
   // 🧱 Material — rincian pengadaan internal proyek ini: estimasi PR vs
   // purchase riil (nominal dari nota penerimaan), per nomor PR.
   const materialPrRows = useMemo(() => {
@@ -143,7 +156,8 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
 
   // Ringkasan margin — Project Margin (Gross Profit) murni sesuai keputusan
   // brainstorm DAT:
-  //   Gross Profit = Revenue − Actual Material − Actual Tukang.
+  //   Gross Profit = Revenue − Actual Material − Estimasi Upah WBS.
+  //   FN-EST_LABEL (REVIEW-03): upah di sini ESTIMASI WBS, bukan aktual.
   //   Petty cash dikecualikan — operasional dilaporkan sebagai pos umum WS
   //   di modul Finance (Net Margin Perusahaan).
   const summary = useMemo(() => {
@@ -152,8 +166,11 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
     const labor = Math.round(laborTotal)
     const total = material + labor
     const margin = revenue - total
-    // Pembulatan sebelum dibandingkan (pitfall uang: 43300000*0.7 = 30309999.99…).
-    const target = Math.round(revenue * 70) / 100
+    // FN-TARGET70 (REVIEW-03): target 70% dihitung di lib/money.js —
+    // revenue*7/10 lalu dibulatkan SEKALI ke rupiah utuh, supaya angka yang
+    // dibandingkan (HEMAT/OVER) sama persis dengan yang ditampilkan dan
+    // tidak menyisakan pecahan sen (lihat komentar modul + repro).
+    const target = targetBudget70(revenue)
     return {
       revenue, material, labor, total, margin,
       marginPct: revenue > 0 ? (margin / revenue) * 100 : null,
@@ -213,7 +230,10 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
       ) : (
         <>
           {/* Kartu ringkasan 4 komponen — urutan sesuai keputusan brainstorm
-              DAT: Revenue, Actual Material, Actual Tukang, Project Margin.
+              DAT: Revenue, Actual Material, Estimasi Upah WBS, Project Margin.
+              FN-EST_LABEL (REVIEW-03): komponen upah = ESTIMASI WBS, bukan
+              "Actual Tukang" — aktual dari tukang_projects ditulis terpisah
+              di kartu yang sama, tidak dijumlahkan.
               Petty cash TIDAK menjadi bagian margin proyek (murni gross profit). */}
           <div className="cards">
             <div className="card" title="Nilai kontrak proyek — sumber: REV PROJECT.xlsx via sync Google Drive">
@@ -224,11 +244,22 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
               <span>🧱 Actual Material</span>
               <strong style={{ fontSize: '22px' }}>{drive ? rupiah(summary.material) : '—'}</strong>
             </div>
-            <div className="card" title="Total estimasi upah tukang dari modul Budgeting">
-              <span>👷 Actual Tukang</span>
+            <div className="card" title={WBS_ESTIMATE_NOTE}>
+              <span>👷 {WBS_ESTIMATE_LABEL}</span>
               <strong style={{ fontSize: '22px' }}>{laborRows.length ? rupiah(summary.labor) : '—'}</strong>
+              {/* FN-EST_LABEL (REVIEW-03): angka di atas adalah ESTIMASI dari
+                  WBS Budgeting (project_plans.labor_cost), bukan upah terbayar.
+                  Upah AKTUAL (tukang_projects.total_upah, hasil sync Google
+                  Sheets) ditampilkan terpisah di bawah ini dan TIDAK
+                  dijumlahkan ke estimasi. Bila belum ada catatan aktual,
+                  ditulis apa adanya — bukan Rp 0. */}
+              <small style={{ display: 'block', marginTop: '4px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                {actualLabor
+                  ? <>Aktual tersinkron: {rupiah(actualLabor.actual)} <span style={{ fontWeight: 500 }}>({actualLabor.rows} baris tukang_projects)</span></>
+                  : <>Aktual upah: belum ada catatan tersinkron</>}
+              </small>
             </div>
-            <div className="card" title="Project Margin (Gross Profit) = Revenue − Actual Material − Actual Tukang — murni, tanpa petty cash/operasional">
+            <div className="card" title={`Project Margin (Gross Profit) = Revenue − Actual Material − ${WBS_ESTIMATE_LABEL} — murni, tanpa petty cash/operasional. Margin memakai ESTIMASI upah WBS, bukan upah terbayar: margin sebenarnya baru pasti setelah upah aktual tercatat di tukang_projects.`}>
               <span>📈 Project Margin (Gross Profit)</span>
               <strong style={{ fontSize: '22px', color: summary.marginPct === null ? 'var(--text-muted)' : (summary.margin < 0 ? 'var(--danger)' : 'var(--ok)') }}>
                 {summary.marginPct === null ? '—' : rupiah(summary.margin)}
@@ -310,6 +341,18 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
           {/* ---------------- TAB TUKANG ---------------- */}
           {view === 'tukang' && (
             <>
+              {/* FN-EST_LABEL (REVIEW-03): tab ini menampilkan RENCANA upah
+                  (WBS Budgeting). Aktual upah dari tukang_projects dinyatakan
+                  terpisah di banner ini — tidak dicampur ke tabel rencana,
+                  dan tidak diklaim sebagai angka yang sudah terbayar. */}
+              <div className="notice" style={{ marginBottom: '12px' }}>
+                <b>Dua sumber upah yang berbeda.</b>{' '}
+                Tabel di bawah = <b>{WBS_ESTIMATE_LABEL}</b> (rencana, bisa berubah).
+                Upah terbayar = <b>aktual tukang_projects</b> hasil sync Google Sheets:{' '}
+                {actualLabor
+                  ? <b>{rupiah(actualLabor.actual)}</b>
+                  : <span>belum ada catatan tersinkron untuk proyek ini (bukan Rp 0).</span>}
+              </div>
               <div className="panel table desktop-table-view">
                 <table>
                   <thead>
@@ -318,7 +361,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
                       <th>Item Pekerjaan</th>
                       <th>Pekerja (Tukang)</th>
                       <th>Model Upah</th>
-                      <th style={{ textAlign: 'right' }}>Estimasi Upah</th>
+                      <th style={{ textAlign: 'right' }}>Estimasi Upah (WBS)</th>
                       <th>Status</th>
                     </tr>
                   </thead>

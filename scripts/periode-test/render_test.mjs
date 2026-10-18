@@ -39,6 +39,10 @@ const SOURCES = {
   'Finance.mjs': path.join(SB, 'components/Finance.js'),
   'supabaseClient.mjs': path.join(SB, 'lib/supabaseClient.js'),
   'constants.mjs': path.join(SB, 'lib/constants.js'),
+  // FN-EST_LABEL / FN-TARGET70 (REVIEW-03): Finance kini mengimpor dua modul
+  // murni ini — wajib ikut dikompilasi & di-rewrite.
+  'money.mjs': path.join(SB, 'lib/money.js'),
+  'laborSource.mjs': path.join(SB, 'lib/laborSource.js'),
 }
 for (const [out, src] of Object.entries(SOURCES)) {
   const compiled = swc.transformSync(fs.readFileSync(src, 'utf8'), {
@@ -49,6 +53,8 @@ for (const [out, src] of Object.entries(SOURCES)) {
   const rewritten = compiled
     .replace(/from ['"]\.\.\/lib\/supabaseClient['"]/g, `from './supabaseClient.mjs'`)
     .replace(/from ['"]\.\.\/lib\/constants['"]/g, `from './constants.mjs'`)
+    .replace(/from ['"]\.\.\/lib\/money['"]/g, `from './money.mjs'`)
+    .replace(/from ['"]\.\.\/lib\/laborSource['"]/g, `from './laborSource.mjs'`)
   fs.writeFileSync(path.join(distDir, out), rewritten)
 }
 
