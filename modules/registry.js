@@ -333,6 +333,28 @@ export const modules = [
     adminOnly: true,
     source: 'core',
     files: ['components/Settings.js']
+  },
+  {
+    // Modul "Marketing / Lead Pipeline" (t_31a1a9f9) — READ-ONLY,
+    // admin-only. Halaman sendiri (source:'core', dirender pages/index.js)
+    // seperti Customer CRM dan Actual Labor & Stok: tampilannya papan
+    // tahap + filter + form draf, bukan CRUD generik.
+    // TIDAK ada tabel leads baru, TIDAK ada RPC, TIDAK ada migrasi, TIDAK
+    // ada penulisan DB, dan formula finance TIDAK disentuh. Lead dari
+    // form hidup sebagai draf memori halaman dan diberi label "Draf
+    // halaman". Lead dengan tahap yang tidak dikenali ditaruh di ember
+    // "Tahap tidak diketahui" — tidak dipaksa masuk New Lead.
+    // Detail: modules/marketing/README.md.
+    id: 'marketing',
+    label: 'Marketing / Lead Pipeline',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/marketing/view.jsx',
+      'modules/marketing/logic.js',
+      'modules/marketing/README.md',
+      'scripts/marketing-test/run.py'
+    ]
   }
 ]
 

@@ -22,6 +22,9 @@ import RapCompareModule from '../modules/rap-compare/view'
 // sisi DB; customer dari form adalah draf memori halaman, tidak tersimpan).
 import CrmModule from '../modules/crm/view'
 import LaborStockModule from '../modules/labor-stock/view'
+// t_31a1a9f9: modul "Marketing / Lead Pipeline" — halaman source:'core'
+// (read-only dari sisi DB; lead dari form adalah draf memori halaman).
+import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
@@ -781,8 +784,11 @@ export default function App() {
           </div>
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
-              disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'rap_compare', 'crm', 'labor_stock', 'settings'].includes(page) && (
+              disembunyikan di sana supaya tidak ada 2-3 tombol refresh sekaligus.
+              Resolusi konflik port Marketing (7ce9414): daftar HEAD dipertahankan
+              UTUH (termasuk 'rap' yang ditambahkan integrasi S3) dan 'marketing'
+              ditambahkan — jangan sampai port modul baru menghapus rute lain. */}
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'rap_compare', 'crm', 'labor_stock', 'marketing', 'settings'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -890,6 +896,36 @@ export default function App() {
               laborRows={rows.tukang_projects}
               estimateRows={rows.project_plans}
               materials={rows.materials}
+              say={setNotice}
+            />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'marketing' ? (
+          // ============================================================
+          // MODUL MARKETING / LEAD PIPELINE (t_31a1a9f9) — READ-ONLY
+          // ============================================================
+          // Halaman sendiri (source:'core'), bukan tabel ModuleView:
+          // papan tahap New Lead → Qualified → RAB → Won/Lost dengan
+          // filter + form draf. TIDAK ada tabel leads, TIDAK ada RPC,
+          // TIDAK ada migrasi, TIDAK ada penulisan DB, dan formula
+          // finance TIDAK disentuh. Lead dari form hidup sebagai draf
+          // memori halaman dan diberi label "Draf halaman" di setiap
+          // kartunya.
+          // Sumber lead = prop `leads` (host) atau rows.leads. Host tidak
+          // mengirim sumber sama sekali -> panel capability 'unavailable',
+          // BUKAN papan kosong yang terlihat seperti bug. Lead bertahap
+          // yang tidak dikenali ditaruh di ember "Tahap tidak diketahui"
+          // — tidak dipaksa masuk New Lead.
+          // Tautan CRM hanya bisa diselesaikan kalau host mengirim
+          // `customers`; kalau tidak, halaman menulis "tidak dikirim",
+          // BUKAN "tidak ditemukan". Guard admin sama seperti modul
+          // admin lainnya.
+          role === 'admin' ? (
+            <MarketingModule
+              rows={rows}
+              leads={rows.leads}
+              customers={rows.customers}
               say={setNotice}
             />
           ) : (

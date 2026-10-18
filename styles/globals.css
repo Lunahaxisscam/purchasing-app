@@ -4418,6 +4418,25 @@ textarea {
     font-weight: 600;
     margin-top: 2px;
   }
+  /* Sub-label kode master material (t_31871b64) — port selektif 21bf216.
+     modules/materials/view.jsx memakai className "mobile-card-sub
+     mobile-kode-sub", tetapi aturan ini HILANG di baseline integrasi
+     (kelas hantu: dipakai JSX, tidak pernah didefinisikan di globals.css).
+     Tanpa aturan ini kode material turun ke gaya .mobile-card-sub dan
+     terbaca sama besar dengan nama material, merusak hierarki nama > kode
+     di layar 360px.
+     Ditempatkan SEKALI di blok mobile yang menang cascade (blok responsif
+     terakhir), bukan disalin ke dua blok — menyalin justru menambah
+     duplikasi yang sudah jadi temuan terpisah.
+     Diverifikasi scripts/s7-compact-test bagian C. */
+  .mobile-kode-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-top: 1px;
+    opacity: 0.85;
+  }
   .mobile-card-body {
     display: flex;
     flex-direction: column;
@@ -7909,4 +7928,409 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
 @media (min-width: 1100px) {
   .ls-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ls-stock-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ============================================================
+   MODUL MARKETING / LEAD PIPELINE (t_31a1a9f9)
+   ------------------------------------------------------------
+   Blok CSS sendiri, prefix `mk-`. Tidak mengubah modul lain
+   (crm- t_7253b859, ls- t_62e41e91 READ-ONLY, rap-compare).
+   Palet disamakan dengan modul lain: putih, abu, aksen oranye
+   lembut. Semua nilai yang tidak ada sengaja diberi kelas
+   `.mk-missing` supaya kosong terbaca "tidak tersedia" —
+   bukan teks kosong yang terbaca "tidak ada tindakan".
+   ============================================================ */
+.mk-root {
+  --mk-accent: #C2703D;
+  --mk-accent-soft: #FBEFE6;
+  --mk-warn: #B4632A;
+  --mk-warn-soft: #FDF1E3;
+  --mk-ok: #3E7A56;
+  --mk-line: #E6E1DA;
+  --mk-ink: #2A2622;
+  --mk-mut: #7A7167;
+  --mk-mut-2: #A79B8D;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  color: var(--mk-ink);
+}
+
+.mk-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: #FFFFFF;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.mk-intro-copy { display: flex; flex-direction: column; gap: 6px; max-width: 62ch; }
+.mk-intro-copy strong { font-size: 15px; }
+.mk-intro-copy span { font-size: 13px; color: var(--mk-mut); line-height: 1.5; }
+.mk-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.mk-badge-draft {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--mk-accent-soft);
+  color: var(--mk-accent);
+  border: 1px solid #EFD8C4;
+  white-space: nowrap;
+}
+
+.mk-capability {
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--mk-line);
+  background: #FFFDFA;
+}
+.mk-capability strong { font-size: 14px; }
+.mk-capability span { font-size: 13px; color: var(--mk-mut); line-height: 1.55; }
+.mk-capability--unavailable {
+  background: var(--mk-warn-soft);
+  border-color: #EFD8C4;
+}
+.mk-capability--unavailable strong { color: var(--mk-warn); }
+.mk-capability--empty { background: #FFFFFF; }
+
+.mk-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.mk-kpi-card {
+  background: #FFFFFF;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.mk-kpi-lbl { font-size: 12px; color: var(--mk-mut); }
+.mk-kpi-val { font-size: 24px; line-height: 1.1; font-weight: 700; }
+.mk-kpi-sub { font-size: 11px; color: var(--mk-mut-2); }
+.mk-c-warn { color: var(--mk-warn); }
+
+.mk-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  background: #FFFFFF;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.mk-field { display: flex; flex-direction: column; gap: 4px; min-width: 150px; flex: 1 1 150px; }
+.mk-field > span { font-size: 12px; color: var(--mk-mut); }
+.mk-field input,
+.mk-field select,
+.mk-field textarea,
+.mk-selector__input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 13px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--mk-line);
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: var(--mk-ink);
+}
+.mk-field textarea { resize: vertical; }
+.mk-field input[aria-invalid="true"],
+.mk-field select[aria-invalid="true"],
+.mk-field textarea[aria-invalid="true"] { border-color: var(--mk-warn); }
+.mk-required { color: var(--mk-warn); margin-left: 2px; }
+.mk-error { font-size: 11px; color: var(--mk-warn); }
+
+.mk-btn {
+  font: inherit;
+  font-size: 13px;
+  min-height: 32px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--mk-line);
+  background: #FFFFFF;
+  color: var(--mk-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mk-btn:hover:not(:disabled) { border-color: var(--mk-accent); color: var(--mk-accent); }
+.mk-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.mk-btn--primary { background: var(--mk-accent); border-color: var(--mk-accent); color: #FFFFFF; }
+.mk-btn--primary:hover:not(:disabled) { color: #FFFFFF; }
+
+.mk-notice {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--mk-accent-soft);
+  border: 1px solid #EFD8C4;
+  color: #7A4A2A;
+}
+
+.mk-warnings {
+  margin: 0;
+  padding: 10px 12px 10px 30px;
+  font-size: 13px;
+  background: var(--mk-warn-soft);
+  border: 1px solid #EFD8C4;
+  border-radius: 8px;
+  color: #7A4A2A;
+}
+.mk-warnings li { margin: 2px 0; }
+
+.mk-form {
+  background: #FFFFFF;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mk-form-head { display: flex; align-items: center; gap: 10px; }
+.mk-form-head strong { font-size: 14px; }
+.mk-form-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--mk-accent-soft);
+  color: var(--mk-accent);
+  border: 1px solid #EFD8C4;
+}
+.mk-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.mk-form-grid .mk-field { min-width: 0; flex: 1 1 auto; }
+.mk-form-grid .mk-field--textarea,
+.mk-form-grid .mk-field:first-child { grid-column: 1 / -1; }
+.mk-form-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mk-form-note { font-size: 11px; color: var(--mk-mut-2); }
+
+.mk-board {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.mk-column {
+  background: #FFFFFF;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  grid-template-columns: 1fr; /* satu kolom: ember tumpuk di ponsel, bukan scroll samping */
+}
+.mk-column-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mk-column-title { font-size: 13px; font-weight: 600; }
+.mk-column-count {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 22px;
+  text-align: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--mk-accent-soft);
+  color: var(--mk-accent);
+}
+.mk-column-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #7A4A2A;
+  background: var(--mk-warn-soft);
+  border: 1px solid #EFD8C4;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.mk-column-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--mk-mut-2);
+  border: 1px dashed var(--mk-line);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.mk-card-list { display: flex; flex-direction: column; gap: 8px; }
+.mk-card {
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+  padding: 10px;
+  background: #FFFDFA;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere; /* nama/kampanye panjang bungkus, jangan dorong lebar */
+}
+.mk-card:hover { border-color: var(--mk-accent); }
+.mk-card[data-origin="draft"] { border-left: 3px solid var(--mk-accent); }
+.mk-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mk-card-name { font-size: 13px; }
+.mk-pill {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.mk-pill-draft { background: var(--mk-accent-soft); color: var(--mk-accent); border: 1px solid #EFD8C4; }
+.mk-pill-host { background: #F2EFEA; color: var(--mk-mut); border: 1px solid var(--mk-line); }
+
+.mk-card-meta { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.mk-card-row { display: flex; gap: 6px; align-items: baseline; font-size: 12px; min-width: 0; }
+.mk-card-row dt { color: var(--mk-mut); flex: 0 0 92px; }
+.mk-card-row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.mk-missing { color: var(--mk-mut-2); font-style: italic; }
+
+.mk-due {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.mk-due--overdue { background: var(--mk-warn-soft); color: var(--mk-warn); border: 1px solid #EFD8C4; }
+.mk-due--today { background: var(--mk-accent-soft); color: var(--mk-accent); border: 1px solid #EFD8C4; }
+.mk-due--later { background: #F2EFEA; color: var(--mk-mut); border: 1px solid var(--mk-line); }
+
+.mk-link { display: block; min-width: 0; overflow-wrap: anywhere; }
+.mk-link--linked { color: var(--mk-ok); }
+.mk-link--missing { color: var(--mk-mut-2); font-style: italic; }
+.mk-link--unresolved { color: var(--mk-warn); }
+.mk-link--unknown { color: var(--mk-mut-2); font-style: italic; }
+
+.mk-card-actions { display: flex; gap: 6px; align-items: center; }
+.mk-btn-mini {
+  font: inherit;
+  font-size: 11px;
+  min-height: 32px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--mk-line);
+  background: #FFFFFF;
+  cursor: pointer;
+}
+.mk-btn-mini:hover { border-color: var(--mk-accent); color: var(--mk-accent); }
+.mk-btn-mini--danger:hover { border-color: var(--mk-warn); color: var(--mk-warn); }
+.mk-readonly { font-size: 11px; color: var(--mk-mut-2); font-style: italic; }
+
+.mk-btn-more {
+  font: inherit;
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--mk-line);
+  background: transparent;
+  color: var(--mk-mut);
+  cursor: pointer;
+}
+.mk-btn-more:hover { border-color: var(--mk-accent); color: var(--mk-accent); }
+
+.mk-empty {
+  border: 1px dashed var(--mk-line);
+  border-radius: 12px;
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--mk-mut);
+  background: #FFFFFF;
+}
+
+.mk-drawer {
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  background: #FFFFFF;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mk-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mk-drawer-close {
+  font: inherit;
+  font-size: 14px;
+  border: none;
+  background: transparent;
+  color: var(--mk-mut);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.mk-drawer-list { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.mk-drawer-row { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; align-items: baseline; }
+.mk-drawer-row dt { color: var(--mk-mut); flex: 0 0 140px; }
+.mk-drawer-row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.mk-drawer-row dd[data-present="no"] { color: var(--mk-mut-2); font-style: italic; }
+.mk-drawer-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--mk-mut-2);
+  border-top: 1px dashed var(--mk-line);
+  padding-top: 8px;
+}
+
+.mk-selector-demo {
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  background: #FFFFFF;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mk-selector-demo strong { font-size: 13px; }
+.mk-selector-demo span { font-size: 12px; color: var(--mk-mut); line-height: 1.5; }
+.mk-selector-demo code { font-size: 11px; background: #F2EFEA; padding: 1px 4px; border-radius: 4px; }
+.mk-selector-demo-box { max-width: 320px; }
+.mk-selector__input:disabled { background: #F2EFEA; color: var(--mk-mut); }
+
+.mk-limitations {
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  background: #FFFDFA;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mk-limitations strong { font-size: 13px; }
+.mk-limitations ul { margin: 0; padding-left: 20px; }
+.mk-limitations li { font-size: 12px; color: var(--mk-mut); line-height: 1.5; }
+
+/* Ponsel 360/390: dasar 1 kolom (lihat aturan dasar di atas). */
+@media (min-width: 700px) {
+  .mk-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mk-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1100px) {
+  .mk-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mk-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* Ember "tahap tidak diketahui" hanya muncul saat ada — tempatnya
+     memakai lebar penuh supaya tidak memaksa papan jadi 6 kolom. */
+  .mk-column[data-stage="unknown"] { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1400px) {
+  .mk-board { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
