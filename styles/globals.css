@@ -8356,3 +8356,32 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
     padding: 10px 14px;
   }
 }
+
+/* ============================================================
+   PAKET AKHIR (t_2e5ef03c) — target sentuh BOQ & Upah di layar kecil
+   ============================================================
+   Temuan dari scripts/integration-test/mobile_page_sweep.mjs (pengukuran
+   nyata, bukan klaim): di 768px tombol "⌄ Pilih master project…"
+   (.boq-link-btn, min-height 24px) dan pill template BOQ
+   (.boq-template-pill, 28px) masih di bawah 44px.
+
+   Style BOQ di-inject komponen (styled <style> di dalam view.jsx) sehingga
+   muncul SETELAH globals.css. Prefix .boq-root menaikkan spesifisitas
+   (0,2,0 > 0,1,0) supaya menang TANPA !important dan TANPA menyentuh file
+   milik owner modul lain.
+   ============================================================ */
+@media (max-width: 1024px) {
+  .boq-root .boq-link-btn,
+  .boq-root .boq-template-pill {
+    min-height: 44px;
+    padding-block: 10px;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Tombol "Hapus Vendor" SENGAJA tetap kecil: aksi sekunder yang
+     di-discourage (keputusan t_e626b674), padding transparannya sudah
+     diperbesar agar tetap nyaman disentuh. Jangan digembungkan. */
+  .vendor-card-footnote .vendor-delete-link {
+    min-height: 0;
+  }
+}
