@@ -59,6 +59,10 @@ SUITES = [
     # kontrak S6 karena keduanya dulu bernama run.py dan bertabrakan saat port.
     # Dua-duanya harus jalan: 263 asersi kontrak + 327 asersi UI.
     'marketing-test/run_ui.py',
+    # t_2e5ef03c: harness temuan REVIEW-03 (estimasi vs aktual, target 70%,
+    # rujukan cetak) belum pernah masuk runner — dijalankan di sini supaya
+    # bukti "MERAH di baseline, HIJAU setelah perbaikan" ikut regresi paket.
+    'fn-repro',
     's7-compact-test',
     'crm-test',
     'rap-compare-test',

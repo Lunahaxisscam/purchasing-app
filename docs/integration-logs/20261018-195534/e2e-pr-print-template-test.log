@@ -1,0 +1,21 @@
+  ✓ /__smoke HTTP 200 (server scratch)
+
+=== VERIFIKASI RUNTIME TOMBOL PRINT TEMPLATE (Chrome headless CDP) ===
+
+  ✓ tombol ditemukan di DOM runtime
+  ✓ teks persis "Print Template Pengadaan"
+  ✓ href = /print/form-pengadaan-lapangan-template.pdf
+  ✓ target=_blank + rel noopener noreferrer
+  ✓ berupa <a> (bukan <button>/form submit)
+  ✓ terlihat di viewport (visible, ukuran wajar)
+  ✓ rata kanan dalam section requests (Δ<24px dari tepi section)
+  ✓ baris print di ATAS baris toolbar (search+Tambah)
+  ✓ gaya tombol (border, radius, cursor pointer)
+  (info) 7 overlay .modal smoke disembunyikan untuk hit test
+  ✓ elemen di titik klik = tombol (hit test)
+  ✓ klik tombol membuka tab baru menuju PDF
+  ✓ PDF URL HTTP 200 application/pdf
+  ✓ PDF size = 30430 bytes (sesuai artifact)
+
+=== HASIL RUNTIME: 14 LULUS, 0 GAGAL ===
+SEMUA VERIFIKASI RUNTIME LULUS

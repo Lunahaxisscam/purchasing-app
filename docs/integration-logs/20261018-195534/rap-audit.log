@@ -1,0 +1,14 @@
+
+================ S3. RAP / PAGU / VARIANCE / MARGIN ================
+  "desc": "Dokumen cetak closing resmi merujuk \"(1 − 5)\" di baris GROSS MARGIN, tetapi penomoran baris adalah 1,2,3,4 + TOTAL — tidak ada baris 5.",
+  "proposal": "Ubah label jadi \"(1 − TOTAL)\" atau \"Revenue − Total HPP Riil\" (1 baris)."
+  TOTAL: LULUS=36 GAGAL=0
+
+================ S3. FIXTURE NEGATIF Infinity/NaN/locale ================
+
+================ S3. FIXTURE NEGATIF pagu & variance ================
+
+================ S3. KESELARASAN CSV variance ================
+
+================ HASIL AKHIR ================
+SEMUA HARNESS RAP-AUDIT LULUS
