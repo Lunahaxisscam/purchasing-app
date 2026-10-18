@@ -32,6 +32,10 @@ SUITES = [
     'flow-logic-test',
     'fase2-save-test',
     'approval-queue-test',
+    # t_7634fa92: aksi per-item Approval (Setujui / Sudah Order) sempat hilang
+    # saat panel tbody diganti drawer. Suite ini mengunci bahwa aksi itu
+    # benar-benar terjangkau dan memanggil callback dengan payload yang benar.
+    'approval-item-action-test',
     'purchase-flow-test',
     'pr-purchase-compact-test',
     'handover-compact-test',
