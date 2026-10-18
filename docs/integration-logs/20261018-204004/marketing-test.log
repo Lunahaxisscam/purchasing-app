@@ -1,0 +1,294 @@
+
+================ A. KONTRAK MURNI (LEAD → CRM/PROJECT) ================
+
+=== A. KONTRAK MURNI (MARKETING → CRM/PROJECT) ===
+  ok A1a ada taksonomi sumber lead
+  ok A1b semua sumber berupa string KAPITAL (enum, bukan teks bebas)
+  ok A1c tidak ada duplikat sumber
+  ok A1d sumber walk-in & referral ada (jalur tanpa kampanye tetap sah)
+  ok A1e sumber "instagram ads" TIDAK ada di taksonomi
+  ok A1f sumber di luar taksonomi ditolak
+  ok A1g pesan penolakan menyebut pilihan yang sah
+  ok A2a status lead memuat NEW..WON..LOST
+  ok A2b NEW → CONTACTED diizinkan
+  ok A2c NEW → WON DITOLAK (tidak boleh lompat)
+  ok A2d alasan penolakan berkode
+  ok A2e WON final (tidak ada transisi keluar)
+  ok A2f LOST final
+  ok A2g QUOTED → WON diizinkan
+  ok A2h DORMANT → WON DITOLAK (harus lewat CONTACTED)
+  ok A2i status asal tidak dikenal ditolak
+  ok A2j status tujuan tidak dikenal ditolak
+  ok A2k semua transisi menunjuk status yang ada
+  ok A2l setiap status punya definisi gerbang
+  ok A3a NEW dengan kontak valid → LULUS
+  ok A3b CONTACTED tanpa touchpoint → GAGAL
+  ok A3c kode GATE_TOUCHPOINT_MISSING
+  ok A3d CONTACTED dengan 1 touchpoint → LULUS
+  ok A3e QUALIFIED tanpa need_summary/basis → GAGAL
+  ok A3f kedua field dilaporkan kurang
+  ok A3g QUALIFIED lengkap → LULUS
+  ok A3h dasar kualifikasi di luar enum ditolak
+  ok A3i QUOTED dengan nilai 0 → GAGAL
+  ok A3j WON tanpa project_id → GAGAL
+  ok A3k WON lengkap → LULUS
+  ok A3l WON menandai atribusi dibekukan
+  ok A3m LOST tanpa kode alasan → GAGAL
+  ok A3n kode alasan di luar enum ditolak
+  ok A3o SURVEYED tanpa survey_ref → GAGAL (tanggal saja tidak cukup)
+  ok A3p DORMANT tanpa last_contact_at → GAGAL
+  ok A3q tanggal tidak ISO ditolak
+  ok A4a 0812… → 62812…
+  ok A4b +62 812 0000 0001 → 62812…
+  ok A4c 812… → 62812…
+  ok A4d nomor terlalu pendek ditolak
+  ok A4e kosong → null
+  ok A4f email dinormalisasi lowercase
+  ok A4g email tidak valid → null
+  ok A4h kunci dedupe memakai telepon lebih dulu
+  ok A4i tanpa telepon → email
+  ok A4j tanpa kontak → null (tidak mengarang kunci)
+  ok A4k nama tidak pernah dipakai sebagai kunci dedupe
+  ok A4l lead tanpa kontak ditolak
+  ok A4m telepon rusak tapi email sah → tetap LULUS (satu kanal cukup)
+  ok A5a action CREATE_CUSTOMER bila belum ada di CRM
+  ok A5b would_write SELALU false
+  ok A5c executed SELALU false
+  ok A5d target tabel = customers (milik CRM)
+  ok A5e target owner = crm
+  ok A5f idempotency_key deterministik
+  ok A5g project request TIDAK dieksekusi marketing
+  ok A5h project request hanya untuk WON
+  ok A5i LINK_EXISTING bila CRM sudah punya kunci itu
+  ok A5j BLOCKED bila tidak ada kunci dedupe
+  ok A5k alasan BLOCKED berkode
+  ok A5l BLOCKED bila lead tidak sah
+  ok A5m WON meminta project dibuat (oleh modul projects)
+  ok A5n tetapi tetap tidak menulis
+  ok A5o larangan tertulis: tidak menyentuh tabel purchasing
+  ok A5p larangan tertulis: tidak mengirim pesan
+  ok A5q larangan tertulis: tidak membeli iklan
+  ok A6a dua model atribusi
+  ok A6b kunci UTM standar lengkap
+  ok A6c dibekukan saat WON
+  ok A6d UTM dinormalisasi lowercase
+  ok A6e kunci UTM asing dibuang
+  ok A6f kunci UTM tak dikenal → peringatan (bukan lolos diam-diam)
+  ok A6g model atribusi tak dikenal ditolak
+  ok A6h lead tanpa kampanye tetap sah, tetapi diberi peringatan atribusi
+  ok A7a ada contoh dry-run
+  ok A7b semua contoh punya id unik
+  ok A7c semua contoh ber-intent jelas
+  ok A7d semua contoh berjudul
+  ok A7-valid-new-walkin contoh valid benar-benar lulus
+  ok A7-valid-qualified-referral contoh valid benar-benar lulus
+  ok A7-valid-won-full contoh valid benar-benar lulus
+  ok A7-valid-won-existing-customer contoh valid benar-benar lulus
+  ok A7-gate-qualified-no-need contoh gate benar-benar gagal karena gerbang bukti
+  ok A7-gate-contacted-no-touchpoint contoh gate benar-benar gagal karena gerbang bukti
+  ok A7-gate-quoted-zero-value contoh gate benar-benar gagal karena gerbang bukti
+  ok A7-gate-won-no-project contoh gate benar-benar gagal karena gerbang bukti
+  ok A7-invalid-source contoh invalid benar-benar bermasalah
+  ok A7-invalid-no-contact contoh invalid benar-benar bermasalah
+  ok A7-invalid-unknown-field contoh invalid benar-benar bermasalah
+  ok A7e semua nomor contoh yang valid berasal dari rentang fiktif 6281200000xxx
+  ok A7f semua email contoh valid memakai TLD .invalid (tidak bisa ada)
+  ok A7g sampleById tidak peka huruf besar
+  ok A7h sampleById tidak dikenal → null
+  ok A8a validateLead tidak mengubah input
+  ok A8b validasi contoh tidak mengubah fixture
+  ok A8c contractSummary deterministik
+  ok A8d contractSummary menandai dry_run & read_only
+  ok A8e contractSummary menyatakan nol tulis
+  ok A8f contractSummary menyatakan no_public_send
+  ok A8g contractSummary menyatakan no_paid_ads
+  ok A8h contractSummary menyatakan no_cron
+  ok A9a projects hanya boleh DIBACA marketing
+  ok A9-purchase_requests purchase_requests ditandai HARAM disentuh marketing
+  ok A9-pr_items pr_items ditandai HARAM disentuh marketing
+  ok A9-approval_steps approval_steps ditandai HARAM disentuh marketing
+  ok A9-receivings receivings ditandai HARAM disentuh marketing
+  ok A9-receiving_items receiving_items ditandai HARAM disentuh marketing
+  ok A9-handovers handovers ditandai HARAM disentuh marketing
+  ok A9-sales_invoices sales_invoices ditandai HARAM disentuh marketing
+  ok A9b customers dimiliki CRM, marketing hanya baca
+  ok A9c invarian purchasing ada 8 butir
+  ok A9d setiap invarian punya id & cara pembuktian
+  ok A9e invarian P1 menyebut larangan tulis purchasing
+  ok A10a jumlah sumber di ringkasan = katalog
+  ok A10b jumlah status di ringkasan = katalog
+  ok A10c jumlah gerbang = jumlah status
+  ok A10d jumlah tabel = katalog kepemilikan
+  ok A10e skema lead memuat customer_id & project_id
+  ok A10f skema lead tidak memuat field iklan berbayar
+  ok A10g skema campaign menandai is_paid_media sebagai boolean
+  ok A10h kontrak punya versi
+
+  HASIL A: 121 LULUS, 0 GAGAL
+
+================ B. OTORISASI, ROUTE GUARD & ENDPOINT /api/marketing-contract ================
+
+=== B. OTORISASI, ROUTE GUARD & ENDPOINT /api/marketing-contract ===
+  ok B1a tanpa kredensial & tanpa token pratinjau → 503
+  ok B1b kode AUTH_NOT_CONFIGURED
+  ok B1c tidak ada pembacaan data saat auth gagal
+  ok B1d token pratinjau salah → 401
+  ok B1e token pratinjau benar → 200
+  ok B1f via auth tercatat preview-token
+  ok B1g fallback ke SALES_INVOICE_PREVIEW_TOKEN berlaku
+  ok B2a tanpa sesi valid → 401
+  ok B2b kode INVALID_SESSION
+  ok B2c tidak ada pembacaan data
+  ok B2d non-admin → 403
+  ok B2e kode FORBIDDEN
+  ok B2f gagal membaca peran → 503 (fail closed)
+  ok B2g admin → 200
+  ok B2h peran tercatat
+  ok B2i via auth = jwt
+  ok B3-POSTa POST → 405
+  ok B3-POSTb POST tidak memanggil pembacaan data
+  ok B3-POSTc POST kode METHOD_NOT_ALLOWED
+  ok B3-POSTd POST menyebut hanya GET
+  ok B3-PUTa PUT → 405
+  ok B3-PUTb PUT tidak memanggil pembacaan data
+  ok B3-PUTc PUT kode METHOD_NOT_ALLOWED
+  ok B3-PUTd PUT menyebut hanya GET
+  ok B3-PATCHa PATCH → 405
+  ok B3-PATCHb PATCH tidak memanggil pembacaan data
+  ok B3-PATCHc PATCH kode METHOD_NOT_ALLOWED
+  ok B3-PATCHd PATCH menyebut hanya GET
+  ok B3-DELETEa DELETE → 405
+  ok B3-DELETEb DELETE tidak memanggil pembacaan data
+  ok B3-DELETEc DELETE kode METHOD_NOT_ALLOWED
+  ok B3-DELETEd DELETE menyebut hanya GET
+  ok B4a daftar aksi terlarang memuat kirim pesan
+  ok B4b daftar aksi terlarang memuat iklan berbayar
+  ok B4c daftar aksi terlarang memuat tulis/sinkron
+  ok B4d semua 34 aksi terlarang → 403 tanpa membaca data
+  ok B4e guard aksi berjalan sebelum auth (403, bukan 401/503)
+  ok B4f kode ACTION_FORBIDDEN
+  ok B4g respons menyatakan nol efek samping
+  ok B4h pesan menjelaskan lapisan ini hanya baca+rencana
+  ok B4i-ads flag ?ads=… → 403
+  ok B4i-send flag ?send=… → 403
+  ok B4i-publish flag ?publish=… → 403
+  ok B4i-sync flag ?sync=… → 403
+  ok B4j flag ?ads=0 bukan aksi (tetap 200)
+  ok B4k action yang tidak terlarang tidak diblokir
+  ok B5a summary → 200
+  ok B5b summary TIDAK memanggil pembacaan data
+  ok B5c kontrak_id benar
+  ok B5d dry_run true
+  ok B5e read_only true
+  ok B5f side_effects nol
+  ok B5g taksonomi sumber ikut
+  ok B5h daftar contoh ikut (id saja)
+  ok B5i rute & method diumumkan
+  ok B5j view tidak dikenal → 400
+  ok B5k kode BAD_VIEW
+  ok B6a readiness → 200
+  ok B6b memanggil pembacaan sekali
+  ok B6c data_ready false bila CRM/marketing belum ada
+  ok B6d status degraded (sebagian terbaca)
+  ok B6e leads dilaporkan tidak tersedia dengan kode error
+  ok B6f customers dilaporkan tidak tersedia
+  ok B6g projects dilaporkan tersedia (baca saja)
+  ok B6h lead_pipeline BLOCKED, bukan "0 lead"
+  ok B6i customer_handoff BLOCKED
+  ok B6j crm_table_ready false
+  ok B6k marketing_tables_ready false
+  ok B6l semua query SELECT
+  ok B6m side_effects nol di readiness
+  ok B6n tidak ada tabel di luar daftar baca yang di-query
+  ok B6-purchase_requests tabel purchase_requests TIDAK di-query
+  ok B6-pr_items tabel pr_items TIDAK di-query
+  ok B6-approval_steps tabel approval_steps TIDAK di-query
+  ok B6-receivings tabel receivings TIDAK di-query
+  ok B6-receiving_items tabel receiving_items TIDAK di-query
+  ok B6-handovers tabel handovers TIDAK di-query
+  ok B6-sales_invoices tabel sales_invoices TIDAK di-query
+  ok B6o semua tabel ada → data_ready true
+  ok B6p status ok
+  ok B6q tidak ada capability BLOCKED
+  ok B6r pembacaan gagal → 502
+  ok B6s kode PROBE_FAILED
+  ok B6t tetap menandai dry_run
+  ok B7a sample → 200
+  ok B7b sample tidak memanggil jaringan
+  ok B7c semua contoh divalidasi
+  ok B7d setiap hasil punya validasi & rencana
+  ok B7e TIDAK ADA contoh yang dieksekusi
+  ok B7f ringkasan menghitung lulus/gagal
+  ok B7g ringkasan menghitung rencana
+  ok B7h ada contoh yang gagal (bukti gerbang bekerja)
+  ok B7i ada contoh WON yang direncanakan (bukti handoff jalan)
+  ok B7j respons menyatakan contoh bukan data pelanggan
+  ok B7k side_effects nol
+  ok B7l sample tunggal → 1 hasil
+  ok B7m sample tunggal benar
+  ok B7n sample tidak ada → 404
+  ok B7o respons 404 menyebut contoh yang tersedia
+  ok B8a handler.js tidak memanggil .insert(
+  ok B8b handler.js tidak memanggil .update(
+  ok B8c handler.js tidak memanggil .delete(
+  ok B8d handler.js tidak memanggil .upsert(
+  ok B8e handler.js tidak memanggil .rpc(
+  ok B8f tidak ada import/pemanggilan transport pengiriman
+  ok B8g tidak ada pemanggilan API iklan berbayar/pixel/audience
+  ok B8h tidak ada penjadwalan/timer yang dipanggil
+  ok B8h2 penanda efek samping menegaskan cron tidak diubah
+  ok B8i kata-kata larangan memang HANYA ada di string (daftar guard & pesan)
+
+  HASIL B: 109 LULUS, 0 GAGAL
+STDERR: marketing probe error: Error: jaringan mati
+    at probe (file:///home/ubuntu/dev-workspaces/purchasing-final-package-20261018/scripts/marketing-test/api_test.mjs:311:32)
+    at handler (file:///home/ubuntu/dev-workspaces/purchasing-final-package-20261018/scripts/marketing/handler.js:140:24)
+    at async call (file:///home/ubuntu/dev-workspaces/purchasing-final-package-20261018/scripts/marketing-test/api_test.mjs:113:3)
+    at async file:///home/ubuntu/dev-workspaces/purchasing-final-package-20261018/scripts/marketing-test/api_test.mjs:314:15
+
+
+================ C. BUKTI TIDAK MENGGANGGU PURCHASING ================
+
+=== C. BUKTI KESELAMATAN (TIDAK MENGGANGGU PURCHASING) ===
+  ok C1a nol .insert/.update/.delete/.upsert/.rpc di 7 file lapisan
+  ok C1b probe.js hanya memakai .select(
+  ok C1c probe.js tidak memakai .limit(...) untuk menulis apa pun
+  ok C1d probe.js mendokumentasikan larangan operasi tulis
+  ok C2a nol transport pengiriman pesan di seluruh lapisan
+  ok C2b nol API iklan/pixel/audience di seluruh lapisan
+  ok C2c satu-satunya import jaringan ada di probe.js (supabase-js)
+  ok C2d file lain tidak mengimpor klien jaringan
+  ok C3a tidak ada vercel.json dengan crons
+  ok C3b tidak ada paket penjadwal di package.json
+  ok C3c nol timer/penjadwal yang dipanggil di lapisan
+  ok C3d package.json lapisan tidak menambah dependensi
+  ok C4a probe.js tidak menyebut satu pun tabel purchasing (termasuk komentar)
+  ok C4b daftar query probe = 6 tabel baca
+  ok C4c query probe hanya leads/touchpoints/campaigns/handoffs/customers/projects
+  ok C4d handler tidak melakukan query ke tabel purchasing
+  ok C4e handler tidak mengimpor probe selain dari probe.js
+  ok C5a nol modul purchasing/lib yang query tabel marketing
+  ok C5b nol endpoint lain yang query tabel marketing
+  (basis perbandingan kartu: 7a64e76619b18ea608a2523caf095bd645bdae83^)
+  ok C6a nol file migrations/ yang berubah atau ditambah
+  ok C6b DDL usulan hanya membuat tabel marketing + customers
+  ok C6c DDL usulan TIDAK mengubah tabel purchasing (nol ALTER pada tabel itu)
+  ok C6d DDL usulan ditandai BELUM DIJALANKAN
+  ok C6e dokumen menyatakan customer_id sales_invoices tetap nullable
+  ok C6f dokumen menyebut risiko PGRST205 (tabel belum ada)
+  ok C7a perubahan kode non-scripts hanya file milik kartu S6
+  ok C7b endpoint baru hanya marketing-contract.js
+  ok C7c nol file CORE/UI yang diubah (kartu ini kontrak saja)
+  ok C7d kontrak handover (actions.js/logic.js) tidak disentuh
+  ok C7e nol file modules/ yang diubah
+  ok C8a nol operasi tulis berkas di lapisan
+  ok C8b CLI hanya membaca berkas (readFileSync/existsSync)
+  ok C8c CLI mencetak pernyataan "tidak ada yang dikirim/ditulis"
+
+  HASIL C: 33 LULUS, 0 GAGAL
+
+================ HASIL TOTAL ================
+263 LULUS, 0 GAGAL
+SEMUA VERIFIKASI KONTRAK MARKETING → CRM/PROJECT LULUS
+Catatan: lapisan ini DRY-RUN. Tidak ada pesan terkirim, tidak ada iklan
+dibeli, tidak ada tabel ditulis, tidak ada migrasi dijalankan.

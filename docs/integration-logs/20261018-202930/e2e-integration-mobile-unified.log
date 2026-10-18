@@ -1,0 +1,24 @@
+=== MOBILE UNIFIED UI — hasil merge (t_35cd0354) ===
+
+  ✓ sidebar memuat menu RAP
+  ✓ sidebar memuat menu Perbandingan RAB/RAP/Aktual
+  ✓ sidebar memuat menu Stok Workshop
+  ✓ sidebar memuat menu Customer CRM
+  ✓ sidebar memuat menu lama (Pembelian + Serah Terima)
+  ✓ tidak ada overflow horizontal di 360px
+  ✓ tidak ada overflow horizontal di 390px
+  ✓ tidak ada overflow horizontal di 768px
+  ✓ tidak ada overflow horizontal di 1024px
+  ✓ drawer terbuka setelah tap ☰
+  ✓ drawer tampil penuh (left=0)
+  ✓ tombol tutup TIDAK ter-intercept scrim
+  ✓ drawer tidak inert saat terbuka
+  ✓ drawer memakai tinggi viewport (dvh)
+  ✓ drawer tertutup lagi setelah tap ✕
+  ✓ scrim hilang saat drawer tertutup (tidak ada scrim yatim)
+  ✓ body tidak terkunci scroll setelah tutup
+  ✓ kartu samping BOQ tetap terlihat (tidak off-screen)
+  ✓ kartu samping BOQ tidak dipaksa fixed
+  ✓ nol request tulis Supabase selama audit mobile
+
+=== HASIL MOBILE UNIFIED: 20 lulus, 0 gagal ===

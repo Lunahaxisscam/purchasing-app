@@ -1,0 +1,308 @@
+esbuild: 7 file dikompilasi ke dist/
+
+[1] Capability sumber data — "tidak ada" bukan "kosong"
+  ok   undefined -> unavailable (tabel/RLS belum ada)
+  ok   null -> unavailable
+  ok   string -> unavailable (bukan array)
+  ok   [] -> empty (tabel terbaca, kosong)
+  ok   [{name}] -> ready
+  ok   label "Belum ada customer terdata" ada
+
+[2] Baca baris customer — beberapa bentuk field
+  ok   3 baris bernama (tanpa nama dibuang)
+  ok   field alternatif customer_name/nama dibaca
+  ok   whatsapp -> phone
+  ok   alamat -> address
+  ok   sumber -> source
+  ok   id string
+  ok   baris host ditandai origin host
+  ok   non-array -> []
+  ok   id kosong dapat id turunan
+
+[3] Kontak & sumber — "Tidak tersedia", bukan string kosong
+  ok   kontak WA dipakai dulu
+  ok   kontak kosong -> null (BUKAN "")
+  ok   kontak email cadangan
+  ok   kontak null -> null (bukan "0")
+  ok   sumber kosong -> null (bukan "")
+  ok   sumber ada -> string
+  ok   label kontak kosong menyebut Tidak tersedia
+  ok   label kontak ada menyebut nomor
+  ok   customerKey stabil & aman DOM
+  ok   customerKey tanpa nama pakai id
+
+[4] Normalisasi nomor WA
+  ok   62 -> 0
+  ok   tanda baca dibuang
+  ok   spasi dibuang
+  ok   kosong -> ""
+  ok   null -> ""
+  ok   konsonisten: 62 & 0 hasil sama
+
+[5] Pencarian — termasuk lewat nomor WA
+  ok   cari nama (case-insensitive)
+  ok   cari email
+  ok   cari alamat
+  ok   cari nomor format pendek 0812-3456
+  ok   cari nomor format 62 menemukan baris 0
+  ok   cari < 3 digit tidak cocok lewat nomor
+  ok   cari >= 3 digit cocok lewat nomor 628
+  ok   cari nomor format 62 ditemukan walau tak sama di teks
+  ok   cari format 0 & 62 hasil sama
+  ok   cari tanpa hasil -> []
+  ok   filter sumber
+  ok   filter sumber all -> semua
+  ok   query kosong -> semua
+  ok   sourceOptions unik & urut
+
+[6] Ringkasan — hitungan jujur
+  ok   total = 4
+  ok   punya kontak = 2
+  ok   tanpa kontak = 2 (tidak disembunyikan)
+  ok   jumlah sumber = 1
+  ok   punya alamat = 0
+  ok   ringkasan array kosong = semua 0
+
+[7] Validasi form
+  ok   nama kosong -> error
+  ok   nama 1 karakter -> error
+  ok   nama valid -> ok
+  ok   telepon terlalu pendek -> error
+  ok   telepon panjang -> ok
+  ok   telepon dengan tanda baca -> ok
+  ok   email salah format -> error
+  ok   email benar -> ok
+  ok   nama duplikat -> WARNING (bukan error/blokir)
+  ok   nama duplikat tetap lolos submit
+  ok   duplikat WA terdeteksi
+  ok   edit baris sendiri bukan duplikat
+
+[8] Relasi invoice — "tidak dikirim", BUKAN 0
+  ok   counts dikirim -> angka
+  ok   counts 0 (benar-benar 0 rujukan)
+  ok   customer tidak ada di counts -> null (bukan 0)
+  ok   counts tidak dikirim -> null (BUKAN 0)
+  ok   counts bukan object -> null
+  ok   nilai non-angka -> null
+  ok   teks relasi: 3 invoice
+  ok   teks relasi: tidak dikirim
+  ok   teks relasi: 0 rujukan tetap 0 (dikirim)
+
+[9] Gabung host + draf
+  ok   2 baris
+  ok   host tetap origin host
+  ok   draf ditandai origin draft
+  ok   draf tanpa id dapat id turunan
+  ok   label draf dipakai
+
+[10] Ekspor CSV
+  ok   header + 2 baris
+  ok   header memuat Nama/Kontak WA/Email/Alamat
+  ok   kutip ganda di-escape
+  ok   baris draft ditandai draf memori halaman
+  ok   baris host ditandai data yang dikirim host
+  ok   field kosong tetap kolom
+  ok   CSV tidak menambah tanda kutip liar
+
+LULUS: 84 lulus, 0 gagal
+
+[A] Host tidak mengirim data -> panel kemampuan, bukan daftar kosong
+  ok   root tampil
+  ok   capability = unavailable
+  ok   panel kemampuan tampil
+  ok   judul menyebut tabel belum tersedia
+  ok   teks menyebut tidak ada customer contoh
+  ok   tidak ada tabel customer
+  ok   empty state menyebut sumber belum tersedia
+  ok   KPI total = 0
+  ok   KPI relasi = "Tidak dikirim" (BUKAN 0)
+  ok   tombol CSV disabled
+
+[B] Host mengirim [] -> "Belum ada customer terdata"
+  ok   capability = empty
+  ok   judul "Belum ada customer terdata"
+  ok   empty state memakai label yang sama
+  ok   tidak ada tabel
+
+[C] Host mengirim data -> tabel, kontak kosong = "Tidak tersedia"
+  ok   capability = ready
+  ok   tidak ada panel capability
+  ok   tabel tampil
+  ok   KPI total = 3
+  ok   KPI punya kontak = 1
+  ok   KPI tanpa kontak = 2
+  ok   baris host tampil
+  ok   baris host origin=host
+  ok   kontak host tampil
+  ok   baris tanpa kontak menulis "Tidak tersedia"
+  ok   baris tanpa kontak TIDAK kosong polos
+  ok   sumber kosong juga "Tidak tersedia"
+  ok   relasi invoice "tidak dikirim" (BUKAN 0)
+  ok   relasi tidak pernah memuat angka 0 untuk c1
+  ok   baris host: TIDAK ada tombol ubah
+  ok   baris host: TIDAK ada tombol hapus
+  ok   baris host bertanda "Baca saja"
+
+[D] Host mengirim invoiceCounts -> relasi tampil
+  ok   KPI relasi = "Dikirim host"
+  ok   relasi c1 = "Dirujuk di 3 invoice"
+  ok   relasi c2 = 0 rujukan tetap ditulis 0 (dikirim)
+  ok   relasi c3 tidak ada di counts -> tidak dikirim
+
+[E] Form tambah -> draft memori, diberi label "Draf halaman"
+  ok   form muncul
+  ok   form bertanda "Draf halaman"
+  ok   error nama wajib tampil
+  ok   belum ada baris baru
+  ok   error telepon terlalu pendek
+  ok   draft muncul di tabel
+  ok   draft bertanda "Draf halaman"
+  ok   draft origin=draft
+  ok   notice menyebut draf & memori halaman
+  ok   form tertutup setelah submit
+  ok   KPI total jadi 4
+  ok   draft terhapus dari memori
+  ok   KPI total kembali 3
+  ok   peringatan duplikat muncul
+
+[F] Pencarian & filter
+  ok   cari "budi" -> 1 baris
+  ok   cari lewat nomor 62 menemukan baris
+  ok   cari format 0 & 62 hasil sama
+  ok   pencarian tanpa hasil -> empty state
+
+[G] Drawer detail
+  ok   drawer terbuka
+  ok   drawer menampilkan nama
+  ok   drawer menampilkan relasi
+  ok   drawer baris tanpa kontak menulis "Tidak tersedia"
+  ok   drawer tertutup
+
+[H] Tidak ada penulisan DB / localStorage
+  ok   view tidak memakai localStorage (kode)
+  ok   logic tidak memakai localStorage (kode)
+  ok   view tidak memanggil fetch
+  ok   view tidak memanggil supabase
+  ok   view tidak membuat tabel/insert/update
+  ok   view tidak membuat URL api
+  ok   logic tidak memanggil fetch/supabase
+  ok   selector tidak memanggil fetch/supabase
+  ok   render + interaksi: 0 panggilan fetch
+  ok   render + interaksi: 0 panggilan XHR
+  ok   render + interaksi: 0 akses localStorage
+
+[I] Unduh CSV
+  ok   nama file csv ditentukan
+  ok   tombol CSV aktif saat ada data
+
+[J] Selector reusable — contoh di halaman
+  ok   contoh selector tampil
+  ok   selector disabled (hanya contoh)
+  ok   selector berisi opsi dari data asli
+  ok   tidak ada opsi "Pilih customer…" tanpa data
+
+LULUS: 75 lulus, 0 gagal
+  ok   blok CSS modul ada di styles/globals.css
+
+[1] Lebar — halaman tidak melebar melewati viewport
+  ok   .crm-root memakai flex column (mengikuti lebar induk)
+  ok   .crm-root tidak punya width tetap (tidak memaksa lebar)
+  ok   .crm-root tidak punya min-width (tidak melebar di ponsel)
+  ok   .crm-root tidak ada position fixed/absolute (mengalir normal)
+  ok   .crm-toolbar flex-wrap: wrap (tumpuk di ponsel)
+  ok   .crm-intro flex-wrap: wrap (judul & tombol tumpuk)
+  ok   .crm-intro-copy dibatasi max-width (tidak melebar)
+
+[2] Tabel — yang scroll pembungkusnya, bukan halaman
+  ok   .crm-table-wrap overflow-x: auto (tabel scroll sendiri)
+  ok   .crm-table width: 100% (mengikuti pembungkus)
+  ok   .crm-table tidak punya width piksel tetap / min-width
+  ok   header tabel white-space: nowrap (tidak berantakan saat scroll)
+
+[3] KPI — 1 kolom ponsel, 2 tablet, 4 desktop
+  ok   KPI dasar 1 kolom (ponsel 360/390)
+  ok   ada breakpoint 700px (tablet 768)
+  ok   tablet: KPI 2 kolom
+  ok   tablet: form 2 kolom
+  ok   ada breakpoint 1100px (desktop 1440)
+  ok   desktop: KPI 4 kolom
+  ok   grid memakai minmax(0, 1fr) — kolom tidak melebar karena isi panjang
+
+[4] Touch target — minimal 32px tombol, 44px baris
+  ok   tombol utama min-height 32px
+  ok   tombol pakai cursor: pointer
+  ok   tombol mini min-height 32px (target sentuh tetap nyaman)
+  ok   input selector min-height 36px
+  ok   baris tabel padding 9px atas/bawah (baris ~44px)
+  ok   baris tabel cursor: pointer (seluruh baris bisa diklik di ponsel)
+  ok   input & select mengisi lebar wadah (tidak memotong teks)
+
+[5] Drawer — panel penuh di bawah tabel, tetap terbaca
+  ok   drawer memakai flex column (mengikuti lebar induk)
+  ok   drawer tidak position fixed (tidak menutupi layar ponsel)
+  ok   drawer tidak punya width/min-width piksel
+  ok   drawer row flex-wrap: wrap (label & nilai tumpuk di 360)
+  ok   drawer nilai text-align: right (selaras dengan tabel)
+
+[6] Verifikasi render nyata di 360/390/768/1440
+  ok   360px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   360px: crm-root tampil
+  ok   360px: crm-table tampil
+  ok   360px: tidak ada NaN/undefined di layar
+  ok   360px: kontak kosong ditulis "Tidak tersedia"
+  ok   360px: relasi invoice ditulis "tidak dikirim" (BUKAN 0)
+  ok   360px: tidak ada "Dirujuk di 0" palsu
+  ok   360px: 3 baris customer tampil
+  ok   360px: 4 kartu KPI tampil
+  ok   360px: drawer terbuka & berisi
+  ok   360px: form draf bisa dibuka di lebar ini
+  ok   360px: semua input form ter-render
+  ok   360px: input form tidak memaksa lebar inline
+  ok   390px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   390px: crm-root tampil
+  ok   390px: crm-table tampil
+  ok   390px: tidak ada NaN/undefined di layar
+  ok   390px: kontak kosong ditulis "Tidak tersedia"
+  ok   390px: relasi invoice ditulis "tidak dikirim" (BUKAN 0)
+  ok   390px: tidak ada "Dirujuk di 0" palsu
+  ok   390px: 3 baris customer tampil
+  ok   390px: 4 kartu KPI tampil
+  ok   390px: drawer terbuka & berisi
+  ok   390px: form draf bisa dibuka di lebar ini
+  ok   390px: semua input form ter-render
+  ok   390px: input form tidak memaksa lebar inline
+  ok   768px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   768px: crm-root tampil
+  ok   768px: crm-table tampil
+  ok   768px: tidak ada NaN/undefined di layar
+  ok   768px: kontak kosong ditulis "Tidak tersedia"
+  ok   768px: relasi invoice ditulis "tidak dikirim" (BUKAN 0)
+  ok   768px: tidak ada "Dirujuk di 0" palsu
+  ok   768px: 3 baris customer tampil
+  ok   768px: 4 kartu KPI tampil
+  ok   768px: drawer terbuka & berisi
+  ok   768px: form draf bisa dibuka di lebar ini
+  ok   768px: semua input form ter-render
+  ok   768px: input form tidak memaksa lebar inline
+  ok   1440px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   1440px: crm-root tampil
+  ok   1440px: crm-table tampil
+  ok   1440px: tidak ada NaN/undefined di layar
+  ok   1440px: kontak kosong ditulis "Tidak tersedia"
+  ok   1440px: relasi invoice ditulis "tidak dikirim" (BUKAN 0)
+  ok   1440px: tidak ada "Dirujuk di 0" palsu
+  ok   1440px: 3 baris customer tampil
+  ok   1440px: 4 kartu KPI tampil
+  ok   1440px: drawer terbuka & berisi
+  ok   1440px: form draf bisa dibuka di lebar ini
+  ok   1440px: semua input form ter-render
+  ok   1440px: input form tidak memaksa lebar inline
+  ok   360px: nama panjang tidak jadi NaN/undefined
+  ok   360px: baris tetap satu (bukan pecah jadi banyak elemen)
+  ok   360px: catatan panjang tetap di dalam modul
+  ok   360px: catatan panjang tidak memecah baris
+  ok   360px: kontak WA panjang tetap tampil apa adanya
+
+LULUS: 88 lulus, 0 gagal
+Sandbox: /tmp/crm-verify
+

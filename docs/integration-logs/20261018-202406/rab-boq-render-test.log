@@ -1,0 +1,76 @@
+ok A1 4 pill template ter-render
+  ok A2 urutan label Plain/Preliminary/Interior/Civil
+  ok A3-Plain label teks JSX ada
+  ok A4-Plain kontras teks>=3 (non-aktif)
+  ok A3-Preliminary label teks JSX ada
+  ok A4-Preliminary kontras teks>=3 (non-aktif)
+  ok A3-Interior label teks JSX ada
+  ok A4-Interior kontras teks>=3 (non-aktif)
+  ok A3-Civil label teks JSX ada
+  ok A4-Civil kontras teks>=3 (non-aktif)
+  ok A5 Preliminary default aktif
+  ok A6 pill aktif kontras tinggi
+  ok A7 klik Civil/Interior memindah state aktif
+  ok B1 input Project Reff No readonly
+  ok B2 belum terikat: reff kosong (bukan PRJ-001 dummy)
+  ok B3 tombol Pilih master project ada
+  ok B4 picker memuat semua 4 master project
+  ok B5 kode live 83/99/101/102 tampil
+  ok B6 computed ref PRJ-99 (bukan PRJ-001/max+1)
+  ok B7 nama proyek terisi dari master
+  ok B8 badge Master 99 terlihat
+  ok B9 ganti master 83 -> computed PRJ-83
+  ok B10 lepas tautan -> ref kosong (tidak fallback dummy)
+  ok B11 filter query "mori" -> 1 baris
+  ok B12 pilih dari hasil filter -> PRJ-102
+  ok C1 modal buka
+  ok C2 modal: input kode manual (authoritative)
+  ok C3 modal: TIDAK ada placeholder "otomatis" (no max+1)
+  ok C4 submit disabled saat kode kosong
+  ok C5 kode duplikat 99 -> submit disabled
+  ok C6 BOQ terikat master existing -> guard dobel aktif
+  ok C7 kode baru 103 -> submit enabled
+  ok C8 confirm dipanggil & insert 1x
+  ok C9 insert tabel projects
+  ok C10 insert payload hanya kode/code/name/NOT_START
+  ok C11 payload TANPA angka BOQ/revenue
+  ok D1 import tidak memaksa PRJ-001 (str(data.projectReffNo) tanpa fallback dummy)
+  ok D2 reset tidak menaikkan projectReffNo (increment hanya boqReff)
+  ok D3 effect guard computed ref ada
+  ok E1 pages/index.js guard role admin pada rab_boq
+  ok E2 fallback khusus administrator tetap
+  ok E3 section Admin Suite adminOnly tetap
+  ok E4 rab_boq item PERTAMA di Admin Suite
+  ok E5 registry adminOnly tetap
+  ok E6 ModuleView bebas rab_boq
+  ok T1 toolbar tinggal 1 tombol
+  ok T2 tombol toolbar = Export PDF
+  ok T3 tombol hapus tidak ada (Fill Sample/Import/Draft/template/CSV)
+  ok T4 backup JSON tetap ada di luar toolbar (data-loss guard)
+  ok T5 pulihkan JSON tetap ada
+  ok G1 status awal: Belum dikirim (bukan palsu terkirim)
+  ok G2 blok status terpisah dari toolbar export
+  ok G3 aksi eksplisit Tandai terkirim ada
+  ok G4 setelah tandai: badge Terkirim
+  ok G5 meta memuat tanggal + versi
+  ok G6 aksi Catat keputusan tampil saat Terkirim
+  ok G7 form keputusan: pilihan Disetujui/Ditolak
+  ok G8 input disetujui-oleh (eksternal) ada
+  ok G9 catatan/alasan ada
+  ok G10 keputusan Ditolak tercatat
+  ok G11 alasan penolakan tampil
+  ok G12 default keputusan = Disetujui
+  ok G13 teks versi terkunci + tanpa auto PR/Revenue
+  ok G14 sentVersions mencatat 2 riwayat kirim
+  ok G15 persistensi jujur: TIDAK tersimpan di server
+  FAIL F1 heading sidebar font-weight >= 800 | expected=true actual=false
+  FAIL F2 heading sidebar pakai var(--ivory) (kontras tinggi) | expected=true actual=false
+  ok F3 pill rule punya color HEX eksplisit (tahan global button white)
+  ok F4 pill hover rule ada
+  ok F5 pill focus-visible rule ada
+RENDER_TOTAL 70, FAIL 2
+STDERR: RENDFAIL F1 heading sidebar font-weight >= 800 | F2 heading sidebar pakai var(--ivory) (kontras tinggi)
+
+=== HASIL scripts/rab-boq-render-test ===
+[FAIL] NODE: sandbox render lulus semua cek JS — expected=True actual=False
+1/2 cek runner lulus

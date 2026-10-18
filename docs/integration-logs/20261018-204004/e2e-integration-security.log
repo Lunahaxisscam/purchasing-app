@@ -1,0 +1,25 @@
+=== SECURITY HTTP — endpoint setelah merge (t_35cd0354) ===
+
+--- A. /api/sales-invoices tanpa sesi ---
+  ✗ A: GET tanpa sesi = 401 (bukan 200/400)  status=503 {"ok":false,"error":"Otorisasi belum dikonfigurasi: kredensial Supabase tidak tersedia dan SALES_INVOICE_PREVIEW_TOKEN belum diset. Endpoint menolak semua permintaan (fail closed).","code":"AUTH_NOT_CONFIGURED"}
+  ✓ A: GET body tidak membocorkan data invoice
+  ✗ A: POST tanpa sesi = 401 (bukan 200/400)  status=503 {"ok":false,"error":"Otorisasi belum dikonfigurasi: kredensial Supabase tidak tersedia dan SALES_INVOICE_PREVIEW_TOKEN belum diset. Endpoint menolak semua permintaan (fail closed).","code":"AUTH_NOT_CONFIGURED"}
+  ✓ A: POST body tidak membocorkan data invoice
+  ✗ A: PATCH tanpa sesi = 401 (bukan 200/400)  status=503 {"ok":false,"error":"Otorisasi belum dikonfigurasi: kredensial Supabase tidak tersedia dan SALES_INVOICE_PREVIEW_TOKEN belum diset. Endpoint menolak semua permintaan (fail closed).","code":"AUTH_NOT_CONFIGURED"}
+  ✓ A: PATCH body tidak membocorkan data invoice
+
+--- B. token pratinjau salah ---
+  ✗ B: token pratinjau salah = 401  status=503 {"ok":false,"error":"Otorisasi belum dikonfigurasi: kredensial Supabase tidak tersedia dan SALES_INVOICE_PREVIEW_TOKEN belum diset. Endpoint menolak semua permintaan (fail closed).","code":"AUTH_NOT_CONFIGURED"}
+
+--- C. endpoint baru S5/S6 juga menolak tanpa sesi ---
+  ✗ C: GET /api/reminders tanpa sesi = 401  status=503 {"ok":false,"error":"Otorisasi belum dikonfigurasi: kredensial Supabase tidak tersedia dan SALES_INVOICE_PREVIEW_TOKEN belum diset. Endpoint menolak semua permintaan (fail closed).","code":"AUTH_NOT_CONFIGURED"}
+  ✗ C: GET /api/marketing-contract tanpa sesi = 401  status=503 {"ok":false,"error":"Otorisasi belum dikonfigurasi: kredensial Supabase tidak tersedia dan SALES_INVOICE_PREVIEW_TOKEN belum diset. Endpoint menolak semua permintaan (fail closed).","code":"AUTH_NOT_CONFIGURED"}
+  ✓ C: POST /api/reminders = 405 (hanya GET)
+
+--- D. jalur 403 non-admin ada di kode yang disajikan ---
+  ✓ D: auth.js punya jalur 403 FORBIDDEN untuk peran non-admin
+  ✓ D: setiap method lewat verifyAdmin SEBELUM membaca/menulis
+  ✓ D: tidak ada lagi penulisan file JSON tanpa otorisasi di route
+
+=== HASIL SECURITY HTTP: 7 lulus, 6 gagal ===
+GAGAL: A: GET tanpa sesi = 401 (bukan 200/400) | A: POST tanpa sesi = 401 (bukan 200/400) | A: PATCH tanpa sesi = 401 (bukan 200/400) | B: token pratinjau salah = 401 | C: GET /api/reminders tanpa sesi = 401 | C: GET /api/marketing-contract tanpa sesi = 401

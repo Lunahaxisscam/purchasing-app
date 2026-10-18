@@ -1,0 +1,54 @@
+==============================================================
+REGRESI DESIGN TOKENS UI OLIVE/SAGE (t_0b304478)
+==============================================================
+
+A. Token palet olive/sage/ivory
+  ✓ token --olive-800 terdefinisi
+  ✓ token --olive-600 terdefinisi
+  ✓ token --olive-400 terdefinisi
+  ✓ token --ivory terdefinisi
+  ✓ token --sand terdefinisi
+  ✓ token --text-main terdefinisi
+  ✓ token --border-light terdefinisi
+
+B. Token semantik + tint (no color-only status)
+  ✓ token --ok terdefinisi
+  ✓ token --ok-tint terdefinisi
+  ✓ token --warn terdefinisi
+  ✓ token --warn-tint terdefinisi
+  ✓ token --danger terdefinisi
+  ✓ token --danger-tint terdefinisi
+
+C. Warna lama tidak bocor sebagai NILAI warna
+  ✓ Tech Blue #1a73e8 tidak dipakai sebagai nilai
+  ✓ Forest lama #173d36 tidak dipakai sebagai nilai
+  ✓ Forest lama #102b27 tidak dipakai sebagai nilai
+  ✓ Warm sand lama #d6c29f tidak dipakai sebagai nilai
+  ✓ Neon admin #f3c969 tidak dipakai sebagai nilai
+  ✗ Tidak ada font-weight ganjil (550/650/750/850) (ditemukan ['750', '750'])
+
+D. Utilitas finansial & a11y
+  ✓ tabular-nums (angka rupiah)
+  ✓ :focus-visible (fokus keyboard)
+  ✓ touch target 44px di mobile
+  ✓ fade hint filter (filter-tabs-wrapper)
+  ✓ label grup sidebar (.nav-group-label)
+
+E. Label grup navigasi di lib/constants.js (nama menu tak berubah)
+  ✓ label: 'Operasional'
+  ✓ label: 'Pengadaan'
+  ✓ label: 'Admin Suite'
+  ✓ grup 'Arsip' sudah tidak ada (digabung ke Projects)
+  ✓ nama menu tetap: ['tukang_upah', 'Upah Tukang']
+  ✓ nama menu tetap: ['planning', 'Budgeting']
+  ✓ nama menu tetap: ['approvals', 'Approval']
+  ✓ menu receivings kini berlabel 'Pembelian'
+
+F. Runtime: CSS yang disajikan preview memuat token olive
+  ✓ served CSS memuat --olive-600
+  ✓ served CSS memuat tabular-nums
+  ✓ served CSS BUKAN bundle lama (tanpa forest #102b27 sbg nilai)
+
+==============================================================
+HASIL: 34 LULUS, 1 GAGAL, 0 SKIP
+==============================================================

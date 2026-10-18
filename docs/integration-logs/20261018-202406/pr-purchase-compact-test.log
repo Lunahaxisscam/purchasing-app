@@ -1,0 +1,210 @@
+SWC: 78 file dikompilasi ke dist/
+=== SAVE BOUNDARY: modules/requests/save.js (kontrak t_cde1b8ad) ===
+
+B1. Payload pr_items tetap memuat vendor_id & supplier_category
+  ✓ pr_items diinsert
+  ✓ 2 baris item tersimpan
+  ✓ kolom vendor_id ADA di setiap baris (tidak dihapus dari payload)
+  ✓ kolom supplier_category ADA di setiap baris
+  ✓ item baru tanpa toko → vendor_id null (bukan string kosong / bukan kolom hilang)
+  ✓ item lama: vendor_id tersimpan apa adanya
+  ✓ item lama: supplier_category tersimpan apa adanya
+  ✓ harga integer rupiah (150000)
+  ✓ PR berhasil dibuat
+
+B2. Gate vendor eligible tetap berlaku (service boundary tidak dilonggarkan)
+  ✓ vendor tidak eligible DITOLAK
+  ✓ pesan menyebut kategori material (HPL & Edging)
+  ✓ TIDAK ada tulisan ke DB saat ditolak
+
+B3. purchase_requests.notes tetap ditulis (UI catatan hanya dilipat)
+  ✓ catatan terisi tersimpan apa adanya
+  ✓ title & priority tetap tersimpan
+  ✓ catatan kosong → fallback judul PR (perilaku lama dipertahankan)
+
+B4. Edit PR: vendor tersimpan tidak dihapus diam-diam
+  ✓ pr_items diupdate (bukan dihapus+insert)
+  ✓ vendor_id lama tetap dikirim di update
+  ✓ supplier_category lama tetap dikirim
+  ✓ tidak ada DELETE pr_items (vendor tidak dibuang)
+  ✓ PR diperbarui
+
+=== HASIL SAVE: 20 LULUS, 0 GAGAL ===
+KONTRAK SIMPAN PR UTUH (t_cde1b8ad)
+=== RENDER: PR & Purchase dipadatkan (t_cde1b8ad) ===
+
+A1. PR form: field utama hanya Project · Judul · Prioritas · Material · Qty · Estimasi
+  ✓ label Project ada
+  ✓ label "Judul Kebutuhan" ada
+  ✓ label Prioritas ada
+  ✓ label Qty ada
+  ✓ tidak ada kontrol Vendor yang TERLIHAT sebelum ada item
+  ✓ label "Kategori" yang terlihat HANYA filter katalog material (bukan rencana beli)
+  ✓ penjelasan "toko/vendor aktual dipilih di modul Purchase" tampil
+
+A2. Kontrol rencana toko MASIH ADA tetapi TERLIPAT (bukan dihapus)
+  ✓ ada <details class="pr-item-toko"> per item
+  ✓ lipatan rencana toko default TERTUTUP
+  ✓ select vendor tersedia di dalam lipatan (data lama bisa dikoreksi)
+  ✓ vendor tersimpan terpilih (v1)
+  ✓ summary menyebut toko tersimpan (TB Sumber Jaya)
+  ✓ keterangan "toko aktual dicatat di Purchase" ada di lipatan
+  ✓ catatan "rencana toko dari data lama — nilainya dipertahankan" tampil
+
+A3. Catatan: dilipat, default tertutup bila kosong, terbuka bila ada isi
+  ✓ PR baru: lipatan catatan ada
+  ✓ PR baru: catatan default TERTUTUP
+  ✓ PR baru: textarea catatan tetap ada di DOM (tidak dihapus)
+  ✓ label menyatakan opsional
+  ✓ PR lama: lipatan catatan TERBUKA otomatis
+  ✓ PR lama: nilai catatan ter-prefill
+  ✓ summary memberi tanda "ada catatan tersimpan"
+
+A4. Estimasi & Total tetap hidup (regresi estimator tidak rusak)
+  ✓ estimasi otomatis terisi dari acuan master (120.000)
+  ✓ Total Estimasi terhitung (120.000)
+  ✓ input Estimasi Harga TERLIHAT tanpa buka lipatan
+  ✓ tombol ↺ Pakai acuan tetap tersedia & terlihat
+
+A5. Tabel item di kontainer ber-overflow sendiri (anti body overflow)
+  ✓ kontainer item punya overflowX:auto (tabel tidak mendorong lebar body)
+  ✓ kontainer item juga punya overflowY:auto (tinggi terbatas)
+  ✓ Total Estimasi DI LUAR kontainer scroll (selalu terlihat)
+  ✓ Total Estimasi bukan tabel lebar (baris flex → tidak menyeret lebar dialog)
+  ✓ CSS body tidak memakai lebar paksa >100%
+  ✓ tabel item memakai kelas pr-items-table
+  ✓ form menyertakan style ter-scope penawar min-width global
+  ✓ dialog Purchase juga menetralkan min-width tabel item
+
+C1. Daftar PR: kolom vendor berlabel jujur "Rencana Toko"
+  ✓ header kolom = "Rencana Toko" (bukan klaim supplier aktual)
+  ✓ header TIDAK lagi memakai label "Vendor" polos
+  ✓ title header menyatakan toko AKTUAL ada di Purchase
+
+C2. Daftar PR: subtotal & Total Estimasi tetap tampil (tidak rusak)
+  ✓ subtotal snapshot 4 × 120.000 = 480.000 tampil
+  ✓ baris Total Estimasi tampil
+  ✓ kartu mobile tetap menampilkan total
+
+D1. Tabel "Siap Dibeli" dipadatkan (≤6 kolom) tanpa kehilangan informasi
+  ✓ kolom ≤6 (checkbox + 5 data)
+  ✓ kolom Barang ada
+  ✓ kolom Qty ada (satuan digabung)
+  ✓ kolom Proyek ada (No. PR digabung)
+  ✓ kolom Toko / Vendor ada
+  ✓ kolom Estimasi ada
+  ✓ kolom Satuan terpisah TIDAK ada lagi
+  ✓ kolom No. PR terpisah TIDAK ada lagi
+  ✓ kode material tetap tampil di sel Barang
+  ✓ satuan tetap tampil (Lembar)
+  ✓ No. PR tetap tampil di sel Proyek
+  ✓ 3 barang siap dibeli tampil
+
+D2. Tabel "Riwayat" dipadatkan (≤6 kolom); Material & Biaya Lain tidak hilang
+  ✓ kolom ≤6
+  ✓ kolom Tanggal ada
+  ✓ kolom No. Nota ada
+  ✓ kolom Toko / Vendor ada
+  ✓ kolom Total Nota ada
+  ✓ kolom Bukti ada
+  ✓ kolom Aksi ada
+  ✓ kolom Material terpisah TIDAK ada lagi
+  ✓ kolom Biaya Lain terpisah TIDAK ada lagi
+  ✓ total nota tampil (Rp 567.000)
+  ✓ rincian Material tetap terbaca (Rp 542.000)
+  ✓ rincian Biaya lain tetap terbaca (Rp 25.000)
+  ✓ label "Material" tetap ada di rincian baris
+  ✓ rincian penuh tetap punya baris Diskon
+  ✓ rincian penuh tetap punya Total Nota
+
+D3. TIDAK ada status nota / kendala di UI utama
+  ✓ Siap Dibeli tidak memuat "Retur"
+  ✓ Siap Dibeli tidak memuat "Refund"
+  ✓ Siap Dibeli tidak memuat "Rusak"
+  ✓ Siap Dibeli tidak memuat "Status Nota"
+  ✓ Siap Dibeli tidak memuat "Kendala"
+  ✓ Siap Dibeli tidak memuat "Masuk Stok Gudang"
+  ✓ Siap Dibeli tidak memuat "Serah ke Tukang"
+  ✓ Riwayat tidak memuat "Retur"
+  ✓ Riwayat tidak memuat "Refund"
+  ✓ Riwayat tidak memuat "Rusak"
+  ✓ Riwayat tidak memuat "Status Nota"
+  ✓ Riwayat tidak memuat "Kendala"
+  ✓ nota berstatus RETUR tetap tampil sebagai nota (data tidak disembunyikan/dihapus)
+  ✓ tidak ada dropdown status nota
+  ✓ halaman Purchase tidak menulis/menghapus status atau kendala di DB
+
+D4. Tombol "Proses Pembelian" footer hanya saat ada pilihan
+  ✓ tanpa pilihan: footer tidak dirender (tidak ada tombol primer kembar yang mati)
+  ✓ tombol toolbar tetap ada & nonaktif
+  ✓ setelah centang: footer muncul
+  ✓ footer menyebut jumlah dipilih
+  ✓ batal centang: footer hilang lagi
+
+D5. Alur baca/simpan tetap utuh: centang → dialog → simpan → riwayat
+  ✓ dialog Proses Pembelian terbuka
+  ✓ 2 baris item di dialog
+  ✓ qty default dari PR (4)
+  ✓ harga riil kosong (bukan estimasi)
+  ✓ total nota live = 542.000
+  ✓ header nota tersimpan dengan vendor
+  ✓ no. nota tersimpan
+  ✓ 2 baris barang tersimpan
+  ✓ dialog tertutup & pindah ke tab Riwayat
+
+E1. Dialog: urutan baca identitas nota → barang → TOTAL → bukti → catatan
+  ✓ semua bagian ada
+  ✓ urutan: identitas nota (vendor, nota, tanggal) sebelum total
+  ✓ urutan: total sebelum bukti
+  ✓ urutan: bukti sebelum catatan
+  ✓ tanggal & nota berada di baris grid yang sama dgn vendor (satu baris identitas)
+
+E2. Total Nota Riil tampil SEBELUM rincian biaya (angka utama di atas)
+  ✓ Total Nota Riil muncul sebelum baris Material
+  ✓ label "Total Nota Riil" tampil
+  ✓ angka total memakai font besar (kelas purchase-totals-grand)
+
+E3. Tambahan & potongan dilipat; rumus total tidak berubah
+  ✓ lipatan tambahan/potongan ada
+  ✓ default TERTUTUP saat kosong
+  ✓ input ongkir & diskon tetap ada di DOM (tidak dihapus)
+  ✓ total tanpa tambahan = 400.000 (4×100.000)
+  ✓ rumus: +ongkir → 425.000
+  ✓ rumus: −diskon → 420.000
+  ✓ baris rincian biaya muncul setelah diisi
+  ✓ lipatan otomatis TERBUKA saat ada nilai (nilai tidak tersembunyi)
+
+E4. data-testid lama tetap ada (kontrak harness lama dijaga)
+  ✓ data-testid "purchase-form" ada
+  ✓ data-testid "form-vendor" ada
+  ✓ data-testid "form-invoice" ada
+  ✓ data-testid "form-date" ada
+  ✓ data-testid "purchase-totals" ada
+  ✓ data-testid "purchase-grand-total" ada
+  ✓ data-testid "form-extra-cost" ada
+  ✓ data-testid "form-discount" ada
+  ✓ data-testid "file-nota" ada
+  ✓ data-testid "file-transfer" ada
+  ✓ data-testid "form-note" ada
+  ✓ data-testid "purchase-submit" ada
+  ✓ data-testid "qty-pi1" ada
+  ✓ data-testid "harga-pi1" ada
+
+F1. Tidak ada file migrasi baru/berubah & file modul lain tidak disentuh
+  ✓ tidak ada file migrations/ yang berubah
+  ✓ modules/handovers/: hanya queue.jsx & view.jsx (kontrak actions/logic utuh)
+  ✓ tidak ada file modules/materials/ yang berubah
+  ✓ tidak ada file modules/vendors/ yang berubah
+  ✓ perubahan kode hanya di file yang dimiliki kartu S1/S2
+
+=== HASIL RENDER: 130 LULUS, 0 GAGAL ===
+SEMUA VERIFIKASI PR & PURCHASE DIPADATKAN LULUS
+Sandbox: /tmp/pr-purchase-compact-verify
+
+Warning: Received `true` for a non-boolean attribute `jsx`.
+
+If you want to write it to the DOM, pass a string instead: jsx="true" or jsx={value.toString()}.
+    at style
+    at form
+    at div
+    at Create (file:///tmp/pr-purchase-compact-verify/dist/components/CreateModal.mjs:247:22)

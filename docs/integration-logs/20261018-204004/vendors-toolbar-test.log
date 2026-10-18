@@ -1,0 +1,40 @@
+SWC: 77 file dikompilasi ke dist/
+=== VERIFIKASI TOOLBAR VENDOR (React SSR + jsdom, ModuleView.js asli) ===
+
+A. Halaman Vendor — toolbar bersih (search + Tambah Vendor saja)
+  ✓ toolbar ter-render
+  ✓ toolbar TIDAK memuat teks "data tersedia"
+  ✓ toolbar TIDAK merender container .filter-tabs
+  ✓ toolbar TIDAK merender pill filter
+  ✓ toolbar TIDAK memuat teks "Ada Telepon"
+  ✓ toolbar TIDAK memuat teks "Ada Kontak/Email"
+  ✓ toolbar TIDAK memuat teks "Semua (" (pill) di area toolbar
+  ✓ search bar tetap ada
+  ✓ placeholder search = "🔍 Cari..."
+  ✓ tombol "+ Tambah Vendor" tetap ada
+  ✓ toolbar hanya berisi 2 elemen (aksi saja, tanpa blok counter)
+  ✓ toolbar aksi didorong ke kanan (justify-content: flex-end)
+  ✓ vendor tanpa telepon/kontak TETAP tampil
+  ✓ semua 3 vendor tampil di tabel
+  ✓ kolom "Aksi" tetap ada
+
+B. Halaman Material — counter + filter pills TETAP ada (regresi)
+  ✓ counter "2 data tersedia" tetap tampil
+  ✓ container .filter-tabs tetap ada
+  ✓ pill "Semua (2)" tetap ada
+  ✓ pill "Stok Menipis" tetap ada
+
+C. Halaman Project — counter + filter pills TETAP ada (regresi)
+  ✓ counter "data tersedia" tetap tampil
+  ✓ container .filter-tabs tetap ada
+  ✓ pill "Aktif (1)" tetap ada
+  ✓ tombol "+ Tambah Project" tetap ada
+
+D. Halaman Past Project — keterangan "(Project dengan status DONE)" tetap ada (regresi)
+  ✓ counter + keterangan DONE tetap tampil
+  ✓ tombol "← Ke Project Aktif" tetap ada
+
+=== HASIL: 25 LULUS, 0 GAGAL ===
+SEMUA VERIFIKASI TOOLBAR VENDOR LULUS
+Sandbox: /tmp/vendors-toolbar-verify
+

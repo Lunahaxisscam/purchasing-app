@@ -1,0 +1,84 @@
+
+================ A+B. TERMIN & PAYMENT LEDGER ================
+  ok A1 termin tidak punya skema terstruktur (free text saja)
+  ok A2 termin dibatasi 120 karakter bebas
+  FINDING A3 termin parsial (DP) tidak bisa dicatat — DP Rp 50.000.000 dari total Rp 100.000.000 → PAYMENT_AMOUNT_MISMATCH; sistem tidak punya konsep "dibayar sebagian"
+  ok A4 setelah DP ditolak status tetap TERBIT (tidak setengah lunas)
+  ok A5 paid_amount tidak tersimpan untuk DP yang ditolak
+  FINDING A6 pecah invoice termin → tabrakan klaim proyek — invoice kedua untuk proyek sama → null; satu invoice = satu proyek (sales_invoices_project_code_key)
+  ok A7 due_date kosong LOLOS validasi kontrak (jatuh tempo tidak wajib)
+  ok A8 due_date sebelum issue_date DITOLAK
+  FINDING B1 tidak ada payment ledger (tabel/riwayat pembayaran) — hanya field di record invoice: rab_reff, payment_terms, paid_at, paid_amount, payment_ref, payment_verified_by — satu pembayaran, tidak ada riwayat/koreksi
+  ok B2 LUNAS final — salah input tidak bisa dibatalkan (kontrak disengaja)
+  ok B3 pembayaran ulang pada invoice LUNAS ditolak (NOOP, bukan TERMINAL)
+  ok B4 payment_ref pertama tidak tertimpa
+  ok B7 payment_ref 88 char DITOLAK (tidak dipotong diam-diam)
+  ok B8 ref wajar tetap tersimpan UTUH (tidak berubah satu karakter pun)
+  ok B8b tepat 80 karakter diterima utuh
+
+A+B selesai: 12 ok, 0 fail, 3 finding (A3, A6, B1)
+
+
+================ A6b. GUARD PROYEK & LEDGER (Supabase) ================
+  ok A6b POST invoice kedua (pelunasan) proyek sama MASIH lolos sebagai draft
+  ok A6c TERBIT invoice kedua → guard klaim menolak (DUPLICATE_PROJECT_CODE)
+  ok A6d hanya 1 proyek 201 dibuat (tanpa proyek yatim/kedua)
+  ok A6e kode proyek terbuat: hanya 201
+  ok A6f invoice pelunasan tertahan di DRAFT (tidak pernah terbit)
+  ok A6g hanya 1 invoice mendapat nomor (DP)
+  FINDING A6h termin multi-invoice tidak terwakili: 1 invoice = 1 proyek — pecah DP/pelunasan ke 2 invoice tertahan guard kode proyek; tidak ada relasi "induk termin" antar-invoice, dan DP tidak bisa dibayar sebagian (A3)
+  ok B9 bukti bayar hanya snapshot field tunggal (bukan baris ledger)
+  FINDING B10 tidak ada tabel/entitas payment ledger — field pembayaran di invoice: paid_amount, paid_at, payment_ref, payment_terms, payment_verified_at, payment_verified_by; nol baris terpisah → riwayat/koreksi/refund mustahil tanpa mengubah skema
+  ok B11 bukti bayar terpasang di baris invoice (bukan tabel terpisah)
+
+A6b+B9+B10: 8 ok, 0 fail, 2 finding (A6h, B10)
+
+
+================ C+D. PIUTANG, OVERDUE & KPI CASHFLOW ================
+  ok C1 invoice ber-paid_amount parsial tetap outstanding penuh (sengaja)
+  ok C2 detail reminder TIDAK menyebut sisa tagihan setelah paid_amount
+  FINDING C3 piutang = nominal penuh walau sudah ada pembayaran parsial — reminder tidak mengurangi paid_amount; tanpa termin tersistem, "sudah bayar 50%" tidak terlihat di piutang
+  ok C4 todayISO = tanggal kalender WIB (09:00 WIB tetap 18 Okt)
+  ok C5 jatuh tempo HARI INI = 0 hari (bukan -1)
+  ok C6 jatuh tempo hari ini tidak salah masuk overdue, tetap terpantau
+  ok C7 (tertutup) jatuh tempo kemarin = overdue 1 hari di WIB pagi
+  FAIL C8 tidak ada aging bucket 30/60/90 hari 
+  ok C9 semua 1200 invoice outstanding muncul di laporan (harness langsung)
+  FINDING C10 collect.js membatasi 1000 baris (MAX 5000) — piutang besar terpotong — DEFAULT_ROW_LIMIT=1000: laporan "lengkap" padahal sebagian invoice tidak pernah dibaca; tidak ada penanda "terpotong"
+  ok C11 TERBIT & DISETUJUI masuk daftar tagihan outstanding
+  ok C12 tidak ada pembeda status TERKIRIM vs TERBIT di reminder
+  ok D1 Total Nilai Tagihan = jumlah SEMUA status (termasuk draf/batal)
+  ok D2 DITOLAK ikut dijumlah di Total Nilai Tagihan (label sudah eksplisit)
+  ok D3 outstanding = 200jt (semua non-DRAFT, non-LUNAS, non-BATAL)
+  ok D4 (tertutup) label KPI menyatakan "termasuk draf & batal — bukan omzet"
+  ok D5 LUNAS memakai paid_amount (bukan grand_total)
+  ok D6 LUNAS tanpa paid_amount TIDAK lagi dihitung lunas
+  ok D6b jumlah invoice LUNAS tanpa bukti dilaporkan terpisah
+  ok D7 (tertutup) UI menyebut jumlah invoice LUNAS tanpa nominal bukti
+  ok D8 view TIDAK punya KPI kas masuk/cashflow per periode
+
+C+D selesai: 18 ok, 1 fail, 2 finding (C8, C3, C10)
+
+
+================ E. REGRESI (tidak ada klaim palsu) ================
+  ok E1 DRAFT→LUNAS tetap ditolak
+  ok E2 LUNAS tetap final
+  ok E3 TERBIT→LUNAS diizinkan (bayar sebelum dicatat kirim)
+  ok E4 LUNAS tanpa payment_ref tetap ditolak kontrak
+  ok E5 LUNAS dengan bukti lengkap lolos kontrak
+  ok E6 verified_by dari body TIDAK dipakai (diambil dari sesi)
+  ok E7 LUNAS tidak lagi ditagih
+  ok E8 laporan tetap read-only/dry_run
+  ok E9 side_effects: nol pengiriman/pembayaran/tulisan
+  ok E10 sales_invoices tidak tersedia → BLOCKED (bukan "0 temuan")
+  ok E11 overdue 8 hari → critical
+  ok E12 overdue_days terisi
+
+E selesai: 12 ok, 0 fail ()
+
+
+================ HASIL AKHIR ================
+ADA HARNESS YANG GAGAL
+TOTAL assertion lulus : 50
+TOTAL assertion gagal : 1
+TOTAL finding audit   : 7 (kode: A3, A6, B1, A6h, B10, C8, C3, C10)
