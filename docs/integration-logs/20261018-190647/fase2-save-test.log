@@ -1,0 +1,83 @@
+Sandbox: /tmp/fase2-save-test-sandbox
+
+=== TEST FASE 2: logika save per modul (mock, tanpa DB) ===
+
+1. Dispatcher routing
+  ✓ dispatchSave vendors -> handled
+  ✓ insert ke tabel vendors
+  ✓ data vendor benar
+  ✓ pesan sukses
+  ✓ close + refresh
+  ✓ setSaving(false) di akhir
+  ✓ page tak dikenal -> handled false
+
+2. Projects data mapping
+  ✓ kode + code dari form.kode
+  ✓ status ikut
+
+3. Receivings (dipindah ke purchaseSave — lihat scripts/purchase-flow-test)
+  ✓ receivings TIDAK lagi ditangani saveDispatcher (bukan jalur CreateModal)
+  ✓ tidak ada insert receivings dari jalur lama
+
+4. Handovers mapping
+  ✓ received_by terisi
+  ✓ status DRAFT (antrean Belum Diserahkan)
+  ✓ receiving_id terisi
+  ✓ project_id terisi
+  ✓ tanpa receiving_id -> TIDAK insert
+  ✓ tanpa receiving_id -> pesan jelas
+  ✓ edit -> UPDATE (bukan insert)
+  ✓ edit metadata received_by tersimpan
+  ✓ edit TIDAK mengirim receiving_id (FK terkunci)
+  ✓ edit TIDAK mengirim project_id (terkunci)
+  ✓ edit TIDAK mengirim status (status via konfirmasi fisik)
+  ✓ edit TIDAK mengirim diserahkan_at
+  ✓ edit dengan form kosong TIDAK mengirim FK NULL
+
+5. Materials alokasi kode & validasi
+  ✓ RPC next_material_kode_cat dipanggil
+  ✓ kode dari RPC
+  ✓ harga_acuan integer 120000
+  ✓ current_stock = 5
+  ✓ min_stock = 2
+  ✓ kategori kosong -> TIDAK insert
+  ✓ kategori kosong -> pesan error
+
+6. Materials mode EDIT (update, bukan insert)
+  ✓ update materials
+  ✓ TIDAK insert
+  ✓ kode dipertahankan
+  ✓ pesan "diperbarui"
+
+7. Requests PR baru (DRAFT + items)
+  ✓ status DRAFT
+  ✓ priority URGENT
+  ✓ materials_summary terbentuk
+  ✓ pr_items ter-insert dgn pr_id baru
+  ✓ estimated_price integer
+  ✓ item status PENDING_APPROVAL
+
+8. Requests mode EDIT (update + sinkron item)
+  ✓ PR di-update
+  ✓ item i2 dihapus
+  ✓ item i1 (ORDERED) TIDAK dihapus
+  ✓ item i1 di-update
+  ✓ pesan "diperbarui" + item count
+
+9. Retry unique-index 23505 (materials)
+  ✓ insert dicoba 2x setelah 23505
+  ✓ kode retry dari RPC dipakai
+  ✓ RPC retry dipanggil
+
+10. Error handling insert gagal
+  ✓ pesan error ditampilkan
+  ✓ close TIDAK dipanggil saat error
+  ✓ setSaving(false) tetap dipanggil
+
+11. Vendor multi-kategori (t_e626b674)
+  ✓ multi kategori tersimpan dipisah koma
+  ✓ dedupe (case-insensitive) + buang kosong
+  ✓ vendor lama 1 kategori: format TIDAK berubah
+  ✓ tanpa kategori -> null (bukan string kosong)
+
+=== HASIL: 56 lulus, 0 gagal ===

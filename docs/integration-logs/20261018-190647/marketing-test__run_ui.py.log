@@ -1,0 +1,396 @@
+Sandbox: /tmp/marketing-verify
+
+esbuild: 6 file dikompilasi ke dist/
+
+[1] Capability sumber data — "tidak ada" bukan "kosong"
+  ok   undefined -> unavailable (tabel/RLS belum ada)
+  ok   null -> unavailable
+  ok   string -> unavailable (bukan array)
+  ok   {} -> unavailable
+  ok   [] -> empty (tabel terbaca, kosong)
+  ok   [{name}] -> ready
+  ok   label kosong menyebut "Belum ada lead terdata"
+  ok   label nilai kosong menyebut "Tidak tersedia"
+  ok   label draf memakai "Draf halaman"
+
+[2] Normalisasi tahap — yang asing TIDAK dipaksa New Lead
+  ok   new_lead dikenal
+  ok   "New Lead" (spasi/kapital) dikenal
+  ok   "Qualified" dikenal
+  ok   "RAB" dikenal
+  ok   alias quotation -> rab
+  ok   alias deal -> won
+  ok   alias closed_lost -> lost
+  ok   alias kualifikasi -> qualified
+  ok   tahap asing -> null (BUKAN new_lead)
+  ok   tahap kosong -> null
+  ok   tahap null -> null
+  ok   isKnownStage true untuk tahap sah
+  ok   isKnownStage false untuk asing
+  ok   label tahap sah
+  ok   label tahap asing = "Tahap tidak diketahui"
+  ok   label tahap kosong sama dengan asing
+  ok   opsi select hanya tahap sah
+  ok   ember papan = 5 tahap sah + 1 ember asing
+  ok   ember asing bukan tahap sah
+  ok   tahap penutupan ditandai closed
+
+[3] Baca baris lead — beberapa bentuk field
+  ok   4 baris bernama (tanpa nama dibuang)
+  ok   draf ikut terbaca host-lead test
+  ok   field alternatif customer_name dibaca
+  ok   field alternatif tahap/sumber/kampanye dibaca
+  ok   tahap asing dipertahankan sebagai null (tidak jadi new_lead)
+  ok   lead bertahap asing tetap tampil (tidak dibuang)
+  ok   id string
+  ok   baris host ditandai origin host
+  ok   non-array -> []
+  ok   id kosong dapat id turunan
+
+[4] Nilai kosong — null/label, BUKAN string kosong / 0
+  ok   sumber kosong -> null (bukan "")
+  ok   sumber rows[1] Referal terbaca
+  ok   sumber ada -> string
+  ok   sumber null -> null
+  ok   kampanye kosong -> null (bukan "")
+  ok   kampanye ada -> string
+  ok   aksi berikutnya kosong -> null (bukan "")
+  ok   aksi berikutnya ada -> string
+  ok   label aksi kosong menyebut "Belum ada aksi berikutnya"
+  ok   tanggal aksi kosong -> null (bukan 1970)
+  ok   parseDateOrNull kosong -> null
+  ok   parseDateOrNull sampah -> null (bukan Invalid Date)
+  ok   format tanggal kosong -> null
+  ok   format tanggal ISO -> "20 Okt 2026"
+
+[5] Tanggal — parsing lokal, tidak bergeser hari
+  ok   YYYY-MM-DD dibaca sebagai tanggal lokal (hari 20, bukan 19/21)
+  ok   tanggal sudah lewat -> overdue
+  ok   tanggal hari ini -> today
+  ok   tanggal mendatang -> later
+  ok   tanpa tanggal -> none (bukan overdue)
+  ok   perbandingan hari memakai hari lokal, bukan jam
+
+[6] Tautan CRM — 4 keadaan berbeda maknanya
+  ok   linked: customer_id ada & ditemukan
+  ok   linked: teks memakai nama customer
+  ok   missing: customer_id kosong
+  ok   missing: teks "Belum ditautkan ke CRM"
+  ok   unresolved: customer_id ada tapi tak ada di data CRM
+  ok   unresolved: teks menyebut tidak ditemukan di data CRM
+  ok   unknown: host TIDAK mengirim data CRM
+  ok   unknown: teks = "data customer CRM tidak dikirim" (BUKAN "tidak ditemukan")
+  ok   unknown: host mengirim null juga unknown
+  ok   unknown: id kosong tetap missing (lebih spesifik)
+  ok   customerLinkText konsisten dengan customerLink
+  ok   teks unknown tidak memuat kata "tidak ditemukan"
+
+[7] Hitungan pipeline — jujur, ember asing terpisah
+  ok   5 tahap sah dihitung
+  ok   tahap asing masuk ember unknown (bukan new_lead)
+  ok   new_lead tidak terpengaruh tahap asing
+  ok   total = 5
+  ok   terbuka = 2 (new_lead + qualified)
+  ok   tertutup = 2 (won + lost)
+  ok   unknown = 1 (tidak disembunyikan)
+  ok   ringkasan array kosong = semua 0
+  ok   ringkasan non-array tidak melempar
+
+[8] Aksi berikutnya & keterlambatan di ringkasan
+  ok   punya aksi = 3
+  ok   belum ada aksi = 1 (tidak disembunyikan)
+  ok   terlambat = 1
+
+[9] Filter
+  ok   cari nama (case-insensitive)
+  ok   cari menemukan lead tahap asing
+  ok   filter tahap asing (unknown) menemukannya
+  ok   filter tahap asing tidak mencampur new_lead
+  ok   filter sumber
+  ok   filter sumber all -> semua
+  ok   query kosong -> semua
+  ok   tanpa hasil -> []
+  ok   sourceOptions unik & urut
+  ok   campaignOptions unik & urut
+
+[10] Gabung host + draf
+  ok   2 baris
+  ok   host tetap origin host
+  ok   draf ditandai origin draft
+  ok   draf tanpa id dapat id turunan
+  ok   mergeLeads tanpa argumen tidak melempar
+
+[11] Key kartu — aman DOM & unik
+  ok   leadKey slug dari nama
+  ok   leadKey nama tanpa huruf -> pakai id
+  ok   leadRowKey unik walau nama kembar
+  ok   leadRowKey tanpa id tetap unik beda nama
+
+[12] Validasi form
+  ok   nama kosong -> error
+  ok   nama 1 karakter -> error
+  ok   nama valid -> ok
+  ok   tahap asing -> DITOLAK (tidak dibuang diam-diam)
+  ok   tahap sah -> ok
+  ok   tahap kosong -> ok (dipakai default new_lead)
+  ok   tanggal aksi salah format -> error
+  ok   tanggal aksi benar -> ok
+  ok   nama duplikat -> WARNING (bukan error/blokir)
+  ok   nama duplikat tetap lolos submit
+  ok   findDuplicateLead case-insensitive
+  ok   edit baris sendiri bukan duplikat
+  ok   emptyForm punya tahap default new_lead
+  ok   LEAD_FIELDS punya nama & tahap
+  ok   LEAD_FIELDS tidak ada field id palsu
+  ok   DATA_LIMITATIONS menyebut tidak ada penulisan DB
+
+[13] Ekspor CSV
+  ok   header + 2 baris
+  ok   header memuat kolom yang dijanjikan
+  ok   kutip ganda di-escape
+  ok   baris draft ditandai draf memori halaman
+  ok   baris host ditandai data yang dikirim host
+  ok   tahap asing ditulis "Tahap tidak diketahui" (bukan sel kosong)
+  ok   field kosong tetap kolom (tidak melipat baris)
+  ok   CSV tidak menambah tanda kutip liar
+
+LULUS: 126 lulus, 0 gagal
+
+[A] Host tidak mengirim lead -> panel kemampuan, bukan papan kosong
+  ok   root tampil
+  ok   capability = unavailable
+  ok   panel kemampuan tampil
+  ok   judul menyebut tabel lead belum tersedia
+  ok   teks menyebut tidak ada lead contoh
+  ok   tidak ada papan
+  ok   empty state menyebut sumber belum tersedia
+  ok   KPI total = 0
+  ok   tombol CSV disabled
+  ok   contoh selector menulis data CRM tidak dikirim
+
+[B] Host mengirim [] -> "Belum ada lead terdata"
+  ok   capability = empty
+  ok   judul "Belum ada lead terdata"
+  ok   empty state memakai label yang sama
+  ok   tidak ada papan
+
+[C] Host mengirim data -> papan tahap; tahap asing di ember sendiri
+  ok   capability = ready
+  ok   tidak ada panel capability
+  ok   papan tampil
+  ok   KPI total = 3
+  ok   KPI terbuka = 2 (new_lead + qualified)
+  ok   KPI won/lost = "0 / 0"
+  ok   5 ember tahap sah tampil
+  ok   ember tahap asing tampil
+  ok   Sarah di ember new_lead
+  ok   Budi di ember qualified
+  ok   Ani (tahap asing) di ember unknown
+  ok   Ani TIDAK dipaksa ke New Lead
+  ok   ember new_lead hitung 1 (bukan 2)
+  ok   ember unknown hitung 1
+  ok   catatan ember asing tampil
+
+[D] Nilai kosong ditulis jujur, bukan dibiarkan kosong
+  ok   kartu Budi: sumber "Tidak tersedia"
+  ok   kartu Budi: aksi berikutnya "Belum ada aksi berikutnya"
+  ok   kartu Budi: tanpa tanda Terlambat (tidak ada tanggal)
+  ok   kartu Sarah: aksi berikutnya tampil
+
+[E] Tanggal aksi yang lewat ditandai "Terlambat"
+  ok   kartu bertanda Terlambat
+  ok   tanggal tetap ditulis "1 Okt 2026"
+  ok   KPI aksi terlambat = 1
+
+[F] Tautan CRM — "tidak dikirim" BUKAN "tidak ditemukan"
+  ok   linked: menampilkan nama customer
+  ok   kartu linked data-link=linked
+  ok   unresolved: menyebut tidak ditemukan di data CRM
+  ok   unknown: teks "Data customer CRM tidak dikirim ke halaman ini"
+  ok   unknown: TIDAK memuat kata "tidak ditemukan"
+  ok   missing: "Belum ditautkan ke CRM"
+
+[G] Form tambah -> draf memori, label "Draf halaman"
+  ok   form muncul
+  ok   form bertanda "Draf halaman"
+  ok   error nama wajib tampil
+  ok   belum ada baris baru
+  ok   tahap kosong diterima (default New Lead)
+  ok   draft origin=draft
+  ok   draf bertanda "Draf halaman"
+  ok   draf ada tombol hapus
+  ok   notice menyebut memori halaman & dimuat ulang
+  ok   form tertutup setelah submit
+  ok   KPI total jadi 4
+  ok   baris host: TIDAK ada tombol ubah
+  ok   baris host: TIDAK ada tombol hapus
+  ok   baris host bertanda "Baca saja"
+  ok   peringatan duplikat muncul
+  ok   draf duplikat tetap dibuat (peringatan, bukan blok)
+  ok   kartu bernama sama tetap bisa dibedakan
+  ok   draf terhapus dari memori
+  ok   KPI total 4 (sisa 1 lead host sarah + draf duplikat + 2 host lain)
+  ok   dua kartu bernama ibu sarah tetap terpisah & bisa dibedakan
+  ok   salah satu kartu ibu sarah = host (baca saja), satu lagi = draf
+
+[H] Pencarian & filter
+  ok   cari "budi" -> 1 kartu
+  ok   tanpa hasil -> empty state filter
+  ok   filter tahap asing -> hanya Ani
+  ok   filter sumber Referral -> hanya Budi
+  ok   filter kampanye -> 2 kartu
+
+[I] Drawer detail — sumber tiap nilai
+  ok   drawer terbuka
+  ok   drawer menampilkan nama
+  ok   drawer menyebut sumber lead
+  ok   drawer menandai nilai ada data-present=yes
+  ok   drawer menyebut kampanye
+  ok   drawer menandai kampanye ada data-present=yes
+  ok   drawer aksi berikutnya tampil
+  ok   drawer tanggal aksi ditulis
+  ok   drawer baris tanpa sumber menulis "Tidak tersedia"
+  ok   drawer baris tanpa sumber data-present=no
+  ok   drawer aksi berikutnya "Belum ada aksi berikutnya"
+  ok   drawer tautan CRM "Belum ditautkan ke CRM"
+  ok   drawer tertutup
+
+[J] Tidak ada penulisan DB / localStorage / jaringan
+  ok   view tidak memakai localStorage (kode)
+  ok   logic tidak memakai localStorage (kode)
+  ok   view tidak memanggil fetch
+  ok   view tidak memanggil supabase
+  ok   view tidak membuat tabel/insert/update
+  ok   view tidak membuat URL api
+  ok   logic tidak memanggil fetch/supabase
+  ok   logic tidak membuat tabel
+  ok   render + interaksi: 0 panggilan fetch
+  ok   render + interaksi: 0 panggilan XHR
+  ok   render + interaksi: 0 akses localStorage
+
+[K] Unduh CSV
+  ok   nama file csv ditentukan
+  ok   tombol CSV aktif saat ada data
+
+[L] Batasan modul ditulis di halaman, bukan disembunyikan
+  ok   panel batasan tampil
+  ok   menyebut tidak ada penulisan ke database
+  ok   menyebut lead baru hanya draf memori halaman
+  ok   menyebut tahap tidak dikenali tidak dipaksa New Lead
+  ok   menyebut tidak ada lead contoh
+
+LULUS: 99 lulus, 0 gagal
+  ok   blok CSS modul ada di styles/globals.css
+
+[1] Lebar — halaman tidak melebar melewati viewport
+  ok   .mk-root memakai flex column (mengikuti lebar induk)
+  ok   .mk-root tidak punya width tetap (tidak memaksa lebar)
+  ok   .mk-root tidak punya min-width (tidak melebar di ponsel)
+  ok   .mk-root tidak ada position fixed/absolute (mengalir normal)
+  ok   .mk-intro flex-wrap: wrap (judul & tombol tumpuk)
+  ok   .mk-intro-copy dibatasi max-width (tidak melebar)
+  ok   .mk-toolbar flex-wrap: wrap (filter tumpuk di ponsel)
+
+[2] Papan — ember tumpuk di ponsel, melebar di desktop
+  ok   .mk-board dasar 1 kolom (ponsel 360/390)
+  ok   .mk-board memakai minmax(0, 1fr) — kolom tidak melebar karena isi panjang
+  ok   ada breakpoint 700px (tablet 768)
+  ok   tablet: KPI 2 kolom
+  ok   tablet: form 2 kolom
+  ok   ada breakpoint 1100px (desktop 1440)
+  ok   desktop: KPI 4 kolom
+  ok   desktop: papan 3 kolom
+  ok   desktop: ember "Tahap tidak diketahui" lebar penuh
+  ok   ada breakpoint 1400px (desktop lebar)
+  ok   desktop lebar: papan 5 kolom (satu ember per tahap)
+  ok   .mk-column dasar 1 kolom (ember tumpuk, bukan scroll samping)
+  ok   .mk-column tidak punya width piksel tetap
+  ok   .mk-card tidak memaksa lebar minimum
+  ok   .mk-card mengizinkan teks panjang membungkus (overflow-wrap/word-break)
+
+[3] Touch target — minimal 32px tombol, 36px input
+  ok   tombol utama min-height 32px
+  ok   tombol pakai cursor: pointer
+  ok   tombol mini min-height 32px (target sentuh tetap nyaman)
+  ok   input & select min-height 36px
+  ok   input & select mengisi lebar wadah (tidak memotong teks)
+
+[4] Drawer — panel penuh di bawah papan, tetap terbaca
+  ok   drawer memakai flex column (mengikuti lebar induk)
+  ok   drawer tidak position fixed (tidak menutupi layar ponsel)
+  ok   drawer tidak punya width/min-width piksel
+  ok   drawer row flex-wrap: wrap (label & nilai tumpuk di 360)
+  ok   drawer nilai text-align: right (selaras dengan kartu)
+
+[5] Verifikasi render nyata di 360/390/768/1440
+  ok   360px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   360px: mk-root tampil
+  ok   360px: mk-board tampil
+  ok   360px: mk-column-new_lead tampil
+  ok   360px: mk-column-unknown tampil
+  ok   360px: tidak ada NaN/undefined di layar
+  ok   360px: sumber kosong ditulis "Tidak tersedia"
+  ok   360px: aksi berikutnya kosong ditulis jujur
+  ok   360px: tahap asing di ember "Tahap tidak diketahui"
+  ok   360px: tahap asing TIDAK dipaksa ke ember New Lead
+  ok   360px: 3 kartu lead tampil
+  ok   360px: 4 kartu KPI tampil
+  ok   360px: drawer terbuka & berisi
+  ok   360px: form draf bisa dibuka di lebar ini
+  ok   360px: semua input form ter-render
+  ok   360px: input form tidak memaksa lebar inline
+  ok   390px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   390px: mk-root tampil
+  ok   390px: mk-board tampil
+  ok   390px: mk-column-new_lead tampil
+  ok   390px: mk-column-unknown tampil
+  ok   390px: tidak ada NaN/undefined di layar
+  ok   390px: sumber kosong ditulis "Tidak tersedia"
+  ok   390px: aksi berikutnya kosong ditulis jujur
+  ok   390px: tahap asing di ember "Tahap tidak diketahui"
+  ok   390px: tahap asing TIDAK dipaksa ke ember New Lead
+  ok   390px: 3 kartu lead tampil
+  ok   390px: 4 kartu KPI tampil
+  ok   390px: drawer terbuka & berisi
+  ok   390px: form draf bisa dibuka di lebar ini
+  ok   390px: semua input form ter-render
+  ok   390px: input form tidak memaksa lebar inline
+  ok   768px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   768px: mk-root tampil
+  ok   768px: mk-board tampil
+  ok   768px: mk-column-new_lead tampil
+  ok   768px: mk-column-unknown tampil
+  ok   768px: tidak ada NaN/undefined di layar
+  ok   768px: sumber kosong ditulis "Tidak tersedia"
+  ok   768px: aksi berikutnya kosong ditulis jujur
+  ok   768px: tahap asing di ember "Tahap tidak diketahui"
+  ok   768px: tahap asing TIDAK dipaksa ke ember New Lead
+  ok   768px: 3 kartu lead tampil
+  ok   768px: 4 kartu KPI tampil
+  ok   768px: drawer terbuka & berisi
+  ok   768px: form draf bisa dibuka di lebar ini
+  ok   768px: semua input form ter-render
+  ok   768px: input form tidak memaksa lebar inline
+  ok   1440px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   1440px: mk-root tampil
+  ok   1440px: mk-board tampil
+  ok   1440px: mk-column-new_lead tampil
+  ok   1440px: mk-column-unknown tampil
+  ok   1440px: tidak ada NaN/undefined di layar
+  ok   1440px: sumber kosong ditulis "Tidak tersedia"
+  ok   1440px: aksi berikutnya kosong ditulis jujur
+  ok   1440px: tahap asing di ember "Tahap tidak diketahui"
+  ok   1440px: tahap asing TIDAK dipaksa ke ember New Lead
+  ok   1440px: 3 kartu lead tampil
+  ok   1440px: 4 kartu KPI tampil
+  ok   1440px: drawer terbuka & berisi
+  ok   1440px: form draf bisa dibuka di lebar ini
+  ok   1440px: semua input form ter-render
+  ok   1440px: input form tidak memaksa lebar inline
+  ok   360px: nama panjang tidak jadi NaN/undefined
+  ok   360px: kartu tetap satu (bukan pecah jadi banyak elemen)
+  ok   360px: catatan panjang tetap di dalam modul
+  ok   360px: catatan panjang tidak memecah kartu
+  ok   360px: nama sumber panjang tetap tampil apa adanya
+
+LULUS: 102 lulus, 0 gagal

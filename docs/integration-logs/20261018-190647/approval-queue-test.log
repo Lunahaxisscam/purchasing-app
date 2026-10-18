@@ -1,0 +1,84 @@
+Sandbox: /tmp/approval-queue-verify
+
+SWC: 77 file dikompilasi ke dist/
+=== VERIFIKASI ANTREAN APPROVAL (React client + jsdom, ModuleView.js asli) ===
+
+A. Default antrean — tab pertama "⏳ Menunggu" aktif, riwayat tidak bocor
+  ✓ tab pertama = "⏳ Menunggu (2)"
+  ✓ tab aktif = "⏳ Menunggu (2)"
+  ✓ urutan tab: Menunggu → Disetujui → Revisi → Ditolak → Semua
+  ✓ hanya 2 PR (PENDING) tampil di default
+  ✓ negatif: total parsial TIDAK diklaim lengkap (baris desktop compact)
+  ✓ baris yang tampil = PR-010 & PR-012 (bukan riwayat APPROVED)
+  ✓ tombol aksi Setujui/Tolak/Revisi tersedia di antrean
+  ✓ counter "2 data tersedia" konsisten
+
+B. Zero pending — empty state tegas, TIDAK fallback ke APPROVED
+  ✓ tab "⏳ Menunggu (0)" aktif
+  ✓ empty state "Tidak ada pengajuan yang perlu disetujui." tampil
+  ✓ empty state juga tampil di kartu mobile (.mobile-cards-view .empty)
+  ✓ TIDAK ada baris riwayat APPROVED/REJECTED bocor ke antrean
+  ✓ counter "0 data tersedia"
+  ✓ badge APPROVED tidak muncul di default
+
+C. Riwayat Disetujui/Revisi/Ditolak/Semua tetap bisa diakses eksplisit
+  ✓ tab "✓ Disetujui" jadi aktif setelah diklik
+  ✓ riwayat APPROVED tampil utuh saat tab dibuka
+  ✓ riwayat PENDING TIDAK tampil di tab Disetujui
+  ✓ tab "✕ Ditolak" menampilkan PR-005
+  ✓ tab "Semua" menampilkan 4 PR (tidak ada data terhapus)
+  ✓ tab "Semua" aktif di posisi terakhir
+  ✓ kembali ke antrean: hanya PENDING tampil
+
+D. Masuk ulang modul — antrean reset ke Menunggu
+  ✓ pra-syarat: user memilih tab "✓ Disetujui"
+  ✓ setelah masuk ulang, tab aktif kembali "⏳ Menunggu (2)"
+  ✓ antrean Menunggu tampil (bukan riwayat)
+  ✓ modul lain (vendors) tidak terpengaruh perubahan Approval
+
+E. Perbarui (data baru via props) — filter aktif dipertahankan
+  ✓ pra-syarat: tab "Semua" aktif
+  ✓ setelah refresh, tab tetap "Semua (5)" (filter dipertahankan)
+  ✓ data hasil refresh tampil (5 PR)
+  ✓ refresh saat di antrean: tetap di "⏳ Menunggu (3)"
+  ✓ 3 PENDING tampil setelah refresh
+
+F. Keputusan approval — baris keluar dari antrean, hitungan konsisten
+  ✓ tab antrean jadi "⏳ Menunggu (1)"
+  ✓ baris PR-010 keluar dari antrean
+  ✓ PR-012 masih di antrean (data legacy tidak dihapus)
+  ✓ empty state TIDAK muncul (masih ada 1 pending)
+  ✓ hitungan Disetujui naik jadi 2
+  ✓ riwayat masih utuh di tab Disetujui (2 baris)
+
+G. Regresi modul lain — default filter & empty state tidak berubah
+  ✓ requests: default tetap "Semua Aktif"
+  ✓ requests: PR APPROVED tetap tersembunyi di default
+  ✓ vendors kosong: empty state generik "Belum ada data." tetap
+  ✓ approvals tab Semua kosong: "Belum ada data." (bukan pesan antrean)
+
+H. CATATAN — approval baru null, legacy auto-seed dash, catatan pengguna utuh
+  ✓ H.1a baris approval baru ada di antrean
+  ✓ H.1b teks auto "Menunggu persetujuan" TIDAK tampil di antrean
+  ✓ H.1c daftar compact TIDAK memuat kolom Catatan (pindah ke drawer)
+  ✓ H.2a baris legacy PR-012 TETAP tampil di antrean (tidak ada penghapusan data)
+  ✓ H.2b teks auto legacy TIDAK bocor ke daftar (tetap disembunyikan)
+  ✓ H.3 catatan keputusan pengguna tersedia utuh di drawer detail (compact S1)
+  ✓ H.3c drawer tertutup tombol ✕ Tutup
+  ✓ H.4 catatan pengguna yg mengandung kata "Menunggu" TIDAK disembunyikan (drawer detail)
+  ✓ H.4b drawer Ditolak tertutup
+  ✓ H.5a kartu mobile approval baru TIDAK punya blok Catatan
+  ✓ H.5b kartu mobile legacy pending = persis seperti approval baru (tanpa blok Catatan, bukan teks auto)
+  ✓ H.5c kartu mobile riwayat tanpa catatan = blok dash "—" (perilaku lama utuh)
+  ✓ H.6a isLegacyAutoNote: legacy exact-pattern = true
+  ✓ H.6b isLegacyAutoNote: catatan pengguna mengandung frasa = false (jangan sembunyikan)
+  ✓ H.6c isLegacyAutoNote: exact match tapi sudah diputuskan (decided_at) = false
+  ✓ H.6d isLegacyAutoNote: exact match tapi step_number != 1 = false
+  ✓ H.6e displayNote: approval baru null -> null (dash)
+  ✓ H.6f displayNote: catatan pengguna -> utuh apa adanya
+  ✓ H.6g isLegacyAutoNote: whitespace berbeda pada pola sama (trim) = true
+  ✓ H.6h isLegacyAutoNote: "PR" tanpa nomor (fallback template lama) = true
+
+=== HASIL: 60 LULUS, 0 GAGAL ===
+SEMUA VERIFIKASI ANTREAN APPROVAL LULUS
+Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
