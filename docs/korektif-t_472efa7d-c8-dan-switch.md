@@ -100,7 +100,7 @@ yang hilang atau bertambah karena perbaikan ini.
 
 ## 2. Review commit `9fa81fd` (skrip switch preview)
 
-### Keputusan: **DIADOPSI, dengan 3 cacat sisa diperbaiki**
+### Keputusan: **DIADOPSI, dengan 4 cacat sisa diperbaiki**
 
 `9fa81fd` sudah menjadi ancestor HEAD di branch paket. Diagnosis intinya benar
 dan saya buktikan ulang secara terpisah:
@@ -117,7 +117,7 @@ sebagai argumen posisi, dan Next membacanya sebagai direktori proyek. Perbaikan
 "port hanya lewat `env PORT`" + "readback `buildId` dari HTML yang disajikan"
 adalah arah yang benar.
 
-### Tiga cacat sisa yang saya temukan saat review (sudah diperbaiki)
+### Empat cacat sisa yang saya temukan saat review (sudah diperbaiki)
 
 1. **`set -e` + `pipefail` mematikan skrip tanpa pesan.** Loop tunggu-siap
    `CODE="$(curl ...)"` tanpa `|| true` membuat curl exit 7 (koneksi ditolak,
@@ -135,9 +135,17 @@ adalah arah yang benar.
    insiden `t_987f2c96`, hanya berpindah pemicu). Kini ada `restore_to`:
    readback gagal → pulihkan ke cwd/BUILD_ID lama → **baru** keluar dengan
    pesan. `--rollback` memakai jalur yang sama.
+4. **`pm2 save` tidak dipanggil di jalur `--apply`.** `switch_staging_3001.sh`
+   menyimpannya setelah start; `9fa81fd` tidak (commit terpisah `58d64cd`).
+   Tanpa dump, `pm2 resurrect` setelah reboot mengembalikan proses **lama** dan
+   switch hilang tanpa jejak. Sekarang `pm2 save` dijalankan setelah readback
+   sukses, dan kegagalannya dilaporkan sebagai peringatan (bukan kegagalan
+   senyap).
 
 Tambahan struktural: satu helper `start_app()` dipakai `--apply`, `--rollback`,
 dan pemulihan, sehingga tidak ada dua cara start yang bisa menyimpang lagi.
+`--apply` juga menjalankan `pm2 save` setelah readback sukses agar switch
+bertahan setelah reboot.
 
 ### Uji skrip (port 3018/3019 — port 3001 TIDAK disentuh)
 
@@ -185,7 +193,7 @@ Jadi `switch_staging_3001.sh` **tidak perlu diubah** — mengubahnya menjadi
 | --- | --- | --- |
 | C8 tidak bergantung `generated_at` | SELESAI | `c8_before_after.mjs`: BEFORE MERAH di `:30`/`:60`, AFTER HIJAU di semua timestamp |
 | 30 run berurutan hijau + 1 dipaksa detik `:30` | SELESAI | `docs/c8-stability/c8-stability-20261018T135723Z.log` — 30/30 × `51 lulus / 0 gagal` |
-| `9fa81fd` di-review; keputusan adopsi dicatat | SELESAI | diadopsi + 3 cacat sisa diperbaiki; uji A–E di atas |
+| `9fa81fd` di-review; keputusan adopsi dicatat | SELESAI | diadopsi + 4 cacat sisa diperbaiki (`d9058c7`, `58d64cd`); uji A–E di atas |
 | Tanpa perubahan `modules/`, `lib/`, `components/`, `pages/` | SELESAI | `git status` hanya menyentuh `scripts/` dan `docs/` |
 | Tanpa DDL / DB write / push produksi | SELESAI | hanya file skrip + log; tidak ada koneksi DB, tidak ada `git push` |
 
