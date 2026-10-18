@@ -9,8 +9,8 @@
 |---|---|
 | Branch paket | `feat/final-package-20261018` |
 | Worktree | `/home/ubuntu/dev-workspaces/purchasing-final-package-20261018` |
-| HEAD (dokumen ini) | `64b98d6` |
-| Kode aplikasi yang dibangun | `bdddd7d` (diff `bdddd7d..64b98d6` pada `components/modules/lib/pages/styles/migrations` = **kosong** — commit sesudah build hanya docs/log uji) |
+| HEAD (dokumen ini) | lihat `git log -1` di worktree; commit sesudah `bdddd7d` **hanya docs/log uji** |
+| Kode aplikasi yang dibangun | `bdddd7d` (diverifikasi: `git diff bdddd7d..HEAD -- components modules lib pages styles migrations public package.json next.config.js` = **kosong**) |
 | Basis | `1d364e7` (integrasi 8h) |
 | BUILD_ID | `IcSFkquFW77CZf0zQ3JeV` |
 | Artefak rilis (immutable) | `/home/ubuntu/dev-workspaces/purchasing-final-package-release-20261018` |
