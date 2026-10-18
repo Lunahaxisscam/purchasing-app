@@ -1,0 +1,450 @@
+Sandbox: /tmp/rap-verify
+
+SWC: 8 file dikompilasi ke dist/
+
+=== A. KONVERSI HARGA RAB (ribuan -> rupiah), TANPA KOERSI DIAM-DIAM ===
+  ✓ A1 harga RAB 1500 (ribu) -> 1.500.000 rupiah
+  ✓ A2 harga RAB 0 tetap 0 (nol yang sah)
+  ✓ A3 harga RAB NEGATIF -> null (BUKAN 0)
+  ✓ A4 harga RAB bukan angka -> null (BUKAN 0, BUKAN NaN)
+  ✓ A5 harga RAB kosong -> null (BUKAN 0)
+  ✓ A6 parseNumberInput "1.500.000" -> 1500000
+  ✓ A7 parseNumberInput "-5" ditolak -> null
+  ✓ A8 parseNumberInput "" -> null
+  ✓ A9 parseNumberInput "2,5" -> 2.5
+  ✓ A10 formatRupiah 3000000
+  ✓ A11 inspectNumber(-100) state NEGATIVE
+  ✓ A12 inspectNumber(-100).value null (tidak dipakai menghitung)
+  ✓ A13 inspectNumber("-100") string juga NEGATIVE
+  ✓ A14 inspectNumber(null) state MISSING (bukan ZERO)
+  ✓ A15 inspectNumber(0) state ZERO
+  ✓ A16 inspectNumber(NaN) state NOT_NUMBER
+  ✓ A17 inspectNumber("abc") state NOT_NUMBER
+  ✓ A18 inspectNumber(Infinity) state NOT_NUMBER
+
+=== B. BRIDGE RAB & BOQ -> BARIS ACUAN ===
+  ✓ B1 payload v5 diterima
+  ✓ B2 tiga baris terbaca
+  ✓ B3 reff & revisi ikut
+  ✓ B4 harga baris 1 dikonversi ke rupiah
+  ✓ B5 qty RAB ikut
+  ✓ B6 rencana awal = RAB (belum diedit)
+  ✓ B7 sumber harga ditandai RAB
+  ✓ B8 basis harga = HARGA JUAL RAB (bukan biaya)
+  ✓ B9 baris BOQ bertipe PEKERJAAN (bukan material baku)
+  ✓ B10 ada peringatan "harga jual vs biaya" (tidak klaim apel-vs-apel)
+  ✓ B11 total acuan RAB = 13.250.000
+  ✓ B12 total rencana awal = acuan
+  ✓ B13 selisih awal 0
+  ✓ B14 baseline kind = harga jual RAB
+  ✓ B15 baseline TIDAK diklaim sebanding dengan biaya RAP
+  ✓ B16 label baseline menyebut HARGA JUAL
+  ✓ B17 payload tanpa items DITOLAK (bukan array kosong)
+  ✓ B18 versi tak dikenal ditolak dengan alasan
+  ✓ B19 payload null ditolak
+  ✓ B20 payload v1 (legacy) tetap dibaca
+  ✓ B21 harga RAB negatif DITOLAK (bukan diklem 0)
+  ✓ B22 baris harga negatif tidak menghasilkan baris
+  ✓ B23 harga RAB bukan angka DITOLAK
+  ✓ B24 qty RAB negatif DITOLAK (bukan dijadikan 0)
+
+=== C. BRIDGE WBS BUDGETING (JUJUR: UPAH SAJA) ===
+  ✓ C1 WBS terbaca
+  ✓ C2 harga satuan turunan = upah / volume
+  ✓ C3 baris tanpa upah ditandai jujur
+  ✓ C4 basis = UPAH SAJA (bukan harga penuh)
+  ✓ C5 ada peringatan "hanya upah"
+  ✓ C6 ada peringatan harga tidak tersedia (bukan nol sesungguhnya)
+  ✓ C7 WBS kosong -> ok:false + alasan
+  ✓ C8 labor_cost negatif DITOLAK (bukan jadi 0)
+  ✓ C9 volume negatif DITOLAK (bukan jadi 1)
+
+=== D. SELISIH RAB vs RAP (inti kartu) ===
+  ✓ D1 draft berstatus DRAFT
+  ✓ D2 draft bertanda belum tersimpan
+  ✓ D3 snapshot RAB disimpan terpisah
+  ✓ D4 acuan reff ikut ke dokumen
+  ✓ D5 total RAP turun jadi 13.050.000
+  ✓ D6 acuan RAB TETAP 13.250.000
+  ✓ D7 selisih = -200.000
+  ✓ D8 selisih persen dibulatkan 1 desimal
+  ✓ D9 tidak over budget
+  ✓ D10 qty 2x kitchen set -> total 21.250.000
+  ✓ D11 selisih +8.000.000
+  ✓ D12 ditandai overBudget
+  ✓ D13 satu baris dihitung "lebih"
+  ✓ D14 overBudget diberi makna "margin habis", bukan klaim biaya
+  ✓ D15 perbandingan memuat 3 baris
+  ✓ D16 tidak ada baris RAB yang hilang
+  ✓ D17 selisih baris kitchen set = +8.000.000
+  ✓ D18 status baris OVER
+  ✓ D19 ringkasan membawa label sumber acuan
+  ✓ D20 baseline TIDAK diklaim apel-vs-apel
+  ✓ D21 baris hilang terdeteksi
+  ✓ D22 nama baris hilang benar
+  ✓ D23 acuan RAB TIDAK menyusut walau baris dihapus
+  ✓ D24 total RAP tanpa backdrop = 11.000.000
+  ✓ D25 selisih = -2.250.000
+  ✓ D26 baris di luar RAB terdeteksi
+  ✓ D27 total RAP termasuk baris tambahan
+  ✓ D28 tanpa acuan: diffPct null (bukan NaN/Infinity)
+  ✓ D29 tanpa acuan: tidak diklaim overBudget
+  ✓ D30 tanpa acuan: baseline kind NONE
+  ✓ D31 tanpa acuan: baseline menyatakan selisih TIDAK DIKETAHUI
+
+=== E. VALIDASI (penghalang vs peringatan) ===
+  ✓ E1 draft sehat tidak punya penghalang
+  ✓ E2 tanpa proyek -> penghalang
+  ✓ E3 tanpa label versi -> penghalang
+  ✓ E4 qty 0 -> penghalang
+  ✓ E5 harga 0 yang DIKETIK -> PERINGATAN (boleh lanjut, ditandai belum lengkap)
+  ✓ E6 baris dobel -> penghalang (anti dobel hitung)
+  ✓ E7 total melebihi RAB -> peringatan berisi angka & label sumber
+  ✓ E8 RAP tanpa baris -> penghalang
+  ✓ E9 tanpa acuan RAB -> peringatan (bukan klaim aman)
+  ✓ E10 harga -100 -> validateRap FALSE (sebelumnya true)
+  ✓ E11 alasan menyebut negatif & DITOLAK (bukan jadi 0)
+  ✓ E12 tidak ada peringatan "masih 0" untuk nilai negatif (tidak dikoersi)
+  ✓ E13 total RAP tidak menghitung harga negatif sebagai 0 lalu lolos
+  ✓ E14 state harga baris = NEGATIVE (bukan ZERO)
+  ✓ E15 nilai mentah negatif tetap tersimpan apa adanya
+  ✓ E16 harga kosong -> penghalang (kosong BUKAN nol)
+  ✓ E17 harga bukan angka -> penghalang
+  ✓ E18 qty negatif -> penghalang (bukan 0)
+  ✓ E19 baris BOQ dihitung sebagai pekerjaan, bukan material
+  ✓ E20 belum ada baris material baku
+  ✓ E21 catatan menyebut baris tidak dipecah otomatis
+
+=== F. STATUS VERSI (transisi eksplisit) ===
+  ✓ F1 DRAFT tidak bisa langsung DISETUJUI
+  ✓ F2 alasan penolakan transisi terbaca
+  ✓ F3 DRAFT -> DIAJUKAN diterima
+  ✓ F4 status jadi DIAJUKAN
+  ✓ F5 riwayat bertambah
+  ✓ F6 riwayat mencatat pelaku
+  ✓ F7 DIAJUKAN -> DISETUJUI diterima
+  ✓ F8 DISETUJUI tidak bisa balik ke DRAFT
+  ✓ F9 DISETUJUI -> DIGANTIKAN (versi baru) diterima
+  ✓ F10 DIAJUKAN -> DITOLAK diterima
+  ✓ F11 DITOLAK -> DRAFT (revisi) diterima
+  ✓ F12 status tak dikenal ditolak
+  ✓ F13 label versi berikutnya dari kosong
+  ✓ F14 label versi berikutnya dari RAP-01
+  ✓ F15 label versi lompat ke maksimum + 1
+
+=== G. GERBANG BOM PADA HANDOFF PR (temuan Brooklyn S3) ===
+  ✓ G1 FIXTURE BROOKLYN: handoff barang jadi DITOLAK (sebelumnya ok:true)
+  ✓ G2 FIXTURE BROOKLYN: TIDAK ada pr_items berisi furniture
+  ✓ G3 alasan menyebut jenis baris & material baku
+  ✓ G4 alasan memberi langkah perbaikan (BOM/gambar kerja), bukan tebakan nama
+  ✓ G5 gate mencatat 1 baris ditolak
+  ✓ G6 gate mencatat 0 baris terverifikasi
+  ✓ G7 FIXTURE BROOKLYN: harga -100 handoff DITOLAK (sebelumnya ok:true)
+  ✓ G8 FIXTURE BROOKLYN: TIDAK ada item estimated_price 0 hasil koersi
+  ✓ G9 alasan menyebut negatif & tidak dijadikan 0
+  ✓ G10 validateRap juga FALSE untuk fixture -100
+  ✓ G11 POSITIF: material BOM valid -> handoff ok
+  ✓ G12 POSITIF: satu item material
+  ✓ G13 POSITIF: material_id diteruskan
+  ✓ G14 POSITIF: qty & harga rencana
+  ✓ G15 POSITIF: satuan dari master
+  ✓ G16 POSITIF: kode dari master
+  ✓ G17 POSITIF: nama memakai nama master
+  ✓ G18 POSITIF: status item PENDING_APPROVAL
+  ✓ G19 POSITIF: nol penulisan DB
+  ✓ G20 POSITIF: TIDAK ada approval (draft bukan alokasi resmi)
+  ✓ G21 POSITIF: rap_status_official false
+  ✓ G22 POSITIF: catatan menyebut PRATINJAU & bukan alokasi resmi
+  ✓ G23 satuan beda dengan master DITOLAK (tanpa konversi karangan)
+  ✓ G24 tidak ada item dari baris satuan salah
+  ✓ G25 harga ~1000x acuan master DITOLAK (indikasi ribuan vs rupiah)
+  ✓ G26 tidak ada item dari baris salah skala
+  ✓ G27 harga ~10x acuan master -> PERINGATAN tapi tetap disusun
+  ✓ G28 tanpa acuan RAB disetujui -> handoff DITOLAK
+  ✓ G29 tanda eksplisit MANUAL_NO_RAB -> boleh, dengan peringatan jujur
+  ✓ G30 tanpa katalog material -> handoff DITOLAK (tidak menebak)
+  ✓ G31 tanpa katalog: tidak ada item lolos
+  ✓ G32 material_id asing DITOLAK (tautan tidak terverifikasi)
+  ✓ G33 material_id kosong DITOLAK (nama tidak dipakai menebak)
+  ✓ G34 jenis baris belum ditandai -> DITOLAK (tidak ada heuristik nama)
+  ✓ G35 qty 0 DITOLAK, tidak diubah jadi 1
+  ✓ G36 qty negatif DITOLAK (bukan jadi 1)
+  ✓ G37 harga 0 yang diketik -> PERINGATAN belum lengkap, item tetap disusun
+  ✓ G38 harga 0 tetap 0 (tidak diubah)
+  ✓ G39 harga kosong DITOLAK (kosong BUKAN nol)
+  ✓ G40 campuran: handoff DITOLAK karena ada baris bukan material
+  ✓ G41 campuran (FAIL-CLOSED): payload TIDAK disusun sama sekali
+  ✓ G42 campuran: baris yang lolos gerbang tetap dilaporkan untuk pratinjau
+  ✓ G43 campuran: item yang lolos = material baku
+  ✓ G44 campuran: gate rejected=1 verified=1 blocked=true
+  ✓ G45 campuran: request null (tidak ada payload setengah jadi)
+  ✓ G44 field request = kontrak PR existing
+  ✓ G45 field item = kontrak pr_items existing (tanpa pr_id)
+  ✓ G46 pr_id TIDAK dikarang di payload
+  ✓ G47 nomor PR TIDAK dibuat di sini
+  ✓ G48 request.status DRAFT
+  ✓ G49 sort_order berurutan
+  ✓ G50 basis acuan dilaporkan jujur (bukan apel-vs-apel)
+  ✓ G51 label pratinjau eksplisit
+
+=== H. SNAPSHOT JSON (backup manual, bukan persistence) ===
+  ✓ H1 snapshot menandai tidak tersimpan
+  ✓ H2 jenis berkas rap-draft
+  ✓ H3 snapshot bisa dipulihkan
+  ✓ H4 jumlah baris sama
+  ✓ H5 harga rencana utuh
+  ✓ H6 setelah dipulihkan TETAP bertanda belum tersimpan
+  ✓ H7 snapshot RAB ikut dipulihkan
+  ✓ H8 jenis baris ikut dipulihkan
+  ✓ H9 JSON rusak ditolak
+  ✓ H10 jenis berkas lain ditolak
+  ✓ H11 tanpa daftar baris ditolak
+  ✓ H12 status asing dipulihkan sebagai DRAFT
+  ✓ H13 harga negatif tetap negatif setelah round-trip (tidak jadi 0)
+  ✓ H14 validateRap setelah round-trip tetap menolak
+
+=== I. KAPABILITAS (dinyatakan, bukan disembunyikan) ===
+  ✓ I1 mode persistence DRAFT_ONLY
+  ✓ I2 tidak ada tabel RAP
+  ✓ I3 canSave false
+  ✓ I4 canApprove false (draft bukan approval)
+  ✓ I5 alasan menyebut migrasi dibekukan
+  ✓ I6 kapabilitas menyatakan gerbang BOM
+  ✓ I7 kapabilitas menyatakan harga RAB = harga jual
+
+=== J. LABEL SUMBER ACUAN (tidak ada klaim apel-vs-apel) ===
+  ✓ J1 acuan JSON RAB -> kind RAB_SELL_PRICE
+  ✓ J2 label menyebut HARGA JUAL
+  ✓ J3 tidak diklaim sebanding dengan biaya RAP
+  ✓ J4 catatan menyebut "bukan apel-vs-apel"
+  ✓ J5 acuan WBS -> kind WBS_LABOR_ONLY
+  ✓ J6 label menyebut UPAH
+  ✓ J7 tidak diklaim sebanding
+  ✓ J8 acuan campuran -> kind MIXED (jujur, tidak dirata-ratakan)
+  ✓ J9 catatan campuran menyebut tidak sebanding
+
+=== K. STORE SESI (DRAFT_ONLY, status bergerbang, nol tulisan) ===
+  ✓ K1 mode store DRAFT_ONLY
+  ✓ K2 draft baru berstatus DRAFT
+  ✓ K3 belum tersimpan
+  ✓ K4 belum ada tulisan DB
+  ✓ K5 DIAJUKAN diterima untuk draft sehat
+  ✓ K6 status BUKAN approval resmi
+  ✓ K7 status tetap belum tersimpan
+  ✓ K8 tetap nol tulisan DB
+  ✓ K9 draft berpenghalang TIDAK bisa diajukan
+  ✓ K10 alasan menyebut penghalang + penyebab pertama
+  ✓ K11 status tetap DRAFT setelah penolakan
+  ✓ K12 tetap nol tulisan DB
+  ✓ K13 draft dengan qty 0 tidak bisa DISETUJUI
+
+=== HASIL UNIT: 214 lulus, 0 gagal ===
+
+=== A. BANNER JUJUR & EMPTY STATE (draft-only) ===
+
+  ✓ A1 halaman RAP ter-render
+  ✓ A2 banner menyatakan BELUM tersimpan di server
+  ✓ A3 banner menyebut backup JSON
+  ✓ A4 empty state tampil sebelum ada draft
+  ✓ A5 tidak ada tombol simpan/approve palsu
+  ✓ A6 proyek pertama terpilih otomatis
+  ✓ A7 tombol backup nonaktif tanpa draft
+  ✓ A8 status diberi label "bukan persetujuan resmi"
+
+=== B. BUAT DRAFT DARI JSON RAB (acuan) ===
+
+  ✓ B1 draft terbentuk (empty state hilang)
+  ✓ B2 dua baris dari RAB
+  ✓ B3 versi otomatis RAP-01
+  ✓ B4 status awal Draft
+  ✓ B5 total acuan RAB = 11.000.000
+  ✓ B6 total rencana awal = acuan
+  ✓ B7 selisih awal nol
+  ✓ B8 notice menyebut belum tersimpan
+  ✓ B9 acuan menyebut BOQ-014 REV02
+  ✓ B10 harga RAB dikonversi ke rupiah penuh di tabel
+  ✓ B11 label sumber acuan tampil
+  ✓ B12 label menyebut HARGA JUAL (bukan biaya)
+  ✓ B13 ada penanda eksplisit "apel-vs-apel: TIDAK"
+  ✓ B14 catatan menyebut margin, bukan perbandingan biaya
+  ✓ B15 dua baris BOQ bertanda PEKERJAAN
+  ✓ B16 penjelasan "jenis tidak ditebak dari nama" tampil
+  ✓ B17 katalog material termuat (2 item)
+
+=== C. EDIT QTY & HARGA RENCANA -> SELISIH HITUNG ULANG ===
+
+  ✓ C1 total RAP turun jadi 10.800.000
+  ✓ C2 acuan RAB tidak berubah
+  ✓ C3 selisih jadi minus
+  ✓ C4 baris menampilkan selisih negatif
+  ✓ C5 total RAP jadi 18.800.000
+  ✓ C6 kartu selisih ditandai over budget
+  ✓ C7 peringatan validasi menyebut MELEBIHI + label sumber
+  ✓ C8 qty 0 memunculkan penghalang
+  ✓ C9 input harga tetap menampilkan -100 (tidak berubah jadi 0)
+  ✓ C10 ada hint "ditolak: -100 (negatif)"
+  ✓ C11 validasi menyebut negatif DITOLAK
+  ✓ C12 validasi TIDAK menyebut "masih 0" untuk nilai negatif
+  ✓ C13 jumlah penghalang bertambah (bukan lolos)
+  ✓ C14 draft berpenghalang tidak bisa Diajukan
+  ✓ C15 alasan penolakan pengajuan terbaca (penghalang dulu)
+  ✓ C16 total kembali = acuan
+  ✓ C17 tidak ada penghalang lagi
+  ✓ C18 setelah hapus: acuan RAB TETAP 11.000.000
+  ✓ C19 total RAP jadi 3.000.000
+  ✓ C20 baris RAB yang hilang dilaporkan
+
+=== D. STATUS VERSI (transisi & penolakan) ===
+
+  ✓ D1 DRAFT tidak bisa langsung Disetujui
+  ✓ D2 alasan penolakan terbaca di notice
+  ✓ D3 Draft -> Diajukan
+  ✓ D4 Diajukan -> Disetujui
+  ✓ D5 notice menegaskan status LOKAL & belum tersimpan
+
+=== E. GERBANG BOM: BARIS PEKERJAAN DITOLAK DARI PR MATERIAL ===
+
+  ✓ E1 pratinjau tetap ditampilkan (transparan, bukan disembunyikan)
+  ✓ E2 payload valid JSON
+  ✓ E3 TIDAK ada item furniture masuk PR
+  ✓ E4 payload TIDAK disusun saat gerbang menolak (request null)
+  ✓ E7 masalah gerbang ditampilkan (alasan + langkah perbaikan)
+  ✓ E8 alasan menolak tebakan nama barang
+  ✓ E9 gate: 0 terverifikasi / 1 ditolak (Kitchen set sudah dihapus)
+  ✓ E10 meta menyatakan penulisan DB: 0
+  ✓ E11 meta menyatakan persetujuan TIDAK ADA (draft)
+  ✓ E12 catatan approval: status RAP bukan persetujuan resmi
+  ✓ E13 teks jujur: hanya menyusun pratinjau
+  ✓ E14 aturan gerbang BOM dijelaskan di UI
+  ✓ E15 NOL operasi tulis ke database
+  ✓ E16 tidak ada select ke tabel RAP (tidak ada tabelnya)
+
+=== F. WBS BUDGETING: JUJUR SOAL UPAH ===
+
+  ✓ F1 dua baris dari WBS
+  ✓ F2 peringatan "hanya upah" tampil
+  ✓ F3 acuan diberi label WBS Budgeting (upah)
+  ✓ F4 baris tanpa upah ditandai
+  ✓ F5 label sumber acuan = UPAH saja (bukan harga penuh)
+  ✓ F6 hanya operasi baca ke project_plans/materials
+  ✓ F7 tidak ada tulisan DB
+  ✓ F8 error WBS ditampilkan apa adanya
+  ✓ F9 tidak mengklaim "belum punya WBS"
+
+=== G. BARIS MATERIAL BAKU (BOM) -> PR MATERIAL DITERIMA ===
+
+  ✓ G1 baris material bertanda MATERIAL
+  ✓ G2 pemilih material tersedia (bukan input nama bebas)
+  ✓ G3 satuan mengikuti master
+  ✓ G4 baris material terverifikasi
+  ✓ G5 tidak ada baris ditolak
+  ✓ G6 payload berisi TEPAT 1 item material
+  ✓ G7 material_id benar
+  ✓ G8 qty & harga rencana
+  ✓ G9 satuan dari master
+  ✓ G10 kode dari master
+  ✓ G11 pr_id tidak dikarang
+  ✓ G12 status item PENDING_APPROVAL
+  ✓ G13 tetap nol tulisan DB
+  ✓ G14 notice menyebut BUKAN alokasi resmi
+  ✓ G15 satuan beda dengan master -> DITOLAK
+  ✓ G15b payload TIDAK disusun saat ada penghalang (fail-closed)
+  ✓ G16 harga 1000x acuan master -> DITOLAK (salah skala)
+  ✓ G17 harga -100 pada material -> DITOLAK (bukan jadi 0)
+  ✓ G18 tidak ada item estimated_price 0 hasil koersi
+
+=== G2. TANPA ACUAN RAB -> MATERIAL BAKU PUN DITOLAK ===
+
+  ✓ G2a tanpa acuan RAB -> pratinjau DITOLAK dengan penjelasan
+  ✓ G2b tidak ada item lolos tanpa acuan RAB
+
+=== H. PULIHKAN DARI JSON (draft tetap belum tersimpan) ===
+
+  ✓ H1 versi hasil pulih benar
+  ✓ H2 status hasil pulih benar
+  ✓ H3 total RAP hasil pulih
+  ✓ H4 acuan RAB hasil pulih
+  ✓ H5 notice menegaskan tetap belum tersimpan
+  ✓ H6 tidak ada tulisan DB saat memulihkan
+  ✓ H7 harga negatif dari snapshot tetap -100 di layar
+  ✓ H8 validasi menolak harga negatif hasil pulih
+
+=== I. TIDAK ADA KLAIM REALISASI / PERSISTENSI PALSU ===
+
+  ✓ I1 tidak ada kata "aktual" pada angka RAP
+  ✓ I2 tidak ada klaim "tersimpan" tanpa kata belum
+  ✓ I3 ada penanda "Draft saja"
+  ✓ I4 tidak memakai localStorage sebagai DB
+  ✓ I5 tidak ada tombol yang mengaku menyimpan RAP ke server
+
+=== HASIL RENDER: 107 lulus, 0 gagal ===
+
+=== A. MENU & LABEL (lib/constants.js) ===
+  ✓ A1 item menu 'rap' terdaftar di Admin Suite
+  ✓ A2 label halaman rap ada di labels
+  ✓ A3 menu rap berada di section Admin Suite (admin-only)
+
+=== B. REGISTRY (modules/registry.js) ===
+  ✓ B1 modul 'rap' terdaftar
+  ✓ B2 adminOnly: true
+  ✓ B3 source: 'core' (halaman sendiri, bukan ModuleView)
+  ✓ B4 files mencakup seluruh file modul + harness
+  ✓ B5 tidak didaftarkan sebagai moduleViewPages (source bukan module)
+
+=== C. SHELL RENDER (pages/index.js) ===
+  ✓ C1 RapModule diimpor
+  ✓ C2 ada cabang page === 'rap'
+  ✓ C3 cabang rap di-guard role admin
+  ✓ C4 fallback non-admin "khusus administrator"
+  ✓ C5 RapModule dirender dengan projects + say + setPage
+  ✓ C6 'rap' dikecualikan dari tombol Perbarui global
+  ✓ C7 tidak menulis DB dari shell untuk RAP
+
+=== D. SMOKE BUILD MERENDER RAP (pages/__smoke.js) ===
+  ✓ D1 RapModule diimpor di smoke
+  ✓ D2 section #mod-rap dirender
+
+=== E. KONTRAK NOL TULISAN DB (sumber modul) ===
+  ✓ E1 view.jsx: tidak ada .insert(
+  ✓ E2 view.jsx: tidak ada .update(
+  ✓ E3 view.jsx: tidak ada .delete( pada query DB
+  ✓ E4 view.jsx: tidak ada .rpc(
+  ✓ E1 model.js: tidak ada .insert(
+  ✓ E2 model.js: tidak ada .update(
+  ✓ E3 model.js: tidak ada .delete( pada query DB
+  ✓ E4 model.js: tidak ada .rpc(
+  ✓ E1 budgetingBridge.js: tidak ada .insert(
+  ✓ E2 budgetingBridge.js: tidak ada .update(
+  ✓ E3 budgetingBridge.js: tidak ada .delete( pada query DB
+  ✓ E4 budgetingBridge.js: tidak ada .rpc(
+  ✓ E1 store.js: tidak ada .insert(
+  ✓ E2 store.js: tidak ada .update(
+  ✓ E3 store.js: tidak ada .delete( pada query DB
+  ✓ E4 store.js: tidak ada .rpc(
+  ✓ E5 model.js tidak mengimpor Supabase sama sekali
+  ✓ E6 budgetingBridge hanya memakai select (read-only, 2 select sah)
+  ✓ E7 budgetingBridge membaca project_plans (bukan tabel RAP)
+  ✓ E7b budgetingBridge membaca materials untuk verifikasi katalog
+  ✓ E8 view.jsx tidak memakai localStorage
+  ✓ E9 tidak ada tabel rap di seluruh modul (tidak ada skema)
+  ✓ E10 store menandai mode DRAFT_ONLY
+  ✓ E11 kapabilitas menyatakan canSave false
+  ✓ E12 kapabilitas menyatakan canApprove false
+  ✓ E13 kapabilitas menyatakan gerbang BOM eksplisit
+  ✓ E14 view tidak memakai heuristik nama untuk menebak material
+  ✓ E15 model TIDAK meng-coerce nilai negatif dengan Math.max(0, harga)
+  ✓ E16 model menyatakan state uang eksplisit (MONEY)
+
+=== F. TIDAK MENYENTUH FILE MODUL LAIN ===
+  ✓ F1 view.jsx tidak mengimpor modules/requests/*
+  ✓ F2 view.jsx tidak mengimpor modules/rab-boq/*
+  ✓ F3 tidak mengimpor shell (ModuleView/CreateModal/pages)
+  ✓ F4 tidak ada migrasi baru untuk RAP
+
+=== HASIL WIRING: 50 lulus, 0 gagal ===
+Warning: Received `true` for a non-boolean attribute `jsx`.
+
+If you want to write it to the DOM, pass a string instead: jsx="true" or jsx={value.toString()}.
+    at style
+    at div
+    at RapModule (file:///tmp/rap-verify/dist/modules/rap/view.mjs:332:33)

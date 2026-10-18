@@ -384,19 +384,32 @@ console.log('\nG. Daftar PR (desktop/mobile) & Approval: subtotal snapshot + tot
   const cardText = q(document, '.mobile-cards-view').textContent
   check('kartu mobile: subtotal snapshot + total belum lengkap', cardText.includes('240.000') && cardText.includes('belum lengkap'), cardText.slice(0, 300))
 
-  // Approval expand: total read-only
+  // Approval: rincian material dibuka lewat drawer detail (compact S1).
+  // Anchor berubah dari tombol "▼ Material (n)" di tbody menjadi "≡ Rincian"
+  // (drawer portal document.body) — kontrak yang disetujui DAT. Isi yang
+  // diperiksa TETAP SAMA: subtotal per item, Total Estimasi read-only, dan
+  // label jujur "belum lengkap". Aksi per-item (Setujui/Sudah Order) juga
+  // harus tetap terjangkau dari drawer (dikunci scripts/approval-item-action-test).
   flushSync(() => root.render(React.createElement(Module, {
     page: 'approvals', rows: [{ id: 'apV', pr_number: 'PR-100', title: 'PR uji view', project_name: '[83] Mabes', purchase_request_id: 'prV', step_number: 1, status: 'PENDING', note: '', decided_at: null }],
     allProjects: PROJECTS, allMaterials: MATERIALS, allPrItems: ITEMS, allReceivingItems: [],
     allRequests: PRS, allReceivings: RECEIVINGS, allVendors: VENDORS,
-    refresh: noop, say: noop, onDelete: noop, setPage: noop
+    refresh: noop, say: noop, onDelete: noop, setPage: noop,
+    // Callback aksi per-item WAJIB diberikan: drawer hanya merender tombol
+    // bila callback tersedia (fail-closed, tidak menampilkan tombol mati).
+    onApproveItem: noop, onMarkPrItemOrdered: noop,
+    onDecideApproval: noop, onReviseApproval: noop
   })))
   await tick()
-  const expandBtn = qa(document, '.desktop-table-view button').find(b => b.textContent.includes('Material ('))
-  click(expandBtn); await tick()
-  const apprText = q(document, '.desktop-table-view').textContent
-  check('Approval expand: subtotal per item + Total Estimasi read-only', apprText.includes('240.000') && apprText.includes('Total Estimasi'), apprText.slice(-300))
-  check('Approval expand: label belum lengkap utk item tanpa harga', apprText.includes('belum lengkap'))
+  const detailBtn = qa(document, '.desktop-table-view button').find(b => b.textContent.includes('Rincian'))
+  check('tombol "≡ Rincian" ada di baris Approval (jangkar drawer)', !!detailBtn)
+  click(detailBtn); await tick()
+  const dialog = document.querySelector('[role="dialog"]')
+  const apprText = dialog ? dialog.textContent : ''
+  check('Approval drawer: subtotal per item + Total Estimasi read-only',
+    apprText.includes('240.000') && apprText.includes('Total Estimasi'), apprText.slice(-300))
+  check('Approval drawer: label belum lengkap utk item tanpa harga', apprText.includes('belum lengkap'))
+  check('Approval drawer: aksi per-item "✓ Setujui" tetap terjangkau', apprText.includes('✓ Setujui'))
 }
 
 console.log(`\n=== HASIL RENDER: ${pass} LULUS, ${fail} GAGAL ===`)

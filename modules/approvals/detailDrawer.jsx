@@ -6,10 +6,33 @@
 // perluasan di dalam <tbody> (portal ke document.body — tidak memecah
 // geometri tabel master-detail rowSpan).
 //
-// Murni TAMPILAN (read-only): tidak ada tombol keputusan, tidak ada tulis
-// DB. Keputusan (Setujui/Tolak/Revisi) & gerbang perluasan material per item
-// tetap di baris/kartu daftar (modules/approvals/view.jsx) — alur, status,
-// dan permission TIDAK berubah.
+// ============================================================
+// KOREKSI t_7634fa92 (pra-review, Bamboo) — CAPABILITY YANG HILANG
+// ============================================================
+// Commit asli 8148465 memindahkan tombol "▼ Material (n)" (panel perluasan
+// tbody) menjadi drawer BACA-SAJA. Akibatnya, pada baseline integrasi:
+//   - `expandedApproval` TIDAK PERNAH di-set lagi -> rowExpand() di view.jsx
+//     menjadi kode mati;
+//   - tombol per-item "✓ Setujui" (onApproveItem) dan "🛒 Sudah Order"
+//     (onMarkPrItemOrdered) TIDAK bisa dijangkau dari UI mana pun.
+// Kedua aksi itu bukan sekadar tampilan: keduanya memanggil
+// ensureItemInPurchase() lalu meng-update pr_items.status (lihat
+// pages/index.js approveItem / markPrItemOrdered). Jadi port ini DIAM-DIAM
+// MENGHILANGKAN alur "setujui material satu per satu" — persis yang dilarang
+// arahan ("preserve admin guards, all routes, advanced PR values").
+// Ditangkap oleh scripts/pr-group-test (G), scripts/pr-estimator-test,
+// scripts/showmore-list-test yang semuanya mencari tombol "Material (".
+//
+// PERBAIKAN: drawer tetap jadi satu-satunya jangkar (geometri tabel aman),
+// tetapi isinya TIDAK lagi baca-saja untuk aksi yang memang milik baris:
+//   - rincian item per kategori + subtotal + Total Estimasi (seperti aslinya)
+//   - tombol "✓ Setujui" per item saat status PENDING (onApproveItem)
+//   - tombol "🛒 Sudah Order" per item saat APPROVED & PR sudah disetujui
+//     (onMarkPrItemOrdered)
+// Keputusan tingkat PR (Setujui/Tolak/Revisi) TETAP di baris/kartu daftar —
+// drawer tidak menambah jalur keputusan baru, hanya mengembalikan aksi
+// per-item yang hilang.
+// ============================================================
 //
 // Label Total Estimasi = snapshot pr_items tersimpan (sumber & semantik SAMA
 // 1:1 dengan t_ac0b39c0 di view.jsx): item tanpa harga ≠ 0 → label
@@ -24,7 +47,7 @@ import {
 } from '../requests/view'
 import { displayNote, savedPriceOf } from './view'
 
-export function approvalDetail({ H, r, close, allMaterials }) {
+export function approvalDetail({ H, r, close, allMaterials, onApproveItem, onMarkPrItemOrdered, itemState }) {
   if (!r || !H || !close) return null
 
   const rawItems = H.approvalItems(r)
@@ -88,7 +111,8 @@ export function approvalDetail({ H, r, close, allMaterials }) {
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#556b65', marginBottom: '4px' }}>CATATAN</div>
             <div style={{ fontSize: '12px', whiteSpace: 'normal', overflowWrap: 'break-word' }}>{format(displayNote(r))}</div>
           </div>
-          {/* Rincian item material (murni baca) — fallback legacy tetap didukung */}
+          {/* Rincian item material. KOREKSI t_7634fa92: bukan lagi baca-saja
+              untuk aksi per-item (lihat catatan kepala berkas). */}
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#556b65', marginBottom: '6px' }}>
               RINCIAN MATERIAL
@@ -117,6 +141,14 @@ export function approvalDetail({ H, r, close, allMaterials }) {
                     <div key={gi} style={{ marginBottom: '8px' }}>
                       <div className="ap-group-heading"><span>{groupHeadingText(g.heading)}</span></div>
                       <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
+                            <th style={{ padding: '4px 6px' }}>Item</th>
+                            <th style={{ padding: '4px 6px', width: '70px', textAlign: 'right' }}>Qty</th>
+                            <th style={{ padding: '4px 6px', width: '90px', textAlign: 'right' }}>Subtotal</th>
+                            <th style={{ padding: '4px 6px', width: '96px', textAlign: 'center' }}>Aksi</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {g.items.map((it, ii) => {
                             const price = savedPriceOf(it)
@@ -133,11 +165,52 @@ export function approvalDetail({ H, r, close, allMaterials }) {
                                   {it.quantity ?? it.qty}{it.unit ? ` ${it.unit}` : ''}
                                 </td>
                                 <td style={{
+
                                   padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap',
                                   color: subtotalIt !== null ? '#137333' : '#b45309', fontWeight: 600
                                 }}>
                                   {/* Item tanpa harga = "belum ada harga" — BUKAN 0 */}
                                   {subtotalIt !== null ? rupiah(subtotalIt) : 'belum ada harga'}
+                                </td>
+                                {/* KOREKSI t_7634fa92: aksi per-item yang dulu
+                                    hidup di panel perluasan tbody dikembalikan
+                                    di drawer (satu-satunya jangkar sekarang).
+                                    Gerbang izin SAMA PERSIS dengan
+                                    approvalItemTr di view.jsx: PENDING -> boleh
+                                    setujui; APPROVED & PR disetujui -> boleh
+                                    tandai sudah order. Tidak ada jalur baru. */}
+                                <td style={{ padding: '4px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  {(() => {
+                                    const st = itemState ? itemState(it) : null
+                                    const canApprove = st === 'PENDING' && (r.status === 'PENDING' || r.status === 'APPROVED')
+                                    const canOrder = st === 'APPROVED' && r.status === 'APPROVED'
+                                    if (st === 'ORDERED') {
+                                      return <span style={{ fontSize: '10px', color: '#137333' }}>✓ Sudah Order</span>
+                                    }
+                                    if (canOrder && onMarkPrItemOrdered) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() => onMarkPrItemOrdered(it)}
+                                          style={{ background: '#1f3a34', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
+                                        >
+                                          🛒 Sudah Order
+                                        </button>
+                                      )
+                                    }
+                                    if (canApprove && onApproveItem) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() => onApproveItem(it)}
+                                          style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
+                                        >
+                                          ✓ Setujui
+                                        </button>
+                                      )
+                                    }
+                                    return <span style={{ fontSize: '10px', color: '#71817d' }}>—</span>
+                                  })()}
                                 </td>
                               </tr>
                             )

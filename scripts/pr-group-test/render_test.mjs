@@ -55,7 +55,13 @@ function mount(page, rows, { prItems = [], approvalsRaw = null, requests = [], a
     allPrItems: prItems, allReceivingItems: [],
     allRequests: requests.length ? requests : rows,
     allReceivings: [], allVendors: VENDORS,
-    refresh: noop, say: noop, onDelete: noop, setPage: noop
+    refresh: noop, say: noop, onDelete: noop, setPage: noop,
+    // Aksi per-item Approval (t_7634fa92): drawer hanya merender tombol bila
+    // callback tersedia (fail-closed — tidak ada tombol mati). Tanpa ini,
+    // asersi "✓ Setujui terjangkau" tidak bisa diuji dan UI akan diam-diam
+    // kehilangan jalur setujui-per-material.
+    onApproveItem: noop, onMarkPrItemOrdered: noop,
+    onDecideApproval: noop, onReviseApproval: noop
   }
   const root = createRoot(document.getElementById('app'))
   flushSync(() => root.render(React.createElement(Module, props)))
@@ -218,56 +224,87 @@ console.log('\nF. Show More — hitung parent PR, bukan heading/item/total')
   checkGrid(document, 'PR batch 12 (setelah Show More)')
 }
 
-// ---------- G. Approval desktop ----------
-console.log('\nG. Approval desktop — grup kategori + row-per-child (Qty sejajar)')
+// ---------- G. Approval desktop (compact S1) ----------
+console.log('\nG. Approval desktop — daftar compact + drawer detail (bukan tbody expand)')
 {
   const AP = [{ id: 'ap7', pr_number: 'PR-007', title: 'Meja Display Besar & Kecil', project_name: '[100] Store - Ruko Crysta', purchase_request_id: 'pr7', step_number: 1, status: 'PENDING', note: null, decided_at: null }]
   const { document } = mount('approvals', AP, { prItems: PR7_ITEMS })
-  const labels = groupLabels(document)
-  check('heading grup approval = sama dgn PR (4 grup, satu kali)',
-    JSON.stringify(labels) === JSON.stringify(['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Belum Berkategori']), JSON.stringify(labels))
-  // Row-per-child: nama & qty dalam satu tr
-  const engselRow = [...document.querySelectorAll('.desktop-table-view tr.pr-item-row')]
-    .find(tr => tr.textContent.includes('Engsel (Lurus - Taco)'))
-  check('baris item Approval berisi nama + qty "8 Pcs" di tr SAMA (tidak melenceng)',
-    !!engselRow && engselRow.querySelector('td.pr-item-qty')?.textContent.includes('8 Pcs'))
-  const span = Number(document.querySelector('.desktop-table-view td[rowspan]')?.getAttribute('rowspan'))
-  check('rowSpan parent approval = 4 heading + 8 item + 1 total = 13', span === 13, `rowspan=${span}`)
-  // Geometri grid (run 93): kolom Aksi ikut rowSpan parent; baris Total
-  // Estimasi menutup grid tanpa kolom hantu; nilai di kolom Qty (sejajar
-  // dgn qty item, BUKAN di kolom Aksi).
-  const totalTds = [...document.querySelectorAll('tr.pr-est-total-row td')]
-  check('Total Estimasi approval: 2 sel (label area item + nilai di kolom Qty), tanpa filler kolom hantu', totalTds.length === 2, `n=${totalTds.length}`)
-  check('nilai Total Estimasi approval memakai sel pr-item-qty (sejajar kolom Qty item)',
-    totalTds.some(td => td.classList.contains('pr-item-qty') && td.textContent.includes('2.205.000')))
-  checkGrid(document, 'Approval desktop')
-  check('baris Total Estimasi read-only ada (2.205.000, belum lengkap)',
-    document.querySelector('.desktop-table-view').textContent.includes('2.205.000') && document.querySelector('.desktop-table-view').textContent.includes('belum lengkap'))
-  // Legacy tanpa rincian: dash, tanpa heading
+  // KONTRAK BARU (t_ff02257a, disetujui DAT): daftar Approval COMPACT — satu
+  // baris per PR, rincian material & grup kategori pindah ke DRAWER (portal
+  // document.body). Panel perluasan tbody (rowSpan/heading grup di tabel)
+  // SENGAJA tidak ada lagi, jadi asersi lama (heading grup di tbody, rowSpan
+  // 13, grid 6 kolom) memang tidak berlaku. Yang WAJIB tetap benar dan diuji
+  // di sini: (a) rincian grup kategori + subtotal + total estimasi tersedia,
+  // (b) aksi per-item terjangkau, (c) tidak ada panel dobel.
+  const heads = groupLabels(document)
+  check('daftar compact: tidak ada heading grup di tbody (pindah ke drawer)',
+    heads.length === 0, JSON.stringify(heads))
+  check('daftar compact: kolom teknis (items/items_qty) tidak dirender sebagai header',
+    ![...document.querySelectorAll('.desktop-table-view th')].some(th => /Items|QTY/i.test(th.textContent || '')))
+
+  const detailBtn = [...document.querySelectorAll('.desktop-table-view button')].find(b => (b.textContent || '').includes('Rincian'))
+  check('tombol "≡ Rincian" ada (jangkar drawer)', !!detailBtn)
+  // GEOMETRI (temuan t_7634fa92): versi port 8148465 merender 9 sel untuk
+  // 6 kolom header (5 data + Aksi) -> 3 kolom hantu & baris bergeser.
+  const ths = [...document.querySelectorAll('.desktop-table-view thead th')].length
+  const rowTds = [...document.querySelectorAll('.desktop-table-view tbody tr.pr-compact-row td')].length
+  check(`geometri: jumlah sel baris = jumlah kolom header (${ths})`, rowTds === ths, `header=${ths} body=${rowTds}`)
+  check('tepat SATU tombol "≡ Rincian" per baris (tidak kembar)',
+    [...document.querySelectorAll('.desktop-table-view tbody button')].filter(b => (b.textContent || '').includes('Rincian')).length === 1)
+  click(detailBtn); await tick()
+
+  const dialog = document.querySelector('[role="dialog"]')
+  const dtext = dialog ? (dialog.textContent || '') : ''
+  check('drawer detail terbuka', !!dialog)
+  const dHeads = dialog ? [...dialog.querySelectorAll('.ap-group-heading > span:first-child')].map(e => e.textContent.trim()) : []
+  check('4 grup kategori di drawer: Plywood, HPL, Hardware, Belum Berkategori',
+    JSON.stringify(dHeads) === JSON.stringify(['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Belum Berkategori']), dHeads.join('|'))
+  check('subtotal kategori Plywood 1.380.000 (150k+180k+5×210k)', dtext.includes('1.380.000'))
+  check('Total Estimasi TUNGGAL di drawer (2.205.000, belum lengkap)',
+    dialog.querySelectorAll('.pr-est-total-row').length === 0
+    && (dtext.match(/Total Estimasi/g) || []).length === 1
+    && dtext.includes('2.205.000') && dtext.includes('belum lengkap'))
+  check('item di drawer tetap punya kode + satuan (PLY-0003, Lembar)',
+    dtext.includes('PLY-0003') && dtext.includes('Lembar'))
+  check('aksi per-item "✓ Setujui" terjangkau dari drawer', dtext.includes('✓ Setujui'))
+
+  // Legacy tanpa rincian: drawer tetap terbuka dan menyatakan apa adanya.
   const APL = [{ ...AP[0], id: 'apl', purchase_request_id: 'prXXX', pr_number: 'PR-LEGACY' }]
   const { document: d2 } = mount('approvals', APL, { prItems: [] })
-  check('approval legacy tanpa pr_items → 1 baris dash, tanpa heading grup', groupRows(d2).length === 0 && d2.querySelectorAll('td[rowspan]').length === 0)
+  const btnL = [...d2.querySelectorAll('.desktop-table-view button')].find(b => (b.textContent || '').includes('Rincian'))
+  check('legacy tanpa item: tombol Rincian tetap ada (drawer menjelaskan)', !!btnL)
+  if (btnL) { click(btnL); await tick() }
+  const dlgL = d2.querySelector('[role="dialog"]')
+  check('legacy tanpa item: drawer menulis "belum tersimpan" (bukan pura-pura kosong)',
+    !!dlgL && (dlgL.textContent || '').includes('belum tersimpan'))
 }
 
-// ---------- H. Approval panel perluasan ----------
-console.log('\nH. Approval perluasan — tabel per grup + subtotal kategori')
+// ---------- H. Approval drawer: grup kategori + subtotal + aksi per-item ----------
+console.log('\nH. Approval drawer — tabel per grup + subtotal kategori + aksi per item')
 {
   const AP = [{ id: 'ap7', pr_number: 'PR-007', title: 'Meja Display', project_name: '[100] Store', purchase_request_id: 'pr7', step_number: 1, status: 'PENDING', note: null, decided_at: null }]
   const { document } = mount('approvals', AP, { prItems: PR7_ITEMS })
-  const btn = [...document.querySelectorAll('.desktop-table-view button')].find(b => b.textContent.includes('Material ('))
+  // Anchor kontrak compact (t_ff02257a): drawer, bukan panel perluasan tbody.
+  const btn = [...document.querySelectorAll('.desktop-table-view button')].find(b => (b.textContent || '').includes('Rincian'))
   click(btn); await tick()
-  const expand = [...document.querySelectorAll('.desktop-table-view td')].find(td => td.textContent.includes('setujui per barang'))
-  check('panel perluasan terbuka (SEKALI — tidak dobel)', !!expand && document.querySelectorAll('.ap-group-block').length === 4, `blocks=${document.querySelectorAll('.ap-group-block').length}`)
-  const heads = [...document.querySelectorAll('.ap-group-heading > span:first-child')].map(e => e.textContent.trim())
+  const dlg = document.querySelector('[role="dialog"]')
+  const expand = dlg
+  check('drawer detail terbuka (satu — tidak dobel)', !!expand && document.querySelectorAll('[role="dialog"]').length === 1,
+    `dialogs=${document.querySelectorAll('[role="dialog"]').length}`)
+  const heads = expand ? [...expand.querySelectorAll('.ap-group-heading > span:first-child')].map(e => e.textContent.trim()) : []
   check('4 tabel grup + heading: Plywood, HPL, Hardware, Belum Berkategori',
     JSON.stringify(heads) === JSON.stringify(['Plywood & Board', 'HPL & Edging', 'Hardware & Fitting', 'Belum Berkategori']), heads.join('|'))
   check('subtotal kategori valid: Plywood 1.380.000 (150k+180k+5×210k)',
-    expand.textContent.includes('1.380.000'), [...document.querySelectorAll('.ap-group-heading')].map(e => e.textContent).join(' ;; '))
-  check('tombol aksi per item tetap ada (✓ Setujui / Sudah Order)', expand.textContent.includes('✓ Setujui'))
+    !!expand && (expand.textContent || '').includes('1.380.000'))
+  // KOREKSI t_7634fa92: aksi per-item WAJIB terjangkau (dulu hilang saat panel
+  // tbody diganti drawer baca-saja). Dikunci juga oleh
+  // scripts/approval-item-action-test.
+  check('tombol aksi per-item "✓ Setujui" ada di drawer', !!expand && (expand.textContent || '').includes('✓ Setujui'))
   check('Total Estimasi tetap TUNGGAL di akhir panel (bukan per grup)',
-    expand.querySelectorAll('tr.pr-est-total-row').length === 1 && expand.textContent.includes('2.205.000'))
+    !!expand && (expand.textContent || '').match(/Total Estimasi/g)?.length === 1
+    && (expand.textContent || '').includes('2.205.000'))
   check('item dalam grup tetap punya kode + satuan (PLY-, Lembar)',
-    expand.textContent.includes('PLY-0003') && expand.textContent.includes('Lembar'))
+    !!expand && (expand.textContent || '').includes('PLY-0003') && (expand.textContent || '').includes('Lembar'))
 }
 
 // ---------- I. Approval mobile ----------

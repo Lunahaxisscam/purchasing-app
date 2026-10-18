@@ -1,0 +1,347 @@
+Sandbox: /tmp/purchase-flow-verify
+
+SWC: 78 file dikompilasi ke dist/
+=== A. LOGIKA MODUL PURCHASE (purchaseLogic.js verbatim) ===
+
+A1. Tab "Siap Dibeli": hanya APPROVED/ORDERED yang belum dibeli
+  ✓ A1a pi1 (APPROVED, belum dibeli) tampil
+  ✓ A1b pi2 (APPROVED) tampil
+  ✓ A1c pi3 (APPROVED, vendor lain) tampil
+  ✓ A1d pi4 (PENDING_APPROVAL) TIDAK tampil
+  ✓ A1e pi5 (sudah ada nota DIBELI) TIDAK tampil
+  ✓ A1f pi6 (qty>0 nota lama) TIDAK tampil
+  ✓ A1g total 3 barang siap dibeli
+  ✓ A1h qty PR terbawa
+  ✓ A1i nama proyek berlabel kode
+  ✓ A1j vendor dari PR terbawa
+  ✓ A1k estimasi dibawa sebagai pembanding
+  ✓ A1l harga acuan master dibawa
+  ✓ A1m kategori dari master material
+  ✓ A1n urutan: vendor tercatat di atas
+
+A1b. Beli sebagian: sisa kebutuhan tetap di Siap Dibeli (tidak hilang)
+  ✓ A1b1 item masih tampil (beli 4 dari 10)
+  ✓ A1b2 qty PR tetap 10
+  ✓ A1b3 qty sudah dibeli = 4
+  ✓ A1b4 sisa = 6
+  ✓ A1b5 qty default form = sisa (6), bukan 10
+  ✓ A1b6 beli penuh -> item hilang dari Siap Dibeli
+  ✓ A1b7 beli lebih -> item hilang (tanpa sisa negatif)
+
+A2. Filter per toko & per proyek (opsi dari data nyata)
+  ✓ A2a opsi vendor = 2 (v1, v2)
+  ✓ A2b opsi proyek = 2
+  ✓ A2c tanpa vendor dihitung terpisah
+  ✓ A2d filter v1 -> 2 barang
+  ✓ A2e filter v1 hanya barang v1
+  ✓ A2f filter proyek p2 -> 1 barang
+  ✓ A2g pencarian teks case-insensitive
+  ✓ A2h filter kosong -> semua
+
+A3. Draft form: qty default PR, harga riil KOSONG (bukan estimasi)
+  ✓ A3a vendor terisi
+  ✓ A3b tanggal default hari ini
+  ✓ A3c no. nota kosong (harus diisi admin)
+  ✓ A3d 2 baris item
+  ✓ A3e qty default = qty PR
+  ✓ A3f harga riil KOSONG (tidak memakai estimasi)
+  ✓ A3g estimasi tetap tersedia sebagai pembanding
+  ✓ A3h biaya lain & diskon kosong
+
+A4. Subtotal & total nota (dibulatkan, biaya lain dipisah)
+  ✓ A4a subtotal = qty × harga
+  ✓ A4b desimal dibulatkan (Math.round)
+  ✓ A4c qty 0 -> subtotal null (bukan 0)
+  ✓ A4d harga kosong -> subtotal null
+  ✓ A4e material = 472.000 + 70.000
+  ✓ A4f biaya lain tercatat terpisah
+  ✓ A4g diskon tercatat terpisah
+  ✓ A4h total nota = material + biaya - diskon
+  ✓ A4i jumlah item terisi
+  ✓ A4j total tidak negatif (diskon > material -> 0)
+
+A5. Validasi form (nol tulisan bila tidak valid)
+  ✓ A5a form lengkap -> valid
+  ✓ A5b total dihitung
+  ✓ A5c tanpa vendor -> invalid + pesan
+  ✓ A5d tanpa no. nota -> invalid
+  ✓ A5e tanpa tanggal -> invalid
+  ✓ A5f qty 0 & harga 0 -> invalid per item
+  ✓ A5g vendor tak dikenal -> invalid
+  ✓ A5h tanpa item -> invalid
+  ✓ A5i plan hanya item dengan harga
+  ✓ A5j penanda harga item ditulis
+  ✓ A5k header material & total benar
+
+A6. Tab Riwayat: nota DIBELI + nota lama, cangkang tidak tampil
+  ✓ A6a nota DIBELI tampil
+  ✓ A6b nota lama (LEGACY) tampil
+  ✓ A6c cangkang otomatis TIDAK tampil
+  ✓ A6d kind DIBELI benar
+  ✓ A6e total nota terbaca
+  ✓ A6f jumlah item benar
+  ✓ A6g vendor terbaca
+  ✓ A6h nama proyek berlabel
+  ✓ A6i nota lama ditandai LEGACY
+  ✓ A6j nota lama tetap punya total
+  ✓ A6k nota lama tanpa harga satuan item (jujur, bukan 0)
+  ✓ A6l urutan tanggal terbaru dulu
+  ✓ A6m ringkasan item menyebut nama barang
+  ✓ A6n ringkasan nota tanpa item jujur
+
+A6b. Cangkang Approval tidak muncul di Riwayat (delivery_note "PO ...")
+  ✓ A6b1 cangkang ber-delivery_note TIDAK tampil di Riwayat
+  ✓ A6b2 classifyNota cangkang = DRAFT
+  ✓ A6b3 nota lama bernomor tetap tampil
+  ✓ A6b4 nota lama tanpa nomor tapi bertanggal+nominal tetap tampil
+  ✓ A6b5 cangkang kosong tetap DRAFT
+
+A6c. Rincian nota tidak memuat baris qty 0 (sisa cangkang)
+  ✓ A6c1 jumlah item = 1 (bukan 2)
+  ✓ A6c2 rincian hanya barang yang dibeli
+  ✓ A6c3 total qty = 4 (baris qty 0 tidak dihitung)
+  ✓ A6c4 ringkasan tidak menyebut barang qty 0
+
+A7. Kontrak catatan nota (lib/purchaseNote.js)
+  ✓ A7a nominal material terbaca
+  ✓ A7b biaya lain terbaca terpisah
+  ✓ A7c diskon terbaca terpisah
+  ✓ A7d total = material + biaya - diskon
+  ✓ A7e referensi nota terbaca
+  ✓ A7f bukti nota terbaca
+  ✓ A7g bukti transfer terbaca
+  ✓ A7h penanda tahap terbaca
+  ✓ A7i catatan bebas bersih dari penanda
+  ✓ A7j data lama: material null
+  ✓ A7k data lama: total null (tidak mengarang)
+  ✓ A7l data lama: teks masuk catatan
+  ✓ A7m [Nominal] tetap format lama yang dibaca Finance
+  ✓ A7n nilai 0 tidak menulis penanda
+  ✓ A7o status DIBELI -> purchased
+  ✓ A7p penanda tahap -> purchased (fallback constraint)
+  ✓ A7q nota biasa -> bukan purchased
+  ✓ A7r penanda harga item ditulis
+  ✓ A7s penanda harga item terbaca
+  ✓ A7t tanpa penanda harga -> null
+  ✓ A7u harga 0 -> tidak menulis penanda
+
+A8. Harga satuan riil nota dibaca resolver acuan Material (HISTORIS)
+  ✓ A8a ada 1 entri acuan
+  ✓ A8b sumber HISTORIS (harga beli riil dari nota)
+  ✓ A8c harga = 115.000 (BUKAN estimasi 120.000)
+  ✓ A8d provenance actual
+  ✓ A8e vendor dari nota
+  ✓ A8f bestEntry memakai harga historis
+  ✓ A8g tanpa harga nota -> PR_ESTIMATE (bukan HISTORIS)
+  ✓ A8h harganya estimasi PR 120.000
+  ✓ A8i [Nominal] total nota TIDAK dipakai sbg harga satuan
+
+=== B. SIMPAN NOTA (purchaseSave.js + mock DB) ===
+
+B1. Simpan nota normal: header + baris barang + status DIBELI
+  ✓ B1a simpan sukses
+  ✓ B1b vendor tersimpan
+  ✓ B1c no. nota tersimpan
+  ✓ B1d tanggal belanja tersimpan
+  ✓ B1e status DIBELI
+  ✓ B1f catatan memuat nominal material
+  ✓ B1g catatan memuat biaya lain
+  ✓ B1h catatan memuat penanda tahap
+  ✓ B1i 2 baris barang dibuat
+  ✓ B1j qty beli tersimpan
+  ✓ B1k harga satuan riil tersimpan di catatan item
+  ✓ B1l pesan menyebut total nota
+  ✓ B1m status tidak fallback
+
+B2. Anti dobel: nota toko + nomor sama ditolak (nol tulisan)
+  ✓ B2a ditolak
+  ✓ B2b pesan menyebut nomor nota
+  ✓ B2c NOL insert header
+  ✓ B2d NOL insert item
+
+B3. Cangkang nota dari Approval DIPAKAI ULANG (tanpa duplikasi)
+  ✓ B3a simpan sukses
+  ✓ B3b TIDAK membuat header baru
+  ✓ B3c header cangkang di-update
+  ✓ B3d vendor diisi pada cangkang
+  ✓ B3e no. nota diisi pada cangkang
+  ✓ B3f status jadi DIBELI
+  ✓ B3g TIDAK ada baris item baru (dipakai ulang)
+  ✓ B3h 2 baris item di-update
+  ✓ B3i qty beli ditulis ke baris lama
+  ✓ B3j harga ditulis ke baris lama
+  ✓ B3k dilaporkan memakai ulang header
+
+B4. CHECK constraint menolak status DIBELI -> fallback penanda tahap
+  ✓ B4a nota TETAP tersimpan
+  ✓ B4b fallback dilaporkan
+  ✓ B4c status ditulis NORMAL (nilai yang diizinkan)
+  ✓ B4d penanda tahap ada di catatan
+  ✓ B4e nota terbaca "sudah dibeli" lewat penanda
+  ✓ B4f pesan menjelaskan fallback
+
+B5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur
+  ✓ B5a simpan sukses
+  ✓ B5b dokumen handover dibuat
+  ✓ B5c status DRAFT (antrean belum diserahkan)
+  ✓ B5d terhubung ke nota
+  ✓ B5e belum ada waktu penyerahan
+  ✓ B5f dilaporkan di pesan
+  ✓ B5g nota yang sudah punya antrean tidak membuat dokumen kedua
+  ✓ B5h nota lain tetap mendapat antrean sendiri
+  ✓ B5i nota tetap tersimpan walau handover gagal
+  ✓ B5j error handover dilaporkan
+  ✓ B5k pesan menyebut tindakan manual
+
+B6. Validasi awal: nol tulisan bila data belum lengkap
+  ✓ B6a tanpa vendor ditolak
+  ✓ B6b tanpa no. nota ditolak
+  ✓ B6c tanpa item ditolak
+  ✓ B6d NOL tulisan sepanjang validasi
+
+B7. Dua nota berurutan dari PR yang sama: nota pertama TIDAK boleh hilang
+  ✓ B7a nota pertama tersimpan
+  ✓ B7b nota pertama memakai cangkang
+  ✓ B7c nota kedua tersimpan
+  ✓ B7d nota kedua TIDAK menimpa nota pertama (header baru)
+  ✓ B7e ada 2 nota tercatat
+  ✓ B7f nota TB-111 tetap ada
+  ✓ B7g nota TB-222 ada
+  ✓ B7h tanggal nota pertama utuh
+  ✓ B7i nominal nota pertama utuh (4 x 118.000)
+  ✓ B7j riwayat memuat 2 nota
+  ✓ B7k rincian nota pertama = qty 4
+  ✓ B7l rincian nota kedua = qty 6
+  ✓ B7m total kedua nota = 472.000 + 714.000
+  ✓ B7n sisa kebutuhan habis (tidak muncul lagi)
+
+B8. Nota tanpa cangkang tetap menyimpan jejak PR & proyek
+  ✓ B8a simpan sukses
+  ✓ B8b purchase_request_id terisi dari jejak form
+  ✓ B8c project_id terisi dari jejak form
+  ✓ B8d dokumen Handover membawa proyek
+
+=== HASIL: 178 lulus, 0 gagal ===
+=== C. UI MODUL PURCHASE (page.jsx + purchaseForm.jsx asli, jsdom) ===
+
+C1. Dua tab: Siap Dibeli & Riwayat Pembelian
+  ✓ C1a tab "Siap Dibeli" ada
+  ✓ C1b tab "Riwayat Pembelian" ada
+  ✓ C1c tab default = Siap Dibeli
+  ✓ C1d 3 barang siap dibeli tampil
+  ✓ C1e barang belum disetujui TIDAK tampil
+  ✓ C1f barang sudah dibeli TIDAK tampil di Siap Dibeli
+  ✓ C1g pindah tab -> Riwayat aktif
+  ✓ C1h nota DIBELI tampil di riwayat
+  ✓ C1i nota lama tampil di riwayat
+  ✓ C1j cangkang otomatis TIDAK tampil
+  ✓ C1k total belanja tercatat tampil
+  ✓ C1l kembali ke Siap Dibeli
+
+C2. Centang beberapa barang -> dialog Proses Pembelian
+  ✓ C2a tombol Proses Pembelian ADA tapi nonaktif tanpa pilihan
+  ✓ C2b centang 1 -> tombol aktif + jumlah
+  ✓ C2c label tombol menyebut jumlah
+  ✓ C2d petunjuk satu toko tampil
+  ✓ C2e centang 2 -> (2)
+  ✓ C2f dialog belum terbuka
+  ✓ C2g dialog Proses Pembelian terbuka
+  ✓ C2h judul dialog benar
+  ✓ C2i 2 baris item di dialog
+  ✓ C2j qty default dari PR (4)
+  ✓ C2k harga riil kosong (bukan estimasi)
+  ✓ C2l vendor terisi otomatis
+  ✓ C2m tanggal default hari ini
+  ✓ C2n tombol submit nonaktif sebelum lengkap
+
+C3. Hitung live; NOL tulisan DB sebelum "Selesaikan Pembelian"
+  ✓ C3a subtotal baris 1 dihitung
+  ✓ C3b total material = 542.000
+  ✓ C3c total nota = 542.000
+  ✓ C3d NOL tulisan DB saat mengetik
+  ✓ C3e tombol submit aktif setelah lengkap
+
+C4. Biaya lain/ongkir & diskon mempengaruhi total nota (dipisah)
+  ✓ C4a total = 567.000 setelah ongkir
+  ✓ C4b baris biaya lain terpisah dari material
+  ✓ C4c total = 557.000 setelah diskon
+  ✓ C4d material TIDAK berubah karena diskon
+
+C5. Double submit -> satu nota saja
+  ✓ C5a hanya SATU header nota dibuat
+  ✓ C5b no. nota tersimpan
+  ✓ C5c status DIBELI
+  ✓ C5d total nota tersimpan di catatan
+  ✓ C5e biaya lain tersimpan terpisah
+  ✓ C5f diskon tersimpan terpisah
+  ✓ C5g 2 baris barang tersimpan
+  ✓ C5h antrean handover dibuat
+  ✓ C5i dialog tertutup setelah simpan
+
+C6. TIDAK ADA tombol/teks gudang, tukang, retur, refund di Purchase
+  ✓ C6 tidak ada "Masuk Stok Gudang"
+  ✓ C6 tidak ada "Serah Terima ke Tukang"
+  ✓ C6 tidak ada "Serah ke Tukang"
+  ✓ C6 tidak ada "Retur"
+  ✓ C6 tidak ada "Refund"
+  ✓ C6 tidak ada "Ke Tukang"
+  ✓ C6 tidak ada "Status Nota"
+  ✓ C6 tidak ada dropdown status nota
+  ✓ C6 tombol aksi gudang/tukang tidak ada
+  ✓ C6 riwayat tidak memuat "Retur"
+  ✓ C6 riwayat tidak memuat "Refund"
+  ✓ C6 riwayat tidak memuat "Masuk Stok Gudang"
+
+C7. Riwayat: total rupiah & lampiran bukti
+  ✓ C7a baris riwayat ada
+  ✓ C7b total nota tampil
+  ✓ C7c material tampil terpisah
+  ✓ C7d biaya lain tampil
+  ✓ C7e chip bukti nota ada
+  ✓ C7f chip bukti transfer ada
+  ✓ C7g nota lama diberi label jujur
+  ✓ C7h rincian menampilkan harga satuan
+  ✓ C7i rincian menampilkan subtotal
+  ✓ C7j rincian menampilkan total nota
+  ✓ C7k rincian menampilkan diskon/ongkir
+  ✓ C7l tombol tutup rincian berubah
+  ✓ C7m rincian bisa ditutup
+
+C8. Filter toko/proyek & pilih semua
+  ✓ C8a filter v2 -> 1 baris
+  ✓ C8b baris yang tampil milik v2
+  ✓ C8c reset filter -> 3 baris
+  ✓ C8d filter proyek p2 -> 1 baris
+  ✓ C8e pencarian "sekrup" -> 2 baris
+  ✓ C8f pilih semua -> tombol (3)
+  ✓ C8g petunjuk multi-toko tampil
+  ✓ C8h batal pilih semua -> tombol nonaktif
+
+C9. Validasi UI: no. nota wajib, harga wajib
+  ✓ C9a submit nonaktif tanpa no. nota
+  ✓ C9b submit masih nonaktif tanpa harga
+  ✓ C9c harga 0 -> tetap nonaktif
+  ✓ C9d harga valid -> submit aktif
+  ✓ C9e NOL tulisan selama validasi
+
+C10. Data kosong: pesan jelas, tidak error
+  ✓ C10a Siap Dibeli kosong -> pesan jelas
+  ✓ C10b tombol Proses Pembelian nonaktif
+  ✓ C10c Riwayat kosong -> pesan jelas
+
+C11. Centang lintas toko: semua barang ikut, toko form bisa diganti
+  ✓ C11a petunjuk multi-toko tampil
+  ✓ C11b SEMUA barang tercentang masuk dialog (2)
+  ✓ C11c toko terisi otomatis (salah satu toko nyata)
+  ✓ C11d toko bisa diganti ke toko lain
+  ✓ C11e tidak ada barang dibuang diam-diam
+
+=== HASIL: 90 lulus, 0 gagal ===
+Warning: Received `true` for a non-boolean attribute `jsx`.
+
+If you want to write it to the DOM, pass a string instead: jsx="true" or jsx={value.toString()}.
+    at style
+    at form
+    at div
+    at PurchaseForm (file:///tmp/purchase-flow-verify/dist/modules/receivings/purchaseForm.mjs:264:22)
+    at PurchasePage (file:///tmp/purchase-flow-verify/dist/modules/receivings/page.mjs:152:22)

@@ -51,6 +51,11 @@ SUITES = [
     'sales-invoice-test',
     'reminders-test',
     'marketing-test',
+    # t_7634fa92 (pra-review): lapisan UI modul Marketing dipisah dari lapisan
+    # kontrak S6 karena keduanya dulu bernama run.py dan bertabrakan saat port.
+    # Dua-duanya harus jalan: 263 asersi kontrak + 327 asersi UI.
+    'marketing-test/run_ui.py',
+    's7-compact-test',
     'crm-test',
     'rap-compare-test',
     'stock-view-test',
@@ -136,16 +141,23 @@ def main():
     os.makedirs(LOGDIR, exist_ok=True)
     print(f'=== REGRESI INTEGRASI (berurutan) — {STAMP} ===')
     for s in SUITES:
-        script = os.path.join(REPO, 'scripts', s, 'run.py')
+        # Entri boleh berupa direktori suite (scripts/<s>/run.py) atau path
+        # runner eksplisit (mis. 'marketing-test/run_ui.py') untuk suite yang
+        # punya LEBIH DARI SATU lapisan uji.
+        rel = s if s.endswith('.py') else os.path.join(s, 'run.py')
+        script = os.path.join(REPO, 'scripts', rel)
         if not os.path.exists(script):
-            results.append({'suite': s, 'exit': None, 'skipped': True, 'note': 'run.py tidak ada'})
-            print(f'  -- {s}: dilewati (tidak ada run.py)')
+            results.append({'suite': s, 'exit': None, 'skipped': True, 'note': f'{rel} tidak ada'})
+            print(f'  -- {s}: dilewati ({rel} tidak ada)')
             continue
         code, out, secs = run([sys.executable, script])
         r = summarize(s, code, out)
         r['seconds'] = secs
         results.append(r)
-        with open(os.path.join(LOGDIR, f'{s}.log'), 'w', encoding='utf-8') as fh:
+        # Nama suite bisa berupa path (marketing-test/run_ui.py) -> jangan
+        # dipakai apa adanya sebagai nama berkas log.
+        safe = s.replace('/', '__')
+        with open(os.path.join(LOGDIR, f'{safe}.log'), 'w', encoding='utf-8') as fh:
             fh.write(out)
         print(f'  {"OK " if code == 0 else "RED"} {s}: exit={code} lulus={r["passed"]} gagal={r["failed"]} ({secs}s)')
 

@@ -1,0 +1,167 @@
+Sandbox: /tmp/pr-estimator-verify
+
+SWC: 79 file dikompilasi ke dist/
+=== UNIT: modules/requests/estimator.js ===
+
+1. estimateFor — aktual > master > estimasi PR; prioritas vendor hanya utk aktual
+  ✓ MAT_ACTUAL: status OK, sumber HISTORIS (harga aktual)
+  ✓ MAT_ACTUAL: harga 120.000 AKTUAL — BUKAN estimasi 130.000
+  ✓ MAT_ACTUAL: vendor Toko Baroni Jaya, tgl 2026-10-12
+  ✓ MAT_ACTUAL: unit mengikuti satuan material (Lembar)
+  ✓ MAT_EST_ONLY: sumber PR_ESTIMATE — bukan "Historis"
+  ✓ MAT_EST_ONLY: harga 250.000 dari estimated_price
+  ✓ MAT_EST_ONLY: TIDAK berkategori HISTORIS
+  ✓ MAT_EST_ONLY @v2: tetap PR_ESTIMATE (estimasi ≠ pembelian vendor)
+  ✓ MAT_MASTER_EST: MASTER 160.000 menang atas estimasi 180.000
+  ✓ MAT_MASTER_EST urutan: MASTER dulu, PR_ESTIMATE kedua
+  ✓ MAT_QZERO: qty 0 → NO_ENTRY, price null (BUKAN harga aktual)
+  ✓ MAT_H2 tanpa vendor: histori AKTUAL TERBARU (150.000 dari v1, 15 Okt)
+  ✓ MAT_H2 vendor v2: HISTORIS v2 (200.000, 14 Okt) diprioritaskan
+  ✓ MAT_H2 vendor tak dikenal: fallback histori terbaru (150.000)
+  ✓ MAT_MASTER: fallback MASTER 175.000 tanpa vendor/tanggal
+  ✓ MAT_KOSONG: NO_ENTRY, price null (BUKAN 0)
+  ✓ MAT_UNIT: satuan PR (Dus) ≠ material (Lembar) → NO_ENTRY (tanpa konversi)
+  ✓ material tanpa id: UNKNOWN_MATERIAL aman
+
+2. Eligibility — kategori kanonik master material vs master Vendor
+  ✓ v1 (HPL & Edging) eligible utk kategori HPL & Edging
+  ✓ v1 TIDAK eligible utk Plywood & Board
+  ✓ vendor tanpa kategori TIDAK otomatis eligible
+  ✓ material tanpa kategori: tidak ada vendor eligible
+  ✓ cocok case-insensitive + trim
+  ✓ eligibleVendors: hanya v1
+  ✓ kategori pembanding = master material (Alm → bukan vendor HPL)
+  ✓ multi-kategori: eligible di HPL & Edging
+  ✓ multi-kategori: eligible di Aluminium & Profil
+  ✓ multi-kategori: TIDAK eligible di Plywood & Board
+  ✓ eligibleVendors multi: hanya vendor array yang cocok
+  ✓ vendorActiveCategories scalar → [kategori]
+  ✓ vendorActiveCategories tanpa kategori → []
+  ✓ vendorActiveCategories terima JSON string array (tahan data lama)
+  ✓ JSON string rusak → fallback scalar (kosong → tidak eligible)
+
+3. parsePriceValue & prEstimateTotals — tanpa NaN/minus/0 palsu
+  ✓ "1.250.000" → 1250000
+  ✓ number 45000 → 45000
+  ✓ "" → null
+  ✓ "abc" → null
+  ✓ "-5" → null (minus ditolak eksplisit)
+  ✓ "(5)" → null (parenthesis ditolak)
+  ✓ -5 number → null
+  ✓ NaN → null
+  ✓ 0 → 0 (harga 0 dari user diizinkan sbg input, total tetap jujur)
+  ✓ total = 130.000 (item tanpa harga TIDAK dihitung 0)
+  ✓ unknown = 2, complete false
+  ✓ kosong: hasItems false, complete false
+  ✓ semua berharga: complete true
+  ✓ qty invalid → item dianggap belum lengkap (bukan 0)
+  ✓ pembulatan rupiah (30001.2 → 30001)
+
+=== HASIL UNIT: 48 LULUS, 0 GAGAL ===
+SEMUA UNIT ESTIMATOR LULUS
+=== RENDER: form PR interaktif (CreateModal.js asli) ===
+
+A0. Header form satu baris: Project ~40% + Judul Kebutuhan ~60% (desktop), stack mobile
+  ✓ .pr-header-row ada (Project + Judul satu baris)
+  ✓ dua label: Project & Judul Kebutuhan (dua field terpisah)
+  ✓ grid desktop 2 kolom 2fr/3fr (40%/60%)
+  ✓ media query ≤640px stack 1 kolom
+  ✓ Project <select> required & Judul <input> required
+  ✓ edit: prefill judul & project di baris yang sama
+  ✓ edit: judul bisa diketik (onChange hidup)
+A. Tambah item → estimasi OTOMATIS terisi (atau kosong + label)
+  ✓ item HPL-0001 (harga aktual): estimasi otomatis terisi "115.000"
+  ✓ badge sumber ✅ Historis (pembelian) tampil (harga aktual, P1)
+  ✓ vendor referensi "ref: Toko HPL Jaya" tampil
+  ✓ tanggal histori 2026-10-12 tampil
+  ✓ Total Estimasi terisi (qty 1 × 115.000 = 115.000)
+  ✓ item Frame Baleno (tanpa acuan): estimasi KOSONG — bukan 0 palsu
+  ✓ label "Belum ada acuan" tampil
+  ✓ Total "belum lengkap" + 1 item belum ada harga
+  ✓ total tetap 115.000 (item tanpa harga TIDAK dihitung 0)
+  ✓ item HPL-0002: MASTER 95.000 terisi otomatis
+  ✓ badge 📍 Master tampil (tanpa vendor/tanggal palsu)
+
+B. Ganti vendor → recalc bila belum manual; override dipertahankan
+  ✓ ganti vendor tanpa histori vendor: fallback harga aktual terbaru 115.000
+  ✓ override manual → 100.000
+  ✓ ganti vendor SETELAH override: harga user TIDAK ditimpa (tetap 100.000)
+  ✓ badge ✍️ Manual tampil utk harga user
+  ✓ tombol ↺ Pakai acuan tersedia
+  ✓ Pakai acuan: kembali ke harga aktual vHPL 115.000 + badge Historis
+
+C. Total Estimasi live — tambah/hapus/ubah qty & acuan
+  ✓ total awal 230.000 (2×115.000)
+  ✓ Total Estimasi di LUAR scroll container (selalu terlihat)
+  ✓ Total Estimasi memakai baris flex, bukan tabel lebar (anti overflow dialog)
+  ✓ total 515.000 setelah item kedua
+  ✓ ubah qty 5: total 860.000 (live update)
+  ✓ hapus item: total 285.000 (update setelah hapus)
+
+D. Filter kategori di area pemilih — irisan dgn search, tanpa ubah data
+  ✓ filter default "Semua Kategori"
+  ✓ filter kategori Aluminium: hanya ALM di dropdown
+  ✓ dropdown berisi ALM-0015 & ALM-0016
+  ✓ irisan kategori×search "Baleno": ALM-0015 + ALM-0016 saja
+  ✓ kategori master tidak berubah oleh filter (HPL-0002 tetap ada)
+
+E. Dropdown vendor hanya kategori aktif di master Vendor
+  ✓ vendor HPL item: hanya Toko HPL Jaya (kategori pas)
+  ✓ vendor tanpa kategori TIDAK masuk daftar
+
+E2. Material tanpa vendor kategori cocok → dropdown kosong, tanpa vendor liar
+  ✓ vendor ALM (Aluminium & Profil): tidak ada vendor eligible (kosong)
+
+F. Edit PR: harga tersimpan dipertahankan (snapshot), bukan histori baru
+  ✓ edit: harga tersimpan 90.000 dipertahankan (bukan histori 120.000)
+  ✓ edit: item tanpa harga (Handle) tetap "Belum ada acuan"
+  ✓ edit: item berharga tersimpan berbadge "Tersimpan (snapshot)" — bukan "Belum ada acuan"
+  ✓ edit: item BARU tetap auto-fill (95.000)
+
+G. Daftar PR (desktop/mobile) & Approval: subtotal snapshot + total
+  ✓ daftar PR: subtotal item 240.000 (2×120.000 snapshot)
+  ✓ daftar PR: baris Total Estimasi (belum lengkap) — item tanpa harga ≠ 0
+  ✓ kartu mobile: subtotal snapshot + total belum lengkap
+=== SAVE BOUNDARY: modules/requests/save.js ===
+
+1. Gate: qty/harga nonnegatif-finite & vendor eligible
+  ✓ qty 0 ditolak (pesan per item)
+  ✓ tidak ada INSERT PR saat ditolak
+  ✓ harga negatif ("-5") ditolak eksplisit
+  ✓ harga "abc" (tanpa digit) → tersimpan sbg null (belum ada acuan), bukan NaN/0
+  ✓ vendor tidak eligible ditolak dgn pesan kategori
+  ✓ pesan menyuruh aktifkan di modul Vendor / pilih vendor lain
+  ✓ vendor eligible → save jalan (PR dibuat)
+
+2. Nilai tersimpan: harga integer rupiah & tanpa metadata acuan liar
+  ✓ 2 item diinsert
+  ✓ harga "1.250.000" → 1250000 integer
+  ✓ item tanpa harga → estimated_price null (bukan 0)
+  ✓ TIDAK ada kolom est_* liar (skema existing dijaga)
+  ✓ kolom sesuai skema: vendor_id & supplier_category tersimpan
+
+3. Mode edit: update item memakai harga tersimpan apa adanya
+  ✓ edit: update pr_items berjalan
+  ✓ edit: harga 90.000 tersimpan apa adanya (snapshot)
+
+=== HASIL SAVE: 14 LULUS, 0 GAGAL ===
+SEMUA SAVE BOUNDARY LULUS
+Warning: Received `true` for a non-boolean attribute `jsx`.
+
+If you want to write it to the DOM, pass a string instead: jsx="true" or jsx={value.toString()}.
+    at style
+    at form
+    at div
+    at Create (file:///tmp/pr-estimator-verify/dist/components/CreateModal.mjs:247:22)
+file:///tmp/pr-estimator-verify/render_test.mjs:35
+const click = (el) => flushSync(() => el.dispatchEvent(new window.Event('click', { bubbles: true })))
+                                         ^
+
+TypeError: Cannot read properties of undefined (reading 'dispatchEvent')
+    at file:///tmp/pr-estimator-verify/render_test.mjs:35:42
+    at flushSync (/home/ubuntu/purchasing-app/node_modules/react-dom/cjs/react-dom.development.js:26228:14)
+    at flushSync$1 (/home/ubuntu/purchasing-app/node_modules/react-dom/cjs/react-dom.development.js:29878:10)
+    at click (file:///tmp/pr-estimator-verify/render_test.mjs:35:23)
+    at file:///tmp/pr-estimator-verify/render_test.mjs:396:3
+
+Node.js v22.23.2

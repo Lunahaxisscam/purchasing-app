@@ -300,16 +300,26 @@ console.log('\nH. CATATAN — approval baru null, legacy auto-seed dash, catatan
     act(() => { pill.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
   }
 
-  // H.1 — Approval baru (a1, note null): kolom Catatan desktop tampil dash,
-  //       BUKAN teks "Menunggu persetujuan...".
+  // H.1 — Approval baru (a1, note null): daftar COMPACT tidak punya kolom
+  //       Catatan (catatan keputusan dibaca di drawer detail). Yang WAJIB
+  //       benar: teks auto "Menunggu persetujuan…" TIDAK muncul di antrean,
+  //       dan drawer menampilkan dash untuk catatan kosong.
+  //       CATATAN t_7634fa92: asersi lama (ada <td> berisi "—") lolos SECARA
+  //       KEBETULAN karena baris compact versi port punya kolom hantu
+  //       (decided_at = "—"). Setelah kolom hantu dihapus, asersi itu diuji
+  //       ulang ke kontrak sebenarnya (drawer), bukan dilonggarkan.
   const rowBaru = desktopRows(doc).find(r => r.textContent.includes('PR-010'))
-  check('H.1a kolom Catatan approval baru = dash "—"', !!rowBaru && Array.from(rowBaru.querySelectorAll('td')).map(td => td.textContent.trim()).includes('—'), rowBaru ? JSON.stringify(Array.from(rowBaru.querySelectorAll('td')).map(td => td.textContent.trim().slice(0, 24))) : 'baris PR-010 tidak ketemu')
+  check('H.1a baris approval baru ada di antrean', !!rowBaru)
   check('H.1b teks auto "Menunggu persetujuan" TIDAK tampil di antrean', !bodyText(doc).includes('Menunggu persetujuan Direksi'))
+  check('H.1c daftar compact TIDAK memuat kolom Catatan (pindah ke drawer)',
+    ![...doc.querySelectorAll('.desktop-table-view thead th')].some(th => /catatan/i.test(th.textContent || '')),
+    JSON.stringify([...doc.querySelectorAll('.desktop-table-view thead th')].map(t => (t.textContent || '').trim())))
 
   // H.2 — Legacy auto-seed (a4): teks exact-pattern tampil dash, baris tetap ada.
   const rowLegacy = desktopRows(doc).find(r => r.textContent.includes('PR-012'))
   check('H.2a baris legacy PR-012 TETAP tampil di antrean (tidak ada penghapusan data)', !!rowLegacy)
-  check('H.2b kolom Catatan legacy = dash "—"', !!rowLegacy && Array.from(rowLegacy.querySelectorAll('td')).map(td => td.textContent.trim()).includes('—'), rowLegacy ? JSON.stringify(Array.from(rowLegacy.querySelectorAll('td')).map(td => td.textContent.trim().slice(0, 24))) : 'baris PR-012 tidak ketemu')
+  check('H.2b teks auto legacy TIDAK bocor ke daftar (tetap disembunyikan)',
+    !bodyText(doc).includes('Menunggu persetujuan Direksi'))
 
   // H.3 — Catatan keputusan pengguna tetap tersedia. KONTRAK COMPACT S1
   //       (t_ff02257a): kolom teknis (note) tidak lagi di tabel daftar —

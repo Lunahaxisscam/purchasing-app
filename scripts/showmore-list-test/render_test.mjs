@@ -99,7 +99,11 @@ function mount(page, rows, extra = {}) {
     allProjects: PROJECTS, allMaterials: MATERIALS,
     allPrItems: PR_ITEMS, allReceivingItems: [], allRequests: REQUESTS,
     allReceivings: [], allVendors: VENDORS,
-    refresh: noop, say: noop, onDelete: noop, setPage: noop, ...extra
+    refresh: noop, say: noop, onDelete: noop, setPage: noop,
+    // Aksi per-item Approval (t_7634fa92): drawer hanya merender tombol bila
+    // callback tersedia (fail-closed). Lihat catatan di blok D.
+    onApproveItem: noop, onMarkPrItemOrdered: noop,
+    onDecideApproval: noop, onReviseApproval: noop, ...extra
   }
   const root = createRoot(document.getElementById('app'))
   flushSync(() => root.render(React.createElement(Module, props)))
@@ -245,23 +249,30 @@ console.log('\nD. PR master-detail & perluasan Approval tetap utuh')
 
   const { document: docA } = mount('approvals', APPROVALS, { allRequests: APPROVALS })
   await tick()
-  // Perluasan material di PR ke-5 (di dalam batch 10 pertama)
-  const expandBtn = [...docA.querySelectorAll('.desktop-table-view button')].filter(b => b.textContent.includes('Material (3)'))[4]
+  // Rincian material Approval dibuka lewat DRAWER (kontrak compact S1,
+  // t_ff02257a) — bukan panel perluasan tbody. PR ke-5 di dalam batch 10
+  // pertama tetap bisa dibuka, dan baris TABEL UTAMA tidak bertambah sama
+  // sekali (drawer = portal di document.body), jadi hitungan baris 10 PR
+  // tidak boleh terpengaruh.
+  const detailBtns = [...docA.querySelectorAll('.desktop-table-view button')].filter(b => (b.textContent || '').includes('Rincian'))
+  // Hanya desktop-table-view yang dihitung: kartu mobile punya tombol
+  // "≡ Rincian" sendiri (jumlah total = 10 desktop + 10 mobile).
+  check('setiap baris Approval desktop punya jangkar "≡ Rincian" (10 batch pertama)', detailBtns.length === 10, `n=${detailBtns.length}`)
+  const expandBtn = detailBtns[4]
   click(expandBtn); await tick()
-  check('perluasan material approval tetap bisa dibuka di dalam batch 10', (docA.body.textContent || '').includes('Material — setujui per barang'))
-  // tbody utama = 10 PR × (3 item + 1 heading grup kategori t_48f6b336 +
-  // 1 baris Total Estimasi t_ac0b39c0) + 1 baris perluasan; nested table item
-  // di DALAM td perluasan TIDAK dihitung (hitung tr yg BUKAN turunan nested
-  // table).
+  const dlg = docA.querySelector('[role="dialog"]')
+  check('rincian material approval tetap bisa dibuka di dalam batch 10',
+    !!dlg && (dlg.textContent || '').includes('RINCIAN MATERIAL'))
+  check('aksi per-item tetap terjangkau dari drawer',
+    !!dlg && (dlg.textContent || '').includes('✓ Setujui'))
+  // Baris tabel utama = 10 PR compact (1 baris per PR). Drawer TIDAK menambah
+  // baris karena portal berada di document.body, bukan di tbody.
   const allTr = [...docA.querySelectorAll('.desktop-table-view table tbody tr')]
   const topTr = allTr.filter(tr => !tr.closest('table table')).length
-  check('baris level-atas: 10 PR×(3 item+1 heading+1 total) + 1 expand = 51 (parent-child utuh)', topTr === 51, `got ${topTr}`)
-  // 3 baris ITEM perluasan + 1 baris Total Estimasi (t_ac0b39c0) — baris total
-  // nested diberi kelas pr-est-total-row; item murni = nested tr tanpa kelas itu.
-  const nestedItem = allTr.filter(tr => !!tr.closest('table table') && !tr.closest('thead') && !tr.classList.contains('pr-est-total-row')).length
-  check('item perluasan utuh di dalam baris expand (3 item, tidak terpotong)', nestedItem === 3, `got ${nestedItem}`)
-  check('baris Total Estimasi ada di perluasan (3 item + 1 total = 4 nested)',
-    allTr.filter(tr => !!tr.closest('table table') && !tr.closest('thead') && tr.classList.contains('pr-est-total-row')).length === 1)
+  check('baris tabel utama = 10 (compact 1 baris/PR; drawer tidak menambah baris)', topTr === 10, `got ${topTr}`)
+  // Grup kategori + subtotal + Total Estimasi hidup di drawer.
+  check('drawer memuat grup kategori + Total Estimasi (bukan hilang bersama panel lama)',
+    !!dlg && (dlg.textContent || '').includes('Total Estimasi') && docA.querySelectorAll('.ap-group-heading').length > 0)
   check('footer approval dari hasil filter penuh: "Menampilkan 10 dari 12"', footerText(docA).includes('Menampilkan 10 dari 12'), footerText(docA))
   check('tab approval dari dataset penuh: "⏳ Menunggu (12)"', (docA.querySelector('.toolbar')?.textContent || '').includes('Menunggu (12)'), docA.querySelector('.toolbar')?.textContent || '')
 }

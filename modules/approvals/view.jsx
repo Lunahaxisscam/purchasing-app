@@ -223,6 +223,20 @@ export function desktopRow(r, ctx) {
   if (compactMode) {
     const est = prEstimateRows(H.approvalItems(r))
     const open = approvalDetailId === r.id
+    // ============================================================
+    // GEOMETRI KOLOM (temuan t_7634fa92, pra-review)
+    // ============================================================
+    // Header compact = 5 kolom data (pr_number/project_name/title/
+    // step_number/status) + 1 kolom Aksi dari shell = 6 kolom.
+    // Versi port 8148465 merender 9 sel: 5 data + Total Estimasi + Waktu
+    // Putusan + tombol Rincian + rowActions. Akibatnya 3 kolom "hantu":
+    // header 6 vs body 9 -> seluruh baris Approval bergeser dan kolom Aksi
+    // berisi tumpukan tombol. Kolom yang benar-benar dijanjikan header:
+    //   1..5 data, 6 = Aksi (berisi keputusan PR + jangkar drawer).
+    // Total Estimasi tetap ditampilkan, tetapi di dalam sel Judul sebagai
+    // baris kecil (tidak menambah kolom) — angkanya tidak hilang, hanya
+    // tidak lagi memecah grid.
+    // ============================================================
     return [(
       <tr key="ap-compact" className="pr-compact-row">
         <td><b>{format(r.pr_number)}</b></td>
@@ -231,38 +245,27 @@ export function desktopRow(r, ctx) {
             {format(r.project_name)}
           </div>
         </td>
-        <td><div title={String(r.title || '')}>{format(r.title)}</div></td>
-        <td>{format(r.step_number)}</td>
-        <td><span className={`badge status-${r.status}`}>{r.status}</span></td>
         <td>
+          <div title={String(r.title || '')}>{format(r.title)}</div>
           {/* Total Estimasi snapshot (sumber & label jujur = t_ac0b39c0):
-              tanpa item → dash; item tanpa harga → "(belum lengkap)" */}
-          {est.hasItems
-            ? (
-              <>
-                <b style={{ color: est.complete ? '#137333' : '#b45309' }}>{rupiah(est.total)}</b>
-                {!est.complete && <span style={{ color: '#b45309', display: 'block', fontSize: '11px' }}>{`belum lengkap — ${est.unknown} item belum ada harga`}</span>}
-              </>
-              )
-            : <span className="muted">—</span>}
-        </td>
-        <td>{format(r.decided_at)}</td>
-        <td>
-          {/* Jangkar drawer: BUKAN perluasan tbody (izin explicit DAT);
-              baris detail = portal document.body. SELALU dirender bila
-              callback drawer tersedia — drawer menangani baris tanpa item
-              ("Rincian per barang belum tersimpan") & catatan keputusan. */}
-          {setApprovalDetailId && (
-            <button
-              type="button"
-              onClick={() => setApprovalDetailId(open ? null : r.id)}
-              style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: open ? '#137333' : '#1f3a34', whiteSpace: 'nowrap' }}
-            >
-              {open ? '▲ Tutup' : `≡ Rincian`}
-            </button>
+              tanpa item -> tidak ditampilkan; item tanpa harga -> "belum
+              lengkap". Diletakkan di sel ini supaya grid tetap 6 kolom. */}
+          {est.hasItems && (
+            <div style={{ fontSize: '11px', marginTop: '2px' }}>
+              <span className="muted">Total Estimasi: </span>
+              <b style={{ color: est.complete ? '#137333' : '#b45309' }}>{rupiah(est.total)}</b>
+              {!est.complete && (
+                <span style={{ color: '#b45309' }}>{` (belum lengkap — ${est.unknown} item belum ada harga)`}</span>
+              )}
+            </div>
           )}
         </td>
-        {rowActions(r, ctx)}
+        <td>{format(r.step_number)}</td>
+        <td><span className={`badge status-${r.status}`}>{r.status}</span></td>
+        {/* Kolom Aksi (satu-satunya): keputusan PR + jangkar drawer. Jangkar
+            TIDAK dirender di sel lain — versi port merendernya dua kali
+            (sel sendiri + rowActions) sehingga ada 2 tombol "Rincian". */}
+        {rowActions(r, ctx, { drawerAnchor: true })}
       </tr>
     )]
   }
@@ -384,6 +387,10 @@ export function rowActions(r, ctx, opts) {
   // sudah terbuka di drawer → teks "▲ Tutup" + highlight (state jelas).
   // SELALU dirender bila callback drawer tersedia — drawer menangani baris
   // tanpa item ("Rincian per barang belum tersimpan") & catatan keputusan.
+  //
+  // opts.drawerAnchor (t_7634fa92): baris COMPACT memakai rowActions sebagai
+  // SATU-SATUNYA kolom Aksi, jadi jangkar drawer ikut di sini dan tidak boleh
+  // dirender lagi oleh pemanggil (dulu dua kali -> tombol Rincian kembar).
   const detailBtn = (compact) => {
     if (!setApprovalDetailId) return null
     const open = approvalDetailId === r.id
@@ -756,13 +763,27 @@ export function mobileCard(r, ctx) {
 // detailDrawer.jsx) — BUKAN di dalam <tbody> supaya geometri tabel
 // master-detail rowSpan tidak pecah.
 //
-// Murni TAMPILAN: drawer hanya baca (rincian material & catatan tolak/revisi);
-// tidak ada tombol keputusan, tidak ada tulis DB — alur submit/approve/
-// revise/reject tidak berubah.
+// KOREKSI t_7634fa92 (pra-review): komentar lama menyatakan "drawer hanya
+// baca". Itu TIDAK BENAR lagi — dan memang tidak boleh: memindahkan panel
+// material ke drawer membuat tombol per-item "✓ Setujui" /
+// "🛒 Sudah Order" (onApproveItem / onMarkPrItemOrdered, keduanya menulis
+// pr_items.status + ensureItemInPurchase) menjadi tidak terjangkau. Drawer
+// sekarang membawa aksi per-item itu; keputusan tingkat PR
+// (Setujui/Tolak/Revisi) tetap di baris/kartu daftar.
 export function receiptForm(ctx) {
-  const { H, rows, approvalDetailId, setApprovalDetailId, allMaterials } = ctx
+  const { H, rows, approvalDetailId, setApprovalDetailId, allMaterials, onApproveItem, onMarkPrItemOrdered, itemState } = ctx
   if (!approvalDetailId || !setApprovalDetailId) return null
   const r = (rows || []).find(x => x.id === approvalDetailId)
   if (!r) return null
-  return approvalDetail({ H, r, close: () => setApprovalDetailId(null), allMaterials })
+  // KOREKSI t_7634fa92: onApproveItem / onMarkPrItemOrdered / itemState WAJIB
+  // diteruskan — tanpa itu tombol per-item di drawer mati (dan itulah regresi
+  // yang ditemukan: alur "setujui material satu per satu" tidak bisa dijangkau).
+  return approvalDetail({
+    H, r,
+    close: () => setApprovalDetailId(null),
+    allMaterials,
+    onApproveItem,
+    onMarkPrItemOrdered,
+    itemState: itemState || ((it) => (H && H.itemState ? H.itemState(it) : null))
+  })
 }
