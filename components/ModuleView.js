@@ -137,6 +137,10 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
 
   const [openNoteId, setOpenNoteId] = useState(null)
   const [editRow, setEditRow] = useState(null)
+  // Drawer detail Approval (t_ff02257a S1): id approval yang drawer-nya
+  // terbuka (null = tutup). Dirender via renderModuleModal → portal document.
+  // Keputusan tetap di baris/kartu daftar — drawer hanya baca.
+  const [approvalDetailId, setApprovalDetailId] = useState(null)
   const [sortKey, setSortKey] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
   // Arahan DAT (t_cf05c96f): daftar modul jangan panjang ke bawah — default
@@ -166,6 +170,8 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     // Approval, antrean SELALU kembali ke "Menunggu" (PENDING) — bukan filter
     // terakhir yang dipakai. Modul lain mempertahankan filter terakhirnya.
     if (page === 'approvals') setApprovalFilter('PENDING')
+    // Drawer detail approval tidak bocor antar modul (t_ff02257a S1).
+    setApprovalDetailId(null)
   }, [page])
 
   // Arahan DAT (t_cf05c96f): limit kembali ke 10 setiap kali filter tab /
@@ -250,6 +256,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     handoverFilter, setHandoverFilter,
     listLimit, setListLimit,
     openNoteId, setOpenNoteId,
+    // Drawer detail Approval (t_ff02257a S1): state dibuka-tutup via hook
+    // receiptForm modul; dirender sebagai portal di luar tabel.
+    approvalDetailId, setApprovalDetailId,
     expandedApproval, setExpandedApproval,
     // Form Terima Barang (t_5196b689): baris Purchase terpilih + penutup.
     receiptRow, setReceiptRow,

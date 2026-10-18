@@ -95,6 +95,8 @@ export function renderModuleMobileCard(page, r, ctx) {
 
 // Modal khusus modul (mis. form Terima Barang di Purchase). null = tidak ada.
 // Dipanggil SEKALI per render halaman (bukan per baris).
+// t_ff02257a S1: hook sama kini juga dipakai modul Approval untuk DRAWER DETAIL
+// (portal document.body, read-only) — bukan baris perluasan di dalam tbody.
 export function renderModuleModal(page, ctx) {
   const m = MODULES[page]
   return (m && m.receiptForm) ? m.receiptForm(ctx) : null

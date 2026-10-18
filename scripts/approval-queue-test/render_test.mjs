@@ -80,7 +80,12 @@ const APPROVALS = [
 ]
 const PR_ITEMS = [
   { id: 'pi1', pr_id: 'r10', item_name: 'Sealant (Clear)', kode: 'SEA-0001', unit: 'Botol', quantity: 1, status: 'PENDING_APPROVAL' },
-  { id: 'pi2', pr_id: 'r10', item_name: 'Thiner', kode: 'THN-0001', unit: 'Liter', quantity: 1, status: 'PENDING_APPROVAL' }
+  { id: 'pi2', pr_id: 'r10', item_name: 'Thiner', kode: 'THN-0001', unit: 'Liter', quantity: 1, status: 'PENDING_APPROVAL' },
+  // H.3/H.4 (drawer detail compact S1): riwayat PR-001/PR-005 butuh item tampil
+  // di drawer (jangkar "≡ Rincian" hanya dirender bila item > 0). Harga
+  // snapshot diisi agar subtotal & Total Estimasi drawer punya nilai valid.
+  { id: 'pi3', pr_id: 'r1', item_name: 'Lemari papan', kode: 'PLY-0001', unit: 'Lbr', quantity: 2, estimated_price: 450000, status: 'APPROVED' },
+  { id: 'pi4', pr_id: 'r5', item_name: 'Cat duco putih', kode: 'PNT-0001', unit: 'Kaleng', quantity: 3, estimated_price: 120000, status: 'REJECTED' }
 ]
 
 function mount(page, rows, extra = {}) {
@@ -140,6 +145,12 @@ console.log('A. Default antrean — tab pertama "⏳ Menunggu" aktif, riwayat ti
     pills.join(' | ') === '⏳ Menunggu (2) | ✓ Disetujui (1) | ✎ Revisi (0) | ✕ Ditolak (1) | Semua (4)', JSON.stringify(pills))
   const rows = desktopRows(doc)
   check('hanya 2 PR (PENDING) tampil di default', parentPRs(doc).size === 2 && [...parentPRs(doc)].join('|').includes('PR-010'), `rows=${rows.length} prs=${[...parentPRs(doc)].join('|')}`)
+  // NEGATIF (t_ff02257a S1): Total Estimasi snapshot PR-010 = 2 item TANPA
+  // harga → total 0 HARUS dilabel "belum lengkap", BUKAN diklaim lengkap.
+  const rowEst = desktopRows(doc).find(r => r.textContent.includes('PR-010'))
+  check('negatif: total parsial TIDAK diklaim lengkap (baris desktop compact)',
+    !!rowEst && rowEst.textContent.includes('belum lengkap') && rowEst.textContent.includes('2 item belum ada harga'),
+    rowEst ? rowEst.textContent.slice(0, 90) : 'baris PR-010 tidak ketemu')
   check('baris yang tampil = PR-010 & PR-012 (bukan riwayat APPROVED)', bodyText(doc).includes('PR-010') && bodyText(doc).includes('PR-012') && !rows.some(r => r.textContent.includes('PR-001') || r.textContent.includes('PR-005')), rows.map(r => r.textContent.slice(0, 40)).join(' ;; '))
   check('tombol aksi Setujui/Tolak/Revisi tersedia di antrean', bodyText(doc).includes('✓ Setujui') && bodyText(doc).includes('✕ Tolak') && bodyText(doc).includes('✎ Revisi'))
   check('counter "2 data tersedia" konsisten', bodyText(doc).includes('2 data tersedia'))
@@ -300,16 +311,31 @@ console.log('\nH. CATATAN — approval baru null, legacy auto-seed dash, catatan
   check('H.2a baris legacy PR-012 TETAP tampil di antrean (tidak ada penghapusan data)', !!rowLegacy)
   check('H.2b kolom Catatan legacy = dash "—"', !!rowLegacy && Array.from(rowLegacy.querySelectorAll('td')).map(td => td.textContent.trim()).includes('—'), rowLegacy ? JSON.stringify(Array.from(rowLegacy.querySelectorAll('td')).map(td => td.textContent.trim().slice(0, 24))) : 'baris PR-012 tidak ketemu')
 
-  // H.3 — Catatan keputusan pengguna tetap tampil utuh.
+  // H.3 — Catatan keputusan pengguna tetap tersedia. KONTRAK COMPACT S1
+  //       (t_ff02257a): kolom teknis (note) tidak lagi di tabel daftar —
+  //       catatan keputusan dibaca lewat DRAWER DETAIL (portal document.body)
+  //       yang dibuka dari jangkar "≡ Rincian" di baris.
   clickPill('✓ Disetujui')
   const rowSetuju = desktopRows(doc).find(r => r.textContent.includes('PR-001'))
-  check('H.3 catatan keputusan pengguna tampil utuh di desktop', !!rowSetuju && rowSetuju.textContent.includes('Disetujui oleh Direksi / PM'), rowSetuju ? rowSetuju.textContent.slice(0, 80) : 'tidak ketemu')
+  const rincianSetuju = rowSetuju && Array.from(rowSetuju.querySelectorAll('button')).find(b => b.textContent.includes('Rincian'))
+  act(() => { rincianSetuju.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
+  const drawerSetuju = Array.from(document.querySelectorAll('[role="dialog"]')).find(d => d.textContent.includes('PR-001'))
+  check('H.3 catatan keputusan pengguna tersedia utuh di drawer detail (compact S1)', !!drawerSetuju && drawerSetuju.textContent.includes('Disetujui oleh Direksi / PM'), drawerSetuju ? drawerSetuju.textContent.slice(0, 120) : 'drawer tidak terbuka')
+  act(() => { Array.from(drawerSetuju.querySelectorAll('button')).find(b => b.textContent.includes('Tutup')).dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
+  check('H.3c drawer tertutup tombol ✕ Tutup', !Array.from(document.querySelectorAll('[role="dialog"]')).some(d => d.textContent.includes('PR-001')), 'drawer masih terbuka')
 
-  // H.4 — Catatan penolakan (REJECTED, punya decided_at) tetap tampil meski
-  //       teksnya mengandung kata "Menunggu" — kata saja tidak menyembunyikan.
+  // H.4 — Catatan penolakan (REJECTED, punya decided_at) tetap terbuka meski
+  //       teksnya mengandung kata "Menunggu" — kata saja TIDAK menyembunyikan
+  //       catatan pengguna; hanya exact-pattern auto-seed pending yang diganti
+  //       dash (isLegacyAutoNote, H.6). Akses via drawer (kontrak compact S1).
   clickPill('✕ Ditolak')
   const rowTolak = desktopRows(doc).find(r => r.textContent.includes('PR-005'))
-  check('H.4 catatan pengguna yg mengandung kata "Menunggu" TIDAK disembunyikan', !!rowTolak && rowTolak.textContent.includes('Harga vendor terlalu tinggi'), rowTolak ? rowTolak.textContent.slice(0, 80) : 'tidak ketemu')
+  const rincianTolak = rowTolak && Array.from(rowTolak.querySelectorAll('button')).find(b => b.textContent.includes('Rincian'))
+  act(() => { rincianTolak.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
+  const drawerTolak = Array.from(document.querySelectorAll('[role="dialog"]')).find(d => d.textContent.includes('PR-005'))
+  check('H.4 catatan pengguna yg mengandung kata \"Menunggu\" TIDAK disembunyikan (drawer detail)', !!drawerTolak && drawerTolak.textContent.includes('Harga vendor terlalu tinggi'), drawerTolak ? drawerTolak.textContent.slice(0, 120) : 'drawer tidak terbuka')
+  act(() => { Array.from(drawerTolak.querySelectorAll('button')).find(b => b.textContent.includes('Tutup')).dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
+  check('H.4b drawer Ditolak tertutup', !Array.from(document.querySelectorAll('[role="dialog"]')).some(d => d.textContent.includes('PR-005')), 'drawer masih terbuka')
 
   // H.5 — Kartu mobile: approval baru & legacy pending = TANPA blok Catatan
   //       (desain antrean mobile BitDev: blok dash hanya untuk riwayat);

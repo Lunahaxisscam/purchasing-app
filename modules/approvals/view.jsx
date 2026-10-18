@@ -15,6 +15,9 @@ import { format, rupiah } from '../../lib/constants'
 // Total Estimasi PR (t_ac0b39c0): snapshot harga tersimpan pr_items —
 // read-only di Approval (detail persetujuan), resolver/list jujur sumbernya.
 import { prEstimateRows } from '../requests/view'
+// Drawer detail approval (t_ff02257a S1): dibuka dari daftar compact, dirender
+// PORTAL document.body oleh renderModuleModal (bukan di dalam tbody).
+import { approvalDetail } from './detailDrawer'
 // t_48f6b336 (arahan DAT): pengelompokan item per kategori master material
 // (via material_id — bukan vendor, bukan tebakan nama). Helper yang sama
 // dipakai modul PR; sumber kategori & urutan konsisten.
@@ -186,8 +189,20 @@ export function renderCell(h, r, rawVal, ctx) {
 // Project, Judul, Step, Status, Catatan, Waktu, Aksi) tetap satu dokumen —
 // rowSpan mencakup semua baris grup + baris Total Estimasi.
 // Murni tampilan: tidak ada perubahan alur approval, nomor, status, atau data.
+// ============================================================
+// COMPACT (t_ff02257a S1 — arahan DAT): dengan kolom compact
+// (pr_number/project_name/title/step_number/status — lib/constants.js
+// headersFor), desktopRow efektif SATU BARIS per PR:
+//   No. PR | Project | Judul | Step | Status | Total Estimasi |
+//   Diputuskan | Rincian | Aksi.
+// Rincian item & catatan tolak/revisi TIDAK di tabel — dibuka lewat drawer
+// (portal document.body) via tombol "≡ Rincian". Bila shell lama memakai
+// kolom 9-kolom penuh (tanpa compact), area item tetap dirender
+// master-detail seperti semula — jalur lama utuh, tidak ada regresi.
+// ============================================================
 export function desktopRow(r, ctx) {
-  const { H, columns, allMaterials } = ctx
+  const { H, columns, allMaterials, approvalDetailId, setApprovalDetailId } = ctx
+  const compactMode = !!columns && !columns.includes('items')
   const rows = approvalItemRowsFull(H, r)
   const groups = rows.length
     ? groupItemsByCategory(rows, materialMapFrom(allMaterials))
@@ -199,6 +214,58 @@ export function desktopRow(r, ctx) {
   // CATATAN: baris perluasan material TIDAK dirender di sini — shell
   // ModuleView merendernya via renderModuleRowExpand(setelah customRow).
   // Merendernya dua kali = panel dobel.
+  // ------------------------------------------------------------
+  // JALUR COMPACT (t_ff02257a): daftar ringkas SATU BARIS per PR —
+  // rincian item & catatan keputusan dibuka lewat drawer (portal body).
+  // Total Estimasi langsung di baris (snapshot pr_items, label jujur
+  // "belum lengkap" bila ada item tanpa harga — BUKAN klaim lengkap).
+  // ------------------------------------------------------------
+  if (compactMode) {
+    const est = prEstimateRows(H.approvalItems(r))
+    const open = approvalDetailId === r.id
+    return [(
+      <tr key="ap-compact" className="pr-compact-row">
+        <td><b>{format(r.pr_number)}</b></td>
+        <td>
+          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={String(r.project_name || '')}>
+            {format(r.project_name)}
+          </div>
+        </td>
+        <td><div title={String(r.title || '')}>{format(r.title)}</div></td>
+        <td>{format(r.step_number)}</td>
+        <td><span className={`badge status-${r.status}`}>{r.status}</span></td>
+        <td>
+          {/* Total Estimasi snapshot (sumber & label jujur = t_ac0b39c0):
+              tanpa item → dash; item tanpa harga → "(belum lengkap)" */}
+          {est.hasItems
+            ? (
+              <>
+                <b style={{ color: est.complete ? '#137333' : '#b45309' }}>{rupiah(est.total)}</b>
+                {!est.complete && <span style={{ color: '#b45309', display: 'block', fontSize: '11px' }}>{`belum lengkap — ${est.unknown} item belum ada harga`}</span>}
+              </>
+              )
+            : <span className="muted">—</span>}
+        </td>
+        <td>{format(r.decided_at)}</td>
+        <td>
+          {/* Jangkar drawer: BUKAN perluasan tbody (izin explicit DAT);
+              baris detail = portal document.body. SELALU dirender bila
+              callback drawer tersedia — drawer menangani baris tanpa item
+              ("Rincian per barang belum tersimpan") & catatan keputusan. */}
+          {setApprovalDetailId && (
+            <button
+              type="button"
+              onClick={() => setApprovalDetailId(open ? null : r.id)}
+              style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: open ? '#137333' : '#1f3a34', whiteSpace: 'nowrap' }}
+            >
+              {open ? '▲ Tutup' : `≡ Rincian`}
+            </button>
+          )}
+        </td>
+        {rowActions(r, ctx)}
+      </tr>
+    )]
+  }
   if (!rows.length) {
     // Legacy tanpa rincian: satu baris dash saja (perilaku lama dipertahankan).
     return [(
@@ -309,10 +376,27 @@ export function desktopRow(r, ctx) {
 // Aksi hanya menutup baris pertama & baris item berlubang di grid). Tanpa
 // opts (jalur legacy / baris tunggal) perilaku lama dipertahankan.
 export function rowActions(r, ctx, opts) {
-  const { H, expandedApproval, setExpandedApproval, onDecideApproval, onReviseApproval } = ctx
+  const { H, expandedApproval, setExpandedApproval, approvalDetailId, setApprovalDetailId, onDecideApproval, onReviseApproval } = ctx
   const { approvalItemLines } = H
   const span = opts && opts.rowSpan ? opts.rowSpan : undefined
   const valign = opts && opts.valign ? opts.valign : undefined
+  // Jangkar drawer detail (t_ff02257a S1): BUKAN perluasan tbody. Bila baris
+  // sudah terbuka di drawer → teks "▲ Tutup" + highlight (state jelas).
+  // SELALU dirender bila callback drawer tersedia — drawer menangani baris
+  // tanpa item ("Rincian per barang belum tersimpan") & catatan keputusan.
+  const detailBtn = (compact) => {
+    if (!setApprovalDetailId) return null
+    const open = approvalDetailId === r.id
+    return (
+      <button
+        type="button"
+        onClick={() => setApprovalDetailId(open ? null : r.id)}
+        style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: compact ? '3px 8px' : '4px 8px', fontSize: compact ? '10px' : '11px', cursor: 'pointer', fontWeight: 600, color: open ? '#137333' : '#1f3a34', width: '100%' }}
+      >
+        {open ? '▲ Tutup' : `≡ Rincian (${approvalItemLines(r).length})`}
+      </button>
+    )
+  }
   return (
     <td rowSpan={span} style={{ textAlign: 'center', verticalAlign: valign }}>
       {r.status === 'PENDING' ? (
@@ -338,28 +422,12 @@ export function rowActions(r, ctx, opts) {
           >
             ✎ Revisi
           </button>
-          {approvalItemLines(r).length > 0 && (
-            <button
-              type="button"
-              onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
-              style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34', width: '100%' }}
-            >
-              {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
-            </button>
-          )}
+          {detailBtn(true)}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
           <span className={`badge status-${r.status}`}>{r.status}</span>
-          {approvalItemLines(r).length > 0 && (
-            <button
-              type="button"
-              onClick={() => setExpandedApproval(expandedApproval === r.id ? null : r.id)}
-              style={{ background: '#eef3f1', border: '1px solid #cbd8d4', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', fontWeight: 600, color: '#1f3a34' }}
-            >
-              {expandedApproval === r.id ? '▲ Tutup material' : `▼ Material (${approvalItemLines(r).length})`}
-            </button>
-          )}
+          {detailBtn(false)}
         </div>
       )}
     </td>
@@ -389,7 +457,8 @@ function approvalGroups(r, H, ctx) {
 
 // Harga snapshot pr_items (sumber sama dgn prEstimateRows t_ac0b39c0):
 // nonnegative finite → integer rupiah; selain itu null (bukan 0 palsu).
-function savedPriceOf(it) {
+// Diekspor: detailDrawer memakai fungsi yang SAMA (t_ff02257a).
+export function savedPriceOf(it) {
   const raw = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
     ? Number(it.estimated_price) : null
   return raw !== null && isFinite(raw) && raw >= 0 ? Math.round(raw) : null
@@ -542,7 +611,7 @@ export function rowExpand(r, ctx) {
 
 // --- Kartu mobile ---
 export function mobileCard(r, ctx) {
-  const { H, onDecideApproval, onReviseApproval, allMaterials } = ctx
+  const { H, onDecideApproval, onReviseApproval, allMaterials, approvalDetailId, setApprovalDetailId } = ctx
   const { approvalItemLines, approvalItems } = H
   // t_48f6b336: kelompokkan item per kategori master material (material_id) —
   // konsisten dgn daftar PR & desktop. Fallback legacy (ringkasan teks) tetap
@@ -661,7 +730,39 @@ export function mobileCard(r, ctx) {
             Sudah diproses ({r.status})
           </div>
         )}
+        {/* Jangkar drawer detail (t_ff02257a S1): fungsionalitas tombol perluasan
+            Material lama dipindah ke drawer (portal document.body) — bukan
+            perluasan tbody */}
+        {approvalItemLines(r).length > 0 && (
+          <button
+            type="button"
+            className="outline"
+            style={{ width: '100%' }}
+            onClick={() => setApprovalDetailId(approvalDetailId === r.id ? null : r.id)}
+          >
+            {approvalDetailId === r.id ? '▲ Tutup Rincian' : `≡ Rincian (${approvalItemLines(r).length})`}
+          </button>
+        )}
       </div>
     </>
   )
+}
+
+// ============================================================
+// DRAWER DETAIL APPROVAL (t_ff02257a S1 — arahan DAT)
+// ============================================================
+// Hook modal modul (renderModuleModal, dipanggil SEKALI per render halaman,
+// bukan per baris). Konten = portal document.body (modules/approvals/
+// detailDrawer.jsx) — BUKAN di dalam <tbody> supaya geometri tabel
+// master-detail rowSpan tidak pecah.
+//
+// Murni TAMPILAN: drawer hanya baca (rincian material & catatan tolak/revisi);
+// tidak ada tombol keputusan, tidak ada tulis DB — alur submit/approve/
+// revise/reject tidak berubah.
+export function receiptForm(ctx) {
+  const { H, rows, approvalDetailId, setApprovalDetailId, allMaterials } = ctx
+  if (!approvalDetailId || !setApprovalDetailId) return null
+  const r = (rows || []).find(x => x.id === approvalDetailId)
+  if (!r) return null
+  return approvalDetail({ H, r, close: () => setApprovalDetailId(null), allMaterials })
 }
