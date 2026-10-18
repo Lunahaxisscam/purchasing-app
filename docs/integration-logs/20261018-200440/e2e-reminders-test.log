@@ -1,0 +1,45 @@
+fake-supabase: HTTP 200
+next app     : HTTP 401 (401 = endpoint menolak tanpa sesi, benar)
+
+=== D. RUNTIME NYATA (http://127.0.0.1:54507) ===
+  ok D1a GET tanpa sesi → 401/503
+  ok D1b tidak membocorkan daftar reminder
+  ok D1c error berbentuk {ok:false, code}
+  ok D1d token pratinjau salah ditolak
+  ok D2a JWT non-admin bukan 200
+  ok D3a JWT admin → 200
+  ok D3b dry_run true
+  ok D3c read_only true
+  ok D3d readiness.no_outbound_send true
+  ok D3e readiness.no_payment true
+  ok D3f readiness.no_cron_mutation true
+  ok D3g authorized_as admin
+  ok D3h sumber data terbaca (purchase_requests tersedia)
+  ok D3i ambang tercetak
+  ok D3j PR overdue terdeteksi dari data uji
+  ok D3k handover pending terdeteksi
+  ok D3l missing_evidence terdeteksi
+  ok D3m semua query SELECT
+  ok D4-POST POST → 405
+  ok D4-PATCH PATCH → 405
+  ok D4-DELETE DELETE → 405
+  ok D4-PUT PUT → 405
+  ok D5a format=text → 200
+  ok D5b content-type text/plain
+  ok D5c memuat DRY-RUN
+  ok D5d memuat pernyataan tidak ada pengiriman
+  ok D5e memuat ambang batas
+  ok D5f memuat status sumber data
+  ok D6a sales_invoices dilaporkan tidak tersedia
+  ok D6b invoice_due BLOCKED
+  ok D6c data_ready false
+  ok D6d status degraded/unavailable
+  ok D6e BLOCKED menjelaskan "bukan berarti bersih"
+  ok D7a tidak ada POST/PATCH/DELETE ke Supabase selama uji
+  ok D8a /api/sales-invoices tetap menolak tanpa sesi
+  ok D8b /api/sales-invoices tetap menolak POST tanpa sesi
+
+  HASIL D: 36 LULUS, 0 GAGAL
+
+================ HASIL E2E ================
+E2E RUNTIME LULUS
