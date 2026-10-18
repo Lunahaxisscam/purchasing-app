@@ -176,20 +176,35 @@ export function resolveThresholds({ query = {}, env = {} } = {}) {
 }
 
 // ------------------------------------------------------------
-// 3. UTIL TANGGAL (UTC, tanpa jam — supaya hasil tidak berubah karena TZ)
+// 3. UTIL TANGGAL (tanggal kalender WIB, tanpa jam)
 // ------------------------------------------------------------
+// Laporan ini dipakai pagi hari WIB. Sebelumnya hari "hari ini" diambil dari
+// UTC (`toISOString()`), sehingga pada 09:00 WIB tanggal masih tanggal
+// kemarin — invoice yang jatuh tempo hari ini masuk "due_soon" bukan
+// "overdue" (penagihan telat sehari). Sekarang tanggal kalender dihitung di
+// zona Asia/Jakarta. String tanggal polos (YYYY-MM-DD) diperlakukan apa
+// adanya: itu sudah tanggal kalender, bukan instan waktu.
+const REPORT_TZ = 'Asia/Jakarta'
+
+function calendarDate(d) {
+  // en-CA menghasilkan format YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: REPORT_TZ, year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(d)
+}
+
 export function toDateOnly(value) {
   if (value === null || value === undefined || value === '') return null
   if (typeof value === 'string') {
-    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
-    if (m) return `${m[1]}-${m[2]}-${m[3]}`
+    const exact = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (exact) return `${exact[1]}-${exact[2]}-${exact[3]}`
     const d = new Date(value)
     if (isNaN(d.getTime())) return null
-    return d.toISOString().slice(0, 10)
+    return calendarDate(d)
   }
   const d = new Date(value)
   if (isNaN(d.getTime())) return null
-  return d.toISOString().slice(0, 10)
+  return calendarDate(d)
 }
 
 function dayNumber(dateOnly) {
@@ -216,8 +231,8 @@ export function isPastDue(dueDate, asOfDate) {
 
 export function todayISO(now) {
   const d = now ? new Date(now) : new Date()
-  if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 10)
-  return d.toISOString().slice(0, 10)
+  if (isNaN(d.getTime())) return calendarDate(new Date())
+  return calendarDate(d)
 }
 
 // ------------------------------------------------------------

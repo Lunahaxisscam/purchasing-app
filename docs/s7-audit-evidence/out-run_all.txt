@@ -1,0 +1,37 @@
+=== REGRESI INTEGRASI (berurutan) — 20261018-190343 ===
+  OK  flow-logic-test: exit=0 lulus=29 gagal=0 (0.1s)
+  OK  fase2-save-test: exit=0 lulus=56 gagal=0 (0.1s)
+  OK  approval-queue-test: exit=0 lulus=60 gagal=0 (2.8s)
+  OK  approval-item-action-test: exit=0 lulus=None gagal=None (2.0s)
+  OK  purchase-flow-test: exit=0 lulus=90 gagal=0 (3.2s)
+  OK  pr-purchase-compact-test: exit=0 lulus=130 gagal=0 (3.6s)
+  OK  handover-compact-test: exit=0 lulus=52 gagal=0 (4.3s)
+  OK  handover-flow-test: exit=0 lulus=73 gagal=0 (2.9s)
+  OK  material-acuan-test: exit=0 lulus=96 gagal=0 (8.4s)
+  OK  material-export-test: exit=0 lulus=46 gagal=0 (2.9s)
+  OK  pr-estimator-test: exit=0 lulus=14 gagal=0 (3.5s)
+  OK  pr-group-test: exit=0 lulus=59 gagal=0 (3.6s)
+  OK  pr-print-template-test: exit=0 lulus=20 gagal=0 (2.1s)
+  OK  showmore-list-test: exit=0 lulus=50 gagal=0 (8.2s)
+  OK  vendors-toolbar-test: exit=0 lulus=25 gagal=0 (2.7s)
+  OK  manual-input-staging-test: exit=0 lulus=73 gagal=0 (0.7s)
+  OK  rab-boq-test: exit=0 lulus=20 gagal=0 (0.2s)
+  RED rab-boq-render-test: exit=1 lulus=70 gagal=2 (2.3s)
+  RED ui-olive-tokens-test: exit=1 lulus=34 gagal=1 (0.2s)
+  OK  rap-test: exit=0 lulus=50 gagal=0 (2.6s)
+  OK  sales-invoice-test: exit=0 lulus=93 gagal=0 (2.4s)
+  OK  reminders-test: exit=0 lulus=243 gagal=0 (0.7s)
+  OK  marketing-test: exit=0 lulus=263 gagal=0 (0.4s)
+  OK  marketing-test/run_ui.py: exit=0 lulus=102 gagal=0 (4.5s)
+  RED s7-compact-test: exit=1 lulus=110 gagal=1 (2.3s)
+  OK  crm-test: exit=0 lulus=88 gagal=0 (3.8s)
+  OK  rap-compare-test: exit=0 lulus=82 gagal=0 (3.4s)
+  OK  stock-view-test: exit=0 lulus=53 gagal=0 (2.0s)
+  OK  projects-merge-test: exit=0 lulus=63 gagal=0 (2.2s)
+  OK  labor-stock-test: exit=0 lulus=99 gagal=0 (4.1s)
+  OK  flow-gap-repro-test: exit=0 lulus=None gagal=None (0.1s)
+
+HASIL: 28/31 suite/entry hijau
+MERAH: rab-boq-render-test, ui-olive-tokens-test, s7-compact-test
+Bukti: /home/ubuntu/dev-workspaces/purchasing-review-prep-20261018/docs/integration-evidence-20261018-190343.json
+EXIT=0

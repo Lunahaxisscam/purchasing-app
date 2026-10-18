@@ -1,0 +1,34 @@
+### 1. globals.css numstat (additions/deletions) 1d364e7..c06822b
+424	0	styles/globals.css
+
+### 2. pages/api changes (expect: none)
+(kosong = tidak ada perubahan API route)
+
+### 3. migrations/ changes (expect: none)
+(kosong = tidak ada migrasi baru/diubah)
+
+### 4. all deleted files across prep range (expect: only harness compile artifacts / none)
+(kosong = tidak ada file dihapus)
+
+### 5. production app files changed (intentional REVIEW-03 + ports)
+components/Finance.js
+components/ModuleView.js
+components/Planning.js
+components/ProjectFinance.js
+lib/constants.js
+lib/laborSource.js
+lib/money.js
+modules/approvals/detailDrawer.jsx
+modules/approvals/view.jsx
+modules/marketing/README.md
+modules/marketing/logic.js
+modules/marketing/view.jsx
+modules/registry.js
+modules/shared/renderModuleCell.jsx
+pages/index.js
+styles/globals.css
+
+### 6. HEAD / branch
+3c591b0 test(audit): bukti regresi ulang S7 di HEAD c06822b (31 suite, 2243 lulus, 3 merah pra-ada)
+c06822b docs(pra-review): laporan implementasi t_7634fa92 + daftarkan suite approval-item
+feat/review-prep-20261018

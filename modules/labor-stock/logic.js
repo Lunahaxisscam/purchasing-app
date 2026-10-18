@@ -293,12 +293,15 @@ export function summarizeLabor({ actualRows = [], estimateRows = null, projectNa
   let actualTotal = 0
   let actualRowsAngka = 0
   let actualProjects = 0
-  let actualTanpaAngka = 0
   for (const v of actualMap.values()) {
     if (v.adaAngka > 0) { actualProjects += 1; actualTotal += v.actual }
-    else actualTanpaAngka += 1
   }
   for (const r of actualRows || []) if (hasNumber(r?.total_upah)) actualRowsAngka += 1
+  // Baris yang TIDAK punya angka = total baris − baris berangka.
+  // Sebelumnya angka ini dihitung dari isi actualMap, padahal actualLaborByProject
+  // melewati (continue) baris tanpa angka — jadi field ini selalu 0 dan pesan
+  // "N baris belum ada angka" tidak pernah muncul. Bukan nol, memang belum diisi.
+  const actualTanpaAngka = (actualRows || []).length - actualRowsAngka
 
   let estimateTotal = null
   let estimateProjects = null

@@ -503,9 +503,19 @@ export function normalizeTransition(body = {}) {
     if (!isIsoDate(paidAt)) {
       push('evidence.paid_at', 'EVIDENCE_REQUIRED', 'Tanggal pembayaran diterima wajib diisi (YYYY-MM-DD).')
     }
-    const paymentRef = text(rawEvidence.payment_ref, LIMITS.payment_ref)
+    const rawRef = String(rawEvidence.payment_ref == null ? '' : rawEvidence.payment_ref)
+      .replace(/\s+/g, ' ').trim()
+    const paymentRef = text(rawRef, LIMITS.payment_ref)
     if (!paymentRef) {
       push('evidence.payment_ref', 'EVIDENCE_REQUIRED', 'Referensi pembayaran (no. transfer / bukti bayar) wajib diisi.')
+    } else if (rawRef.length > LIMITS.payment_ref) {
+      // DULU: dipotong diam-diam ke 80 karakter. Nomor transfer/VA yang
+      // terpotong tidak lagi cocok dengan bukti bank asli saat rekonsiliasi,
+      // dan tidak ada tanda apa pun bahwa data berubah. Sekarang DITOLAK
+      // dengan pesan yang menyebut batasnya — lebih baik operator memendekkan
+      // sendiri (mis. buang nama merchant) daripada sistem memotong tanpa izin.
+      push('evidence.payment_ref', 'PAYMENT_REF_TOO_LONG',
+        `Referensi pembayaran ${rawRef.length} karakter, batas ${LIMITS.payment_ref}. Persingkat (jangan sampai nomor bukti bank terpotong).`)
     }
     // verified_by SENGAJA tidak diambil dari body: handler mengisinya dari sesi
     // admin yang sudah diverifikasi (lihat pages/api/sales-invoices.js).

@@ -1,0 +1,65 @@
+
+A. FN-EST_LABEL — Planning.js: kartu Manpower tidak menyebut "riil"
+  FAIL label "Pengeluaran Riil (WBS)" TIDAK ada lagi  
+  FAIL label baru "Estimasi Upah WBS" tampil  
+  ok   Material tetap "Pengeluaran Riil:" (memang realisasi Drive)
+  ok   Petty cash tetap "Pengeluaran Riil (Petty Cash)"
+  ok   tidak ada NaN/undefined di panel
+
+B. FN-EST_LABEL — ProjectFinance.js: estimasi WBS vs aktual tukang_projects
+  FAIL kartu upah berlabel "Estimasi Upah WBS"  
+  FAIL label menyesatkan "Actual Tukang" TIDAK ada  
+  FAIL estimasi WBS = Rp 5.000.000  
+  FAIL aktual tukang_projects = Rp 4.250.000 (2 baris, cocok beda kapitalisasi/spasi)  
+  ok   estimasi & aktual TIDAK dijumlahkan (Rp 9.250.000 absen)
+  ok   margin tetap memakai estimasi (40 − 15 − 5 = Rp 20.000.000)
+  FAIL tooltip margin menyatakan komponennya estimasi, bukan upah terbayar  
+  FAIL aktual belum ada -> "belum ada catatan tersinkron"  
+  ok   BUKAN "Aktual tersinkron: Rp 0" (nol palsu)
+  FAIL tab Tukang menyatakan dua sumber berbeda  
+  FAIL tab Tukang tidak mengklaim tabel rencana sebagai realisasi  
+
+C. FN-EST_LABEL — aktual tukang_projects tidak boleh dilabeli estimasi
+  FAIL label aktual eksplisit menyebut tukang_projects / tersinkron  
+  FAIL label estimasi eksplisit menyebut WBS  
+  FAIL catatan estimasi menyatakan BUKAN upah terbayar  
+  FAIL catatan aktual menyatakan BUKAN rencana WBS  
+  ok   projectKey setara dengan modules/labor-stock/logic.js
+  ok   aktual nol tercatat -> null (bukan 0)
+  ok   baris tanpa angka -> null (bukan 0)
+  FAIL angka bergaya Indonesia "3.000.000,50" terbaca 3000000.5  
+
+D. FN-TARGET70 — target 70% rupiah utuh, tanpa pecahan sen
+  FAIL 43.300.000 -> 30.310.000 tepat  null
+  FAIL 99.999.999,99 -> 70.000.000 (integer)  null
+  FAIL semua hasil integer (tidak ada pecahan sen)  
+  FAIL revenue 0/negatif/NaN -> 0  
+  FAIL costVsTarget70 revenue 0 -> null (belum bisa dinilai, bukan "hemat")  
+  FAIL tepat di pagu -> underBudget true (batas pas 70% tidak jadi OVER)  
+  FAIL 1 rupiah di atas pagu -> underBudget false  
+  ok   cacat lama ter-reproduksi: 99.999.999,99 -> pecahan sen
+  FAIL perbaikan: hasil baru integer untuk kasus yang sama  
+
+E. FN-PRINTREF — dokumen cetak closing tidak merujuk baris yang tidak ada
+  ok   tab "Arsip Closing" ada
+  ok   tombol "Cetak Dokumen Closing (PDF)" ada di arsip
+  ok   dokumen cetak benar-benar terbuka
+  FAIL rujukan salah "(1 − 5)" TIDAK ada lagi  
+  FAIL rujukan baru cocok baris nyata (1 − TOTAL BIAYA TERCATAT)  
+  ok   baris bernomor 1..4 tercetak (tidak ada nomor 5)
+  FAIL label baris 3 = estimasi WBS, bukan "Realisasi Biaya Tukang"  
+  FAIL total tidak diklaim "HPP RIIL" penuh  
+  ok   angka snapshot tetap dicetak apa adanya (revenue 40jt, total 20,8jt, margin 19,2jt)
+
+F. Finance.js — tabel/kartu memakai label estimasi WBS
+  FAIL header tabel "Estimasi Upah WBS" ada  
+  ok   "Actual Tukang" tidak lagi dipakai untuk sumber project_plans
+  ok   tidak ada NaN/undefined
+  ok   nilai gross Baroni tetap benar (40 − 15 − 5 = 20jt)
+
+=== HASIL: 18 ok, 28 FAIL ===
+GAGAL: label "Pengeluaran Riil (WBS)" TIDAK ada lagi ; label baru "Estimasi Upah WBS" tampil ; kartu upah berlabel "Estimasi Upah WBS" ; label menyesatkan "Actual Tukang" TIDAK ada ; estimasi WBS = Rp 5.000.000 ; aktual tukang_projects = Rp 4.250.000 (2 baris, cocok beda kapitalisasi/spasi) ; tooltip margin menyatakan komponennya estimasi, bukan upah terbayar ; aktual belum ada -> "belum ada catatan tersinkron" ; tab Tukang menyatakan dua sumber berbeda ; tab Tukang tidak mengklaim tabel rencana sebagai realisasi ; label aktual eksplisit menyebut tukang_projects / tersinkron ; label estimasi eksplisit menyebut WBS ; catatan estimasi menyatakan BUKAN upah terbayar ; catatan aktual menyatakan BUKAN rencana WBS ; angka bergaya Indonesia "3.000.000,50" terbaca 3000000.5 ; 43.300.000 -> 30.310.000 tepat ; 99.999.999,99 -> 70.000.000 (integer) ; semua hasil integer (tidak ada pecahan sen) ; revenue 0/negatif/NaN -> 0 ; costVsTarget70 revenue 0 -> null (belum bisa dinilai, bukan "hemat") ; tepat di pagu -> underBudget true (batas pas 70% tidak jadi OVER) ; 1 rupiah di atas pagu -> underBudget false ; perbaikan: hasil baru integer untuk kasus yang sama ; rujukan salah "(1 − 5)" TIDAK ada lagi ; rujukan baru cocok baris nyata (1 − TOTAL BIAYA TERCATAT) ; label baris 3 = estimasi WBS, bukan "Realisasi Biaya Tukang" ; total tidak diklaim "HPP RIIL" penuh ; header tabel "Estimasi Upah WBS" ada
+
+==============================================================
+BUKTI OK: harness MERAH di baseline 1d364e7 (temuan nyata,
+bukan asersi kosong). Harness HIJAU setelah perbaikan.

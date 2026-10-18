@@ -66,6 +66,12 @@ SUITES = [
     'projects-merge-test',
     'labor-stock-test',
     'flow-gap-repro-test',
+    # t_2e5ef03c (paket akhir): suite audit S3/S4/S5/S6 dijalankan DARI paket ini,
+    # bukan hanya dikutip dari laporan worker. Semua fixture-only (tanpa DB).
+    'rap-audit',                        # S3: RAP/pagu/variance + fixture negatif
+    'sales-invoice-payment-test',       # S4: termin/pembayaran/piutang/KPI
+    'crossflow-regression-test',        # S5: alur penuh + anti-double-cost
+    'growth-kpi-test',                  # S6: KPI pertumbuhan + gerbang kejujuran
 ]
 
 # Harness e2e (butuh server smoke hidup di E2E_BASE).

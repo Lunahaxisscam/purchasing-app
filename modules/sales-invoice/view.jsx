@@ -68,6 +68,37 @@ const SENT_CHANNELS = [
   { id: 'Kurir', label: 'Kurir' }
 ]
 
+// ------------------------------------------------------------
+// KPI ringkas invoice — FUNGSI MURNI, diekspor supaya bisa diuji harness
+// (dulu logikanya hanya di dalam useMemo sehingga harness menyalin ulang dan
+// angka yang diuji bisa berbeda dari yang dirender).
+// Kejujuran angka:
+//  - totalNominal = SEMUA status (termasuk draf/batal) -> label kartu
+//    menyatakan itu, bukan "omzet".
+//  - paid = hanya paid_amount yang benar-benar tercatat. LUNAS tanpa
+//    paid_amount TIDAK dihitung lunas; jumlahnya dilaporkan terpisah.
+// ------------------------------------------------------------
+export function computeInvoiceKpi(items) {
+  const list = Array.isArray(items) ? items : []
+  let totalNominal = 0
+  let outstanding = 0
+  let paid = 0
+  let drafts = 0
+  let lunasTanpaBukti = 0
+  for (const inv of list) {
+    const st = String(inv.status || '').toUpperCase()
+    const amount = Number(inv.grand_total || inv.nominal || 0)
+    totalNominal += amount
+    if (st === DRAFT_STATUS) { drafts++; continue }
+    if (st === 'LUNAS') {
+      const p = Number(inv.paid_amount)
+      if (Number.isFinite(p) && p > 0) paid += p
+      else lunasTanpaBukti += 1
+    } else if (st !== 'BATAL') outstanding += amount
+  }
+  return { totalCount: list.length, totalNominal, outstanding, paid, drafts, lunasTanpaBukti }
+}
+
 export default function SalesInvoiceModule({ invoices = null, allProjects = [], projects = [], say, issuer, payment }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -202,21 +233,9 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
     })
   }, [items, filterStatus, search])
 
-  const kpi = useMemo(() => {
-    let totalNominal = 0
-    let outstanding = 0
-    let paid = 0
-    let drafts = 0
-    for (const inv of items) {
-      const st = String(inv.status || '').toUpperCase()
-      const amount = Number(inv.grand_total || inv.nominal || 0)
-      totalNominal += amount
-      if (st === DRAFT_STATUS) { drafts++; continue }
-      if (st === 'LUNAS') paid += Number(inv.paid_amount || amount)
-      else if (st !== 'BATAL') outstanding += amount
-    }
-    return { totalCount: items.length, totalNominal, outstanding, paid, drafts }
-  }, [items])
+  // Angka KPI diambil dari fungsi murni computeInvoiceKpi (satu sumber dengan
+  // yang diuji harness) — jangan menduplikasi logika di sini.
+  const kpi = useMemo(() => computeInvoiceKpi(items), [items])
 
   const storageBanner = (() => {
     if (!storage) return null
@@ -298,7 +317,9 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         <div className="si-kpi-card">
           <span className="si-kpi-lbl">Total Nilai Tagihan</span>
           <b className="si-kpi-val">{formatNominal(kpi.totalNominal)}</b>
-          <small className="si-kpi-sub">termasuk PPN bila ada</small>
+          <small className="si-kpi-sub">
+            semua status termasuk draf &amp; batal — bukan omzet
+          </small>
         </div>
         <div className="si-kpi-card">
           <span className="si-kpi-lbl">Belum Dibayar</span>
@@ -308,7 +329,11 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         <div className="si-kpi-card">
           <span className="si-kpi-lbl">Lunas Terverifikasi</span>
           <b className="si-kpi-val si-c-ok">{formatNominal(kpi.paid)}</b>
-          <small className="si-kpi-sub">ada bukti pembayaran</small>
+          <small className="si-kpi-sub">
+            {kpi.lunasTanpaBukti > 0
+              ? `${kpi.lunasTanpaBukti} invoice LUNAS tanpa nominal bukti (tidak dihitung)`
+              : 'ada bukti pembayaran'}
+          </small>
         </div>
       </div>
 

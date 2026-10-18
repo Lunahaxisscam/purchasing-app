@@ -26,11 +26,45 @@ export const TAB_HISTORY = 'history'
 
 const EPS = 1e-9
 
-// Angka dari input teks ('' / null => 0, 'abc' => NaN).
+// Angka dari input teks ('' / null => 0, teks tak sah => NaN).
+//
+// DIPERBAIKI di paket akhir t_2e5ef03c (temuan S3/S6: FN-RUPIAH_LOCALE).
+// Perilaku lama berbahaya secara finansial:
+//   toNum('1.250.000') -> NaN  (titik ribuan lolos filter, Number() gagal)
+//        -> computeItem memberi subtotal null -> buildSavePlan MEMBUANG baris
+//           itu diam-diam -> nota tersimpan dengan total lebih kecil dari
+//           kenyataan (biaya proyek kurang tercatat).
+//   toNum('3 dus')     -> 3    (satuan dibuang senyap)
+// Sekarang: pemisah ribuan id-ID dibaca benar, dan teks bersatuan DITOLAK
+// (NaN) supaya validasi form menampilkan error alih-alih menebak angka.
 export function toNum(v) {
   if (v === '' || v === null || v === undefined) return 0
-  const n = Number(String(v).replace(/[^\d.-]/g, ''))
-  return isFinite(n) ? n : NaN
+  if (typeof v === 'number') return isFinite(v) ? v : NaN
+  let s = String(v).trim().replace(/^(rp\.?|idr)\s*/i, '').replace(/\s/g, '')
+  if (s === '') return 0
+  const neg = s.startsWith('-')
+  if (neg) s = s.slice(1)
+  // hanya digit + pemisah yang boleh tersisa
+  if (!/^\d[\d.,]*$/.test(s)) return NaN
+  const commas = (s.match(/,/g) || []).length
+  const dots = (s.match(/\./g) || []).length
+  let n
+  if (commas && dots) {
+    // Pemakaian terakhir menentukan desimal (1.250.000,50 / 1,250,000.50).
+    n = s.lastIndexOf(',') > s.lastIndexOf('.')
+      ? Number(s.split('.').join('').replace(',', '.'))
+      : Number(s.split(',').join(''))
+  } else if (dots) {
+    // Titik = ribuan bila SETIAP grup setelah titik tepat 3 digit.
+    n = /^\d{1,3}(\.\d{3})+$/.test(s) ? Number(s.split('.').join('')) : Number(s)
+  } else if (commas) {
+    // Koma = desimal bila hanya satu; lebih dari satu = pemisah ribuan.
+    n = commas === 1 ? Number(s.replace(',', '.')) : Number(s.split(',').join(''))
+  } else {
+    n = Number(s)
+  }
+  if (!isFinite(n)) return NaN
+  return neg ? -n : n
 }
 
 function normUnit(u) {
