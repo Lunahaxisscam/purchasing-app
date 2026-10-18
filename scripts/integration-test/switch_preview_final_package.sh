@@ -157,4 +157,7 @@ if [[ "$NOW_BID" != "$NEW_BID" || "$CODE" != "200" || "$SERVED_BID" != "$NEW_BID
   fi
   die "switch dibatalkan; preview dikembalikan ke build sebelumnya"
 fi
+# Simpan dump PM2 supaya switch bertahan setelah reboot/resurrect (sama seperti
+# switch_staging_3001.sh). Tanpa ini, `pm2 resurrect` mengembalikan proses LAMA.
+pm2 save >/dev/null 2>&1 || say "PERINGATAN: pm2 save gagal — switch aktif tapi tidak tahan reboot."
 say "SELESAI."
