@@ -579,7 +579,10 @@
 .root :global(.rap-input-name),
 .root :global(.rap-input-kind),
 .root :global(.rap-input-unit),
-.root :global(.rap-input-num) {
+.root :global(.rap-input-num),
+.root :global(.rap-field) :global(select),
+.root :global(.rap-field) :global(input),
+.root :global(.rap-field) :global(textarea) {
   min-width: 0 !important;
   width: 100% !important;
   max-width: 100%;

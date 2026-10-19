@@ -912,12 +912,14 @@ export default function RapModule({
         .rap-kpi-val { font-size: 16px; font-weight: 800; color: #1f2a26; font-variant-numeric: tabular-nums; }
         .rap-kpi-val small { font-size: 11px; font-weight: 700; color: #6b7280; }
         .rap-kpi-sub { font-size: 11px; color: #777; }
-        .rap-table-wrap { overflow-x: auto; }
-        .rap-table { width: 100%; border-collapse: collapse; font-size: 12.3px; }
+        /* Tabel compact: TIDAK ada scroller samping — tabel dibuat muat
+           (lapisan compact-admin.module.css). */
+        .rap-table-wrap { overflow: visible; max-width: 100%; }
         .rap-table th {
           text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px;
-          color: #6b7280; background: #f5f6f2; padding: 8px 10px; border-bottom: 1px solid #e0e2db; white-space: nowrap;
+          color: #6b7280; background: #f5f6f2; padding: 8px 10px; border-bottom: 1px solid #e0e2db; white-space: normal;
         }
+        .rap-table { width: 100%; border-collapse: collapse; font-size: 12.3px; table-layout: fixed; }
         .rap-table td { padding: 7px 10px; border-bottom: 1px solid #f0f2eb; vertical-align: middle; }
         .rap-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .rap-num small { display: block; font-size: 10px; color: #8b8f88; }
@@ -952,7 +954,7 @@ export default function RapModule({
           margin: 0; max-height: 260px; max-width: 100%; overflow: auto; background: #f7f8f5; border: 1px solid #e0e2db;
           border-radius: 8px; padding: 10px; font-size: 11px; line-height: 1.45; color: #2a3024;
         }
-        .rap-table-wrap { overflow-x: auto; max-width: 100%; }
+        .rap-table-wrap { overflow: visible; max-width: 100%; }
         .rap-pr-preview { min-width: 0; }
         .rap-field { min-width: 0; }
         .rap-field select, .rap-field input, .rap-field textarea { max-width: 100%; }

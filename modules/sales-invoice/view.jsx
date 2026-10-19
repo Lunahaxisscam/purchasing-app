@@ -654,7 +654,10 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
 
         .si-panel { background:var(--card-bg, #fff); border:1px solid var(--border-light, #e0e2db); border-radius:12px; overflow:hidden; }
         .si-panel-head { display:flex; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border-light, #e0e2db); background:#fcfdfb; font-size:12.5px; }
-        .si-table-wrap { overflow-x: auto; }
+        /* Tabel compact: TIDAK ada scroller samping — tabel dibuat muat
+           (lapisan compact-admin.module.css). Rincian tetap lengkap; di
+           layar sempit baris berubah jadi blok berlabel. */
+        .si-table-wrap { overflow: visible; max-width: 100%; }
         .si-table { width:100%; border-collapse:collapse; font-size:12.5px; }
         .si-table th { text-align:left; font-size:11px; text-transform:uppercase; color:var(--text-muted, #666); background:#f5f6f2; padding:10px 14px; border-bottom:1px solid #e0e2db; }
         .si-table td { padding:12px 14px; border-bottom:1px solid #f0f2eb; vertical-align:middle; }
