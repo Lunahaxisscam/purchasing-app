@@ -78,11 +78,15 @@ logic hanya `<>` → `<CompactRoot>` dan `</>` → `</CompactRoot>` plus satu ba
    - `.filter-tabs { overflow-x:auto; flex-wrap:nowrap }` → wrap;
    - lebar kolom inline (mis. `width:260px` pada 10 kolom) dinormalkan.
 
-3. **Mode stacked berlabel (≤1400px)** mengubah tiap baris menjadi blok:
-   `LABEL (uppercase kecil) | NILAI`, satu baris tabel = satu kartu. Semua
-   kolom tetap ada — tidak ada yang dipotong. Ambang 1400px dihitung dari
-   geometri nyata: viewport 1440 − sidebar 254 − padding konten 88 ≈ 1098px
-   area tabel, sehingga tabel 8–10 kolom uang tidak lagi terbaca sebagai tabel.
+3. **Mode stacked berlabel (bertingkat)** mengubah tiap baris menjadi blok
+   `LABEL (uppercase kecil) | NILAI`, satu baris tabel = satu kartu:
+   - tabel **≥7 kolom** → stacked mulai **≤1400px** (tabel uang 8–10 kolom
+     tidak lagi terbaca sebagai tabel di area konten ±1098px);
+   - tabel **4–6 kolom** → stacked hanya **≤900px** (di desktop masih tabel);
+   - tabel **≤3 kolom** (pasangan label|nilai, mis. Rekap Pos Umum) → tetap
+     tabel rapat, hanya `table-layout: fixed` supaya tidak melebar.
+
+   Semua kolom tetap ada — tidak ada yang dipotong.
 
 4. **Dokumen cetak/PDF tidak tersentuh.** Dekorator melewati
    `.print-portal`, `.print-dialog`, `.print-modal`, `.print-table`,
@@ -253,8 +257,9 @@ Tidak ada kebutuhan DB/migrasi/seed.
 
 ## 8. Batasan & catatan
 
-- Mode stacked berlabel aktif ≤1400px. Di atas 1400px tabel tetap tabel
-  rapat (fixed layout, kolom proporsional) — tanpa scroller.
+- Mode stacked berlabel bertingkat: ≥7 kolom mulai ≤1400px, 4–6 kolom hanya
+  ≤900px, ≤3 kolom tetap tabel rapat. Di atas ambang, tabel tetap tabel rapat
+  (fixed layout, kolom proporsional) — tanpa scroller.
 - `rab-boq-render-test` F1/F2 dan `s7-compact-test` gagal karena kondisi
   baseline (lihat §5.2), bukan karena perubahan task ini.
 - Harness lama memakai sandbox `/tmp/...` sesuai pola repo; skrip adapter
