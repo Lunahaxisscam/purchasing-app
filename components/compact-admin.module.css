@@ -720,13 +720,6 @@
   max-width: 100%;
 }
 
-@media (max-width: 820px) {
-  .root :global(.si-grid-2),
-  .root :global(.si-grid-3) {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-}
-
 /* ---------- 14. Stok Workshop / CRM / Labor / Marketing: kartu & toolbar ----------
    Modul-modul ini memakai <style> scoped sendiri dengan `min-width` tetap
    (mis. .st-search min-width:240px) yang bisa memaksa lebar di layar sempit.
