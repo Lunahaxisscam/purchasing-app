@@ -1,0 +1,194 @@
+SWC: 89 file dikompilasi ke dist/
+=== A1–A3. TIGA AKSI UTAMA: gudang, tukang, bermasalah (+ penutup) ===
+
+  ✓ A1a kartu antrean tampil
+  ✓ A1b ada blok aksi fisik
+  ✓ A1c aksi Gudang tampil & aktif
+  ✓ A1d aksi Tukang tampil & aktif
+  ✓ A1e tepat 3 tombol aksi fisik (gudang + tukang + bermasalah)
+  ✓ A1f label Gudang menyebut gudang
+  ✓ A1g label Tukang menyebut tukang
+  ✓ A2a tombol Bermasalah ada
+  ✓ A2b Bermasalah ada di baris aksi fisik (3 aksi)
+  ✓ A2c Bermasalah bukan tombol utama (gaya subtle: border dashed)
+  ✓ A2d Bermasalah tidak menonjol (font kecil <= 12px)
+  ✓ A2e Bermasalah tidak memakai gaya tombol aksi utama
+  ✓ A2f urutan aksi: gudang -> tukang -> problem
+  ✓ A3a blok "langkah penutup" ada
+  ✓ A3b Tandai Diserahkan DI LUAR blok aksi utama
+  ✓ A3c blok penutup menjelaskan urutannya
+  ✓ A3d Tandai Diserahkan nonaktif sebelum ada distribusi
+  ✓ A3e alasan nonaktif terbaca di title
+
+=== A4. STATUS TEKNIS DISEMBUNYIKAN (hanya kalimat manusia) ===
+
+  ✓ A4 KE_GUDANG -> label manusia tampil
+  ✓ A4 KE_GUDANG -> kode mentah TIDAK tampil di kartu
+  ✓ A4 KE_GUDANG -> underscore mentah tidak bocor
+  ✓ A4 KE_TUKANG -> label manusia tampil
+  ✓ A4 KE_TUKANG -> kode mentah TIDAK tampil di kartu
+  ✓ A4 KE_TUKANG -> underscore mentah tidak bocor
+  ✓ A4 LANGSUNG_LAPANGAN -> label manusia tampil
+  ✓ A4 LANGSUNG_LAPANGAN -> kode mentah TIDAK tampil di kartu
+  ✓ A4 LANGSUNG_LAPANGAN -> underscore mentah tidak bocor
+  ✓ A4d DI_GUDANG tidak tampil sebagai teks
+  ✓ A4e ringkasan progres tetap ada dalam bahasa manusia
+
+=== A5. RINCIAN BARANG DIPERTAHANKAN + LABEL JUJUR ===
+
+  ✓ A5a tombol rincian barang ada
+  ✓ A5b panel rincian terbuka
+  ✓ A5c barang dari nota tampil
+  ✓ A5d qty diberi label "qty beli di nota" (bukan jumlah diserahkan)
+  ✓ A5e batas jujur: jumlah serah terima per item belum tercatat
+  ✓ A5f nomor nota tampil di rincian
+  ✓ A5g nota tanpa rincian -> label "Rincian barang belum tersedia"
+  ✓ A5h label itu konstanta bersama (bukan teks karangan)
+
+=== A6. AKSI NONAKTIF SELALU PUNYA ALASAN TERBACA ===
+
+  ✓ A6a ada tombol nonaktif untuk diuji
+  ✓ A6b SEMUA tombol nonaktif punya title/alasan
+  ✓ A6c alasan tukang menyebut alokasi gudang
+  ✓ A6d alasan tidak berupa kode DB mentah
+
+=== A7. NOTA BERMASALAH: DISTRIBUSI DITUTUP + BADGE JUJUR ===
+
+  ✓ A7a badge "Nota bermasalah" tampil (bahasa manusia)
+  ✓ A7b kode RETUR tidak tampil mentah
+  ✓ A7c aksi gudang ditutup untuk nota bermasalah
+  ✓ A7d aksi tukang ditutup untuk nota bermasalah
+  ✓ A7e alasan menyebut nota bermasalah
+  ✓ A7f panel Bermasalah menampilkan alasan penolakan
+  ✓ A7g TIDAK ada tombol Retur/Refund saat sudah bermasalah
+  ✓ A7h nol tulisan DB dari membuka panel
+
+=== A8. FALLBACK DATA LAMA (tanpa receiving_id) ===
+
+  ✓ A8a kartu handover lama TETAP tampil (tidak hilang)
+  ✓ A8b semua aksi distribusi nonaktif
+  ✓ A8c alasan gudang terbaca (bukan tombol mati bisu)
+  ✓ A8d Bermasalah ditolak dengan alasan "belum terhubung ke nota"
+  ✓ A8e rincian barang diberi label jujur
+  ✓ A8f label jujur tampil untuk data lama
+
+=== A9. BERMASALAH MEMAKAI HANDLER SHELL (nol DB dari queue) ===
+
+  ✓ A9a opsi Retur tersedia
+  ✓ A9b opsi Refund tersedia
+  ✓ A9c nol tulisan DB sebelum memilih
+  ✓ A9d handler shell dipanggil dengan nota + RETUR
+  ✓ A9e queue.jsx TIDAK menulis DB sendiri (delegasi penuh)
+  ✓ A9f panel tertutup setelah memilih
+
+=== A10. BERMASALAH MULTI-ITEM DITOLAK DENGAN ALASAN SKEMA ===
+
+  ✓ A10a nota multi-item -> Bermasalah ditolak
+  ✓ A10b alasan menyebut multi-item & penyimpanan per barang
+  ✓ A10c tidak ada tombol Retur/Refund (tidak ada ilusi tersimpan)
+  ✓ A10d handler TIDAK dipanggil
+
+=== A12. TIDAK ADA FIELD FISIK GANDA DI SATU KARTU ===
+
+  ✓ A12a tujuan tampil tepat sekali (rincian tertutup)
+  ✓ A12b hanya satu badge tujuan
+  ✓ A12c membuka rincian TIDAK mengulang field tujuan
+  ✓ A12d rincian tidak menambah input/select field fisik
+  ✓ A12e tidak ada input sebelum langkah penutup dibuka
+  ✓ A12f tidak ada field status yang bisa diedit
+
+=== A13. DAFTAR HANDOVER: KENDALA NOTA = LABEL MANUSIA (view.jsx) ===
+
+  ✓ A13a label "Nota bermasalah" tampil di daftar desktop
+  ✓ A13b kode RETUR tidak tampil mentah di daftar
+  ✓ A13c label kendala tampil juga di kartu mobile
+  ✓ A13d bukti fisik tetap terpisah (Belum Diserahkan)
+  ✓ A13e nota normal -> TIDAK ada label bermasalah
+
+=== A11. LOGIKA LABEL (fungsi murni queue.jsx) ===
+
+  ✓ A11a alokasiLabel(KE_GUDANG)
+  ✓ A11b alokasiLabel(KE_TUKANG)
+  ✓ A11c alokasiLabel(LANGSUNG_LAPANGAN)
+  ✓ A11d alokasiLabel(null) -> kosong (tidak mengarang)
+  ✓ A11e isProblemNoted(status RETUR)
+  ✓ A11f isProblemNoted(kendala REFUND)
+  ✓ A11g isProblemNoted(NORMAL tanpa kendala)
+  ✓ A11h isProblemNoted(null)
+  ✓ A11i 5 jalur penolakan semuanya ok=false
+  ✓ A11j semuanya punya alasan terbaca
+  ✓ A11k nota normal 1 item -> boleh
+  ✓ A11l tidak ada alasan yang menyuruh "catat lewat modul Purchase"
+  ✓ A11m alasan penolakan memberi jalur rekonsiliasi manual di Handover
+
+queue_ui_test: 89/89 lulus
+=== B1. PURCHASE TIDAK PUNYA KONTROL DISTRIBUSI FISIK ===
+
+  ✓ B1 tab Siap Dibeli: tidak ada "Masuk Stok Gudang"
+  ✓ B1 tab Siap Dibeli: tidak ada "Ke Gudang"
+  ✓ B1 tab Siap Dibeli: tidak ada "Serah Terima ke Tukang"
+  ✓ B1 tab Siap Dibeli: tidak ada "Ke Tukang"
+  ✓ B1 tab Siap Dibeli: tidak ada "Retur"
+  ✓ B1 tab Siap Dibeli: tidak ada "Refund"
+  ✓ B1 tab Siap Dibeli: tidak ada "Bermasalah"
+  ✓ B1 tab Riwayat: tidak ada "Masuk Stok Gudang"
+  ✓ B1 tab Riwayat: tidak ada "Ke Gudang"
+  ✓ B1 tab Riwayat: tidak ada "Serah Terima ke Tukang"
+  ✓ B1 tab Riwayat: tidak ada "Ke Tukang"
+  ✓ B1 tab Riwayat: tidak ada "Retur"
+  ✓ B1 tab Riwayat: tidak ada "Refund"
+  ✓ B1 tab Riwayat: tidak ada "Bermasalah"
+  ✓ B1 tombol rincian nota ada (informasi tidak hilang)
+  ✓ B1 rincian terbuka: tidak ada "Masuk Stok Gudang"
+  ✓ B1 rincian terbuka: tidak ada "Ke Gudang"
+  ✓ B1 rincian terbuka: tidak ada "Serah Terima ke Tukang"
+  ✓ B1 rincian terbuka: tidak ada "Ke Tukang"
+  ✓ B1 rincian terbuka: tidak ada "Retur"
+  ✓ B1 rincian terbuka: tidak ada "Refund"
+  ✓ B1 rincian terbuka: tidak ada "Bermasalah"
+  ✓ B1 tidak ada dropdown status nota/alokasi
+
+=== B2. STATUS & KENDALA NOTA TIDAK DITAMPILKAN ===
+
+  ✓ B2a nota RETUR tetap tampil sebagai nota (data tidak disembunyikan)
+  ✓ B2b kode status RETUR tidak tampil
+  ✓ B2c label "⚠️ Retur" tidak tampil
+  ✓ B2d label "Refund" tidak tampil
+  ✓ B2e nominal nota RETUR tetap terbaca
+  ✓ B2f kendala tidak muncul sebagai kolom/teks
+
+=== B3. TIDAK ADA FIELD FISIK DI TEKS UI PURCHASE ===
+
+  ✓ B3 kolom fisik "masuk_gudang" tidak bocor ke UI
+  ✓ B3 kolom fisik "tukang_at" tidak bocor ke UI
+  ✓ B3 kolom fisik "alokasi" tidak bocor ke UI
+  ✓ B3 kolom fisik "kendala" tidak bocor ke UI
+  ✓ B3 kolom fisik "diserahkan_at" tidak bocor ke UI
+  ✓ B3 kolom fisik "KE_GUDANG" tidak bocor ke UI
+  ✓ B3 kolom fisik "KE_TUKANG" tidak bocor ke UI
+  ✓ B3 kolom fisik "DI_GUDANG" tidak bocor ke UI
+  ✓ B3 kolom fisik "DI_TUKANG" tidak bocor ke UI
+
+=== B4. JALUR SIMPAN PURCHASE TIDAK MENULIS KOLOM FISIK ===
+
+  ✓ B4a update() nota tidak pernah menulis kolom fisik
+  ✓ B4b baseHeader (dipakai UPDATE) tidak memuat kolom fisik
+  ✓ B4c header BARU (row -> insert) menginisialisasi alokasi/masuk_gudang
+  ✓ B4c2 objek row itu benar-benar dipakai .insert(row)
+  ✓ B4d Purchase tidak pernah menulis status RETUR/REFUND/RUSAK
+  ✓ B4e kendala hanya di-set null saat membuat nota
+
+=== B5. HANDOVER = SATU-SATUNYA TEMPAT AKSI FISIK ===
+
+  ✓ B5a aksi gudang ada di Handover (bukan Purchase)
+  ✓ B5b aksi tukang ada di Handover
+  ✓ B5c aksi bermasalah ada di Handover
+  ✓ B5d Handover tidak menulis DB sendiri untuk bermasalah
+  ✓ B5e Handover memakai actions.js (kontrak penulis tunggal)
+  ✓ B5f Handover memakai logic.js (kontrak aturan tunggal)
+  ✓ B5g actions.js tetap punya 3 runner aksi (tidak diubah)
+  ✓ B5h logic.js tetap mengekspor actionPlan
+
+purchase_scope_test: 52/52 lulus
+Sandbox: /tmp/handover-compact-verify
+

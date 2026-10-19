@@ -1,0 +1,245 @@
+SWC: 90 file dikompilasi ke dist/
+=== H1. SEMANTIK BUKTI FISIK (display.js verbatim) ===
+
+  ✓ H1a CONFIRMED tanpa diserahkan_at -> Belum Diserahkan
+  ✓ H1b delivered=false
+  ✓ H1c catatan status lama tampil apa adanya
+  ✓ H1d diserahkan_at ada -> Sudah Diserahkan
+  ✓ H1e tanpa catatan legacy
+  ✓ H1f DRAFT -> Belum Diserahkan tanpa catatan legacy
+  ✓ H1g DRAFT bukan legacy note
+  ✓ H1h SELESAI tanpa diserahkan_at -> Belum
+
+=== H2. RINCIAN BARANG (label jujur, tanpa menebak) ===
+
+  ✓ H2a available=false utk data tanpa rincian
+  ✓ H2b label "Rincian barang belum tersedia"
+  ✓ H2c TIDAK ada baris angka tebakan
+  ✓ H2d notice menyebut skema belum aktif
+  ✓ H2e tanpa receiving_id -> label sama
+  ✓ H2f items terstruktur -> available
+  ✓ H2g 2 baris item
+  ✓ H2h qty & satuan per baris
+  ✓ H2i sel daftar: unavailable + label
+  ✓ H2j sel daftar terstruktur: "2 item — ..."
+
+=== H3. REFERENSI SUMBER (PR/Purchase dari receiving_id) ===
+
+  ✓ H3a receivingLabel = invoice
+  ✓ H3b delivery note
+  ✓ H3c PR asal
+  ✓ H3d alokasi tampil apa adanya
+  ✓ H3e receiving hilang -> label kosong (bukan tebakan)
+  ✓ H3f PR null bila tanpa receiving
+
+=== H4. PROTOTYPE PER-ITEM: parsial, sisa, tanpa hitung ganda, beberapa penerima ===
+
+  ✓ H4a baris parsial 6/10 valid
+  ✓ H4b sisa tersedia 10
+  ✓ H4c melebihi sisa (5 > 4) ditolak
+  ✓ H4d pesan menyebut sisa 4
+  ✓ H4e tepat sisa (4) diterima
+  ✓ H4f total tercatat 7 (4+3)
+  ✓ H4g sisa belum diserahkan 3 (10-7)
+  ✓ H4h item lain tidak terpengaruh (Cat 0)
+  ✓ H4i qty 0 ditolak
+  ✓ H4j qty negatif ditolak
+  ✓ H4k qty non-angka ditolak
+  ✓ H4l item tak dikenal ditolak
+
+=== H5. KONFIRMASI FISIK IDEMPOTEN (confirm.js + mock CAS) ===
+
+  ✓ H5a konfirmasi pertama sukses
+  ✓ H5b status jadi CONFIRMED
+  ✓ H5c diserahkan_at tertulis
+  ✓ H5d re-confirm -> already, tanpa tulisan
+  ✓ H5e waktu lama TIDAK tertimpa
+  ✓ H5f nol update terkirim saat already
+  ✓ H5g retry balapan -> CAS 0 baris = already
+  ✓ H5h waktu pemenang pertama dipertahankan
+  ✓ H5i error DB -> ok:false + pesan
+  ✓ H5j tidak menulis apa pun saat error
+  ✓ H5k tanpa data -> error jelas
+
+=== H6. SIMPAN: edit terkunci, tambah antrean (save.js + mock) ===
+
+  ✓ H6a edit -> UPDATE handovers
+  ✓ H6b payload TANPA receiving_id
+  ✓ H6c payload TANPA project_id
+  ✓ H6d payload TANPA status
+  ✓ H6e payload TANPA diserahkan_at
+  ✓ H6f received_by tersimpan
+  ✓ H6g FK di DB TIDAK berubah (tamper ditolak)
+  ✓ H6h status di DB TIDAK berubah
+  ✓ H6i diserahkan_at di DB TIDAK berubah
+  ✓ H6j tambah -> insert
+  ✓ H6k status DRAFT (antrean Belum Diserahkan)
+  ✓ H6l TANPA diserahkan_at
+  ✓ H6m tanpa receiving -> nol insert
+  ✓ H6n pesan jelas
+
+logic_test: 61/61 lulus
+=== Q1. ANTREAN — baris mana yang masuk daftar ===
+
+  ✓ Q1a hanya handover DRAFT (tanpa diserahkan_at) & punya id
+  ✓ Q1b urut tanggal terbaru dulu
+
+=== Q2. RINGKASAN DISTRIBUSI (qty dari pr_items) ===
+
+  ✓ Q2a total qty
+  ✓ Q2b inWarehouse (DI_GUDANG saja)
+  ✓ Q2c sentToTukang
+  ✓ Q2d done = gudang + tukang
+  ✓ Q2e remaining
+  ✓ Q2f allDone=false
+  ✓ Q2g tanpa item -> total 0, allDone false
+  ✓ Q2h pr_item tidak dikenal -> qty 0 (tidak menebak)
+
+=== Q3. PENJAGA STATE TIAP AKSI ===
+
+  ✓ Q3a gudang boleh saat belum apa-apa
+  ✓ Q3b gudang ditolak setelah diserahkan
+  ✓ Q3c gudang ditolak bila nota sudah masuk_gudang
+  ✓ Q3d gudang ditolak bila sebagian sudah DI_GUDANG
+  ✓ Q3e tukang ditolak bila alokasi gudang
+  ✓ Q3f tukang boleh bila alokasi KE_TUKANG
+  ✓ Q3g tukang boleh bila alokasi LANGSUNG_LAPANGAN
+  ✓ Q3h tukang ditolak bila nota sudah tukang_at
+  ✓ Q3i tukang ditolak bila sebagian sudah DI_TUKANG
+  ✓ Q3j terima ditolak bila belum ada distribusi
+  ✓ Q3k terima boleh bila ada yang didistribusikan
+  ✓ Q3l terima ditolak setelah diserahkan
+
+=== Q4. actionPlan — 3 aksi, izin & alasan di satu tempat ===
+
+  ✓ Q4a tiga aksi
+  ✓ Q4b gudang & tukang boleh, terima belum
+  ✓ Q4c alasan terima jelas
+  ✓ Q4d testid lengkap
+  ✓ Q4e setelah diserahkan semua ditolak
+  ✓ Q4f tukang_at nota menonaktifkan aksi tukang
+  ✓ Q4f2 alasan tukang menyebut nota
+  ✓ Q4g masuk_gudang nota menonaktifkan aksi gudang
+  ✓ Q4g2 alasan gudang menyebut nota
+
+=== Q5. LABEL RINGKAS + TARGET STATUS ===
+
+  ✓ Q5a tanpa barang
+  ✓ Q5a2 total 0
+  ✓ Q5b parsial
+  ✓ Q5c semua
+  ✓ Q5d target gudang
+  ✓ Q5e target tukang
+  ✓ Q5f target terima = null (bukan status item)
+  ✓ Q5g status cocok (case-insensitive)
+  ✓ Q5h status tidak cocok
+  ✓ Q5i isBoughtStatus
+
+=== Q6. AKSI TULIS DB (actions.js, mock perekam) ===
+
+  ✓ Q6a gudang ok
+  ✓ Q6b receivings.masuk_gudang=true
+  ✓ Q6c p1 -> DI_GUDANG
+  ✓ Q6d p2 -> DI_GUDANG
+  ✓ Q6e handover TIDAK ikut diserahkan
+  ✓ Q6f pesan menyebut jumlah barang
+  ✓ Q6g idempoten: nol update pr_items kedua
+  ✓ Q6h idempoten: tetap ok
+  ✓ Q7a tukang ok
+  ✓ Q7b receivings.tukang_at terisi
+  ✓ Q7c p1 -> DI_TUKANG
+  ✓ Q7d p2 -> DI_TUKANG
+  ✓ Q7e masuk_gudang TIDAK disentuh
+  ✓ Q8a terima ok
+  ✓ Q8b diserahkan_at terisi
+  ✓ Q8c status CONFIRMED
+  ✓ Q8d received_by tersimpan
+  ✓ Q8e tanpa nama -> received_by tidak ditimpa
+  ✓ Q8f idempoten: nol update kedua
+  ✓ Q8g pesan sudah diserahkan
+  ✓ Q9a terima tanpa nama tetap ok
+  ✓ Q9b received_by lama (Belum ditentukan) tidak ditimpa
+  ✓ Q9c aksi tak dikenal ditolak
+  ✓ Q9d handover hilang ditolak
+  ✓ Q9e pesan handover hilang jelas
+
+queue_test: 66/66 lulus
+=== R1. DAFTAR HANDOVER (desktop): barang, status bukti fisik, aksi ringkas ===
+
+  ✓ R1a kolom "Barang" header ada
+  ✓ R1b data lama -> "Rincian barang belum tersedia"
+  ✓ R1c TIDAK menampilkan angka tebakan qty dari Purchase
+  ✓ R1d h1 (CONFIRMED tanpa diserahkan_at) -> Belum Diserahkan
+  ✓ R1e catatan status lama tampil
+  ✓ R1f h2 (diserahkan_at ada) -> Sudah Diserahkan
+  ✓ R1g tab "Sudah Diserahkan (1)"
+  ✓ R1h tab "Belum Diserahkan (1)"
+  ✓ R1i tombol konfirmasi (✓) ada utk belum diserahkan
+  ✓ R1j tombol edit & hapus ada
+  ✓ R1k h2 sudah diserahkan -> tanda ✓ statis, bukan tombol
+  ✓ R1l TIDAK ada dropdown status di daftar
+  ✓ R1m aksi berbentuk baris inline (display inline-flex)
+  ✓ R2a klik ✓ memanggil onMarkHandoverDelivered dgn baris benar
+  ✓ R2b baris sudah diserahkan tidak punya tombol konfirmasi
+  ✓ R3a tombol "+ Detail" ada
+  ✓ R3b detail terbuka
+  ✓ R3c referensi Purchase asal tampil
+  ✓ R3d PR asal tampil
+  ✓ R3e penerima tampil
+  ✓ R3f rincian label jujur
+  ✓ R3g status + catatan legacy di detail
+  ✓ R3h prototype panel tampil (2 item penerimaan)
+  ✓ R3i panel menyatakan belum tersimpan
+  ✓ R3j qty 6 > diterima 4 -> error tampil
+  ✓ R3k qty 3 -> tercatat di sesi
+  ✓ R3l nol insert/update DB dari prototype
+  ✓ R3m klik lagi menutup detail
+  ✓ R4a judul "Edit Serah Terima"
+  ✓ R4b TIDAK ada dropdown Penerimaan (Purchase) di edit
+  ✓ R4c TIDAK ada dropdown Project di edit
+  ✓ R4d TIDAK ada dropdown Status Serah Terima di edit
+  ✓ R4e ringkasan sumber read-only tampil
+  ✓ R4f ringkasan memuat Purchase & PR asal
+  ✓ R4g status read-only + catatan legacy
+  ✓ R4h daftar rincian barang wajib terlihat di modal
+  ✓ R4i label jujur di modal edit
+  ✓ R4j field Diterima Oleh ada + terisi
+  ✓ R4k field Tanggal ada
+  ✓ R4l field foto (opsional) ada
+  ✓ R4m submit -> update handovers
+  ✓ R4n payload edit tanpa receiving_id/status/diserahkan_at
+  ✓ R5a judul "Tambah Serah Terima"
+  ✓ R5b dropdown Penerimaan ada (link wajib)
+  ✓ R5c dropdown penerimaan required
+  ✓ R5d TIDAK ada dropdown status (antrean otomatis DRAFT)
+  ✓ R5e keterangan link wajib tampil
+  ✓ R6a kartu mobile menampilkan label rincian jujur
+  ✓ R6b tombol konfirmasi mobile ada utk h1
+  ✓ R6c h2 sudah diserahkan -> teks statis
+  ✓ R6d tombol detail mobile ada
+  ✓ R7a banner antrean muncul
+  ✓ R7b hanya handover DRAFT yang masuk antrean
+  ✓ R7c handover terkonfirmasi tidak diantre
+  ✓ R7d kartu aksi h1 tampil
+  ✓ R7e 3 tombol aksi tersedia
+  ✓ R7f aksi terima nonaktif sebelum ada distribusi
+  ✓ R7g alasan terima tampil di title
+  ✓ R7h aksi tukang nonaktif (sudah dikirim)
+  ✓ R7i alasan tukang tampil di title
+  ✓ R7j aksi gudang aktif
+  ✓ R7k nota alokasi gudang -> tukang nonaktif
+  ✓ R7l alasannya soal alokasi gudang
+  ✓ R7m ringkasan menghitung qty barang
+  ✓ R8a tombol gudang ada di UI
+  ✓ R8b receivings.masuk_gudang jadi true
+  ✓ R8c pr_items.status jadi DI_GUDANG
+  ✓ R8d ada notifikasi sukses ke user
+  ✓ R9a aksi terima aktif setelah barang masuk gudang
+  ✓ R9b form nama penerima muncul
+  ✓ R9c diserahkan_at terisi
+  ✓ R9d received_by tersimpan
+  ✓ R9e handover keluar dari antrean (sudah diserahkan)
+
+render_test: 73/73 lulus
+Sandbox: /tmp/handover-flow-verify
+

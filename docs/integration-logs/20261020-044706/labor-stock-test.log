@@ -1,0 +1,198 @@
+esbuild: 9 file dikompilasi ke dist/
+logic_test.mjs: 59 assertion LULUS ✅
+
+[A] Sumber aktual tidak dikirim -> panel kemampuan, bukan angka 0
+  ok   root tampil
+  ok   capability = unavailable
+  ok   panel kemampuan labor tampil
+  ok   judul menyebut sumber belum dikirim
+  ok   KPI project = 0 hitungan baris (bukan Rp 0)
+  ok   KPI total aktual = Tidak tersedia
+  ok   tidak ada tabel labor
+  ok   empty menyebut sumber belum tersedia
+  ok   tidak ada "Rp 0" di seluruh halaman
+  ok   batasan tampilan terdokumentasi
+
+[B] Sumber aktual dikirim tapi kosong -> empty state, bukan 0
+  ok   capability = empty
+  ok   empty menyebut belum ada catatan
+  ok   stok: capability empty
+  ok   stok: empty menyebut belum ada material
+  ok   tidak ada "Rp 0"
+
+[C] Data tampil: aktual dari total_upah; nilai kosong = Tidak tersedia
+  ok   tabel labor tampil
+  ok   3 baris ter-render
+  ok   KPI project beraktual = 1
+  ok   KPI total aktual = Rp 5.000.000
+  ok   KPI estimasi = Tidak dikirim
+  ok   baris Gudang A ada
+  ok   baris Rumah B ada
+  ok   aktual Gudang A = Rp 3.000.000
+  ok   aktual Rumah B (kosong) = Tidak tersedia
+  ok   BUKAN 0 untuk nilai kosong
+  ok   selisih tanpa estimasi = Tidak tersedia
+  ok   status kelengkapan = KOSONG (belum ada angka aktual maupun estimasi)
+  ok   label KOSONG = "Angka belum tercatat"
+
+[D+E] Estimasi dikirim -> kolom terpisah, selisih hanya bila keduanya ada
+  ok   KPI estimasi terisi (Rp 10.000.000)
+  ok   baris Gudang A ada
+  ok   estimasi Gudang A = Rp 10.000.000
+  ok   aktual Gudang A tetap Rp 3.000.000 (bukan estimasi)
+  ok   selisih = -Rp 7.000.000
+  ok   status kelengkapan = LENGKAP
+  ok   Rumah B tanpa estimasi -> Tidak tersedia
+  ok   Rumah B status = KOSONG (aktual belum tercatat)
+  ok   tidak ada "Rp 0" di halaman
+
+[E2] Estimasi ada, aktual tidak tercatat -> ESTIMASI_SAJA (bukan 0)
+  ok   baris Vila C ada
+  ok   estimasi terisi Rp 2.500.000
+  ok   aktual = Tidak tersedia (estimasi TIDAK dipakai mengisi)
+  ok   status = ESTIMASI_SAJA
+
+[F] Filter project / periode / pencarian
+  ok   3 baris sebelum filter
+  ok   filter project Rumah B -> 1 baris
+  ok   filter periode B1 -> 2 baris
+  ok   pencarian tkg-02 -> 1 baris
+  ok   pencarian tanpa hasil -> empty state
+
+[G] Workshop Stock: nilai kosong = Tidak tersedia, bukan 0
+  ok   grid stok tampil
+  ok   3 kartu material
+  ok   KPI total = 3
+  ok   KPI ada angka = 2
+  ok   KPI menipis = 1 (Kayu Jati 10 <= min 12, kode BHP)
+  ok   KPI tanpa angka = 1
+  ok   opsi kategori hanya dari data
+  ok   pencarian material bekerja
+
+[H] Read-only: tidak ada penulisan DB
+  ok   tidak ada fetch/XHR
+  ok   modul TIDAK menulis ke localStorage
+  ok   badge baca tampil
+
+[I] CSV bisa diunduh
+  ok   anchor unduh dibuat
+  ok   nama file actual-labor.csv
+  ok   stok CSV juga ada
+
+render_test.mjs: 60 LULUS, 0 GAGAL
+  ok   blok CSS modul ada di styles/globals.css
+
+[1] Lebar — halaman tidak melebar melewati viewport
+  ok   .ls-root memakai flex column (mengikuti lebar induk)
+  ok   .ls-root tidak punya width tetap (tidak memaksa lebar)
+  ok   .ls-root tidak punya min-width (tidak melebar di ponsel)
+  ok   .ls-root tidak ada position fixed/absolute (mengalir normal)
+  ok   .ls-intro flex-wrap: wrap (judul & tombol tumpuk)
+  ok   .ls-section-head flex-wrap: wrap
+  ok   .ls-toolbar flex-wrap: wrap (filter tumpuk di ponsel)
+
+[2] Tabel — yang scroll pembungkusnya, bukan halaman
+  ok   .ls-table-wrap overflow-x: auto (tabel scroll sendiri)
+  ok   .ls-table width: 100% (mengikuti pembungkus)
+  ok   .ls-table tidak punya width piksel tetap / min-width
+  ok   header tabel white-space: nowrap (tidak berantakan saat scroll)
+
+[3] KPI — 1 kolom ponsel, 2 tablet, 4 desktop
+  ok   KPI dasar 1 kolom (ponsel 360/390)
+  ok   ada breakpoint 700px (tablet 768)
+  ok   tablet: KPI 2 kolom
+  ok   tablet: kartu stok 2 kolom
+  ok   ada breakpoint 1100px (desktop 1440)
+  ok   desktop: KPI 4 kolom
+  ok   desktop: kartu stok 3 kolom
+  ok   grid memakai minmax(0, 1fr) — kolom tidak melebar karena isi panjang
+
+[4] Touch target — tombol, input, baris tabel
+  ok   tombol utama min-height 32px
+  ok   tombol pakai cursor: pointer
+  ok   tombol "lebih banyak" min-height 32px
+  ok   input & select tidak memotong teks (min-width: 0, max-width: 100%)
+  ok   baris tabel padding 9px atas/bawah (baris ~44px)
+  ok   tombol disabled tidak bisa diklik tanpa sengaja
+
+[5] Kartu stok — tumpuk rapi di ponsel
+  ok   kartu stok dasar 1 kolom (ponsel)
+  ok   judul kartu stok bisa mengecil (min-width: 0)
+  ok   angka stok tabular (tidak goyang saat berubah)
+  ok   nilai tidak tersedia diberi warna muted (beda dari angka nyata)
+
+[6] Verifikasi render nyata di 360/390/768/1440
+  ok   360px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   360px: labor-stock-root tampil
+  ok   360px: labor-section tampil
+  ok   360px: stock-section tampil
+  ok   360px: tidak ada NaN/undefined di layar
+  ok   360px: nilai kosong ditulis "Tidak tersedia"
+  ok   360px: TIDAK ada "Rp 0" karangan
+  ok   360px: estimasi tampil terpisah dari aktual
+  ok   360px: 3 baris labor tampil
+  ok   360px: 4 kartu KPI labor tampil
+  ok   360px: kartu stok tampil
+  ok   360px: stok kosong = "Tidak tersedia" (bukan 0)
+  ok   360px: tepat 1 kartu tanpa angka -> 2 label (stok & min), bukan semua
+  ok   360px: nilai tidak tersedia diberi kelas ls-na (muted)
+  ok   360px: filter labor ter-render
+  ok   360px: tombol CSV ter-render
+  ok   390px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   390px: labor-stock-root tampil
+  ok   390px: labor-section tampil
+  ok   390px: stock-section tampil
+  ok   390px: tidak ada NaN/undefined di layar
+  ok   390px: nilai kosong ditulis "Tidak tersedia"
+  ok   390px: TIDAK ada "Rp 0" karangan
+  ok   390px: estimasi tampil terpisah dari aktual
+  ok   390px: 3 baris labor tampil
+  ok   390px: 4 kartu KPI labor tampil
+  ok   390px: kartu stok tampil
+  ok   390px: stok kosong = "Tidak tersedia" (bukan 0)
+  ok   390px: tepat 1 kartu tanpa angka -> 2 label (stok & min), bukan semua
+  ok   390px: nilai tidak tersedia diberi kelas ls-na (muted)
+  ok   390px: filter labor ter-render
+  ok   390px: tombol CSV ter-render
+  ok   768px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   768px: labor-stock-root tampil
+  ok   768px: labor-section tampil
+  ok   768px: stock-section tampil
+  ok   768px: tidak ada NaN/undefined di layar
+  ok   768px: nilai kosong ditulis "Tidak tersedia"
+  ok   768px: TIDAK ada "Rp 0" karangan
+  ok   768px: estimasi tampil terpisah dari aktual
+  ok   768px: 3 baris labor tampil
+  ok   768px: 4 kartu KPI labor tampil
+  ok   768px: kartu stok tampil
+  ok   768px: stok kosong = "Tidak tersedia" (bukan 0)
+  ok   768px: tepat 1 kartu tanpa angka -> 2 label (stok & min), bukan semua
+  ok   768px: nilai tidak tersedia diberi kelas ls-na (muted)
+  ok   768px: filter labor ter-render
+  ok   768px: tombol CSV ter-render
+  ok   1440px: tidak ada elemen ber-lebar paksa (>100px inline)
+  ok   1440px: labor-stock-root tampil
+  ok   1440px: labor-section tampil
+  ok   1440px: stock-section tampil
+  ok   1440px: tidak ada NaN/undefined di layar
+  ok   1440px: nilai kosong ditulis "Tidak tersedia"
+  ok   1440px: TIDAK ada "Rp 0" karangan
+  ok   1440px: estimasi tampil terpisah dari aktual
+  ok   1440px: 3 baris labor tampil
+  ok   1440px: 4 kartu KPI labor tampil
+  ok   1440px: kartu stok tampil
+  ok   1440px: stok kosong = "Tidak tersedia" (bukan 0)
+  ok   1440px: tepat 1 kartu tanpa angka -> 2 label (stok & min), bukan semua
+  ok   1440px: nilai tidak tersedia diberi kelas ls-na (muted)
+  ok   1440px: filter labor ter-render
+  ok   1440px: tombol CSV ter-render
+  ok   360px: teks panjang tidak jadi NaN/undefined
+  ok   360px: nama project panjang tetap tampil utuh
+  ok   360px: baris tetap satu
+  ok   360px: estimasi tidak dikirim -> ditulis "Tidak dikirim" (bukan 0)
+  ok   360px: tidak ada "Rp 0"
+
+LULUS: 99 lulus, 0 gagal
+Sandbox: /tmp/labor-stock-verify
+
+Not implemented: navigation to another Document

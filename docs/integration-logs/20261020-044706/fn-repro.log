@@ -1,0 +1,76 @@
+
+A. FN-EST_LABEL — Planning.js: kartu Manpower tidak menyebut "riil"
+  ok   label "Pengeluaran Riil (WBS)" TIDAK ada lagi
+  ok   label baru "Estimasi Upah WBS" tampil
+  ok   Material tetap "Pengeluaran Riil:" (memang realisasi Drive)
+  ok   Petty cash tetap "Pengeluaran Riil (Petty Cash)"
+  ok   tidak ada NaN/undefined di panel
+
+B. FN-EST_LABEL — ProjectFinance.js: estimasi WBS vs aktual tukang_projects
+  ok   kartu upah berlabel "Estimasi Upah WBS"
+  ok   label menyesatkan "Actual Tukang" TIDAK ada
+  ok   estimasi WBS = Rp 5.000.000
+  ok   aktual tukang_projects = Rp 4.250.000 (2 baris, cocok beda kapitalisasi/spasi)
+  ok   estimasi & aktual TIDAK dijumlahkan (Rp 9.250.000 absen)
+  ok   margin tetap memakai estimasi (40 − 15 − 5 = Rp 20.000.000)
+  ok   tooltip margin menyatakan komponennya estimasi, bukan upah terbayar
+  ok   aktual belum ada -> "belum ada catatan tersinkron"
+  ok   BUKAN "Aktual tersinkron: Rp 0" (nol palsu)
+  ok   tab Tukang menyatakan dua sumber berbeda
+  ok   tab Tukang tidak mengklaim tabel rencana sebagai realisasi
+
+C. FN-EST_LABEL — aktual tukang_projects tidak boleh dilabeli estimasi
+  ok   label aktual eksplisit menyebut tukang_projects / tersinkron
+  ok   label estimasi eksplisit menyebut WBS
+  ok   catatan estimasi menyatakan BUKAN upah terbayar
+  ok   catatan aktual menyatakan BUKAN rencana WBS
+  ok   projectKey setara dengan modules/labor-stock/logic.js
+  ok   aktual nol tercatat -> null (bukan 0)
+  ok   baris tanpa angka -> null (bukan 0)
+  ok   angka bergaya Indonesia "3.000.000,50" terbaca 3000000.5
+
+D. FN-TARGET70 — target 70% rupiah utuh, tanpa pecahan sen
+  ok   43.300.000 -> 30.310.000 tepat
+  ok   99.999.999,99 -> 70.000.000 (integer)
+  ok   semua hasil integer (tidak ada pecahan sen)
+  ok   revenue 0/negatif/NaN -> 0
+  ok   costVsTarget70 revenue 0 -> null (belum bisa dinilai, bukan "hemat")
+  ok   tepat di pagu -> underBudget true (batas pas 70% tidak jadi OVER)
+  ok   1 rupiah di atas pagu -> underBudget false
+  ok   cacat lama ter-reproduksi: 99.999.999,99 -> pecahan sen
+  ok   perbaikan: hasil baru integer untuk kasus yang sama
+
+E. FN-PRINTREF — dokumen cetak closing tidak merujuk baris yang tidak ada
+  ok   tab "Arsip Closing" ada
+  ok   tombol "Cetak Dokumen Closing (PDF)" ada di arsip
+  ok   dokumen cetak benar-benar terbuka
+  ok   rujukan salah "(1 − 5)" TIDAK ada lagi
+  ok   rujukan baru cocok baris nyata (1 − TOTAL BIAYA TERCATAT)
+  ok   baris bernomor 1..4 tercetak (tidak ada nomor 5)
+  ok   label baris 3 = estimasi WBS, bukan "Realisasi Biaya Tukang"
+  ok   total tidak diklaim "HPP RIIL" penuh
+  ok   angka snapshot tetap dicetak apa adanya (revenue 40jt, total 20,8jt, margin 19,2jt)
+
+F. Finance.js — tabel/kartu memakai label estimasi WBS
+  ok   header tabel "Estimasi Upah WBS" ada
+  ok   "Actual Tukang" tidak lagi dipakai untuk sumber project_plans
+  ok   tidak ada NaN/undefined
+  ok   nilai gross Baroni tetap benar (40 − 15 − 5 = 20jt)
+
+=== HASIL: 46 ok, 0 FAIL ===
+
+SEMUA TEMUAN REVIEW-03 TERTUTUP (harness exit 0)
+Warning: Each child in a list should have a unique "key" prop.
+
+Check the top-level render call using <tbody>. See https://reactjs.org/link/warning-keys for more information.
+    at tr
+    at ProjectFinance (file:///tmp/fn-review03/components/ProjectFinance.mjs:233:22)
+Warning: Each child in a list should have a unique "key" prop.
+
+Check the top-level render call using <div>. See https://reactjs.org/link/warning-keys for more information.
+    at div
+    at ProjectFinance (file:///tmp/fn-review03/components/ProjectFinance.mjs:233:22)
+(node:108088) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/ubuntu/dev-workspaces/purchasing-lean-admin-integration/modules/labor-stock/logic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/ubuntu/dev-workspaces/purchasing-lean-admin-integration/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
