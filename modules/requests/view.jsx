@@ -419,6 +419,17 @@ export function desktopRow(r, ctx) {
               ✓ Selesai
             </button>
           )}
+          {String(r.status || '').toUpperCase() === 'REJECTED' && (
+            <button
+              type="button"
+              className="btn-finish btn-resubmit"
+              onClick={() => onFinishPr(r)}
+              title={`Submit Ulang — kirim kembali ${r.pr_number || title} ke modul Approval`}
+              style={{ fontSize: '10px', padding: '3px 6px', whiteSpace: 'nowrap', width: '100%', marginBottom: '2px' }}
+            >
+              ↻ Submit Ulang
+            </button>
+          )}
           <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
             <button
               type="button"
@@ -490,6 +501,17 @@ export function rowActions(r, ctx) {
             style={{ fontSize: '10px', padding: '3px 6px', whiteSpace: 'nowrap', width: '100%', marginBottom: '2px' }}
           >
             ✓ Selesai
+          </button>
+        )}
+        {String(r.status || '').toUpperCase() === 'REJECTED' && (
+          <button
+            type="button"
+            className="btn-finish btn-resubmit"
+            onClick={() => onFinishPr(r)}
+            title={`Submit Ulang — kirim kembali ${r.pr_number || title} ke modul Approval`}
+            style={{ fontSize: '10px', padding: '3px 6px', whiteSpace: 'nowrap', width: '100%', marginBottom: '2px' }}
+          >
+            ↻ Submit Ulang
           </button>
         )}
         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
@@ -604,6 +626,16 @@ export function mobileCard(r, ctx) {
               style={{ flex: 1, padding: '8px', fontSize: '12px' }}
             >
               ✓ Selesai
+            </button>
+          )}
+          {String(r.status || '').toUpperCase() === 'REJECTED' && (
+            <button
+              type="button"
+              className="btn-finish btn-resubmit"
+              onClick={() => onFinishPr(r)}
+              style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+            >
+              ↻ Submit Ulang
             </button>
           )}
           <button

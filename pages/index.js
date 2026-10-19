@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Login from '../components/Login'
 import Sidebar from '../components/Sidebar'
@@ -29,6 +29,7 @@ import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
+import { handleFinishPr } from '../modules/requests/submit'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -58,6 +59,7 @@ export default function App() {
   })
   const [notice, setNotice] = useState('')
   const [actionBusy, setActionBusy] = useState(false)
+  const finishPrLockRef = useRef(false)
   const [noteModal, setNoteModal] = useState(null)
   const [noteText, setNoteText] = useState('')
   // Role user: 'admin' (semua modul + Finance) atau 'user' (tanpa Finance).
@@ -541,73 +543,21 @@ export default function App() {
     }
   }
 
-  // Tombol ✓ Selesai (modul PR): kirim PR ke modul Approval.
-  // Approval disiapkan DULU; status PR baru diubah setelahnya supaya PR tidak
-  // pernah nyangkut SUBMITTED tanpa baris approval (kasus yang pernah terjadi).
+  // Tombol ✓ Selesai (DRAFT/REVISI) & Submit Ulang (REJECTED): kirim PR ke antrean Approval.
+  // Handler modular via modules/requests/submit.js (t_3032ecb7) dengan guard status,
+  // validasi item, preservasi ORDERED, anti-dobel klik, dan readback verification.
   async function finishPr(pr) {
-    if (!supabase) return
-    const ok = window.confirm(`Tandai PR "${pr.pr_number || pr.title || ''}" selesai dan kirim ke modul Approval?`)
-    if (!ok) return
-
-    // 1. Siapkan approval step PENDING. approver_id WAJIB diisi (NOT NULL di DB):
-    //    pakai user yang sedang login; fallback ke profil pertama (mis. admin).
-    const { data: steps } = await supabase.from('approval_steps')
-      .select('id').eq('purchase_request_id', pr.id).order('step_number', { ascending: true })
-
-    if (steps && steps.length) {
-      // PR yang pernah direvisi: aktifkan kembali step lama.
-      // t_1fe52e80: TIDAK menyemai note otomatis — catatan hanya milik pengguna.
-      const { error: stErr } = await supabase.from('approval_steps').update({
-        status: 'PENDING',
-        decided_at: null
-      }).eq('id', steps[0].id)
-      if (stErr) { setNotice(`Gagal mengaktifkan approval: ${stErr.message}`); return }
-    } else {
-      let approverId = session?.user?.id || null
-      if (!approverId) {
-        // Deterministik: profil paling awal (biasanya admin pertama).
-        const { data: profs, error: profErr } = await supabase.from('profiles')
-          .select('id').order('created_at', { ascending: true }).limit(1)
-        if (profErr) { setNotice(`Gagal membaca profil approver: ${profErr.message}`); return }
-        approverId = (profs && profs[0] && profs[0].id) || null
-      }
-      if (!approverId) { setNotice('Tidak ada profil approver — hubungi administrator.'); return }
-      // t_1fe52e80: approval baru dibuat TANPA note (null) — kolom Catatan
-      // tampil kosong/dash sampai Direksi/PM menuliskan keputusan sendiri.
-      const { error: stErr } = await supabase.from('approval_steps').insert({
-        purchase_request_id: pr.id,
-        approver_id: approverId,
-        step_number: 1,
-        status: 'PENDING'
-      })
-      if (stErr) { setNotice(`Gagal membuat approval: ${stErr.message}`); return }
-    }
-
-    // 2. Baru ubah status PR -> SUBMITTED.
-    const { error: prErr } = await supabase.from('purchase_requests').update({ status: 'SUBMITTED' }).eq('id', pr.id)
-    if (prErr) { setNotice(`Approval siap, tapi gagal update status PR: ${prErr.message}`); loadAll(); return }
-
-    // 3. TRIGGER A (Sprint 1): PR > Rp 5 juta → alert Telegram ke DAT.
-    //    Angka dihitung server-side (RPC dari pr_items) — tidak bisa dipalsukan.
-    //    Anti-dobel by nomor PR. Kegagalan alert TIDAK menggagalkan submit PR.
-    let alertNote = ''
-    try {
-      const alert = await sendPrAlert(supabase, pr.id)
-      if (alert && alert.ok && alert.sent) {
-        alertNote = ' 🔔 Alert Telegram (PR > 5 Juta) terkirim ke DAT.'
-      } else if (alert && alert.ok && alert.reason === 'below_threshold') {
-        alertNote = ''
-      } else if (alert && alert.ok && alert.reason === 'already_alerted') {
-        alertNote = ''
-      } else if (alert && alert.sent === false && alert.reason === 'send_failed') {
-        alertNote = ` ⚠️ Alert Telegram gagal terkirim (${alert.error || 'error'}) — cek konfigurasi bot.`
-      }
-    } catch (alertErr) {
-      alertNote = ` ⚠️ Alert Telegram error: ${alertErr.message}`
-    }
-
-    setNotice(`PR ${pr.pr_number || ''} selesai dan sudah masuk modul Approval (menunggu persetujuan).${alertNote}`)
-    loadAll()
+    return handleFinishPr(pr, {
+      supabase,
+      session,
+      confirmFn: (msg) => window.confirm(msg),
+      setNotice,
+      loadAll,
+      actionBusy,
+      setActionBusy,
+      lockRef: finishPrLockRef,
+      sendPrAlert
+    })
   }
 
   // Pastikan item PR punya baris di modul Purchase (receiving + receiving_items).
