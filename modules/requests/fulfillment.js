@@ -164,6 +164,9 @@ function requestStatusLabel(status, counts) {
   if (status === 'KOSONG') return 'Tanpa item'
   if (status === FULFILL_DONE) return 'Selesai'
   if (status === FULFILL_PARTIAL) {
+    // Kalimat alami: kalau hanya sebagian (tanpa yang selesai/ditutup),
+    // cukup "Sebagian" — jumlahnya sudah terlihat dari daftar item.
+    if (!counts.done && !counts.closed && !counts.none) return 'Sebagian'
     const parts = []
     if (counts.done) parts.push(`${counts.done} selesai`)
     if (counts.partial) parts.push(`${counts.partial} sebagian`)

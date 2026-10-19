@@ -30,6 +30,7 @@ import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/ha
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
+import { submitLean, closeRequestRemaining } from '../modules/requests/submitLean'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -543,20 +544,49 @@ export default function App() {
     }
   }
 
-  // Tombol ✓ Selesai (DRAFT/REVISI) & Submit Ulang (REJECTED): kirim PR ke antrean Approval.
-  // Handler modular via modules/requests/submit.js (t_3032ecb7) dengan guard status,
-  // validasi item, preservasi ORDERED, anti-dobel klik, dan readback verification.
+  // Tombol ✓ Selesai & Kirim: mengirim request lewat JALUR LEAN (tanpa approval).
+  // t_a5a73034 — alur baru: status existing SUBMITTED + penanda [Jalur: LEAN],
+  // TIDAK membuat approval_steps, TIDAK membuat cangkang nota, TIDAK mengubah
+  // status item menjadi APPROVED. Request legacy yang sudah punya approval_steps
+  // tetap memakai jalur lama (handleFinishPr) supaya riwayatnya tidak rusak.
   async function finishPr(pr) {
-    return handleFinishPr(pr, {
+    const isLegacy = String(pr?.status || '').toUpperCase() === 'REJECTED'
+    if (isLegacy) {
+      // REJECTED = data alur approval lama: submit ulang tetap ke antrean
+      // approval agar riwayat keputusan tidak hilang (bukan jalur lean).
+      return handleFinishPr(pr, {
+        supabase,
+        session,
+        confirmFn: (msg) => window.confirm(msg),
+        setNotice,
+        loadAll,
+        actionBusy,
+        setActionBusy,
+        lockRef: finishPrLockRef,
+        sendPrAlert
+      })
+    }
+    return submitLean(pr, {
       supabase,
-      session,
       confirmFn: (msg) => window.confirm(msg),
       setNotice,
       loadAll,
       actionBusy,
       setActionBusy,
-      lockRef: finishPrLockRef,
-      sendPrAlert
+      lockRef: finishPrLockRef
+    })
+  }
+
+  // Tutup sisa kebutuhan (jalur lean) — hanya catatan+alasan, qty asli tetap.
+  async function closePrRemaining(pr, reason) {
+    return closeRequestRemaining(pr, reason, {
+      supabase,
+      confirmFn: (msg) => window.confirm(msg),
+      setNotice,
+      loadAll,
+      actionBusy,
+      setActionBusy,
+      lockRef: finishPrLockRef
     })
   }
 
@@ -974,6 +1004,7 @@ export default function App() {
             onReviseApproval={reviseApproval}
             onApproveItem={approveItem}
             onFinishPr={finishPr}
+            onCloseRemaining={closePrRemaining}
             onMarkPrItemOrdered={markPrItemOrdered}
             onDelete={deleteItem}
             setPage={setPage}

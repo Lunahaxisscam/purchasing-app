@@ -8403,3 +8403,70 @@ tr.purchase-detail-row > td { background: #f8fafc; padding: 0 !important; }
     min-height: 0;
   }
 }
+
+/* ============================================================
+   t_a5a73034 — JALUR LEAN ADMIN (tanpa approval terpisah)
+   ============================================================
+   Nilai enum DB TIDAK diubah (status tetap SUBMITTED/DRAFT). Yang dibedakan
+   adalah LABEL & warna, supaya "siap ditindaklanjuti" tidak tertukar dengan
+   riwayat approval lama. Ditulis di akhir file agar menang urutan sumber
+   tanpa !important dan tanpa menyentuh aturan modul lain.
+   ============================================================ */
+.badge.badge-lean {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.badge.badge-legacy {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+  font-weight: 600;
+}
+
+.pr-fulfil-note {
+  font-size: 10px;
+  color: #b45309;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.pr-fulfil-note.is-done {
+  color: #047857;
+}
+
+.pr-fulfil-note.is-closed {
+  color: #64748b;
+}
+
+/* Aksi baris jalur lean: tombol kirim & tutup sisa harus nyaman di layar
+   sentuh (>=44px) tetapi tetap ringkas di tabel desktop. */
+.btn-lean-send {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+  font-weight: 700;
+}
+
+.btn-lean-close {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-weight: 600;
+}
+
+.lean-close-dialog textarea {
+  width: 100%;
+  min-height: 72px;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .btn-lean-send,
+  .btn-lean-close {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}

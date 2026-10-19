@@ -5,6 +5,8 @@ import { labels, normalizeStatus, formatNominalInput, prefixForCategory, parseHa
 // (makeAcuanHelpers, t_090127ad) agar angka acuan konsisten antar modul.
 // ============================================================
 import { makePrEstimator, parsePriceValue, prEstimateTotals, isVendorEligible } from '../modules/requests/estimator'
+import { suggestVendorsForItem } from '../modules/requests/suggest'
+import { stripLeanMarkers } from '../modules/requests/leanRequest'
 import { materialUnit } from '../modules/materials/acuan'
 import { renderCreateForm } from '../modules/shared/renderCreateForm'
 import { dispatchSave } from '../modules/shared/saveDispatcher'
@@ -101,7 +103,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     handover_date: (isEdit && page === 'handovers')
       ? (editRow?.handover_date || new Date().toISOString().slice(0, 10))
       : new Date().toISOString().slice(0, 10),
-    notes: (isEdit && page === 'handovers') ? parseHandoverNote(editRow?.note).extra : (editRow?.notes || '')
+    notes: (isEdit && page === 'handovers') ? parseHandoverNote(editRow?.note).extra : stripLeanMarkers(editRow?.notes)
   })
   const [saving, setSaving] = useState(false)
   // Ref guard anti-dobel (lihat komentar di save()) — instan, tidak menunggu render.
@@ -301,6 +303,26 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     const d = String(v ?? '').replace(/[^\d]/g, '')
     return d ? Number(d) : null
   }
+
+  // ============================================================
+  // SARAN VENDOR (t_a5a73034 — jalur lean)
+  // ============================================================
+  // Saran vendor per item: histori pembelian material itu (kalau ada) lalu
+  // vendor master yang eligible untuk kategori KANONIK material. Murni
+  // saran: tidak menetapkan vendor_id, tidak mengubah master, tidak wajib.
+  // Material tak dikenal / tanpa vendor eligible -> array kosong (UI
+  // menampilkan "Belum ada saran vendor", bukan menebak).
+  function vendorSuggestionsForItem(it) {
+    return suggestVendorsForItem(it, {
+      allMaterials,
+      allVendors,
+      estimator: Est,
+      allPrItems,
+      allReceivingItems,
+      allReceivings
+    })
+  }
+
   // ============================================================
   // VENDOR ELIGIBLE (aturan bisnis DAT, komentar t_ac0b39c0):
   // vendor hanya eligible utk kategori yang diaktifkan eksplisit di master
@@ -449,6 +471,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
           updateItemSupplier, updateItemVendor, vendorsForItem, updateItemPrice,
           applyAcuanToItem, vendorEligibleForItem, totals,
           estimateForItem, formatRupiahInput: formatNominalInput,
+          vendorSuggestionsForItem,
           inputMode, setInputMode, fieldFormState
         })}
         <div className="actions">

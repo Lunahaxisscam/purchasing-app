@@ -51,7 +51,12 @@ const mock = {
   ],
   requests: [
     { id: 'r1', pr_number: 'PR-001', project_name: '[99] Baroni', project_id: 'p1', title: 'Material dinding', status: 'DRAFT', priority: 'URGENT', notes: 'catatan', materials_summary: '4 Lembar Triplek', created_at: '2026-10-02T00:00:00Z' },
-    { id: 'r2', pr_number: 'PR-002', project_name: '[83] Mabes', project_id: 'p2', title: 'Finishing', status: 'SUBMITTED', priority: 'NORMAL', notes: '', materials_summary: '', created_at: '2026-10-03T00:00:00Z' }
+    { id: 'r2', pr_number: 'PR-002', project_name: '[83] Mabes', project_id: 'p2', title: 'Finishing', status: 'SUBMITTED', priority: 'NORMAL', notes: '', materials_summary: '', created_at: '2026-10-03T00:00:00Z' },
+    // t_a5a73034: request jalur LEAN (penanda eksplisit) — smoke harus
+    // membuktikan label "Siap Ditindaklanjuti", tombol Tutup sisa, dan baris
+    // pemenuhan ter-render di SSR tanpa error. r2 di atas (SUBMITTED tanpa
+    // penanda) adalah legacy dan HARUS tetap tampil sebagai "Submitted lama".
+    { id: 'r3', pr_number: 'PR-003', project_name: '[99] Baroni', project_id: 'p1', title: 'Kebutuhan Tukang', status: 'SUBMITTED', priority: 'NORMAL', notes: 'Kebutuhan rangka\n[Jalur: LEAN]', materials_summary: '2 Lembar Triplek', created_at: '2026-10-04T00:00:00Z' }
   ],
   approvals: [
     { id: 'a1', pr_number: 'PR-001', project_name: '[99] Baroni', title: 'Material dinding', purchase_request_id: 'r1', step_number: 1, status: 'PENDING', note: 'note', decided_at: null }
@@ -65,6 +70,8 @@ const mock = {
       purchase_request_id: 'r1', project_id: 'p1' },
     // nota lama (sebelum rombak) — tampil di Riwayat dengan label "nota lama"
     { id: 'rc2', invoice_no: 'INV-LAMA-2', vendor_id: 'v2', project_name: '[83] Mabes', status: 'NORMAL', received_date: '2026-10-05', note: '[Nominal: Rp 865.000] Nota lama TB Makmur', purchase_request_id: 'r2', project_id: 'p2' },
+    // t_a5a73034: nota DIBELI untuk request jalur lean r3 (realisasi parsial).
+    { id: 'rc-lean', invoice_no: 'TB-LEAN-1', vendor_id: 'v1', project_name: '[99] Baroni', status: 'DIBELI', received_date: '2026-10-19', note: '[Nominal: Rp 120.000] [Tahap: DIBELI] beli 1 lembar dulu', purchase_request_id: 'r3', project_id: 'p1' },
     // cangkang otomatis dari Approval (belum dibeli) — TIDAK boleh tampil di
     // tab mana pun; barangnya tetap muncul di tab Siap Dibeli.
     { id: 'rc3', invoice_no: null, project_name: '[99] Baroni', status: 'NORMAL', received_date: null, note: 'Dibuat otomatis dari PR (barang disetujui).', purchase_request_id: 'r1', project_id: 'p1' }
@@ -96,7 +103,10 @@ const mock = {
     // t_9109cf5e: barang APPROVED yang BELUM dibeli -> muncul di tab
     // "Siap Dibeli" modul Purchase (dengan vendor berbeda utk uji filter).
     { id: 'pi2', pr_id: 'r1', material_id: 'm2', item_name: 'Lem Fox', kode: 'BHP-0001', unit: 'Kaleng', quantity: 2, status: 'APPROVED', supplier_category: '', vendor_id: 'v1', estimated_price: 45000, sort_order: 1 },
-    { id: 'pi5', pr_id: 'r2', material_id: 'm1', item_name: 'Triplek 12mm', kode: 'PLY-0002', unit: 'Lembar', quantity: 6, status: 'APPROVED', supplier_category: 'Plywood & Board', vendor_id: 'v2', estimated_price: 185000, sort_order: 2 }
+    { id: 'pi5', pr_id: 'r2', material_id: 'm1', item_name: 'Triplek 12mm', kode: 'PLY-0002', unit: 'Lembar', quantity: 6, status: 'APPROVED', supplier_category: 'Plywood & Board', vendor_id: 'v2', estimated_price: 185000, sort_order: 2 },
+    // t_a5a73034: item request jalur lean — sebagian sudah dibeli (lihat
+    // receiving_items rc-lean) supaya baris "Pemenuhan: sebagian" ikut SSR.
+    { id: 'pi6', pr_id: 'r3', material_id: 'm1', item_name: 'Triplek 9mm', kode: 'PLY-0001', unit: 'Lembar', quantity: 2, status: 'PENDING_APPROVAL', supplier_category: 'Plywood & Board', vendor_id: null, estimated_price: 120000, sort_order: 3 }
   ],
   receiving_items: [
     // Nota DIBELI (rc1): dua barang yang SUDAH dibeli — pr_item_id sengaja
@@ -104,7 +114,11 @@ const mock = {
     { id: 'ri1', receiving_id: 'rc1', pr_item_id: 'piLama1', item_name: 'Triplek 9mm', unit: 'Lembar', quantity_received: 4, note: '[Harga: 118000]' },
     { id: 'ri2', receiving_id: 'rc1', pr_item_id: 'piLama2', item_name: 'Sekrup 3cm', unit: 'Box', quantity_received: 2, note: '[Harga: 35000]' },
     // Nota lama (rc2): tanpa harga satuan (data sebelum rombak — jujur "—")
-    { id: 'ri3', receiving_id: 'rc2', pr_item_id: 'piLama3', item_name: 'HPL Putih', unit: 'Lembar', quantity_received: 8, note: null }
+    { id: 'ri3', receiving_id: 'rc2', pr_item_id: 'piLama3', item_name: 'HPL Putih', unit: 'Lembar', quantity_received: 8, note: null },
+    // t_a5a73034: realisasi untuk request lean r3 — 1 dari 2 lembar sudah
+    // dibeli (nota DIBELI rc-lean). Baris pemenuhan desktop harus menampilkan
+    // "sebagian — sisa 1" dan TIDAK mengklaim selesai.
+    { id: 'ri4', receiving_id: 'rc-lean', pr_item_id: 'pi6', item_name: 'Triplek 9mm', unit: 'Lembar', quantity_received: 1, note: '[Harga: 120000]' }
   ]
 }
 
@@ -143,6 +157,7 @@ export default function SmokePage() {
               onReviseApproval={noop}
               onApproveItem={noop}
               onFinishPr={noop}
+              onCloseRemaining={async () => ({ ok: true })}
               onMarkPrItemOrdered={noop}
               onDelete={noop}
               setPage={noop}

@@ -41,6 +41,7 @@ import { supabase } from '../../lib/supabaseClient'
 // SATU SUMBER: modules/requests/estimator.js (resolver acuan sama dgn modul
 // Material, t_090127ad).
 import { isVendorEligible } from './estimator'
+import { composeNotesWithMarkers } from './leanRequest'
 
 // Harga valid utk simpan: nonnegative, finite. Tanda minus/parenthesis
 // ditolak EKSPLISIT ('-5' tidak boleh diam-diam jadi 5). Hasil null =
@@ -109,7 +110,11 @@ export async function save(ctx) {
       pr_number: form.pr_number,
       priority: form.priority || 'NORMAL',
       materials_summary: summary,
-      notes: form.notes || form.title
+      // t_a5a73034: penanda jalur ([Jalur: LEAN], [Tutup: …]) yang sudah
+      // tersimpan DIPERTAHANKAN saat admin mengedit catatan — kalau dibuang,
+      // request akan berubah klasifikasi jadi "Submitted lama" dan sisa
+      // kebutuhan yang sudah ditutup terbuka lagi.
+      notes: composeNotesWithMarkers(form.notes || form.title, editRow.notes)
     }).eq('id', editRow.id)
     if (upErr) { setSaving(false); say(upErr.message); return }
 
@@ -213,7 +218,7 @@ export async function save(ctx) {
   }
 
   setSaving(false)
-  say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item). Klik "✓ Selesai" pada baris PR untuk mengirim ke modul Approval.`)
+  say(`Purchase Request ${data.pr_number} berhasil dibuat (${prItemsList.length} item). Klik "✓ Selesai & Kirim" pada baris PR untuk mengirimnya ke daftar kebutuhan siap dibeli (tanpa approval).`)
   close()
   refresh()
 }

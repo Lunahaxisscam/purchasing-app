@@ -168,7 +168,9 @@ export function requestStatusLabel(pr, opts = {}) {
   if (c.key === 'LEAN') return 'Siap Ditindaklanjuti'
   if (c.key === 'DRAFT') return 'Draft'
   if (c.key === 'LEGACY_APPROVAL') return 'Antrean Approval (lama)'
-  if (c.key === 'LEGACY_UNKNOWN') return 'Submitted lama (tanpa jejak approval)'
+  // Tanpa data approval_steps di halaman, label TIDAK mengklaim "tanpa jejak
+  // approval" — cukup "Submitted lama" (riwayat, bukan antrean lean).
+  if (c.key === 'LEGACY_UNKNOWN') return 'Submitted lama'
   if (c.key === 'APPROVED') return 'Disetujui (lama)'
   if (c.key === 'REJECTED') return 'Ditolak (lama)'
   if (c.key === 'REVISI') return 'Revisi (lama)'

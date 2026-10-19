@@ -105,7 +105,14 @@ for (const vp of VIEWPORTS) {
     // 4. Khusus requests PR-012: status & aksi ter-render lengkap
     if (mod === 'requests') {
       const statusBadge = doc.querySelector('.desktop-table-view .badge') || doc.querySelector('.mobile-cards-view .badge')
-      assert(!!statusBadge && statusBadge.textContent.includes('REJECTED'), `[${vp}px] PR-012 status badge REJECTED ter-render`)
+      // t_a5a73034: label UI status kini DITERJEMAHKAN (mis. REJECTED ->
+      // "Ditolak (lama)") sesuai brief "UI label boleh berbeda dari legacy
+      // enum". Nilai enum DB TIDAK berubah. Assertion diperbarui agar menguji
+      // hal yang benar: badge status ada, tidak kosong, dan menyatakan
+      // penolakan (baik enum mentah maupun label Indonesia).
+      const badgeText = (statusBadge?.textContent || '').trim()
+      assert(!!statusBadge && badgeText.length > 0, `[${vp}px] PR-012 status badge ter-render (isi: "${badgeText}")`)
+      assert(/REJECTED|Ditolak/i.test(badgeText), `[${vp}px] PR-012 badge menyatakan ditolak (isi: "${badgeText}")`)
 
       const editBtn = doc.querySelector('.desktop-table-view .btn-edit') || doc.querySelector('.mobile-cards-view button')
       assert(!!editBtn, `[${vp}px] Tombol aksi edit ter-render`)

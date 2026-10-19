@@ -39,7 +39,7 @@ import {
 // Shell ini hanya perlu disentuh bila mengubah kontrak bersama (mis. prop baru
 // dari pages/index.js) — perubahan itu harus lewat Tech Lead (docs/owners.md).
 // ============================================================
-export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onDelete, setPage, projectTab: projectTabProp = 'active' }) {
+export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onCloseRemaining, onMarkPrItemOrdered, onDelete, setPage, projectTab: projectTabProp = 'active' }) {
   const [open, setOpen] = useState(false)
   const [createMode, setCreateMode] = useState('standard')
   const [projectFilter, setProjectFilter] = useState('active')
@@ -246,6 +246,9 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     // & memuat ulang data setelah simpan — nilai yang sama seperti ke CreateModal.
     say, refresh,
     allProjects, allMaterials, allVendors, allRequests, allReceivings,
+    // t_a5a73034: baris pemenuhan (desktop & kartu mobile) menghitung realisasi
+    // dari nota DIBELI — butuh receiving_items di ctx, bukan hanya receivings.
+    allReceivingItems,
     projectFilter, setProjectFilter,
     // t_31871b64: tab Aktif/Selesai — ikut reset limit (sama seperti filter
     // lain) supaya pengguna selalu mulai dari potongan 10 data pertama.
@@ -276,7 +279,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     setEditRow,
     onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang,
     onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem,
-    onFinishPr, onMarkPrItemOrdered, onDelete, setPage
+    onFinishPr, onCloseRemaining, onMarkPrItemOrdered, onDelete, setPage
   }
 
   return (

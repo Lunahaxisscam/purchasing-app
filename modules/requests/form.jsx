@@ -114,6 +114,47 @@ function vendorNameOf(it, allVendors) {
   return v?.name || ''
 }
 
+// ============================================================
+// SARAN VENDOR & AUTOFILL ESTIMASI (t_a5a73034 — jalur lean)
+// ============================================================
+// Brief Tahap A poin 2: autofill estimasi + saran vendor dari resolver/master
+// existing; unknown tampil "Belum ada acuan", BUKAN 0. Vendor TIDAK wajib di
+// tahap request — saran bisa diabaikan, toko aktual dicatat saat belanja.
+// Blok ini MURNI tampilan + tombol; ia tidak menulis master dan tidak
+// menetapkan vendor_id tanpa klik admin.
+function VendorSuggestion({ it, suggestions, onPick, eligible, savedName }) {
+  if (!suggestions.length) {
+    return (
+      <div className="pr-vendor-suggest" style={{ fontSize: '10px', color: '#71817d', marginTop: '2px' }}>
+        Belum ada saran vendor{eligible ? '' : ' (kategori material belum punya vendor aktif)'} — toko aktual dipilih saat belanja.
+      </div>
+    )
+  }
+  return (
+    <div className="pr-vendor-suggest" style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'wrap', marginTop: '3px' }}>
+      <span style={{ fontSize: '10px', color: '#485653', fontWeight: 600 }}>Saran vendor (opsional):</span>
+      {suggestions.map(v => {
+        const active = it.vendor_id === v.id
+        return (
+          <button
+            key={v.id}
+            type="button"
+            className={`pill ${active ? 'active' : ''}`}
+            style={{ fontSize: '10px', padding: '2px 7px' }}
+            title={v.reason}
+            onClick={() => onPick(active ? '' : v.id)}
+          >
+            {v.fromHistory ? '🧾 ' : '🏷️ '}{v.name}{active ? ' ✓' : ''}
+          </button>
+        )
+      })}
+      {savedName && !suggestions.some(v => v.id === it.vendor_id) && (
+        <span style={{ fontSize: '10px', color: '#b45309' }}>tersimpan: {savedName}</span>
+      )}
+    </div>
+  )
+}
+
 export function formBody(ctx) {
   const {
     form, setForm, allProjects, allMaterials, allVendors,
@@ -123,7 +164,8 @@ export function formBody(ctx) {
     itemQty, setItemQty, addItemToPR, removeItemFromPR, updateItemQty,
     updateItemSupplier, updateItemVendor, vendorsForItem, updateItemPrice,
     applyAcuanToItem, vendorEligibleForItem, totals,
-    materialCategories, isEdit, inputMode, setInputMode, fieldFormState
+    materialCategories, isEdit, inputMode, setInputMode, fieldFormState,
+    vendorSuggestionsForItem, estimateForItem
   } = ctx
 
   // Kategori utk filter katalog — daftar kategori master material.
@@ -453,6 +495,16 @@ export function formBody(ctx) {
                             Belum ada acuan — isi estimasi manual
                           </span>
                         )}
+                        {/* Saran vendor (t_a5a73034): OPSIONAL. Klik = mengisi
+                            rencana toko + harga acuan vendor itu (bila ada);
+                            klik lagi = batal. Tidak ada vendor yang dipaksa. */}
+                        <VendorSuggestion
+                          it={it}
+                          suggestions={vendorSuggestionsForItem ? vendorSuggestionsForItem(it) : []}
+                          onPick={(vid) => updateItemVendor(idx, vid)}
+                          eligible={vendorEligibleForItem(it, it.vendor_id)}
+                          savedName={savedVendor}
+                        />
                       </div>
                       {/* ===== BARIS 2 (LIPAT, default tertutup): RENCANA TOKO =====
                           t_cde1b8ad: pemilihan toko dipindah ke Purchase. Kontrol

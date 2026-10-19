@@ -30,6 +30,11 @@ for m in MODULES:
 # sendiri mengimpor resolver modul Material ../materials/acuan.js (satu sumber).
 if os.path.isfile(f'{REPO}/modules/requests/estimator.js'):
     shutil.copy(f'{REPO}/modules/requests/estimator.js', f'{SB}/modules/requests/estimator.js')
+# t_a5a73034: modules/requests/save.js mengimpor ./leanRequest (penanda jalur
+# lean yang harus DIPERTAHANKAN saat edit catatan) — file pendamping disalin
+# supaya harness meregresi file NYATA, bukan salinan logika.
+if os.path.isfile(f'{REPO}/modules/requests/leanRequest.js'):
+    shutil.copy(f'{REPO}/modules/requests/leanRequest.js', f'{SB}/modules/requests/leanRequest.js')
 if os.path.isfile(f'{REPO}/modules/materials/acuan.js'):
     os.makedirs(f'{SB}/modules/materials', exist_ok=True)
     shutil.copy(f'{REPO}/modules/materials/acuan.js', f'{SB}/modules/materials/acuan.js')

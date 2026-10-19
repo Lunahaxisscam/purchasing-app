@@ -4,6 +4,7 @@
 // Fungsi murni: tidak menyentuh state React.
 // ============================================================
 import { normalizeStatus, isReceivingKendala, isStokMenipis, isHandoverDelivered } from '../../lib/constants'
+import { isLeanMarked } from '../requests/leanRequest'
 
 export function filterRows({
   page,
@@ -32,6 +33,14 @@ export function filterRows({
     else if (projectFilter === 'ON_GOING') displayRows = displayRows.filter(p => normalizeStatus(p.status) === 'ON_GOING')
   } else if (page === 'requests') {
     if (prFilter === 'DRAFT') displayRows = rows.filter(r => r.status === 'DRAFT')
+    // t_a5a73034 — jalur lean: "Siap Ditindaklanjuti" = HANYA request yang
+    // punya penanda [Jalur: LEAN]. "Submitted lama" = status SUBMITTED tanpa
+    // penanda (data lama, alur approval lama). Keduanya DIPISAH tegas supaya
+    // legacy tidak otomatis dianggap jalur lean (arahan DAT).
+    else if (prFilter === 'LEAN') displayRows = rows.filter(r => isLeanMarked(r.notes))
+    else if (prFilter === 'SUBMITTED_LEGACY') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'SUBMITTED' && !isLeanMarked(r.notes))
+    // Alias lama 'SUBMITTED' dipertahankan (deep-link/state lama) = SEMUA
+    // SUBMITTED apa adanya, tanpa mengubah klasifikasi baris.
     else if (prFilter === 'SUBMITTED') displayRows = rows.filter(r => r.status === 'SUBMITTED')
     else if (prFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
     else if (prFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')

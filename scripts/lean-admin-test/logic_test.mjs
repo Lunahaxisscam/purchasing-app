@@ -79,7 +79,7 @@ section('B. Klasifikasi request: legacy TIDAK otomatis lean')
   const c1 = lean.classifyRequest(legacySubmitted, { approvalStepCount: 0 })
   check('SUBMITTED tanpa approval_steps -> LEGACY_UNKNOWN', c1.key === 'LEGACY_UNKNOWN', JSON.stringify(c1))
   check('legacy tidak dianggap lean', c1.lean === false)
-  check('label legacy jujur (bukan Siap Ditindaklanjuti)', lean.requestStatusLabel(legacySubmitted, { approvalStepCount: 0 }) === 'Submitted lama (tanpa jejak approval)')
+  check('label legacy jujur (bukan Siap Ditindaklanjuti)', lean.requestStatusLabel(legacySubmitted, { approvalStepCount: 0 }) === 'Submitted lama')
 
   const c2 = lean.classifyRequest({ status: 'SUBMITTED', notes: 'x' }, { approvalStepCount: 2 })
   check('SUBMITTED + approval_steps -> LEGACY_APPROVAL', c2.key === 'LEGACY_APPROVAL')
@@ -247,6 +247,8 @@ section('E. Pemenuhan dari realisasi valid (bukan dari status kirim)')
   check('i2 selesai', sum.items[1].status === fulfill.FULFILL_DONE)
   check('i3 belum dibeli (nota RETUR diabaikan)', sum.items[2].status === fulfill.FULFILL_NONE, JSON.stringify(sum.items[2]))
   check('ringkasan SEBAGIAN', sum.status === fulfill.FULFILL_PARTIAL, sum.status)
+  // Label campuran tetap informatif (ada yang selesai + sebagian + belum).
+  check('label ringkasan memuat status tiap kelompok', /1 selesai/.test(sum.label) && /1 sebagian/.test(sum.label) && /1 belum/.test(sum.label), sum.label)
   check('request dikirim != selesai', sum.status !== fulfill.FULFILL_DONE)
   check('estimasi tidak dipakai sbg realisasi', sum.realized === 104, String(sum.realized))
 
