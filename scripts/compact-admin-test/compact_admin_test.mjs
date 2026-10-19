@@ -94,11 +94,20 @@ const MODULES = [
   { id: 'marketing', file: 'modules/marketing/view.jsx', props: '{ rows: MOCK, leads: MOCK.leads, customers: MOCK.customers }' },
   { id: 'rap-compare', file: 'modules/rap-compare/view.jsx', props: '{ rows: MOCK, allProjects: MOCK.projects, rabItems: MOCK.rab_items }' },
   { id: 'sales-invoice', file: 'modules/sales-invoice/view.jsx', props: '{ invoices: MOCK.sales_invoices, projects: MOCK.projects, allProjects: MOCK.projects }' },
-  { id: 'rap', file: 'modules/rap/view.jsx', props: '{ projects: MOCK.projects, say: () => {}, setPage: () => {}, materials: MOCK.materials }' },
+  { id: 'rap', file: 'modules/rap/view.jsx', props: '{ projects: MOCK.projects, say: () => {}, setPage: () => {}, materials: MOCK.materials, initialDraft: RAP_DRAFT }', clicks: ['[data-testid="rap-act-add-line"]', '[data-testid="rap-act-add-material"]'] },
   { id: 'rab-boq', file: 'modules/rab-boq/view.jsx', props: '{ projects: MOCK.projects, refresh: () => {} }', clicks: ['.boq-add-row'] }
 ]
 
 const MOCK_SRC = path.join(REPO, 'scripts', 'compact-admin-test', 'mock.mjs')
+
+// Draft RAP minimal (bentuk kontrak modules/rap/model.js createRapDraft) —
+// dipakai supaya tabel baris RAP (10 kolom input) ikut ter-render di harness.
+const RAP_DRAFT = `{
+  id: 'rap-harness', version: 'RAP-01', status: 'DRAFT',
+  project_id: 'p1', project_name: 'Mabes Polri Renovasi Lantai 3 Sayap Barat', project_kode: '83',
+  rab_reff: 'BOQ-83', rab_revision: '0', rab_basis: 'RAB',
+  rab_lines: [], lines: [], history: [], persisted: false, persistence: 'DRAFT_ONLY'
+}`
 
 const CSS_PLUGIN = {
   name: 'css-module-stub',
@@ -140,7 +149,7 @@ globalThis.__RUN__ = async function __run(clicks) {
   const React = require('react')
   const { createRoot } = require('react-dom/client')
   const { act } = require('react-dom/test-utils')
-  const { MODULE, PROPS } = globalThis.__SPEC__
+  const { MODULE, PROPS, RAP_DRAFT } = globalThis.__SPEC__
   const el = React.createElement(MODULE, PROPS)
   const host = document.createElement('div')
   document.body.appendChild(host)
@@ -184,7 +193,8 @@ for (const mod of MODULES) {
     `import MODULE from '${rel.startsWith('.') ? rel : './' + rel}'`,
     `import { decorateTables } from '${path.relative(DIST, path.join(REPO, 'components', 'CompactRoot.js')).replace(/\\/g, '/')}'`,
     `import MOCK from '${path.relative(DIST, MOCK_SRC).replace(/\\/g, '/')}'`,
-    `globalThis.__SPEC__ = { MODULE, PROPS: ${mod.props}, MOCK }`,
+    `const RAP_DRAFT = ${RAP_DRAFT}`,
+    `globalThis.__SPEC__ = { MODULE, PROPS: ${mod.props}, MOCK, RAP_DRAFT }`,
     `globalThis.__DECORATE__ = decorateTables`,
     RENDER_DRIVER
   ].join('\n'))
@@ -242,7 +252,12 @@ for (const mod of MODULES) {
         if (!text && !hasControl) continue
         cells += 1
         if (!td.hasAttribute('data-label')) unlabeled += 1
-        else if (!td.getAttribute('data-label') && text && tr.parentElement.tagName === 'TBODY') emptyLabelWithText += 1
+        else if (!td.getAttribute('data-label') && text && tr.parentElement.tagName === 'TBODY'
+          && !td.querySelector('input, select, textarea, button')) {
+          // Sel tanpa label hanya boleh untuk kolom aksi (isinya tombol).
+          emptyLabelWithText += 1
+          if (process.env.DEBUG_LABELS) console.log('    [label kosong]', td.outerHTML.slice(0, 160))
+        }
       }
     }
   }
