@@ -149,11 +149,11 @@ node scripts/compact-admin-test/compact_admin_test.mjs
 
 | Harness | Hasil |
 |---|---|
-| `stock-view-test` | exit 0 (53/53 render) |
-| `crm-test` | exit 0 (88 lulus) |
-| `labor-stock-test` | exit 0 (99 lulus) |
-| `rap-test` | exit 0 (50 lulus) |
-| `rap-compare-test` | exit 0 (82 lulus) |
+| `stock-view-test` | exit 0 (logic 76/76 · render 53/53) |
+| `crm-test` | exit 0 (75 + 88 lulus) |
+| `labor-stock-test` | exit 0 (60 render + 99 lulus) |
+| `rap-test` | exit 0 (render 107 · wiring 50) |
+| `rap-compare-test` | exit 0 (render 75 · responsive 82) |
 | `sales-invoice-test` | exit 0 (A 92 · B 160 · C+D 93 · E+F+G 93) |
 | `sales-invoice-payment-test` | exit 0 (51 lulus) |
 | `growth-kpi-test` | exit 0 |
