@@ -135,19 +135,26 @@ export function makeItemHelpers({ allPrItems = [], allVendors = [], allMaterials
         const qtyText = qtyVal === '' ? '—' : `${qtyVal} ${unit}`.replace(/\s+/g, ' ').trim()
         const supplier = String(it.supplier_category || '').trim()
         const vendor = vendorName(it.vendor_id)
-        // Estimasi harga: dari pr_items.estimated_price; fallback ke harga acuan material.
+        // Estimasi harga: dari pr_items.estimated_price (snapshot tersimpan);
+        // fallback ke harga acuan master material jika snapshot belum terisi.
         const mat = materialMap.get(it.material_id)
-        const rawPrice = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
-          ? it.estimated_price
-          : (mat ? mat.harga_acuan : null)
-        const numPrice = (rawPrice === null || rawPrice === undefined || rawPrice === '') ? null : Number(rawPrice)
-        const estPrice = numPrice !== null && isFinite(numPrice) && numPrice >= 0 ? numPrice : null
-        // ============================================================
-        // SUBTOTAL TERSIMPAN (t_ac0b39c0): qty × estimated_price TERSIMPAN
-        // (snapshot pr_items) — BUKAN fallback harga_acuan master (itu bukan
-        // bagian dari PR tersimpan). Null bila harga/qty tidak valid → item
-        // dihitung "belum lengkap" oleh prEstimateRows, bukan 0.
-        // ============================================================
+        const hasSaved = it.estimated_price !== null && it.estimated_price !== undefined && String(it.estimated_price).trim() !== ''
+        let estPrice = null
+        if (hasSaved) {
+          const rawSaved = Number(it.estimated_price)
+          if (isFinite(rawSaved) && rawSaved >= 0) {
+            estPrice = Math.round(rawSaved)
+          }
+        } else if (mat) {
+          const rawMat = (mat.harga_acuan !== null && mat.harga_acuan !== undefined && String(mat.harga_acuan).trim() !== '')
+            ? Number(mat.harga_acuan)
+            : null
+          if (rawMat !== null && isFinite(rawMat) && rawMat >= 0) {
+            estPrice = Math.round(rawMat)
+          }
+        }
+        // Subtotal = qty × harga estimasi efektif (bulat rupiah).
+        // Null bila harga/qty tidak valid (>0 finite) -> dihitung "belum lengkap", bukan 0.
         const qNum = Number(it.quantity)
         const savedSubtotal = (estPrice !== null && isFinite(qNum) && qNum > 0)
           ? Math.round(qNum * estPrice)

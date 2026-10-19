@@ -47,21 +47,30 @@ import {
 } from '../requests/view'
 import { displayNote, savedPriceOf } from './view'
 
-export function approvalDetail({ H, r, close, allMaterials, onApproveItem, onMarkPrItemOrdered, itemState }) {
-  if (!r || !H || !close) return null
+function ApprovalDetailDialog({ H, r, close, allMaterials, onApproveItem, onMarkPrItemOrdered, itemState }) {
+  // Escape key closes dialog
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') close()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [close])
 
+  const matMap = materialMapFrom(allMaterials)
   const rawItems = H.approvalItems(r)
   const rows = H.approvalItemRows(r).map(row => ({ ...row }))
   const groups = rawItems.length
-    ? groupItemsByCategory(rawItems, materialMapFrom(allMaterials))
+    ? groupItemsByCategory(rawItems, matMap)
     : []
-  const est = prEstimateRows(rawItems)
+  const est = prEstimateRows(rawItems, matMap)
   return createPortal(
     <div
       onClick={close}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(15, 25, 22, 0.45)',
-        zIndex: 1000, display: 'flex', justifyContent: 'flex-end', alignItems: 'stretch'
+        zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center',
+        padding: '24px 16px', boxSizing: 'border-box'
       }}
     >
       <div
@@ -69,10 +78,11 @@ export function approvalDetail({ H, r, close, allMaterials, onApproveItem, onMar
         aria-label={`Rincian approval ${r.pr_number || 'PR'}`}
         onClick={e => e.stopPropagation()}
         style={{
-          width: 'min(440px, 100%)', maxWidth: '100%', height: '100%',
-          overflowY: 'auto', background: '#fff', color: '#1f3a34',
-          borderTopLeftRadius: '12px', borderBottomLeftRadius: '12px',
-          boxShadow: '-8px 0 24px rgba(0,0,0,0.18)'
+          width: 'min(640px, 94vw)', maxWidth: '100%', maxHeight: 'calc(100vh - 48px)',
+          overflowY: 'auto', overflowX: 'hidden', background: '#fff', color: '#1f3a34',
+          borderRadius: '12px',
+          boxShadow: '0 12px 36px rgba(0,0,0,0.22)',
+          boxSizing: 'border-box'
         }}
       >
         {/* Header: identitas dokumen + tombol Tutup */}
@@ -132,7 +142,7 @@ export function approvalDetail({ H, r, close, allMaterials, onApproveItem, onMar
                   // (sumber & aturan skip sama dengan panel perluasan view.jsx)
                   let subtotal = null
                   for (const it of g.items) {
-                    const price = savedPriceOf(it)
+                    const price = savedPriceOf(it, matMap)
                     const q = Number(it.quantity)
                     if (price === null || !isFinite(q) || q <= 0) continue
                     subtotal = (subtotal || 0) + Math.round(q * price)
@@ -151,7 +161,7 @@ export function approvalDetail({ H, r, close, allMaterials, onApproveItem, onMar
                         </thead>
                         <tbody>
                           {g.items.map((it, ii) => {
-                            const price = savedPriceOf(it)
+                            const price = savedPriceOf(it, matMap)
                             const q = Number(it.quantity)
                             const subtotalIt = (price !== null && isFinite(q) && q > 0)
                               ? Math.round(q * price) : null
@@ -253,4 +263,9 @@ export function approvalDetail({ H, r, close, allMaterials, onApproveItem, onMar
     </div>,
     document.body
   )
+}
+
+export function approvalDetail(props) {
+  if (!props?.r || !props?.H || !props?.close) return null
+  return <ApprovalDetailDialog {...props} />
 }

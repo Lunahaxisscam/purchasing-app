@@ -221,7 +221,7 @@ export function desktopRow(r, ctx) {
   // "belum lengkap" bila ada item tanpa harga — BUKAN klaim lengkap).
   // ------------------------------------------------------------
   if (compactMode) {
-    const est = prEstimateRows(H.approvalItems(r))
+    const est = prEstimateRows(H.approvalItems(r), materialMapFrom(allMaterials))
     const open = approvalDetailId === r.id
     // ============================================================
     // GEOMETRI KOLOM (temuan t_7634fa92, pra-review)
@@ -295,7 +295,7 @@ export function desktopRow(r, ctx) {
   // versi lama (itemAreaSpan+2 + filler 2) menciptakan 2 kolom hantu lagi.
   // Grid baris total: 3 parent + 1 label + 1 nilai + 5 parent = 10 ✓.
   // ============================================================
-  const est = prEstimateRows(H.approvalItems(r))
+  const est = prEstimateRows(H.approvalItems(r), materialMapFrom(allMaterials))
   const totalRow = [(
     <tr key="ap-est-total" className="pr-est-total-row">
       <td colSpan={itemAreaSpan - 1} style={{ textAlign: 'right', fontWeight: 700, color: '#1f3a34', borderTop: '2px solid #1f3a34', background: '#fbfdfc' }}>
@@ -447,12 +447,13 @@ export function rowActions(r, ctx, opts) {
 // × qty — sumber sama dgn Total Estimasi t_ac0b39c0); item tanpa harga
 // di-skip (bukan dianggap 0). Bukan penjumlahan qty satuan berbeda.
 function approvalGroups(r, H, ctx) {
+  const matMap = materialMapFrom(ctx.allMaterials)
   const rawItems = H.approvalItems(r)
-  const groups = groupItemsByCategory(rawItems, materialMapFrom(ctx.allMaterials))
+  const groups = groupItemsByCategory(rawItems, matMap)
   for (const g of groups) {
     let subtotal = null
     for (const it of g.items) {
-      const price = savedPriceOf(it)
+      const price = savedPriceOf(it, matMap)
       const q = Number(it.quantity)
       if (price === null || !isFinite(q) || q <= 0) continue
       subtotal = (subtotal || 0) + Math.round(q * price)
@@ -462,13 +463,22 @@ function approvalGroups(r, H, ctx) {
   return groups
 }
 
-// Harga snapshot pr_items (sumber sama dgn prEstimateRows t_ac0b39c0):
-// nonnegative finite → integer rupiah; selain itu null (bukan 0 palsu).
-// Diekspor: detailDrawer memakai fungsi yang SAMA (t_ff02257a).
-export function savedPriceOf(it) {
-  const raw = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
-    ? Number(it.estimated_price) : null
-  return raw !== null && isFinite(raw) && raw >= 0 ? Math.round(raw) : null
+// Harga estimasi efektif pr_items (sumber sama dgn prEstimateRows):
+// snapshot tersimpan valid -> master material harga_acuan fallback -> null.
+export function savedPriceOf(it, materialMap) {
+  const hasSaved = it?.estimated_price !== null && it?.estimated_price !== undefined && String(it?.estimated_price).trim() !== ''
+  if (hasSaved) {
+    const raw = Number(it.estimated_price)
+    if (isFinite(raw) && raw >= 0) return Math.round(raw)
+    return null
+  }
+  if (materialMap && it?.material_id) {
+    const mat = materialMap.get(it.material_id)
+    const rawMaster = (mat?.harga_acuan !== null && mat?.harga_acuan !== undefined && String(mat?.harga_acuan).trim() !== '')
+      ? Number(mat.harga_acuan) : null
+    if (rawMaster !== null && isFinite(rawMaster) && rawMaster >= 0) return Math.round(rawMaster)
+  }
+  return null
 }
 
 // Satu <tr> item di tabel perluasan (markup & perilaku persis versi lama —
@@ -541,7 +551,7 @@ export function rowExpand(r, ctx) {
   // read-only, TIDAK dihitung ulang dari histori terbaru saat dibuka ulang.
   // Item tanpa harga ≠ 0 → label "belum lengkap".
   // ============================================================
-  const est = prEstimateRows(approvalItems(r))
+  const est = prEstimateRows(approvalItems(r), materialMapFrom(allMaterials))
   return (
     <tr>
       <td colSpan={columns.length + 2} style={{ background: '#fbfdfc', padding: '10px 12px' }}>
@@ -631,7 +641,7 @@ export function mobileCard(r, ctx) {
       : [])
   // Total Estimasi (t_ac0b39c0): snapshot tersimpan, read-only — nilai tidak
   // berubah karena pengelompokan.
-  const est = prEstimateRows(rawItems)
+  const est = prEstimateRows(rawItems, materialMapFrom(allMaterials))
   return (
     <>
       <div className="mobile-card-header">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import styles from './compact-ops.module.css'
 import Create from './CreateModal'
 import { headersFor, pretty, format, labels } from '../lib/constants'
 import { makeItemHelpers } from '../modules/shared/itemHelpers'
@@ -278,7 +279,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
   }
 
   return (
-    <>
+    <div className={styles.opsContainer || 'ops-container'}>
       {/* Banner modul (mis. peringatan stok BHP menipis di Materials) */}
       {renderModuleBanner(page, ctx)}
       {/* Tombol cetak template manual tim lapangan — form kosong 2 halaman A4
@@ -359,9 +360,6 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           say={say}
         />
       )}
-      <div className="table-scroll-hint">
-        <span>⇄</span> Geser ke kanan untuk melihat kolom lengkap & tombol aksi
-      </div>
       <div className="panel table desktop-table-view">
         <table className={renderModuleTableClass(page)}>
           <thead>
@@ -370,7 +368,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                 <th
                   key={h}
                   onClick={() => h !== 'items' && toggleSort(h)}
-                  style={{ cursor: h === 'items' ? 'default' : 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  style={{ cursor: h === 'items' ? 'default' : 'pointer', userSelect: 'none' }}
                   title={h === 'items' ? undefined : 'Klik untuk urutkan'}
                 >
                   {renderModuleHeader(page, h) || pretty(h)}
@@ -378,7 +376,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                 </th>
               ))}
               {(hasDeleteAction || page === 'approvals') && (
-                <th style={{ width: page === 'approvals' ? '140px' : (page === 'requests' ? '150px' : '90px'), textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: page === 'approvals' ? '11%' : (page === 'requests' ? '5%' : '8%'), textAlign: 'center' }}>Aksi</th>
               )}
             </tr>
           </thead>
@@ -496,7 +494,6 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           </div>
         </div>
       )}
-
-    </>
+    </div>
   )
 }

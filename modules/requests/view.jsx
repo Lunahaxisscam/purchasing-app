@@ -23,25 +23,46 @@ import { format, rupiah } from '../../lib/constants'
 // Per-item: subtotal = qty × harga tersimpan. Total Estimasi PR dihitung
 // dari snapshot yang tersimpan; item tanpa harga TIDAK dianggap 0 — total
 // diberi label "belum lengkap".
-function savedPriceOf(it) {
-  const raw = (it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '')
-    ? Number(it.estimated_price)
-    : null
-  // Harga tersimpan harus nonnegative finite — data lama aneh (negatif/NaN)
-  // ditampilkan dash, bukan dianggap 0 maupun dikoreksi di DB.
-  return raw !== null && isFinite(raw) && raw >= 0 ? Math.round(raw) : null
+export function effectiveEstimatePriceOf(it, materialMap) {
+  if (!it) return null
+  // 1. Snapshot tersimpan di pr_items.estimated_price
+  const hasSaved = it.estimated_price !== null && it.estimated_price !== undefined && String(it.estimated_price).trim() !== ''
+  if (hasSaved) {
+    const rawSaved = Number(it.estimated_price)
+    // Nonnegative finite valid -> dipakai (jangan ditimpa master)
+    if (isFinite(rawSaved) && rawSaved >= 0) {
+      return Math.round(rawSaved)
+    }
+    // Negatif / NaN = invalid -> null (dash / unknown, bukan 0)
+    return null
+  }
+  // 2. Fallback ke harga acuan master HANYA jika snapshot belum pernah terisi
+  if (materialMap && it.material_id) {
+    const mat = materialMap.get(it.material_id)
+    const rawMaster = (mat?.harga_acuan !== null && mat?.harga_acuan !== undefined && String(mat?.harga_acuan).trim() !== '')
+      ? Number(mat.harga_acuan)
+      : null
+    if (rawMaster !== null && isFinite(rawMaster) && rawMaster >= 0) {
+      return Math.round(rawMaster)
+    }
+  }
+  return null
+}
+
+function savedPriceOf(it, materialMap) {
+  return effectiveEstimatePriceOf(it, materialMap)
 }
 export { savedPriceOf }
 
-export function prEstimateRows(items) {
+export function prEstimateRows(items, materialMap) {
   const list = items || []
   let total = 0
   let unknown = 0
   for (const it of list) {
-    const p = savedPriceOf(it)
+    const p = effectiveEstimatePriceOf(it, materialMap)
     const q = Number(it.quantity)
     if (p === null || !isFinite(q) || q <= 0) { unknown++; continue }
-    total += q * p
+    total += Math.round(q * p)
   }
   return {
     total: Math.round(total),
@@ -130,7 +151,7 @@ export function filters(ctx) {
   const { rows, prFilter, setPrFilter } = ctx
   return (
     <div className="filter-tabs">
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
       <button
         type="button"
         className={`pill ${prFilter === 'all' ? 'active' : ''}`}
@@ -307,7 +328,7 @@ export function desktopRow(r, ctx) {
   // bukan lookup dinamis. Item tanpa harga ≠ 0 → label "belum lengkap".
   // ============================================================
   const itemsForEst = H.prItemsForPr(r.id)
-  const est = prEstimateRows(itemsForEst)
+  const est = prEstimateRows(itemsForEst, materialMapFrom(allMaterials))
   // Parent rowSpan mencakup heading grup + baris item + baris total (total
   // row SELALU ada bila PR punya item — lengkap maupun belum lengkap).
   const estRowSpan = list.length + groups.length + (est.hasItems ? 1 : 0)
@@ -367,12 +388,12 @@ export function desktopRow(r, ctx) {
         </div>
       </td>
       <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>
-        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }} title={String(r.project_name || '')}>
+        <div style={{ whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word', fontSize: '12px', lineHeight: 1.35, fontWeight: 500, color: '#1f3a34' }} title={String(r.project_name || '')}>
           {format(r.project_name)}
         </div>
       </td>
       <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>
-        <div className="pr-title-cell" title={String(r.title || '')}>
+        <div className="pr-title-cell" title={String(r.title || '')} style={{ whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word', fontSize: '12px', lineHeight: 1.35 }}>
           {format(r.title)}
         </div>
       </td>
@@ -380,38 +401,42 @@ export function desktopRow(r, ctx) {
   ) : null
   const parentEndTds = first => first ? (
     <>
-      <td rowSpan={estRowSpan} style={{ verticalAlign: 'top' }}>{format(r.status)}</td>
+      <td rowSpan={estRowSpan} style={{ verticalAlign: 'top', textAlign: 'center' }}>
+        <span className={`badge status-${r.status}`} style={{ fontSize: '10.5px', padding: '2px 6px', whiteSpace: 'nowrap' }}>
+          {format(r.status)}
+        </span>
+      </td>
       <td rowSpan={estRowSpan} style={{ textAlign: 'center', verticalAlign: 'top' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'center', alignItems: 'stretch', width: '92px', margin: '0 auto' }}>
+        <div className="pr-actions-cell" style={{ display: 'flex', flexDirection: 'column', gap: '3px', justifyContent: 'center', alignItems: 'center', margin: '0 auto' }}>
           {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
             <button
               type="button"
               className="btn-finish"
               onClick={() => onFinishPr(r)}
               title={`Selesai — kirim ${r.pr_number || title} ke modul Approval`}
-              style={{ fontSize: '10px', padding: '4px 6px', whiteSpace: 'nowrap', width: '100%' }}
+              style={{ fontSize: '10px', padding: '3px 6px', whiteSpace: 'nowrap', width: '100%', marginBottom: '2px' }}
             >
               ✓ Selesai
             </button>
           )}
-          <button
-            type="button"
-            className="btn-edit icon-btn"
-            onClick={() => setEditRow(r)}
-            title={`Edit ${r.pr_number || title}`}
-            style={{ width: '100%' }}
-          >
-            ✏️
-          </button>
-          <button
-            type="button"
-            className="btn-delete icon-btn"
-            onClick={() => onDelete(page, r)}
-            title={`Hapus ${r.pr_number || title}`}
-            style={{ width: '100%' }}
-          >
-            🗑️
-          </button>
+          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn-edit icon-btn"
+              onClick={() => setEditRow(r)}
+              title={`Edit ${r.pr_number || title}`}
+            >
+              ✏️
+            </button>
+            <button
+              type="button"
+              className="btn-delete icon-btn"
+              onClick={() => onDelete(page, r)}
+              title={`Hapus ${r.pr_number || title}`}
+            >
+              🗑️
+            </button>
+          </div>
         </div>
       </td>
     </>
@@ -455,36 +480,36 @@ export function rowActions(r, ctx) {
   const { title, page, setEditRow, onFinishPr, onDelete } = ctx
   return (
     <td style={{ textAlign: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', justifyContent: 'center', alignItems: 'stretch', width: '92px', margin: '0 auto' }}>
+      <div className="pr-actions-cell" style={{ display: 'flex', flexDirection: 'column', gap: '3px', justifyContent: 'center', alignItems: 'center', margin: '0 auto' }}>
         {['DRAFT', 'REVISI'].includes(String(r.status || '').toUpperCase()) && (
           <button
             type="button"
             className="btn-finish"
             onClick={() => onFinishPr(r)}
             title={`Selesai — kirim ${r.pr_number || title} ke modul Approval`}
-            style={{ fontSize: '10px', padding: '4px 6px', whiteSpace: 'nowrap', width: '100%' }}
+            style={{ fontSize: '10px', padding: '3px 6px', whiteSpace: 'nowrap', width: '100%', marginBottom: '2px' }}
           >
             ✓ Selesai
           </button>
         )}
-        <button
-          type="button"
-          className="btn-edit icon-btn"
-          onClick={() => setEditRow(r)}
-          title={`Edit ${r.pr_number || title}`}
-          style={{ width: '100%' }}
-        >
-          ✏️
-        </button>
-        <button
-          type="button"
-          className="btn-delete icon-btn"
-          onClick={() => onDelete(page, r)}
-          title={`Hapus ${r.pr_number || title}`}
-          style={{ width: '100%' }}
-        >
-          🗑️
-        </button>
+        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+          <button
+            type="button"
+            className="btn-edit icon-btn"
+            onClick={() => setEditRow(r)}
+            title={`Edit ${r.pr_number || title}`}
+          >
+            ✏️
+          </button>
+          <button
+            type="button"
+            className="btn-delete icon-btn"
+            onClick={() => onDelete(page, r)}
+            title={`Hapus ${r.pr_number || title}`}
+          >
+            🗑️
+          </button>
+        </div>
       </div>
     </td>
   )
@@ -495,7 +520,7 @@ export function mobileCard(r, ctx) {
   const { H, page, setEditRow, onFinishPr, onDelete, allMaterials } = ctx
   const { requestItemRows } = H
   // Total Estimasi (t_ac0b39c0): snapshot harga tersimpan pr_items.
-  const est = prEstimateRows(H.prItemsForPr(r.id))
+  const est = prEstimateRows(H.prItemsForPr(r.id), materialMapFrom(allMaterials))
   // t_48f6b336: kelompokkan item per kategori master material — sama dgn
   // desktop. Heading grup tampil sekali; item tetap nama + qty + vendor +
   // subtotal. Tanpa relasi kategori → "Belum Berkategori".

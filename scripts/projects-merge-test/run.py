@@ -70,6 +70,12 @@ for rel in REL_FILES:
 
     def _repl(m):
         pre, spec, post = m.group(1), m.group(2), m.group(3)
+        if spec.endswith('.css'):
+            css_stub = os.path.join(SB, os.path.normpath(os.path.join(os.path.dirname(sb_rel(rel)), spec + '.mjs')))
+            os.makedirs(os.path.dirname(css_stub), exist_ok=True)
+            open(css_stub, 'w', encoding='utf-8').write('export default {};\n')
+            new_spec = spec + '.mjs'
+            return f'{pre}{new_spec}{post}'
         resolved = resolve(os.path.dirname(rel), spec)
         if resolved is None:
             return m.group(0)
