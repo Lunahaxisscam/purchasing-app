@@ -951,7 +951,9 @@ export default function RapModule({
         .rap-pr-preview { display: grid; gap: 8px; margin-top: 8px; }
         .rap-pr-meta { font-size: 11.8px; color: #3b504b; font-weight: 700; }
         .rap-pre {
-          margin: 0; max-height: 260px; max-width: 100%; overflow: auto; background: #f7f8f5; border: 1px solid #e0e2db;
+          margin: 0; max-height: 260px; max-width: 100%; overflow-y: auto; overflow-x: hidden;
+          white-space: pre-wrap; overflow-wrap: anywhere;
+          background: #f7f8f5; border: 1px solid #e0e2db;
           border-radius: 8px; padding: 10px; font-size: 11px; line-height: 1.45; color: #2a3024;
         }
         .rap-table-wrap { overflow: visible; max-width: 100%; }
