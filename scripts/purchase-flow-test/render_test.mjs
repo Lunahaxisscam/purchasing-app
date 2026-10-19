@@ -334,6 +334,60 @@ console.log('\nC11. Centang lintas toko: semua barang ikut, toko form bisa digan
   check('C11e tidak ada barang dibuang diam-diam', doc.querySelectorAll('[data-testid^="form-item-"]').length === 2)
 }
 
+// ---------- C11b: item lean + tombol belanja langsung (Tahap B) ----------
+console.log('\nC11b. Jalur lean tampil di Siap Dibeli + tombol belanja langsung')
+{
+  const LEAN_PR = { id: 'prL', pr_number: 'PR-LEAN', title: 'Material lean', project_id: 'p1', status: 'SUBMITTED', notes: 'Catatan\n[Jalur: LEAN]' }
+  const LEAN_ITEMS = [
+    { id: 'piLean', pr_id: 'prL', material_id: 'm2', item_name: 'Sekrup lean', kode: 'HWF-0007', unit: 'Box', quantity: 6, estimated_price: 40000, status: 'PENDING_APPROVAL', vendor_id: null, sort_order: 0 }
+  ]
+  const { document: doc } = mount({
+    requests: [...REQUESTS, LEAN_PR],
+    pr_items: [...PR_ITEMS, ...LEAN_ITEMS]
+  })
+  await tick()
+  check('C11b1 item lean muncul di Siap Dibeli', !!tid(doc, 'ready-row-piLean'), String(doc.querySelectorAll('[data-testid^="ready-row-"]').length))
+  // item legacy null tidak pernah dicantumkan ke rows di render fixture
+  check('C11b2 tombol belanja langsung ada', !!tid(doc, 'btn-direct-purchase'))
+  // buka dialog langsung
+  click(tid(doc, 'btn-direct-purchase')); await tick()
+  check('C11b3 dialog langsung terbuka', !!tid(doc, 'purchase-form'))
+  check('C11b4 satu baris item langsung', doc.querySelectorAll('[data-testid^="form-item-"]').length === 1, String(doc.querySelectorAll('[data-testid^="form-item-"]').length))
+  const directRow = doc.querySelector('[data-testid^="form-item-"]')
+  const dk = directRow?.getAttribute('data-testid')?.replace('form-item-', '')
+  const namaInput = tid(doc, `nama-${dk}`)
+  const projSel = tid(doc, `proj-${dk}`)
+  check('C11b5 nama langsung bisa diketik', !!namaInput)
+  check('C11b6 dropdown proyek tersedia', !!projSel)
+  typeInto(doc, namaInput, 'Kabel tambahan instalasi'); await tick()
+  // selectValue butuh objek select — pakai helper
+  const setter = Object.getOwnPropertyDescriptor(doc.defaultView.HTMLSelectElement.prototype, 'value').set
+  flushSync(() => { setter.call(projSel, 'p1'); projSel.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true })) })
+  // Vendor harus dipilih admin (baris direct tidak membawa vendorId).
+  {
+    const sel = tid(doc, 'form-vendor')
+    flushSync(() => {
+      Object.getOwnPropertyDescriptor(doc.defaultView.HTMLSelectElement.prototype, 'value').set.call(sel, 'v1')
+      sel.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }))
+    })
+  }
+  typeInto(doc, tid(doc, `qty-${dk}`), '3'); await tick()
+  typeInto(doc, tid(doc, `harga-${dk}`), '20000'); await tick()
+  typeInto(doc, tid(doc, 'form-date'), '2026-10-17'); await tick()
+  check('C11b7 vendor terisi admin, submit aktif', tid(doc, 'purchase-submit')?.disabled === false, doc.body.textContent.slice(0, 400))
+  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  flushSync(() => tid(doc, 'purchase-form').requestSubmit())
+  await tick(); await tick(); await tick()
+  const hdrr2 = mock.__rows('receivings')
+  const ri = mock.__rows('receiving_items')
+  check('C11b8 nota tersimpan', hdrr2.length === 1, JSON.stringify({ r: hdrr2.length }))
+  check('C11b9 ref internal dibuat (tanpa nomor)', /^PH-/.test(String(hdrr2[0]?.invoice_no || '')), String(hdrr2[0]?.invoice_no))
+  check('C11b10 baris item direct: null pr_item_id + nama aktual', ri.length === 1 && ri[0].pr_item_id === null && /Kabel tambahan/.test(String(ri[0].item_name)), JSON.stringify(ri.map(x => ({ n: x.item_name, p: x.pr_item_id }))))
+  check('C11b11 baris menunjuk header', ri[0]?.receiving_id === hdrr2[0]?.id, `${ri[0]?.receiving_id} vs ${hdrr2[0]?.id}`)
+  check('C11b12 harga riil tersimpan', ri[0]?.note === '[Harga: 20000]', String(ri[0]?.note))
+  check('C11b13 NOL tulisan requests/pr_items/approval_steps', ['purchase_requests', 'pr_items', 'approval_steps'].every(t => mock.__callsOf('insert', t).length === 0 && mock.__callsOf('update', t).length === 0))
+}
+
 console.log(`\n=== HASIL: ${pass} lulus, ${fail} gagal ===`)
 if (fail) {
   console.log('GAGAL:')

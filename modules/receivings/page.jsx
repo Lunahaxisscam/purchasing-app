@@ -49,6 +49,36 @@ import {
 } from './purchaseLogic'
 import PurchaseForm from './purchaseForm'
 
+// Draft item belanja langsung (tanpa request) untuk dialog Proses Pembelian.
+// Identitas barang aktual ditulis admin; TANPA pr_item_id (tidak membuat
+// request/PR artifisial). Hubungan ke request tetap OPSIONAL: bila admin
+// menulis nama yang sama, data tetap berdiri sendiri.
+export function directPurchaseRow({ itemName = '', unit = '', qty = '1', projectId = null, projectName = 'Belanja langsung' } = {}) {
+  return {
+    key: `direct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    prItemId: null,
+    prId: null,
+    prNumber: '',
+    prTitle: '',
+    itemName: String(itemName).trim(),
+    kode: '',
+    unit,
+    qtyPr: null,
+    qtyBought: 0,
+    qtySisa: null,
+    estimasi: null,
+    materialId: null,
+    hargaAcuan: null,
+    kategori: '',
+    projectId,
+    projectName,
+    vendorId: '',
+    vendorName: '',
+    vendorKnown: false,
+    isDirect: true
+  }
+}
+
 // Buka lampiran (data-URL gambar) di jendela baru; fallback unduh.
 function openAttachment(src, title) {
   const s = String(src || '')
@@ -110,7 +140,6 @@ export default function PurchasePage({ rows, refresh, say }) {
   const [q, setQ] = useState('')
   const [formRows, setFormRows] = useState(null)
   const [expanded, setExpanded] = useState(null)
-
   const readyAll = useMemo(() => buildReadyRows({
     prItems, requests, projects, vendors, materials, receivings, receivingItems
   }), [prItems, requests, projects, vendors, materials, receivings, receivingItems])
@@ -162,6 +191,17 @@ export default function PurchasePage({ rows, refresh, say }) {
     // toko, admin diberi tahu bahwa satu nota idealnya satu toko.
     const primary = [...selectedByVendor].sort((a, b) => b.count - a.count)[0]
     setFormRows({ rows: selectedRows, vendorId: primary?.vendorId || '' })
+  }
+
+  // Belanja langsung (Tahap B): catat pembelian TANPA request — form tetap
+  // satu dialog, toko/proyek diisi admin di dalamnya. Item langsung tidak
+  // saya seleksi via checkbox (identitasnya belum ada) — langsung buka form.
+  function startDirectPurchase() {
+    const row = directPurchaseRow({
+      itemName: '',
+      projectId: projectFilter || null
+    })
+    setFormRows({ rows: [row], vendorId: vendorFilter || '' })
   }
 
   function finishPurchase(res) {
@@ -251,6 +291,15 @@ export default function PurchasePage({ rows, refresh, say }) {
               data-testid="btn-process-purchase"
             >
               Proses Pembelian{selectedRows.length ? ` (${selectedRows.length})` : ''}
+            </button>
+            <button
+              type="button"
+              className="outline"
+              onClick={startDirectPurchase}
+              data-testid="btn-direct-purchase"
+              title="Catat nota belanja langsung tanpa request"
+            >
+              + Belanja langsung (tanpa request)
             </button>
           </div>
 
@@ -654,6 +703,7 @@ export default function PurchasePage({ rows, refresh, say }) {
           rows={formRows.rows}
           vendorId={formRows.vendorId}
           vendors={vendors}
+          projects={projects}
           receivings={receivings}
           receivingItems={receivingItems}
           close={() => setFormRows(null)}

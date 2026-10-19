@@ -5,6 +5,8 @@
 //   supaya alur simpan nota bisa diuji tanpa DB.
 // - Bisa dipaksa menolak nilai status 'DIBELI' (CHECK constraint) untuk
 //   menguji fallback penanda [Tahap: DIBELI].
+// - t_aead7c06: bisa dipaksa gagal SATU select (failSelect) — skenario
+//   "gagal memeriksa nota duplikat harus berhenti tanpa menulis apa pun".
 // ============================================================
 
 export const __state = {
@@ -13,6 +15,9 @@ export const __state = {
   nextError: null,       // { table, op, code, message } sekali pakai
   rejectDibeliStatus: false,
   failInsertTable: null,
+  failInsertMode: 'first',
+  failSelect: false,     // select BERIKUTNYA gagal (sekali pakai)
+  failUpdate: false,     // update BERIKUTNYA gagal (sekali pakai)
   seq: 0
 }
 
@@ -21,7 +26,7 @@ function tableOf(name) {
   return __state.tables.get(name)
 }
 
-export function __reset({ tables = {}, rejectDibeliStatus = false, failInsertTable = null } = {}) {
+export function __reset({ tables = {}, rejectDibeliStatus = false, failInsertTable = null, failSelect = false } = {}) {
   __state.tables = new Map()
   for (const [t, rows] of Object.entries(tables)) {
     const m = new Map()
@@ -32,6 +37,9 @@ export function __reset({ tables = {}, rejectDibeliStatus = false, failInsertTab
   __state.nextError = null
   __state.rejectDibeliStatus = rejectDibeliStatus
   __state.failInsertTable = failInsertTable
+  __state.failInsertMode = 'first'
+  __state.failSelect = !!failSelect
+  __state.failUpdate = false
   __state.seq = 0
 }
 
@@ -113,10 +121,24 @@ function makeBuilder(table) {
 }
 
 function terminal(st) {
+  // select yang dipaksa gagal (sekali pakai) -> error jaringan/duplikat.
+  if (st.op === 'select' && __state.failSelect) {
+    __state.failSelect = false
+    return { data: null, error: { code: 'PGRST301', message: 'select gagal: simulasi jaringan putus' } }
+  }
   if (st.op === 'insert') {
-    if (__state.failInsertTable === st.table) {
+    if (__state.failInsertTable === st.table && (__state.failInsertMode || 'first') === 'first') {
       __state.failInsertTable = null
       return { data: null, error: { code: '23503', message: 'insert or update violates foreign key constraint' } }
+    }
+    // Mode 'second': insert PERTAMA sukses, insert KEDUA gagal — mensimulasikan
+    // kegagalan di tengah penyimpanan daftar baris (partial write).
+    if (__state.failInsertTable === st.table && __state.failInsertMode === 'second') {
+      const n = __callsOf('insert', st.table).length
+      if (n >= 2) {
+        __state.failInsertTable = null
+        return { data: null, error: { code: '23503', message: 'insert or update violates foreign key constraint' } }
+      }
     }
     const check = applyCheckConstraint(st.table, st.data)
     if (check) return { data: null, error: check }
@@ -130,6 +152,10 @@ function terminal(st) {
     return { data: inserted, error: null }
   }
   if (st.op === 'update') {
+    if (__state.failUpdate) {
+      __state.failUpdate = false
+      return { data: null, error: { code: 'XXOOO', message: 'update gagal: simulasi konflik tulis' } }
+    }
     const check = applyCheckConstraint(st.table, st.data)
     if (check) return { data: null, error: check }
     const rows = __rows(st.table).filter(r => matches(r, st.filters))

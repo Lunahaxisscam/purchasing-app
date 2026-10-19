@@ -45,6 +45,9 @@ FILES = [
     'modules/approvals/view.jsx',
     'modules/approvals/detailDrawer.jsx',
     'modules/requests/view.jsx',
+    'modules/requests/leanRequest.js',
+    'modules/requests/fulfillment.js',
+    'lib/purchaseNote.js',
     'modules/shared/itemHelpers.js',
     'lib/constants.js',
 ]

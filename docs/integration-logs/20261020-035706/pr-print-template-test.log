@@ -1,0 +1,35 @@
+SWC: 88 file dikompilasi ke dist/
+=== VERIFIKASI TOMBOL PRINT TEMPLATE PENGADAAN (React SSR + jsdom, ModuleView.js asli) ===
+
+A. Halaman Purchase Request — tombol Print Template Pengadaan ada & benar
+  ✓ baris .print-template-row ter-render
+  ✓ link print template ADA di baris print-template-row
+  ✓ teks tombol PERSIS "Print Template Pengadaan"
+  ✓ href = /print/form-pengadaan-lapangan-template.pdf
+  ✓ buka di tab baru (target=_blank)
+  ✓ rel noopener noreferrer (aman)
+  ✓ berupa LINK (tanpa submit/form side-effect), bukan <button>
+  ✓ tidak ada <button> di dalam baris print (bukan trigger PR)
+  ✓ baris print berada TEPAT SEBELUM .toolbar
+  ✓ toolbar tetap punya search bar
+  ✓ tombol "+ Tambah Purchase Request" tetap ada di toolbar
+  ✓ tombol print TIDAK menumpuk di toolbar-actions
+
+B. Halaman Vendor — tombol template TIDAK muncul (regresi scope)
+  ✓ tidak ada .print-template-row
+  ✓ tidak ada link *.pdf
+  ✓ toolbar vendor tetap bersih (tanpa counter)
+
+C. Halaman Material — tombol template TIDAK muncul (regresi scope)
+  ✓ tidak ada .print-template-row
+  ✓ tidak ada link *.pdf
+  ✓ counter material tetap ada
+
+D. Halaman Past Project — tombol template TIDAK muncul (regresi scope)
+  ✓ tidak ada .print-template-row
+  ✓ tombol "← Ke Project Aktif" tetap ada
+
+=== HASIL: 20 LULUS, 0 GAGAL ===
+SEMUA VERIFIKASI TOMBOL PRINT TEMPLATE PENGADAAN LULUS
+Sandbox: /tmp/pr-print-verify
+

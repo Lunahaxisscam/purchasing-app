@@ -1,0 +1,115 @@
+SWC: 88 file dikompilasi ke dist/
+=== VERIFIKASI ACUAN HARGA EXPANDABLE MATERIAL (React/jsdom, ModuleView.js asli) ===
+
+A. Kolom Acuan Harga dihilangkan dari daftar (desktop & mobile)
+  ✓ header kolom TIDAK memuat "Acuan Harga"
+  ✓ header tetap: Nama/Kategori/Qty/Satuan/Stok/Batas Min (tanpa kolom Kode)
+  ✓ kode material tetap tampil sbg sublabel (tidak hilang)
+  ✓ kartu mobile dirender (10)
+  ✓ kartu mobile TIDAK memuat label "Acuan Harga:" statis
+  ✓ kartu mobile punya tombol "+ Acuan Harga"
+  ✓ klik toggle mobile: panel rincian muncul
+  ✓ tombol mobile berubah "▲ Tutup Acuan"
+  ✓ klik lagi mobile: panel tertutup
+  ✓ sublabel kode tampil sebagai tombol urutkan
+  ✓ klik sublabel kode: urut asc (ALM-0001 di baris pertama)
+  ✓ klik sublabel kode lagi: urut berubah (desc)
+
+B. Default SEMUA rincian tertutup
+  ✓ tidak ada baris expand di awal
+  ✓ tidak ada tombol "+ Acuan Harga" saat belum dibuka (tombol hanya di baris yang diringkas? TIDAK — tombol selalu ada di bawah nama)
+  ✓ teks tombol default "+ Acuan Harga"
+  ✓ tidak ada teks "Belum ada acuan harga" sebelum expand
+  ✓ teks tombol TIDAK "▲ Tutup Acuan" saat tertutup
+
+C. Expand membuka rincian; collapse menutup; Show More & parent utuh
+  ✓ pra: 10 baris parent, 0 expand
+  ✓ klik toggle: 1 baris expand muncul
+  ✓ parent tetap 10 (expand TIDAK menambah parent)
+  ✓ tombol berubah "▲ Tutup Acuan"
+  ✓ expand memuat judul "💰 Acuan Harga"
+  ✓ expand material tanpa histori: empty state "Belum ada acuan harga"
+  ✓ expand memuat tombol "Tambah Acuan" (prototype)
+  ✓ indikator Show More tetap "Menampilkan 10 dari 335" saat ada expand
+  ✓ Show More: parent jadi 20, expand tetap 1
+  ✓ indikator jadi "Menampilkan 20 dari 335"
+  ✓ klik lagi: expand tertutup
+  ✓ toggle material lain: hanya 1 expand aktif
+  ✓ filter kategori: 67 data -> max 10 parent + expand (jika material masih ada)
+
+D. Resolver acuan: histori benar, unknown vendor, satuan beda, retur, nama mirip
+  ✓ MAT_HIST: tepat 1 entri
+  ✓ MAT_HIST: sumber PR_ESTIMATE (estimasi diterima BUKAN harga aktual)
+  ✓ MAT_HIST: TIDAK berlabel HISTORIS (qty_received>0 ≠ bukti harga aktual)
+  ✓ MAT_HIST: provenance unknown (kolom aktual tidak ada di skema)
+  ✓ MAT_HIST: vendor Toko Baroni Jaya
+  ✓ MAT_HIST: harga 120.000 (estimated_price, BUKAN [Nominal] 1.300.000)
+  ✓ MAT_HIST: tanggal 2026-10-12
+  ✓ MAT_HIST: unit Lembar
+  ✓ MAT_ACTUAL: tepat 1 entri
+  ✓ MAT_ACTUAL: sumber HISTORIS (harga aktual terverifikasi)
+  ✓ MAT_ACTUAL: harga 115.000 (price_actual, BUKAN estimated 120.000)
+  ✓ MAT_ACTUAL: provenance actual
+  ✓ MAT_QTYZERO: qty 0 → tanpa entri (qty received bukan cukup utk harga aktual)
+  ✓ MAT_INVOICE: entri dari estimated_price (kategori PR_ESTIMATE)
+  ✓ MAT_INVOICE: harga 240.000 — BUKAN total nota 1.250.000
+  ✓ MAT_INVOICE: [Nominal] nota tidak dipakai sbg harga aktual
+  ✓ MAT_MIRIP: hanya penerimaan NORMAL yang masuk (retur diabaikan)
+  ✓ MAT_MIRIP: vendor unknown -> "Tidak dicatat" (null), bukan dikira-kira
+  ✓ MAT_MIRIP: harga 250.000 dari estimated_price
+  ✓ MAT_MIRIP: estimasi diterima tetap PR_ESTIMATE (P1)
+  ✓ MAT_UNIT: satuan beda (Dus vs Lembar) TIDAK dijadikan histori (tanpa konversi)
+  ✓ MAT_KOSONG: tanpa entri
+  ✓ MAT_MASTER: 1 entri MASTER
+  ✓ MAT_MASTER: harga 175.000
+  ✓ MAT_MASTER: TANPA tanggal (tidak di-invent)
+  ✓ MAT_MASTER: TANPA vendor (tidak di-invent)
+  ✓ bestEntry MAT_HIST = PR_ESTIMATE (satu-satunya entri, dilabeli jujur)
+  ✓ bestEntry MAT_ACTUAL = HISTORIS
+  ✓ bestEntry MAT_MASTER = master
+  ✓ bestEntry MAT_KOSONG = null
+  ✓ bestEntry material tanpa id = null (data lama aman)
+  ✓ MAT_BOTH: MASTER tampil sebelum PR_ESTIMATE (estimasi bukan prioritas)
+  ✓ MAT_BOTH bestEntry = MASTER (bukan estimasi PR)
+  ✓ validasi manual: input valid ok, price 25000
+  ✓ validasi manual: vendor kosong ditolak
+  ✓ validasi manual: harga 0 ditolak
+  ✓ validasi manual: harga negatif ditolak (tanpa digit)
+  ✓ validasi manual: satuan kosong ditolak
+  ✓ validasi manual: huruf ditolak (tidak NaN)
+  ✓ resolver data lama tanpa satuan: aman (0 entri)
+  ✓ render: badge "Estimasi PR terdahulu — bukan harga beli" tampil
+  ✓ render: TIDAK berlabel "✅ Historis (pembelian)" (estimasi tak dipromosikan)
+  ✓ render: vendor + harga + tanggal tampil
+  ✓ render: TIDAK ada badge Master/Manual (sumber murni)
+  ✓ render AKTUAL: badge "✅ Historis (pembelian)" tampil
+  ✓ render AKTUAL: harga 115.000 (bukan estimasi 120.000)
+  ✓ render AKTUAL: tanpa badge estimasi
+
+E. Prototype "Tambah Acuan": validasi & entri manual belum tersimpan
+  ✓ rincian sebelum manual: ada entri MASTER 150.000
+  ✓ rincian sebelum manual: badge MASTER "tanpa tanggal"
+  ✓ rincian MASTER-only TIDAK menampilkan teks "Historis" (sumber tidak dicampur)
+  ✓ tombol Tambah Acuan ada
+  ✓ form manual muncul (vendor/harga/satuan)
+  ✓ tombol submit bertipe submit (asosiasi form benar)
+  ✓ submit tanpa vendor: pesan error tampil
+  ✓ entri manual masuk daftar: Rp 25.500
+  ✓ entri manual berbadge "Manual — belum tersimpan"
+  ✓ peringatan "belum tersimpan" tampil di rincian
+  ✓ entri manual TIDAK mengubah entri MASTER (dua sumber tampil)
+  ✓ entri manual tidak diberi tanggal palsu
+  ✓ baris MANUAL tidak menampilkan "Historis" (sumber terpisah)
+  ✓ baris MASTER tidak menampilkan "Historis" (sumber terpisah)
+  ✓ baris manual tetap berbadge "Manual — belum tersimpan"
+
+F. Data lama & robustness render
+  ✓ material data lama (tanpa id/qty string): render aman 2 baris
+  ✓ expand material tanpa id: tidak crash
+  ✓ 335 baris semua tampil tanpa error
+  ✓ expand baris terakhir: 1 expand
+
+=== HASIL: 96 LULUS, 0 GAGAL ===
+SEMUA VERIFIKASI ACUAN HARGA LULUS
+Sandbox: /tmp/material-acuan-verify
+

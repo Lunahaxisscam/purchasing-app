@@ -189,7 +189,8 @@ console.log('\nA5. Validasi form (nol tulisan bila tidak valid)')
   check('A5c tanpa vendor -> invalid + pesan', !noVendor.valid && /Toko \/ Vendor wajib/.test(noVendor.errors[0]), JSON.stringify(noVendor.errors))
 
   const noInvoice = L.validatePurchaseForm({ ...good, invoiceNo: '   ' }, { vendors: VENDORS })
-  check('A5d tanpa no. nota -> invalid', !noInvoice.valid && noInvoice.errors.some(e => /No\. Invoice/.test(e)))
+  // t_aead7c06: nota tanpa nomor vendor kini SAH (ref. internal saat simpan)
+  check('A5d nota tanpa nomor tetap valid', noInvoice.valid === true, JSON.stringify(noInvoice.errors))
 
   const noDate = L.validatePurchaseForm({ ...good, tanggal: '' }, { vendors: VENDORS })
   check('A5e tanpa tanggal -> invalid', !noDate.valid && noDate.errors.some(e => /Tanggal/.test(e)))
@@ -553,15 +554,86 @@ console.log('\nB5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur')
 
 // ---------- B6: validasi awal ----------
 console.log('\nB6. Validasi awal: nol tulisan bila data belum lengkap')
+console.log('    (t_aead7c06: nota TANPA nomor vendor kini SAH — ref. internal)')
 {
   mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const noVendor = await S.savePurchase({ form: formFixture({ vendorId: '' }), vendors: VENDORS })
   check('B6a tanpa vendor ditolak', noVendor.ok === false)
-  const noInvoice = await S.savePurchase({ form: formFixture({ invoiceNo: '  ' }), vendors: VENDORS })
-  check('B6b tanpa no. nota ditolak', noInvoice.ok === false)
   const noItems = await S.savePurchase({ form: formFixture({ items: [] }), vendors: VENDORS })
   check('B6c tanpa item ditolak', noItems.ok === false)
   check('B6d NOL tulisan sepanjang validasi', mock.__state.calls.filter(c => c.op === 'insert' || c.op === 'update').length === 0)
+
+  // B6e: nota tanpa nomor -> tersimpan dengan referensi internal
+  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  const noNum = await S.savePurchase({ form: formFixture({ invoiceNo: '' }), receivings: [], receivingItems: [], vendors: VENDORS })
+  check('B6e nota tanpa nomor tetap tersimpan', noNum.ok === true, noNum.error || '')
+  check('B6f ditandai referensi internal', noNum.isInternalRef === true)
+  const hdrNoNum = mock.__callsOf('insert', 'receivings')[0]?.data
+  check('B6g no. nota = ref. internal PH-*', /^PH-[0-9A-Z]+-[0-9A-Z]{4}$/.test(String(hdrNoNum?.invoice_no || '')), String(hdrNoNum?.invoice_no))
+  check('B6h delivery_note tidak mengarang nomor toko', /internal/.test(String(hdrNoNum?.delivery_note || '')), String(hdrNoNum?.delivery_note))
+  check('B6i pesan menyebut referensi internal', /referensi internal/.test(noNum.message), noNum.message)
+
+  // B6j: klik dua kali (form yang sama) -> stamp baru, TIDAK dianggap dobel
+  // (nota pertama & kedua adalah pembelian fisik BERBEDA yang berdiri sendiri
+  // — anti-dobel nomor hanya berlaku untuk nomor yang eksplisit).
+  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  const n1 = await S.savePurchase({ form: formFixture({ invoiceNo: '' }), receivings: [], receivingItems: [], vendors: VENDORS })
+  const n2 = await S.savePurchase({ form: formFixture({ invoiceNo: '', catatan: 'belanja kedua' }), receivings: mock.__rows('receivings'), receivingItems: mock.__rows('receiving_items'), vendors: VENDORS })
+  check('B6j submit dua kali tanpa nomor -> dua nota terpisah', n1.ok && n2.ok, n2.error || '')
+  const nums = mock.__rows('receivings').map(r => r.invoice_no)
+  check('B6k dua ref. internal berbeda', new Set(nums).size === 2, nums.join(','))
+}
+
+// ---------- B8b: SKU sama dibagi dua proyek (split qty eksplisit) ----------
+console.log('\nB8b. Satu SKU dipecah dua proyek -> ALOKASI tidak menumpuk')
+{
+  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  const res = await S.savePurchase({
+    form: {
+      vendorId: 'v1', tanggal: '2026-10-18', invoiceNo: 'TB-SPL', biayaLain: '', diskon: '',
+      notaUrl: '', buktiNota: '', buktiTransfer: '', catatan: '',
+      items: [
+        // SKU sama (Triplek), dibeli bersama: beda proyek per BARIS
+        { prItemId: null, itemName: 'Triplek 9mm', unit: 'Lembar', qty: '3', harga: '120000', formKey: 'd1', projectId: 'p1', prNumber: '' },
+        { prItemId: null, itemName: 'Triplek 9mm', unit: 'Lembar', qty: '5', harga: '120000', formKey: 'd2', projectId: 'p2', prNumber: '' }
+      ]
+    },
+    receivings: [], receivingItems: [], vendors: VENDORS
+  })
+  check('B8b1 nota lintas proyek tersimpan', res.ok === true, res.error || '')
+  check('B8b2 header proyek null (bukan dipaksakan)', mock.__callsOf('insert', 'receivings')[0]?.data?.project_id === null, String(mock.__callsOf('insert', 'receivings')[0]?.data?.project_id))
+  const riRows = mock.__rows('receiving_items')
+  check('B8b3 dua baris item', riRows.length === 2, String(riRows.length))
+  check('B8b4 pr_item_id null (belanja langsung)', riRows.every(r => !r.pr_item_id))
+  check('B8b5 qty benar per baris', riRows.map(r => r.quantity_received).sort().join(',') === '3,5', riRows.map(r => r.quantity_received).join(','))
+  check('B8b6 harga tersimpan di note item', riRows.every(r => r.note === '[Harga: 120000]'), riRows.map(r => r.note).join(','))
+  // alokasi readback per proyek: p1 = 3×120k, p2 = 5×120k (TIDAK 8×120k masing2)
+  const alok = res.alokasi || []
+  const p1 = alok.find(a => a.projectId === 'p1')
+  const p2 = alok.find(a => a.projectId === 'p2')
+  check('B8b7 alokasi p1 = 1 barang, 360000', p1?.items === 1 && p1?.material === 360000, JSON.stringify(p1))
+  check('B8b8 alokasi p2 = 1 barang, 600000', p2?.items === 1 && p2?.material === 600000, JSON.stringify(p2))
+  check('B8b9 total header = 960000 (3+5 nota)', res.totals?.total === 960000, String(res.totals?.total))
+  // readback riwayat: material nota terbaca
+  const hist = L.buildHistoryRows({ receivings: mock.__rows('receivings'), receivingItems: riRows, vendors: VENDORS, projects: PROJECTS, requests: [] })
+  check('B8b10 material riwayat terbaca [Nominal]', hist[0]?.material === 960000, String(hist[0]?.material))
+}
+
+// ---------- B9: gagal item tengah jalan -> partial + pesan jujur ----------
+console.log('\nB9. Kegagalan item tengah jalan -> nota tersimpan, sisa dilaporkan')
+{
+  mock.__reset({
+    tables: { receivings: [], receiving_items: [], handovers: [] },
+    failInsertTable: 'receiving_items'
+  })
+  mock.__state.failInsertMode = 'second' // item pertama sukses, kedua gagal
+  const res = await S.savePurchase({
+    form: formFixture(), receivings: [], receivingItems: [], vendors: VENDORS
+  })
+  check('B9a hasil partial, bukan ok penuh', res.ok === false && res.partial === true, JSON.stringify({ ok: res.ok, partial: res.partial }))
+  check('B9b header NOTA tercatat (uang keluar nyata)', mock.__rows('receivings').length === 1)
+  check('B9c drop menyarankan memeriksa, bukan simpan ulang', /jangan simpan ulang/.test(res.error || ''), res.error)
+  check('B9d baris berhasil SEBELUM gagal tetap tercatat', mock.__rows('receiving_items').length === 1, String(mock.__rows('receiving_items').length))
 }
 
 // ---------- B7: dua nota berurutan pada cangkang yang sama ----------
@@ -669,6 +741,71 @@ console.log('\nB8. Nota tanpa cangkang tetap menyimpan jejak PR & proyek')
   check('B8c project_id terisi dari jejak form', hdr?.project_id === 'pJ', String(hdr?.project_id))
   check('B8d dokumen Handover membawa proyek', mock.__rows('handovers')[0]?.project_id === 'pJ',
     String(mock.__rows('handovers')[0]?.project_id))
+}
+
+// ============================================================
+// D. JALUR LEAN (Kontrak §4: Siap Dibeli, item tanpa status approve)
+// ============================================================
+console.log('\n=== D. JALUR LEAN — item request bertanda [Jalur: LEAN] ===\n')
+{
+  // Request lean: status SUBMITTED + penanda di notes (item tetap PENDING_APPROVAL)
+  const LEAN_PR = { id: 'prL', pr_number: 'PR-LEAN', title: 'Material lean', project_id: 'p1', status: 'SUBMITTED', notes: 'Catatan tukang\n[Jalur: LEAN]' }
+  const LEGACY_PR = { id: 'prU', pr_number: 'PR-LAMA', title: 'Submitted lama', project_id: 'p2', status: 'SUBMITTED', notes: '' } // tanpa penanda
+  const LEAN_ITEMS = [
+    { id: 'piL1', pr_id: 'prL', item_name: 'Sekrup 4cm', kode: 'HWF-0002', unit: 'Box', quantity: 6, estimated_price: 40000, status: 'PENDING_APPROVAL', vendor_id: null },
+    { id: 'piL2', pr_id: 'prL', item_name: 'Kuas 2 inch', kode: 'BHP-0001', unit: 'Pcs', quantity: 10, estimated_price: null, status: 'PENDING_APPROVAL', vendor_id: null },
+    { id: 'piU1', pr_id: 'prU', item_name: 'Barang legacy orphan', kode: 'OLD-1', unit: 'Pcs', quantity: 3, estimated_price: 9000, status: 'PENDING_APPROVAL', vendor_id: null } // legacy UNKNOWN -> tidak dibeli
+  ]
+  const leanData = { prItems: LEAN_ITEMS, requests: [LEAN_PR, LEGACY_PR], projects: PROJECTS, vendors: VENDORS, materials: MATERIALS, receivings: [], receivingItems: [] }
+
+  console.log('D1. Tab Siap Dibeli menerima item lean (kontrak §4)')
+  const rows = L.buildReadyRows(leanData)
+  const ids = rows.map(r => r.prItemId)
+  check('D1a item lean piL1 muncul (status tetap PENDING_APPROVAL)', ids.includes('piL1'), ids.join(','))
+  check('D1b item lean piL2 muncul', ids.includes('piL2'))
+  check('D1c legacy SUBMITTED tanpa penanda TIDAK muncul via jalur lean', !ids.includes('piU1'), ids.join(','))
+  check('D1d proyek lean diambil dari request induk', rows.find(r => r.prItemId === 'piL1')?.projectId === 'p1')
+
+  console.log('\nD2. Simpan nota untuk item lean + campuran belanja langsung')
+  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  const resLean = await S.savePurchase({
+    form: {
+      vendorId: 'v2', tanggal: '2026-10-19', invoiceNo: 'TB-LEAN', biayaLain: '', diskon: '',
+      notaUrl: '', buktiNota: '', buktiTransfer: '', catatan: '',
+      items: [
+        { prItemId: 'piL1', itemName: 'Sekrup 4cm', unit: 'Box', qtyPr: 6, qty: '6', harga: '39000', formKey: 'l1', prId: 'prL', projectId: 'p1', estSiap: true },
+        { prItemId: null, itemName: 'Tisu bengkel', unit: 'Pack', qty: '2', harga: '15000', formKey: 'dX', prId: null, projectId: null, prNumber: '' } // direct, campur di nota sama
+      ]
+    },
+    receivings: [], receivingItems: [], requests: [LEAN_PR], vendors: VENDORS
+  })
+  check('D2a nota campuran lean+direct tersimpan', resLean.ok === true, resLean.error || '')
+  const headerLean = mock.__callsOf('insert', 'receivings')[0]?.data
+  check('D2b 0 insert purchase_requests', mock.__callsOf('insert', 'purchase_requests').length === 0)
+  check('D2c 0 insert approval_steps', mock.__callsOf('insert', 'approval_steps').length === 0)
+  check('D2d 0 insert pr_items', mock.__callsOf('insert', 'pr_items').length === 0)
+  check('D2e 0 UPDATE pr_items (status item tidak dipalsukan)', mock.__callsOf('update', 'pr_items').length === 0, String(mock.__callsOf('update', 'pr_items').length))
+  const riLean = mock.__rows('receiving_items')
+  check('D2f baris lean-nol prItemId, direct itemName', riLean.length === 2 && riLean.some(r => r.pr_item_id === 'piL1') && riLean.some(r => !r.pr_item_id && r.item_name === 'Tisu bengkel'), JSON.stringify(riLean.map(r => ({ p: r.pr_item_id, n: r.item_name }))))
+  check('D2g harga aktual dipisah dari estimasi', riLean.find(r => r.pr_item_id === 'piL1')?.note === '[Harga: 39000]', String(riLean.find(r => r.pr_item_id === 'piL1')?.note))
+  check('D2h total nota = 6×39000 + 2×15000', resLean.totals?.total === 264000, String(resLean.totals?.total))
+
+  // Readback pemenuhan via kontrak tanggal+isPurchasedNota
+  const FL = await import(pathToFileURL(path.join(SB, 'dist/modules/requests/fulfillment.mjs')).href)
+  const summ = FL.requestFulfillment(LEAN_PR, { items: LEAN_ITEMS.filter(i => i.pr_id === 'prL'), receivings: mock.__rows('receivings'), receivingItems: riLean })
+  check('D2i request lean: 1 item SELESAI (terbaca dari nota)', summ.counts.done === 1, JSON.stringify(summ.counts))
+  check('D2j request lean: 1 item BELUM (piL2)', summ.counts.none === 1, JSON.stringify(summ.counts))
+  check('D2k status request = SEBAGIAN', summ.status === 'SEBAGIAN', summ.status)
+  const open = FL.openNeeds(LEAN_PR, { items: LEAN_ITEMS.filter(i => i.pr_id === 'prL'), receivings: mock.__rows('receivings'), receivingItems: riLean })
+  check('D2l openNeeds hanya piL2 (sisa 10)', open.length === 1 && open[0].prItemId === 'piL2' && open[0].remaining === 10, JSON.stringify(open))
+
+  console.log('\nD3. Gagal memeriksa duplikat -> berhenti TANPA menulis (boundary)')
+  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] }, failSelect: true })
+  const resFail = await S.savePurchase({ form: formFixture(), receivings: [], receivingItems: [], vendors: VENDORS })
+  check('D3a simpan ditolak dengan error', resFail.ok === false)
+  check('D3b NOL insert header', mock.__callsOf('insert', 'receivings').length === 0)
+  check('D3c NOL insert item', mock.__callsOf('insert', 'receiving_items').length === 0)
+  check('D3d error menyebut penyebab', /Gagal memeriksa nota/.test(resFail.error || ''), resFail.error)
 }
 
 console.log(`\n=== HASIL: ${pass} lulus, ${fail} gagal ===`)

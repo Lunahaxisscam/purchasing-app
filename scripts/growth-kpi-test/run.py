@@ -87,6 +87,7 @@ REL_FILES = [
     'lib/constants.js',
     'modules/materials/acuan.js',
     'modules/requests/estimator.js',
+    'modules/requests/leanRequest.js',
     'modules/rap-compare/logic.js',
     'modules/labor-stock/logic.js',
     'modules/stock/logic.js',

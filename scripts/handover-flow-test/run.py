@@ -68,6 +68,16 @@ for rel in REL_FILES:
 
     def _repl(m):
         pre, spec, post = m.group(1), m.group(2), m.group(3)
+        # CSS module: lingkungan node ESM tidak bisa memuat .css — stub agar
+        # ModuleView (yang kini mengimpor compact-ops.module.css) tetap bisa
+        # dieksekusi di sandbox. Tidak ada assertion yang diubah.
+        if spec.endswith('.module.css'):
+            stub = os.path.join(SB, os.path.normpath(os.path.join(os.path.dirname(sb_rel(rel)), 'css-stubs', os.path.basename(spec) + '.mjs')))
+            os.makedirs(os.path.dirname(stub), exist_ok=True)
+            if not os.path.exists(stub):
+                open(stub, 'w', encoding='utf-8').write('export default new Proxy({}, { get: () => "" });\n')
+            new_spec = './css-stubs/' + os.path.basename(spec) + '.mjs'
+            return f'{pre}{new_spec}{post}'
         resolved = resolve(os.path.dirname(rel), spec)
         if resolved is None:
             return m.group(0)

@@ -1,0 +1,160 @@
+SWC: 19 file dikompilasi ke dist/
+F1. CONVERSION: Lead -> Qualified -> RAB -> Invoice -> Lunas
+  ok 1 — taksonomi status lead lengkap & berurut sesuai alur funnel
+  ok 2 — WON/LOST final — tidak ada transisi keluar (koreksi = lead baru + supersedes_lead_id)
+  ok 3 — gerbang WON menuntut customer_id + project_id + confirmed_by (tidak pernah otomatis dari nilai)
+  ok 4 — gerbang QUOTED menuntut rujukan RAB/BOQ + nilai > 0 (bukan angka karangan)
+  ok 5 — dasar kualifikasi & kode alasan-hilang terkurasi
+  ok 6 — NEW -> WON ditolak (funnel tidak bisa dilompati)
+  ok 7 — WON -> CONTACTED ditolak (status final)
+  ok 8 — QUOTED -> WON diizinkan (satu-satunya jalan menang WON)
+  ok 9 — DORMANT -> CONTACTED diizinkan (lead "menguap" bisa dihidupkan kembali)
+  ok 10 — lead WON dengan bukti lengkap LULUS validasi
+  ok 11 — lead WON tanpa quote_ref/customer_id/project_id/confirmed_by -> 4x GATE_FIELD_MISSING (ditolak eksplisit)
+  ok 12 — lead tanpa telepon DAN email ditolak (tak bisa dihubungi = bukan lead yang bisa dikerjakan)
+  ok 13 — phone salah ketik + email valid = WARNING (lead tetap hidup, nomor harus diperbaiki)
+  ok 14 — normalisasi phone: "0812-3456-7890" == "+6281234567890" (lead berulang satu kunci)
+  ok 15 — normalisasi email case-insensitive
+  ok 16 — customerKey stabil lintas format nomor — dedupe repeat order bisa dilakukan
+  ok 17 — tanpa phone/email valid -> customerKey null (TIDAK dikira-kira jadi kunci karangan)
+  ok 18 — handoffPlan: dry-run murni — LINK_EXISTING ke cust-001, would_write=false, tabel purchasing terlarang
+  ok 19 — handoff lead tidak sah -> action BLOCKED dengan alasan eksplisit (bukan CREATE_CUSTOMER diam-diam)
+  ok 20 — WON tanpa customer -> project diminta ke modul projects (marketing TIDAK menulis projects)
+  ok 21 — F2 fixture: request 2026-10-02T08:00 -> keputusan 2026-10-04T14:30 = 54.5 jam (stabil & direproduksi)
+  ok 22 — F2: satu jam = 1.0 (basis satuan, tidak ada pembulatan liar)
+  ok 23 — marketing DILARANG menulis 7 tabel purchasing/keuangan: sales_invoices, purchase_requests, pr_items, approval_steps, receivings, receiving_items, handovers
+  ok 24 — tabel marketing (leads, lead_touchpoints, campaigns, lead_handoffs) SEMUA belum ada — tidak boleh ada klaim angka live
+  ok 25 — 8 invarian purchasing dicatat di kontrak (P1/P2 dipertahankan)
+  ok 26 — contractSummary konsisten: marketing-crm-project
+
+F1/F2 LULUS: 26 assertion
+CONVERSION_TEST_OK
+F3. MARGIN LEAKAGE: RAB (acuan) vs RAP (rencana) vs AKTUAL (nota)
+  ok 1 — ketiga pembaca baris membaca fixture lengkap (4/4/4)
+  ok 2 — total RAB (acuan) = 6.850.000
+  ok 3 — total RAP (rencana) = 7.370.000
+  ok 4 — total AKTUAL (nota) = 6.650.000 — baris tanpa harga TIDAK jadi 0
+  ok 5 — Multiplek: RAP melampaui RAB sebesar +300.000 -> diffStatus "over"
+  ok 6 — HPL: RAP di bawah RAB -100.000 -> diffStatus "under"
+  ok 7 — Engsel: RAP = RAB -> diffStatus "match"
+  ok 8 — Sekrup: belum ada nota -> actualMissing=true, actual=null (BUKAN 0)
+  ok 9 — Cat Melamin: tidak ada di RAB -> diff=null, diffStatus="unknown" (belum bisa dihitung)
+  ok 10 — coverage: rabOnly=1 (rencana kurang), rapOnly=1 (rencana di luar acuan), missingActual=2 (baris qty tanpa nota -> null)
+  ok 11 — F5: 2 entri HISTORIS (350.000 & 360.000); nota retur ven-c 365.000 TIDAK ikut jadi acuan
+  ok 12 — F5: harga beli tertinggi 360.000 vs master 340.000 -> selisih +20000.toLocaleString('id-ID')} (potensi tawar)
+  ok 13 — pagu 10.000.000 vs dipakai 7.370.000 -> level "within"
+  ok 14 — pagu tidak dikirim -> ceiling.level="none" (bukan 0, bukan "aman")
+  ok 15 — detailFor Sekrup: sumber Aktual ditulis "Tidak ada data — bukan nol, dan belum dihitung dari mana pun"
+  ok 16 — detailFor Cat Melamin: catatan "tidak ada di acuan RAB" terbaca eksplisit
+  ok 17 — formatCell: null -> "—", 0 -> "0" (dua-duanya berbeda arti)
+  ok 18 — diffOf/diffStatus: kembar null tetap null — tidak dihitung dari setengah data
+  ok 19 — F5: 3 entri HISTORIS terurut terbaru (nota retur ven-c TIDAK ikut — 2026-10-05:365000, 2026-10-02:380000, 2026-08-10:350000)
+  ok 20 — entri HISTORIS terbaru = 365.000 (2026-10-05, Toko Kayu B) — dipakai sebagai acuan "terbaru"
+  ok 21 — F5: pembelian terbaru 365.000 vs master 340.000 -> +25.000 (potensi tawar lewat acuan master)
+  ok 22 — F5/P1: semua entri HISTORIS berasal dari harga aktual nota; PR_ESTIMATE hanya muncul bila nota tidak mencatat harga satuan
+  ok 23 — F5 vendor-savings fixture: harga beli terbaru 365.000 - acuan master 340.000 = +25.000 (kenaikan, BUKAN penghematan)
+  ok 24 — F5: vendor termurah utk material ini = Toko Kayu A @ 350.000 (selisih vs pembelian terbaru: 15.000)
+  ok 25 — estimator: acuan utk ven-a = HISTORIS vendor itu sendiri (380.000) — bukan campur vendor lain
+  ok 26 — estimator: acuan utk ven-b = HISTORIS 365.000 (prioritas vendor hanya untuk kategori aktual)
+  ok 27 — estimator: material tanpa histori -> status NO_ENTRY, price null (JANGAN dianggap 0)
+  ok 28 — harga dari nota RETUR tidak pernah masuk entri acuan (walaupun angkanya valid)
+  ok 29 — validPrice: 0/""/negatif -> null; hanya > 0 yang lolos (harga Rp 0 bukan harga)
+  ok 30 — actualPurchasePrice: estimated_price SENGAJA TIDAK dihitung sebagai harga aktual (P1)
+
+F3/F5 LULUS: 30 assertion
+MARGIN_LEAKAGE_TEST_OK
+F4. REPEAT ORDER: customer berulang & integritas dedupe
+  ok 1 — readCustomers: 3 baris terbaca dari fixture host
+  ok 2 — customerContact: WA dulu, email fallback, TIDAK ADA -> null (bukan string kosong)
+  ok 3 — customerSource: kosong -> null (UI bisa tulis "Tidak tersedia")
+  ok 4 — normalizePhone CRM: "0812-1111-2222" == "6281211112222" (lead berulang satu customer)
+  ok 5 — findDuplicate: form dengan nomor beda format tetap cocok ke Ibu Sari (c1) — repeat order tak membuat customer kedua
+  ok 6 — validateCustomer: nomor kembar -> WARNING (periksa dulu), bukan penolakan — dua customer boleh bernama sama
+  ok 7 — validateCustomer: tanpa nama ditolak (nama satu-satunya field wajib)
+  ok 8 — customerKey: nama -> slug; tanpa nama -> id; tanpa keduanya -> "x" (key unik, tidak crash)
+  ok 9 — relationCount: tidak dikirim/"" -> null; 0 tetap 0 (bedanya: "belum dikirim" vs "tidak pernah")
+  ok 10 — relationText: null -> "Relasi invoice tidak dikirim ke halaman ini" (jujur, bukan 0)
+  ok 11 — summarizeCustomers: total=4, withContact=3, sources=2, withAddress=1 — 1 tanpa kontak tidak hilang
+  ok 12 — summarizeCustomers: 1 customer tanpa kontak tercatat eksplisit (tak disembunyikan)
+
+F6. STOCK TURNS: kematangan data — apakah perputaran BISA dihitung jujur?
+  ok 13 — stok 12 vs min 5 (BHP, aman) -> TIDAK_DIPANTAU
+  ok 14 — TEMUAN: tidak ada state "OK" di stockStatus (hasil fixture: TIDAK_DIPANTAU, MENIPIS, TIDAK_DIPANTAU, UNAVAILABLE, TIDAK_DIPANTAU) — "aman" harus dihitung sebagai bukan MENIPIS/UNAVAILABLE
+  ok 15 — stok 3 vs min 10 (BHP) -> MENIPIS
+  ok 16 — current_stock null -> UNAVAILABLE (bukan 0!)
+  ok 17 — stok 8 vs min 4 tapi bukan BHP -> TIDAK_DIPANTAU (min stok hanya berlaku untuk BHP)
+  ok 18 — summarizeStock: total=5, adaAngka=4, menipis=1, tanpaAngka=1, bhp=3
+  ok 19 — summarizeStock: BHP dikenali dari kode "BHP-0013" atau kategori "Bahan Habis Pakai" (bukan dari flag is_bhp)
+  ok 20 — F6 temuan resmi: TIDAK ada movement/ledger, barang keluar belum jadi pengurang, materials = katalog global tanpa project_id
+  ok 21 — F6 VERDICT: "stock turnover" TIDAK BOLEH dilaporkan sebagai angka — ketersediaan datanya belum cukup
+  ok 22 — filterStockRows: kategori & pencarian teks bekerja (filter saja — tidak mengarang angka)
+  ok 23 — toNumberOrNull: "" -> null, 0 -> 0 (keduanya berbeda arti)
+
+F7. OVERDUE CASH: piutang jatuh tempo (fixture aritmetika verifikasi)
+  ok 24 — DRAFT -> LUNAS ditolak: dokumen yang belum terbit tidak boleh dianggap dibayar
+  ok 25 — TERBIT -> LUNAS diizinkan (klien bisa bayar sebelum pengiriman tercatat)
+  ok 26 — LUNAS -> BATAL ditolak: status terminal, tidak bisa diubah
+  ok 27 — LUNAS wajib bukti: paid_amount + paid_at + payment_ref + verified_by (tanpa ini bukan "lunas")
+  ok 28 — F7 fixture: jatuh tempo 2026-10-10 -> 8 hari terlambat; hari ini -> 0; belum jatuh tempo -> 0 (bukan negatif)
+  ok 29 — F7: 2 invoice terlambat, total 59.500.000 (LUNAS/BATAL tidak dihitung)
+  ok 30 — nextSequenceForFormat: 2026 -> urut 4 (max 3 + 1); 2025 -> urut 3 (reset tahunan, nomor 2026 tidak menabrak)
+  ok 31 — parseAnyInvoiceNo membaca kedua format yang beredar di lapangan
+  ok 32 — invoicePeriod: 2026-10-06 -> "2026-10"
+  ok 33 — nextNumericProjectCode: kode proyek numerik lanjut dari yang terbesar (dikembalikan sebagai string "8")
+  ok 34 — summarizeLabor: aktual=8.000.000 (1 proyek berangka), estimasi=null — peta project_names tidak dikirim, estimasi TIDAK dikarang (null, bukan 0)
+  ok 35 — summarizeLabor: peta project_names dikirim -> estimasi 8.000.000 tampil (join id->nama, bukan cocok nama keliru)
+
+F4/F6/F7 LULUS: 35 assertion
+REPEAT_STOCK_CASH_TEST_OK
+F8. GERBANG KEJUJURAN: yang tidak diketahui tidak boleh jadi 0
+  ok 1 — buildComparison tanpa data sama sekali: semua total null + pesan "Tidak ada angka yang dikarang"
+  ok 2 — baris aktual tanpa harga -> price null & value null (qty 5 x harga-tidak-diketahui ≠ 0)
+  ok 3 — baris aktual dengan penanda [Harga: 120000] -> value 600.000 (harga terbaca dari catatan nota)
+  ok 4 — total aktual hanya menghitung baris berharga; "Paku" (belanja tanpa acuan) tidak mengubah total
+  ok 5 — nota tanpa RAB/RAP: total aktual tetap 120.000 DAN coverage.actualWithoutPlan=1 (belanja di luar rencana ditandai)
+  ok 6 — honesty.actualLabel menuliskan sumber aktual secara eksplisit (atau ketiadaannya)
+  ok 7 — validPrice: 0/negatif/null/undefined/"" -> null. Hanya angka > 0 yang menjadi harga.
+  ok 8 — actualPurchasePrice mengabaikan estimated_price sepenuhnya (P1: estimasi ≠ pembelian)
+  ok 9 — actualPurchasePrice memilih price_actual walau estimated_price ikut terisi
+  ok 10 — receivingItemActualPrice: semua kolom harga 0 -> null (bukan 0)
+  ok 11 — penanda [Nominal: ...] (total nota) TIDAK dipakai sebagai harga satuan material
+  ok 12 — penanda [Harga: ...] tetap terbaca walau nota juga punya [Nominal] (sumber harga yang benar)
+  ok 13 — parseItemPrice/buildItemPriceNote: format Indonesia terbaca, round-trip stabil, 0/null -> null
+  ok 14 — entriesFor: mat-01 -> [HISTORIS 360.000, HISTORIS 350.000, MASTER 340.000]; mat-02 (tanpa data) -> 0 entri (kosong jujur)
+  ok 15 — entri dengan satuan PR berbeda dari master TIDAK masuk acuan (tanpa konversi diam-diam)
+  ok 16 — baris penerimaan qty 0 (sisa cangkang approval) TIDAK dihitung sebagai pembelian nyata
+  ok 17 — MASTER (340.000) tampil di atas PR_ESTIMATE (999.999) — estimasi tidak menutupi acuan yang lebih kuat
+  ok 18 — estimator: harga master 340.000 jadi sumber (MASTER) — master data lebih kuat dari ketiadaan data
+  ok 19 — estimator material tanpa id -> UNKNOWN_MATERIAL (data lama), price null — bukan crash, bukan 0
+  ok 20 — estimator tanpa data & tanpa harga master: status NO_ENTRY, price null — penelepon WAJIB memperlakukan null sebagai "belum ada acuan"
+  ok 21 — MASTER (340.000) menang di atas PR_ESTIMATE (999.999) — estimasi tidak menutupi acuan yang lebih kuat
+  ok 22 — tanpa master & tanpa harga aktual: PR_ESTIMATE 275.000 dipakai DENGAN source eksplisit — penelepon wajib menampilkannya sebagai estimasi, bukan harga beli
+  ok 23 — pr_items tanpa baris penerimaan -> tidak jadi acuan (NONE) — estimasi PR yang belum jadi pembelian tidak dipakai
+  ok 24 — P1: prioritas vendor hanya menyaring kategori HISTORIS; vendor tidak bisa mengubah sumber jadi "pembelian vendor itu"
+  ok 25 — summarizeStock: current_stock null -> tanpaAngka; current_stock 0 vs min 5 (BHP) -> menipis=1. null dan 0 adalah dua hal berbeda.
+  ok 26 — summarizeStock (tanpa kode BHP): null -> tanpaAngka; 0 vs min 5 -> menipis=0 karena bukan BHP (bukan bahan habis pakai)
+  ok 27 — CSV stok: stok kosong diekspor sebagai string KOSONG, bukan 0
+  ok 28 — batasan data stok/CRM/labor dicatat di kode — laporan tidak boleh mengaku lebih dari itu
+  ok 29 — relationCount: 0 (dikirim) vs null (tidak dikirim) dibedakan — repeat order tidak dikira-kira
+  ok 30 — readCustomers: null atau baris tanpa nama -> kosong (daftar kosong berarti kosong)
+  ok 31 — classifyNota: PURCHASED (status/penanda Tahap DIBELI) / LEGACY (tanggal+nominal) / DRAFT (belum lengkap) — invoice_no tidak menentukan
+  ok 32 — toNum: "1.250.000" & "Rp 1.250.000" -> 1250000; "3 dus"/"abc" -> NaN (ditolak, bukan ditebak); "" / null -> 0
+  ok 33 — toNumberOrNull: "12"/12 -> 12; "12,5" & "12.5" -> 12.5; ""/null/"3 dus"/"abc" -> null (bukan 0, bukan NaN)
+  ok 34 — rantai jujur: parsePurchaseNote membaca "Rp 1.250.000" -> 1250000 lewat digit-only, BUKAN toNum
+  ok 35 — toCsv rap-compare: baris terbit tanpa angka karangan
+
+F8 LULUS: 35 assertion
+HONESTY_GATES_TEST_OK
+Sandbox: /tmp/growth-kpi-verify
+
+
+===== F1. CONVERSION Lead->RAB->Invoice->Lunas + F2. TIME-TO-APPROVAL =====
+
+===== F3. MARGIN LEAKAGE RAB/RAP/Aktual + F5. VENDOR SAVINGS =====
+
+===== F4. REPEAT ORDER + F6. STOCK TURNS + F7. OVERDUE CASH =====
+
+===== F8. GERBANG KEJUJURAN (tak-diketahui != 0) =====
+
+============================================================
+SEMUA TEST LULUS

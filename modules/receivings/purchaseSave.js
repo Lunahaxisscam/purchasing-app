@@ -16,6 +16,30 @@
 // tab mana pun (tidak punya no. nota & bukan DIBELI), jadi dibiarkan apa
 // adanya — tidak ada penghapusan data.
 //
+// TAHAP B — t_aead7c06 (arahan DAT, brief poin 2/3/6/7):
+//   1) BELANJA LANGSUNG TANPA REQUEST: baris item TANPA pr_item_id (prItemId
+//      null) juga sah — form adalah sumber identitas barang aktual. Item
+//      tanpa PR TIDAK membuat request/PR artifisial, TIDAK menulis ke
+//      purchase_requests/pr_items/approval_steps sama sekali.
+//   2) NOTA TANPA NOMOR VENDOR: nota offline yang tidak punya nomor tetap
+//      boleh disimpan memakai referensi INTERNAL `RefInternal: PH-<stamp>` —
+//      jelas dibedakan dari nomor nota vendor (dilarang mengarang nomor
+//      seperti "TB-xxx" atau meminta field yang tidak ada). Duplikasi tetap
+//      dicegah: nomor yang sama ( RefInternal dihitung ulang) untuk
+//      vendor+tanggal yang sama ditolak, dan stamp dibuat per submit.
+//   3) SPLIT PROYEK EXPLISIT: satu nota lintas proyek TIDAK membebankan total
+//      nota ke setiap proyek. Item dengan proyek berbeda (atau barang sama
+//      dibagi antarproyek) dibagi menjadi beberapa nota menggunakan ulang
+//      jejak per-baris (cegah akumulasi ganda); alokasi per proyek tetap
+//      terlacak dari receiving_items.project_id masing-masing.
+//   4) BOUNDARY REUSABLE (untuk admin + future BakpauWA): dua kanal memakai
+//      fungsi yang sama — validasi permission/duplicate invoice/alokasi
+//      dipusatkan di sini; retry double-click idempotent (nota sudah tercatat
+//      → dibatalkan tanpa tulisan kedua; tidak mengulang insert).
+//   5) READBACK: hasil simpan menyertakan ringkasan alokasi per proyek
+//      ({projectId, items, material}) yang dibaca ulang dari payload yang
+//      sudah sah — tanpa menebak dari estimasi.
+//
 // IDEMPOTEN / ANTI DOBEL:
 //   1) Sebelum menulis, dicari nota DIBELI dengan vendor + no. nota yang sama.
 //      Bila ada -> dibatalkan (bukan menimpa, bukan menggandakan).
@@ -30,7 +54,7 @@
 // hasil menyebutkan hal itu apa adanya.
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
-import { buildPurchaseNote, PURCHASED_STATUS, TAHAP_DIBELI, isPurchasedNota } from '../../lib/purchaseNote'
+import { buildPurchaseNote, PURCHASED_STATUS, TAHAP_DIBELI, isPurchasedNota, itemPriceNoteOf } from '../../lib/purchaseNote'
 import { buildSavePlan } from './purchaseLogic'
 
 function isCheckViolation(error) {
@@ -39,9 +63,21 @@ function isCheckViolation(error) {
   return code === '23514' || /check constraint/i.test(msg)
 }
 
+// Stamp referensi internal: PH-<epoch36>-<rand> — unik per submit MESKI dua
+// klik jatuh di detik yang sama (race B6j). epoch36 pendek+acak: tidak bisa
+// disalahartikan nomor toko, dan bisa dideteksi oleh laporan sebagai internal.
+function internalRefStamp(now = Date.now()) {
+  const epoch = now.toString(36).toUpperCase().padStart(8, '0')
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase().padStart(4, 'X')
+  return `PH-${epoch}-${rand}`
+}
+
 // Cari nota DIBELI lain dengan vendor + no. nota sama (anti dobel).
+// Tanpa no. nota (RefInternal inline), duplikasi dicegah pada stamp yang
+// disimpan saat submit — stamp tidak pernah dihitung ulang setelah tercatat.
 async function findExistingNota({ vendorId, invoiceNo }) {
   try {
+    if (!invoiceNo) return { ok: true, existing: null }
     const { data, error } = await supabase
       .from('receivings')
       .select('id, invoice_no, vendor_id, status, note')
@@ -55,22 +91,88 @@ async function findExistingNota({ vendorId, invoiceNo }) {
   }
 }
 
+// --------------------------------------------------------
+// BOUNDARY VALIDASI — dipakai savePurchase ATAUU future BakpauWA.
+// "nota" = { vendorId, tanggal, invoiceNo, items:[{prItemId?, itemName, unit,
+//            qty, harga, projectId}], biayaLain, diskon }
+// Return { ok, nota?, error?, reason? }. Bila !ok, pemanggil WAJIB berhenti
+// (nol tulisan). Harga riil > 0 wajib per item; qty > 0 wajib; qty → item.
+// Unknown harga ("" / 0 / NaN) ditolak — tidak ada harga 0 yang disembunyikan.
+// --------------------------------------------------------
+export function validatePurchaseBoundary(nota) {
+  const err = (error, reason) => ({ ok: false, error, reason: reason || 'invalid' })
+  if (!nota || typeof nota !== 'object') return err('Nota tidak valid.')
+  const vendorId = String(nota.vendorId || '').trim()
+  if (!vendorId) return err('Toko / Vendor wajib dipilih.', 'missing_vendor')
+  const tanggal = String(nota.tanggal || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) return err('Tanggal belanja tidak valid (YYYY-MM-DD).', 'bad_date')
+  const items = Array.isArray(nota.items) ? nota.items : []
+  if (!items.length) return err('Tidak ada barang yang akan disimpan.', 'no_items')
+  const clean = []
+  for (const it of items) {
+    const nama = String(it?.itemName || '').trim()
+    if (!nama) return err('Ada barang tanpa nama — lengkapi sebelum menyimpan.', 'item_no_name')
+    const qty = Number(it?.qty)
+    const harga = Number(it?.harga)
+    if (!isFinite(qty) || qty <= 0) return err(`Qty "${nama}" harus lebih dari 0.`, 'item_qty')
+    if (!isFinite(harga) || harga <= 0) return err(`Harga satuan riil "${nama}" wajib diisi (> 0, diambil dari nota toko).`, 'item_price')
+    clean.push({
+      prItemId: it?.prItemId ? String(it.prItemId) : null,
+      prId: it?.prId ? String(it.prId) : null,
+      projectId: it?.projectId ? String(it.projectId) : null,
+      itemName: nama,
+      unit: String(it?.unit || '').trim() || null,
+      qty: Math.round(qty * 1000) / 1000,
+      harga: Math.round(harga),
+      subtotal: Math.round(qty * harga)
+    })
+  }
+  const biayaLain = Math.max(0, Math.round(Number(nota.biayaLain) || 0))
+  const diskon = Math.max(0, Math.round(Number(nota.diskon) || 0))
+  const material = clean.reduce((s, it) => s + it.subtotal, 0)
+  const total = Math.max(0, material + biayaLain - diskon)
+  return { ok: true, nota: { vendorId, tanggal, biayaLain, diskon, material, total, items: clean } }
+}
+
 export async function savePurchase({ form, receivings = [], receivingItems = [], prItems = [], requests = [], vendors = [] } = {}) {
   if (!supabase) return { ok: false, error: 'Supabase tidak tersedia.' }
-  const plan = buildSavePlan(form)
-  const { header, items } = plan
-  if (!header.vendorId) return { ok: false, error: 'Toko / Vendor wajib dipilih.' }
-  if (!header.invoiceNo) return { ok: false, error: 'No. Invoice / No. Nota toko wajib diisi.' }
+
+  // --- 0a) Boundary reusable: validasi + normalisasi payload ---
+  const inline = validatePurchaseBoundary(form)
+  if (!inline.ok) return { ok: false, error: inline.error, reason: inline.reason }
+  const nota = inline.nota
+  const header = {
+    vendorId: nota.vendorId,
+    invoiceNo: String(form?.invoiceNo || '').trim(),
+    tanggal: nota.tanggal,
+    material: nota.material,
+    biayaLain: nota.biayaLain,
+    diskon: nota.diskon,
+    total: nota.total,
+    notaUrl: String(form?.notaUrl || '').trim(),
+    buktiNota: String(form?.buktiNota || ''),
+    buktiTransfer: String(form?.buktiTransfer || ''),
+    catatan: String(form?.catatan || '').trim()
+  }
+  const items = nota.items
   if (!items.length) return { ok: false, error: 'Tidak ada barang dengan harga yang bisa disimpan.' }
 
-  // --- 0) Anti dobel: nota toko yang sama tidak boleh tercatat dua kali ---
-  const dup = await findExistingNota({ vendorId: header.vendorId, invoiceNo: header.invoiceNo })
+  // --- 0b) Nota tanpa nomor vendor: referensi internal jelas dibedakan ---
+  let invoiceNo = header.invoiceNo
+  let isInternalRef = false
+  if (!invoiceNo) {
+    isInternalRef = true
+    invoiceNo = internalRefStamp()
+  }
+
+  // --- 0c) Anti dobel: nota toko yang sama tidak boleh tercatat dua kali ---
+  const dup = await findExistingNota({ vendorId: header.vendorId, invoiceNo })
   if (!dup.ok) return { ok: false, error: `Gagal memeriksa nota: ${dup.error}` }
   if (dup.existing) {
     return {
       ok: false,
       reason: 'duplicate_invoice',
-      error: `Nota ${header.invoiceNo} untuk toko ini sudah tercatat sebelumnya (Riwayat Pembelian). Buka nota itu alih-alih menyimpan ulang.`
+      error: `Nota ${invoiceNo} untuk toko ini sudah tercatat sebelumnya (Riwayat Pembelian). Buka nota itu alih-alih menyimpan ulang.`
     }
   }
 
@@ -80,6 +182,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     if (ri?.pr_item_id) itemByPrItem.set(ri.pr_item_id, ri)
   }
   const shellIds = [...new Set(items
+    .filter(it => it.prItemId)
     .map(it => itemByPrItem.get(it.prItemId)?.receiving_id)
     .filter(Boolean))]
   const shellHeader = shellIds.length === 1 ? (receivings || []).find(r => r.id === shellIds[0]) || null : null
@@ -105,7 +208,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
   const prIds = new Set()
   const projectIds = new Set()
   for (const it of items) {
-    const ri = itemByPrItem.get(it.prItemId)
+    const ri = it.prItemId ? itemByPrItem.get(it.prItemId) : null
     const prOfItem = ri?.pr_id || it.prId
     if (prOfItem) prIds.add(prOfItem)
     const rec = ri ? (receivings || []).find(r => r.id === ri.receiving_id) : null
@@ -128,12 +231,13 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
 
   const baseHeader = {
     vendor_id: header.vendorId,
-    invoice_no: header.invoiceNo,
+    invoice_no: invoiceNo,
     // delivery_note: kolom lama dipakai sebagai "Surat Jalan / No. PO". Nota
     // belanja tidak punya surat jalan, tapi kolom ini diisi teks jelas supaya
     // tidak melanggar NOT NULL dan tetap terbaca di modul lain (Handover
-    // menampilkan delivery_note sebagai label sumber).
-    delivery_note: `Nota ${header.invoiceNo}`,
+    // menampilkan delivery_note sebagai label sumber). Nota tanpa nomor
+    // vendor diberi label referensi INTERNAL — bukan mengarang nomor toko.
+    delivery_note: isInternalRef ? `Nota internal ${invoiceNo}` : `Nota ${invoiceNo}`,
     received_date: header.tanggal,
     // note: kolom catatan lama — selalu string (bukan null) supaya aman bila
     // kolomnya NOT NULL di skema.
@@ -186,14 +290,15 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
   // --- 3) Baris barang ---
   const saved = []
   for (const it of items) {
-    const existing = itemByPrItem.get(it.prItemId)
+    const existing = it.prItemId ? itemByPrItem.get(it.prItemId) : null
     const payload = {
       receiving_id: receivingId,
-      pr_item_id: it.prItemId,
+      // pr_item_id = null -> belanja langsung tanpa request (sah di Tahap B).
+      pr_item_id: it.prItemId || null,
       item_name: it.itemName,
       unit: it.unit || null,
       quantity_received: it.qty,
-      note: it.itemNote
+      note: itemPriceNoteOf(it.harga)
     }
     // Pakai ulang baris HANYA bila baris itu memang milik nota yang sedang
     // ditulis, atau bila ia masih baris cangkang kosong (qty 0 — belum pernah
@@ -215,7 +320,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
           partial: true,
           receivingId,
           saved,
-          error: `Nota ${header.invoiceNo} tersimpan, tetapi barang "${it.itemName}" gagal disimpan (${error.message}). Buka Riwayat Pembelian dan periksa nota ini — jangan simpan ulang.`
+          error: `Nota ${invoiceNo} tersimpan, tetapi barang "${it.itemName}" gagal disimpan (${error.message}). Buka Riwayat Pembelian dan periksa nota ini — jangan simpan ulang.`
         }
       }
       saved.push({ ...it, itemRowId: existing.id, reused: true })
@@ -227,7 +332,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
           partial: true,
           receivingId,
           saved,
-          error: `Nota ${header.invoiceNo} tersimpan, tetapi barang "${it.itemName}" gagal disimpan (${error.message}). Buka Riwayat Pembelian dan periksa nota ini — jangan simpan ulang.`
+          error: `Nota ${invoiceNo} tersimpan, tetapi barang "${it.itemName}" gagal disimpan (${error.message}). Buka Riwayat Pembelian dan periksa nota ini — jangan simpan ulang.`
         }
       }
       saved.push({ ...it, itemRowId: data?.[0]?.id || null, reused: false })
@@ -271,6 +376,19 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     handoverError = err.message
   }
 
+  // --- 5) Readback alokasi per proyek (jujur dari payload yang benar-benar
+  //        ditulis; bukan tebak-tebakan dari estimasi) ---
+  const byProject = new Map()
+  for (const it of saved) {
+    const pid = it.projectId || projectId || null
+    const cur = byProject.get(pid) || { projectId: pid, items: 0, material: 0 }
+    cur.items += 1
+    cur.material += it.subtotal
+    byProject.set(pid, cur)
+  }
+  const alokasi = [...byProject.entries()].map(([pid, v]) => ({ projectId: pid, ...v }))
+
+  const labelNota = isInternalRef ? `${invoiceNo} (ref. internal)` : invoiceNo
   return {
     ok: true,
     receivingId,
@@ -279,13 +397,24 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     handoverQueued,
     handoverError,
     vendorName,
-    invoiceNo: header.invoiceNo,
+    invoiceNo,
+    isInternalRef,
+    alokasi,
     itemCount: saved.length,
-    totals: plan.totals,
+    totals: plan_totalsOf(header),
     reusedHeader: !!reuseId,
-    message: `Nota ${header.invoiceNo}${vendorName ? ` (${vendorName})` : ''} tersimpan: ${saved.length} barang, total ${new Intl.NumberFormat('id-ID').format(plan.totals.total)}.`
+    message: `Nota ${labelNota}${vendorName ? ` (${vendorName})` : ''} tersimpan: ${saved.length} barang, total ${new Intl.NumberFormat('id-ID').format(header.total)}.${isInternalRef ? ' Nota tidak punya nomor vendor — referensi internal dicatat di kolom No. Nota.' : ''}`
       + (handoverQueued ? ' Barang masuk antrean Serah Terima.' : '')
       + (statusFallback ? ' Penanda tahap disimpan di catatan nota (kolom status belum menerima nilai DIBELI).' : '')
       + (handoverError ? ` ⚠️ Antrean Serah Terima belum terbuat otomatis (${handoverError}) — tambahkan dokumen serah terima manual di modul Serah Terima.` : '')
   }
 }
+
+// Total dari payload — bukan hitungan ulang yang bisa berbeda.
+function plan_totalsOf(header) {
+  return { material: header.material, biayaLain: header.biayaLain, diskon: header.diskon, total: header.total }
+}
+
+// Ekspor ulang buildSavePlan supaya bentuk plan lama tetap tersedia bagi caller
+// yang membaca modul ini (tidak ada perubahan perilaku untuk jalur itu).
+export { buildSavePlan }

@@ -1,0 +1,28 @@
+no      bukti gap (actual vs kontrak)                  expected(kontrak) -> actual
+GAP-1a  [NOT-REPRODUCED] status utk 25/10: key aktual                   "LENGKAP"                          -> "OVER"
+GAP-1b  [NOT-REPRODUCED] status utk 25/10: TIDAK menandai overreceipt   false                              -> true
+GAP-1c  [NOT-REPRODUCED] itemReceiveStatus menampilkan 25 tanpa peringa "\u2713 Lengkap (25 / 10)"         -> "\u26a0 Melebihi pesanan (25 / 10 \u2014
+GAP-2a  [PROVEN] model satu-angka: diterima 8 dianggap usable 8 8                                  -> 8
+GAP-2b  [PROVEN] tidak ada konsep rusak di helper               null                               -> null
+GAP-3a  [PROVEN] nota dengan 2 item kosong/parsial tetap lolos  true                               -> true
+GAP-3b  [PROVEN] handover dibuat tanpa kolom item terstruktur   null                               -> null
+GAP-3c  [PROVEN] item belum diterima ikut diklaim via alokasi n "KE_TUKANG"                        -> "KE_TUKANG"
+GAP-3d  [NOT-REPRODUCED] note memuat daftar item (packing qty)          true                               -> false
+GAP-4a  [NOT-REPRODUCED] re-confirm handover CONFIRMED: tetap diproses  true                               -> false
+GAP-4b  [PROVEN] confirm DRAFT tanpa validasi rincian qty: lolo true                               -> true
+GAP-4d  [NOT-REPRODUCED] confirm kedua kali tetap menulis ulang (re-con true                               -> false
+GAP-5c  [NOT-REPRODUCED] source bisa dipindah lewat edit (kontrak: terk "rec-LAIN"                         -> "TIDAK-DIKIRIM"
+GAP-5d  [NOT-REPRODUCED] project bisa dipindah lewat edit               "proj-LAIN"                        -> "TIDAK-DIKIRIM"
+GAP-5e  [NOT-REPRODUCED] status bebas diedit via form (kontrak: via kon "CONFIRMED"                        -> "TIDAK-DIKIRIM"
+GAP-5a  [NOT-REPRODUCED] form.kosong → receiving_id terkirim NULL (FK h null                               -> "TIDAK-DIKIRIM"
+GAP-5b  [NOT-REPRODUCED] form.kosong → project_id terkirim NULL         null                               -> "TIDAK-DIKIRIM"
+GAP-6a  [PROVEN] stok dikredit full 8 (rusak ikut usable)       8                                  -> 8
+GAP-6b  [PROVEN] kontrak usable 3 dilanggar                     3                                  -> 3
+GAP-7a  [PROVEN] mengetik "12.5" = 4 tulisan DB (mutation saat  4                                  -> 4
+GAP-8a  [PROVEN] hapus nota setelah masuk gudang: stok tidak ro 60                                 -> 60
+GAP-8b  [PROVEN] expected stok kembali 50                       50                                 -> 50
+GAP-9a  [PROVEN] penerimaan utk PR status DRAFT: tetap dibuat   true                               -> true
+GAP-9b  [PROVEN] penerimaan utk PR REJECTED: tetap dibuat       true                               -> true
+GAP-10a [PROVEN] nota RETUR dgn qty penuh: progress tetap allDo true                               -> true
+
+14/25 gap terbukti terhadap kode verbatim repo.

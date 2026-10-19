@@ -39,7 +39,7 @@ import { readAttachment, dataUrlByteSize, sizeLabel, ATTACHMENT_MAX_BYTES } from
 import { savePurchase } from './purchaseSave'
 
 export default function PurchaseForm({
-  rows, vendorId, vendors = [], receivings = [], receivingItems = [], close, onDone, say
+  rows, vendorId, vendors = [], projects = [], receivings = [], receivingItems = [], close, onDone, say
 }) {
   const [form, setForm] = useState(() => buildFormDraft(rows, { vendorId }))
   const [saving, setSaving] = useState(false)
@@ -54,9 +54,11 @@ export default function PurchaseForm({
   const adaTambahan = !!(String(form.biayaLain || '').trim() || String(form.diskon || '').trim())
 
   const setField = (k, val) => setForm(prev => ({ ...prev, [k]: val }))
-  const setItem = (prItemId, k, val) => setForm(prev => ({
+  const setItem = (key, k, val) => setForm(prev => ({
     ...prev,
-    items: prev.items.map(it => (it.prItemId === prItemId ? { ...it, [k]: val } : it))
+    // key per baris: pr_item_id ATAU indeks formal (bahan tanpa request tidak
+    // punya prItemKey dan TETAP bisa diedit — tidak dibuang).
+    items: prev.items.map((it, i) => ((it.prItemId || it.formKey || `i${i}`) === key ? { ...it, [k]: val } : it))
   }))
 
   async function pickFile(kind, file) {
@@ -168,12 +170,14 @@ export default function PurchaseForm({
             No. Nota Toko
             <input
               type="text"
-              placeholder="Contoh: TB-88912"
+              placeholder="Contoh: TB-88912 (kosong = nota tanpa nomor)"
               value={form.invoiceNo}
               onChange={e => setField('invoiceNo', e.target.value)}
               data-testid="form-invoice"
             />
-            {touched && !String(form.invoiceNo).trim() && <span className="purchase-field-error">No. nota wajib diisi.</span>}
+            <span className="purchase-field-hint" style={{ display: 'block' }}>
+              Nota offline tanpa nomor boleh dikosongkan — sistem memakai referensi internal, bukan mengarang nomor toko.
+            </span>
           </label>
           <label>
             Tanggal Belanja
@@ -221,13 +225,14 @@ export default function PurchaseForm({
                 </tr>
               </thead>
               <tbody>
-                {form.items.map(it => {
+                {form.items.map((it, idx) => {
+                  const rowKey = it.prItemId || it.formKey || `i${idx}`
                   const qty = Number(String(it.qty).replace(/[^\d.]/g, '')) || 0
                   const harga = Number(String(it.harga).replace(/[^\d]/g, '')) || 0
                   const subtotal = qty > 0 && harga > 0 ? Math.round(qty * harga) : null
-                  const err = v.itemErrors[it.prItemId] || {}
+                  const err = (it.prItemId && v.itemErrors[it.prItemId]) || {}
                   return (
-                    <tr key={it.prItemId} data-testid={`form-item-${it.prItemId}`}>
+                    <tr key={rowKey} data-testid={`form-item-${rowKey}`}>
                       {/* class "cell-wrap" WAJIB di sini: aturan bersama
                           `th, td { white-space: nowrap !important }` di
                           styles/globals.css TIDAK bisa dilawan dengan inline
@@ -239,10 +244,21 @@ export default function PurchaseForm({
                           (white-space:normal !important; overflow-wrap:anywhere),
                           jadi tidak ada file CSS bersama yang perlu diubah. */}
                       <td className="cell-wrap">
-                        <b style={{ fontSize: '12.5px' }}>{it.itemName}</b>
+                        {it.isDirect ? (
+                          <input
+                            type="text"
+                            placeholder="Nama barang di nota toko…"
+                            value={it.itemName}
+                            onChange={e => setItem(rowKey, 'itemName', e.target.value)}
+                            data-testid={`nama-${rowKey}`}
+                            aria-label="Nama barang"
+                            style={{ width: '100%', minWidth: 0, fontWeight: 600 }}
+                          />
+                        ) : (
+                          <b style={{ fontSize: '12.5px' }}>{it.itemName}</b>
+                        )}
                         <div className="purchase-muted" style={{ fontSize: '10.5px' }}>
-                          {it.prNumber}{it.projectName ? ` · ${it.projectName}` : ''}
-                          {it.qtyPr ? ` · PR: ${it.qtyPr} ${it.unit}` : ''}
+                          {it.isDirect ? 'Belanja langsung (tanpa request)' : `${it.prNumber}${it.projectName ? ` · ${it.projectName}` : ''}${it.qtyPr ? ` · PR: ${it.qtyPr} ${it.unit}` : ''}`}
                         </div>
                       </td>
                       <td style={{ padding: '7px 6px' }}>
@@ -254,14 +270,28 @@ export default function PurchaseForm({
                           step="any"
                           inputMode="decimal"
                           value={it.qty}
-                          onChange={e => setItem(it.prItemId, 'qty', e.target.value)}
-                          data-testid={`qty-${it.prItemId}`}
+                          onChange={e => setItem(rowKey, 'qty', e.target.value)}
+                          data-testid={`qty-${rowKey}`}
                           aria-label={`Qty beli ${it.itemName}`}
                           style={{ minWidth: 0, width: '100%' }}
                         />
                         <span className="purchase-muted" style={{ display: 'block', fontSize: '10.5px', marginTop: '2px' }}>
                           {it.unit || '—'}
                         </span>
+                        {it.isDirect && (
+                          <select
+                            value={it.projectId || ''}
+                            onChange={e => setItem(rowKey, 'projectId', e.target.value)}
+                            data-testid={`proj-${rowKey}`}
+                            aria-label={`Proyek untuk ${it.itemName || 'barang'}`}
+                            style={{ marginTop: '3px', width: '100%', minWidth: 0 }}
+                          >
+                            <option value="">-- Tanpa proyek --</option>
+                            {projects.map(p => (
+                              <option key={p.id} value={p.id}>{p.kode ? `[${p.kode}] ${p.name}` : p.name}</option>
+                            ))}
+                          </select>
+                        )}
                         {touched && err.qty && <span className="purchase-field-error">{err.qty}</span>}
                       </td>
                       <td>
@@ -270,8 +300,8 @@ export default function PurchaseForm({
                           inputMode="numeric"
                           placeholder="0"
                           value={it.harga}
-                          onChange={e => setItem(it.prItemId, 'harga', e.target.value.replace(/[^\d]/g, ''))}
-                          data-testid={`harga-${it.prItemId}`}
+                          onChange={e => setItem(rowKey, 'harga', e.target.value.replace(/[^\d]/g, ''))}
+                          data-testid={`harga-${rowKey}`}
                           aria-label={`Harga satuan ${it.itemName}`}
                         />
                         {it.harga ? (

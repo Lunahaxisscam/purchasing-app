@@ -20,6 +20,7 @@
 // ============================================================
 
 import { parsePurchaseNote, isPurchasedNota, buildItemPriceNote } from '../../lib/purchaseNote'
+import { isLeanRequest } from '../requests/leanRequest'
 
 export const TAB_READY = 'ready'
 export const TAB_HISTORY = 'history'
@@ -86,6 +87,21 @@ export function isBuyableStatus(status) {
 }
 
 // ------------------------------------------------------------
+// KELAYAKAN BELI — kontrak t_a5a73034 (docs/lean-request-contract.md §4)
+// ------------------------------------------------------------
+// Item boleh dibeli bila:
+//   (a) request induknya bertanda LEAN ([Jalur: LEAN] di notes) — jalur admin
+//       langsung tanpa approval; itemnya tetap PENDING_APPROVAL dan TIDAK
+//       PERNAH ditulis jadi APPROVED (itu cap persetujuan palsu), ATAU
+//   (b) item berstatus APPROVED/ORDERED (alur approval lama, tetap didukung).
+// PENTING: "tidak ada approval_steps" BUKAN syarat lean. Legacy SUBMITTED
+// tanpa penanda & tanpa step tetap TIDAK bisa dibeli lewat jalur lean.
+export function isBuyable({ item, request } = {}) {
+  if (isLeanRequest(request)) return true
+  return isBuyableStatus(item?.status)
+}
+
+// ------------------------------------------------------------
 // 1) TAB SIAP DIBELI
 // ------------------------------------------------------------
 // Baris = satu item PR. Item dianggap SUDAH dibeli (hilang dari daftar) bila
@@ -121,7 +137,11 @@ export function buildReadyRows({
   const rows = []
   for (const it of (prItems || [])) {
     if (!it || !it.id) continue
-    if (!isBuyableStatus(it.status)) continue
+    const prRow = it.pr_id ? prById.get(it.pr_id) || null : null
+    // Kelayakan beli: request lean ATAU item APPROVED/ORDERED (kontrak §4).
+    // Bukan "tidak ada approval_steps" — legacy SUBMITTED tanpa penanda
+    // tetap tidak lolos.
+    if (!isBuyable({ item: it, request: prRow })) continue
     const bought = boughtByPrItem.get(it.id)
     const qty = Number(it.quantity)
     const qtyPr = isFinite(qty) && qty > 0 ? qty : 1
@@ -129,7 +149,7 @@ export function buildReadyRows({
     // Sudah dibeli penuh -> tidak perlu dibeli lagi.
     if (bought && bought.purchased && boughtQty >= qtyPr - EPS) continue
 
-    const pr = it.pr_id ? prById.get(it.pr_id) : null
+    const pr = prRow
     const projectId = it.project_id || pr?.project_id || null
     const proj = projectId ? projById.get(projectId) : null
     const vendor = it.vendor_id ? vendorById.get(it.vendor_id) : null
@@ -322,7 +342,10 @@ export function buildFormDraft(rows, { vendorId = '', today = null } = {}) {
       qtyPr: r.qtyPr,
       // Qty default = SISA yang belum dibeli (bila sebelumnya dibeli sebagian),
       // bukan qty PR penuh — supaya tidak membeli ulang barang yang sudah ada.
-      qty: String(r.qtySisa ?? r.qtyPr),
+      // Baris belanja langsung (tanpa request) memakai qty awal yang diberi
+      // admin (default 1) — bukan tebakan dari qty PR yang tidak ada.
+      qty: r.isDirect ? String(r.qty ?? 1) : String(r.qtySisa ?? r.qtyPr),
+      isDirect: !!r.isDirect,
       harga: '',
       estimasi: r.estimasi,
       hargaAcuan: r.hargaAcuan,
@@ -333,7 +356,10 @@ export function buildFormDraft(rows, { vendorId = '', today = null } = {}) {
       // dan proyek pada dokumen Handover). Tanpa ini nota tanpa cangkang
       // kehilangan jejak proyeknya.
       prId: r.prId || null,
-      projectId: r.projectId || null
+      projectId: r.projectId || null,
+      // Baris langsung boleh diedit proyeknya di form (satu nota lintas
+      // proyek: pilih proyek PER BARIS, bukan menimpa seluruh nota).
+      formKey: r.key || null
     }))
   }
 }
@@ -377,7 +403,9 @@ export function validatePurchaseForm(form, { vendors = [] } = {}) {
 
   if (!vendorId) errors.push('Toko / Vendor wajib dipilih.')
   else if (vendors.length && !vendors.some(v => v.id === vendorId)) errors.push('Toko / Vendor yang dipilih tidak dikenal.')
-  if (!invoiceNo) errors.push('No. Invoice / No. Nota toko wajib diisi (mis. TB-88912).')
+  // TAHAP B (t_aead7c06): nota offline yang tidak punya nomor tetap sah —
+  // referensi INTERNAL dibuat saat simpan (purchaseSave), bukan di sini.
+  // Jangan mengarang nomor vendor dan jangan meminta field yang tidak ada.
   if (!tanggal) errors.push('Tanggal belanja wajib diisi.')
   else if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) errors.push('Tanggal belanja tidak valid.')
   if (!items.length) errors.push('Belum ada barang yang dipilih untuk dibeli.')
@@ -387,7 +415,12 @@ export function validatePurchaseForm(form, { vendors = [] } = {}) {
     const c = computeItem(it)
     if (!c.validQty) err.qty = 'Qty beli harus lebih dari 0.'
     if (!c.validHarga) err.harga = 'Harga satuan riil wajib diisi (angka > 0).'
-    if (Object.keys(err).length) itemErrors[it.prItemId] = err
+    // Item tanpa prItemId (belanja langsung) tetap divalidasi — dicatat di
+    // errors global, karena itemErrors memakai prItemId sebagai kuncinya.
+    if (Object.keys(err).length) {
+      if (it?.prItemId) itemErrors[it.prItemId] = err
+      else errors.push(`${err.qty || err.harga} (baris "${String(it?.itemName || '—').trim()}")`)
+    }
   }
   const totals = computeTotals(form)
 
@@ -405,7 +438,7 @@ export function buildSavePlan(form) {
     .map(it => {
       const c = computeItem(it)
       return {
-        prItemId: it.prItemId,
+        prItemId: it.prItemId ? String(it.prItemId) : null,
         itemName: String(it.itemName || '—').trim(),
         unit: String(it.unit || '').trim(),
         qty: c.qty,
@@ -418,7 +451,9 @@ export function buildSavePlan(form) {
         itemNote: buildItemPriceNote(c.harga)
       }
     })
-    .filter(it => it.prItemId && it.subtotal !== null)
+    // TAHAP B (t_aead7c06): baris prItemId null TIDAK dibuang lagi — belanja
+    // langsung tanpa request (direct purchase) sah dan ikut disimpan.
+    .filter(it => it.subtotal !== null)
 
   const totals = computeTotals(form)
   return {
