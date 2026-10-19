@@ -175,7 +175,7 @@ export default function PurchasePage({ rows, refresh, say }) {
   const allVisibleSelected = readyRows.length > 0 && readyRows.every(r => selected.has(r.prItemId))
 
   return (
-    <>
+    <div className="ops-container">
       {/* ===== TAB ===== */}
       <div className="purchase-tabs" role="tablist">
         <button
@@ -661,6 +661,6 @@ export default function PurchasePage({ rows, refresh, say }) {
           say={say}
         />
       )}
-    </>
+    </div>
   )
 }
