@@ -8,9 +8,12 @@ import { makePrEstimator, parsePriceValue, prEstimateTotals, isVendorEligible } 
 import { materialUnit } from '../modules/materials/acuan'
 import { renderCreateForm } from '../modules/shared/renderCreateForm'
 import { dispatchSave } from '../modules/shared/saveDispatcher'
+import FieldFormComponent from '../modules/requests/field-form/FieldFormComponent'
 
-export default function Create({ page, allProjects = [], allMaterials = [], allVendors = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], allPrItems = [], allReceivingItems = [], close, refresh, say }) {
+export default function Create({ page, allProjects = [], allMaterials = [], allVendors = [], existingRequests = [], allRequestsFull = [], editRow = null, editItems = [], allReceivings = [], allPrItems = [], allReceivingItems = [], close, refresh, say, initialMode = 'standard' }) {
   const isEdit = !!editRow
+  const [inputMode, setInputMode] = useState(initialMode || 'standard')
+  const [fieldFormState, setFieldFormState] = useState(null)
   // Nomor PR berikutnya dihitung dari SEMUA PR (bukan hasil filter), dan selalu
   // lebih besar dari nomor tertinggi yang sudah ada agar tidak pernah dobel
   // walaupun ada PR yang dihapus (dimemoize agar tidak reduce berulang saat render form).
@@ -381,6 +384,46 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     }
   }
 
+  if (page === 'requests' && !isEdit && inputMode === 'field-form') {
+    return (
+      <div className="modal">
+        <div className="dialog dialog-wide" style={{ maxHeight: '92vh', overflowY: 'auto' }}>
+          <div className="dialoghead">
+            <h2>Tambah Purchase Request — Form Lapangan</h2>
+            <button type="button" className="icon" onClick={close}>×</button>
+          </div>
+          <FieldFormComponent
+            allProjects={allProjects}
+            allMaterials={allMaterials}
+            initialHeader={{
+              project_id: form.project_id,
+              title: form.title,
+              priority: form.priority,
+              notes: form.notes,
+              ...(fieldFormState?.header || {})
+            }}
+            initialRowsState={fieldFormState?.rowsState || {}}
+            estimator={Est}
+            onCancel={close}
+            onSwitchStandard={() => setInputMode('standard')}
+            onReviewPr={({ form: seededForm, prItemsList: seededItems, rowsState: savedRows, header: savedHeader }) => {
+              setForm(prev => ({
+                ...prev,
+                project_id: seededForm.project_id || prev.project_id,
+                title: seededForm.title || prev.title,
+                priority: seededForm.priority || prev.priority,
+                notes: seededForm.notes || prev.notes
+              }))
+              setPrItemsList(seededItems)
+              setFieldFormState({ rowsState: savedRows, header: savedHeader, seeded: true })
+              setInputMode('standard')
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="modal">
       <form className={`dialog${page === 'requests' ? ' dialog-wide' : ''}`} onSubmit={save}>
@@ -405,7 +448,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
           itemQty, setItemQty, addItemToPR, removeItemFromPR, updateItemQty,
           updateItemSupplier, updateItemVendor, vendorsForItem, updateItemPrice,
           applyAcuanToItem, vendorEligibleForItem, totals,
-          estimateForItem, formatRupiahInput: formatNominalInput
+          estimateForItem, formatRupiahInput: formatNominalInput,
+          inputMode, setInputMode, fieldFormState
         })}
         <div className="actions">
           <button type="button" className="outline" onClick={close}>Batal</button>

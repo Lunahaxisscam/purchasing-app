@@ -123,7 +123,7 @@ export function formBody(ctx) {
     itemQty, setItemQty, addItemToPR, removeItemFromPR, updateItemQty,
     updateItemSupplier, updateItemVendor, vendorsForItem, updateItemPrice,
     applyAcuanToItem, vendorEligibleForItem, totals,
-    materialCategories
+    materialCategories, isEdit, inputMode, setInputMode, fieldFormState
   } = ctx
 
   // Kategori utk filter katalog — daftar kategori master material.
@@ -193,6 +193,33 @@ export function formBody(ctx) {
         🧾 <b>PR = permintaan barang.</b> Cukup isi proyek, judul, prioritas, material, qty &
         estimasi. <b>Toko/vendor aktual dipilih di modul Purchase</b> saat nota dicatat.
       </div>
+
+      {/* Banner / switch ke Form Lapangan bila baru tambah PR */}
+      {!isEdit && setInputMode && (
+        <div
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: fieldFormState?.seeded ? '#f0fdf4' : '#f8fafc',
+            border: `1px solid ${fieldFormState?.seeded ? '#bbf7d0' : '#e2e8f0'}`,
+            borderRadius: '8px', padding: '6px 10px', fontSize: '11px',
+            marginBottom: '8px', flexWrap: 'wrap', gap: '6px'
+          }}
+        >
+          <span style={{ color: fieldFormState?.seeded ? '#166534' : '#475569', fontWeight: 500 }}>
+            {fieldFormState?.seeded
+              ? `✓ Data dari Form Lapangan berhasil dimuat (${prItemsList.length} item). Anda dapat memeriksa atau menambah item.`
+              : `📋 Tersedia mode input cepat berbasis Form Lapangan (template PDF).`}
+          </span>
+          <button
+            type="button"
+            className="outline btn-switch-field-form"
+            style={{ fontSize: '10.5px', padding: '2px 8px' }}
+            onClick={() => setInputMode('field-form')}
+          >
+            {fieldFormState?.seeded ? '← Kembali ke Form Lapangan' : 'Buka Form Lapangan 📋'}
+          </button>
+        </div>
+      )}
 
       {/* Header form SATU BARIS desktop (steer DAT t_ac0b39c0): Project (kiri
           ~40%) + Judul Kebutuhan (kanan ~60%) — tetap DUA field terpisah,

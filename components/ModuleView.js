@@ -41,6 +41,7 @@ import {
 // ============================================================
 export default function Module({ page, rows, allProjects, allMaterials = [], allPrItems = [], allReceivingItems = [], allRequests = [], allReceivings = [], allVendors = [], refresh, say, onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang, onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem, onFinishPr, onMarkPrItemOrdered, onDelete, setPage, projectTab: projectTabProp = 'active' }) {
   const [open, setOpen] = useState(false)
+  const [createMode, setCreateMode] = useState('standard')
   const [projectFilter, setProjectFilter] = useState('active')
   // t_31871b64 (Sprint 1): Projects & Past Project digabung jadi satu modul
   // dengan dua tab — 'active' (belum selesai) dan 'done' (status DONE).
@@ -332,8 +333,19 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           {page === 'materials' && (
             <MaterialExportButtons rows={displayRows} acuanEntries={acuanEntries} />
           )}
+          {page === 'requests' && (
+            <button
+              type="button"
+              className="outline btn-field-form"
+              onClick={() => { setCreateMode('field-form'); setOpen(true); }}
+              title="Input PR dari Form Pengadaan Lapangan interaktif"
+              style={{ marginRight: '6px' }}
+            >
+              📋 Form Lapangan
+            </button>
+          )}
           {['projects', 'vendors', 'materials', 'requests', 'handovers'].includes(page) && (
-            <button type="button" className="btn-create-module" onClick={() => setOpen(true)}>
+            <button type="button" className="btn-create-module" onClick={() => { setCreateMode('standard'); setOpen(true); }}>
               + Tambah {title}
             </button>
           )}
@@ -342,6 +354,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
       {(open || editRow) && (
         <Create
           page={page}
+          initialMode={createMode}
           editRow={editRow}
           editItems={editRow ? prItemsForPr(editRow.id) : []}
           allReceivings={allReceivings}
@@ -355,7 +368,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           allVendors={allVendors}
           existingRequests={displayRows}
           allRequestsFull={allRequests}
-          close={() => { setOpen(false); setEditRow(null) }}
+          close={() => { setOpen(false); setEditRow(null); setCreateMode('standard'); }}
           refresh={refresh}
           say={say}
         />
