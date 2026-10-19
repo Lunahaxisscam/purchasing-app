@@ -681,6 +681,79 @@
   }
 }
 
+/* ---------- 14. Stok Workshop / CRM / Labor / Marketing: kartu & toolbar ----------
+   Modul-modul ini memakai <style> scoped sendiri dengan `min-width` tetap
+   (mis. .st-search min-width:240px) yang bisa memaksa lebar di layar sempit.
+   Di lapisan compact nilainya dibuat lentur — kartu tetap terbaca penuh. */
+.root :global(.st-search) {
+  min-width: 0 !important;
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
+}
+
+.root :global(.st-grid),
+.root :global(.st-kpi-grid),
+.root :global(.ls-stock-grid),
+.root :global(.ls-kpi-grid),
+.root :global(.crm-kpi-grid),
+.root :global(.mk-kpi-grid) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  min-width: 0;
+  max-width: 100%;
+}
+
+.root :global(.st-card),
+.root :global(.st-kpi-card),
+.root :global(.ls-stock-card),
+.root :global(.crm-kpi-card),
+.root :global(.mk-kpi-card) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.root :global(.st-card-nums),
+.root :global(.st-card-meta) {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.root :global(.st-card-nums) :global(b),
+.root :global(.st-kpi-val) {
+  overflow-wrap: anywhere;
+}
+
+.root :global(.st-intro),
+.root :global(.ls-intro),
+.root :global(.crm-intro),
+.root :global(.mk-intro),
+.root :global(.rc-intro),
+.root :global(.si-intro) {
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.root :global(.st-intro-copy),
+.root :global(.ls-intro-copy),
+.root :global(.crm-intro-copy),
+.root :global(.mk-intro-copy),
+.root :global(.rc-intro-copy),
+.root :global(.si-intro-copy) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.root :global(.st-intro-copy) :global(span),
+.root :global(.ls-intro-copy) :global(span),
+.root :global(.crm-intro-copy) :global(span),
+.root :global(.mk-intro-copy) :global(span),
+.root :global(.rc-intro-copy) :global(span),
+.root :global(.si-intro-copy) :global(span) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- 13. Modal / dialog milik modul (bukan CreateModal) ---------- */
 .root :global(.modal) {
   padding: 12px;
