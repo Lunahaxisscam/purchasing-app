@@ -58,16 +58,22 @@ export function decorateTables(rootEl) {
     if (!labels) {
       // Tabel tanpa <thead> (mis. daftar label|nilai 2 kolom seperti
       // "Rekap Pos Umum") tidak perlu mode stacked — cukup tabel rapat.
-      if (!table.hasAttribute('data-stack')) table.setAttribute('data-stack', 'off')
       table.setAttribute('data-compact', '')
       continue
     }
 
-    if (!table.hasAttribute('data-stack')) {
-      table.setAttribute('data-stack', labels.length >= 8 ? 'wide' : '1')
-    }
     // Penanda bahwa lapisan compact menormalkan lebar kolom tabel ini.
     table.setAttribute('data-compact', '')
+
+    // Hanya tabel LEBAR yang diubah menjadi blok berlabel:
+    //   >= 7 kolom -> stacked mulai <=1400px (tabel uang 8–10 kolom tidak
+    //                 lagi terbaca sebagai tabel di area konten ±1100px)
+    //   4–6 kolom  -> stacked hanya <=900px (di desktop masih terbaca)
+    //   <= 3 kolom -> tetap tabel rapat (umumnya pasangan label|nilai)
+    if (!table.hasAttribute('data-stack')) {
+      if (labels.length >= 7) table.setAttribute('data-stack', 'wide')
+      else if (labels.length >= 4) table.setAttribute('data-stack', 'mid')
+    }
     // Petunjuk lebar: kolom "No" sempit, kolom aksi cukup untuk tombol.
     // Hanya memengaruhi lebar kolom, bukan isi/data.
     const firstBodyRow = table.tBodies && table.tBodies[0] && table.tBodies[0].rows[0]

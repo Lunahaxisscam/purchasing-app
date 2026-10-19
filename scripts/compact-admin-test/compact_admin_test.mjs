@@ -232,9 +232,12 @@ for (const mod of MODULES) {
 
   const tables = [...host.querySelectorAll('table')]
     .filter(t => !t.closest('.print-portal, .print-dialog, .print-modal'))
-  const stacked = tables.filter(t => ['1', 'wide'].includes(t.getAttribute('data-stack')))
+  const stacked = tables.filter(t => ['1', 'wide', 'mid'].includes(t.getAttribute('data-stack')))
   const off = tables.filter(t => t.getAttribute('data-stack') === 'off')
-  const untouched = tables.filter(t => !t.hasAttribute('data-stack'))
+  // Tabel <=3 kolom sengaja TIDAK diberi data-stack (cukup tabel rapat);
+  // yang dihitung sebagai "belum diputuskan" hanya tabel yang tidak punya
+  // data-compact sama sekali.
+  const untouched = tables.filter(t => !t.hasAttribute('data-compact'))
   // RAB & BOQ punya editor dengan aturan stacked sendiri (dilewati decorator).
   const expectsDecoration = mod.id !== 'rab-boq'
   if (expectsDecoration) {
@@ -246,7 +249,8 @@ for (const mod of MODULES) {
   let unlabeled = 0
   let emptyLabelWithText = 0
   for (const t of tables) {
-    if (t.getAttribute('data-stack') === 'off') continue
+    // Hanya tabel yang masuk mode stacked yang wajib punya label per sel.
+    if (!t.hasAttribute('data-stack')) continue
     for (const tr of t.querySelectorAll('tbody tr, tfoot tr')) {
       const rowCells = [...tr.cells]
       if (rowCells.length === 1 && rowCells[0].colSpan > 1) continue

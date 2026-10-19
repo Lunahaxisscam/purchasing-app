@@ -372,6 +372,49 @@
   }
 }
 
+/* Tabel 4–6 kolom (data-stack="mid") hanya di-stack di bawah 900px; di
+   antara 901–1400px tabelnya masih terbaca sebagai tabel rapat. */
+@media (min-width: 901px) and (max-width: 1400px) {
+  .root :global(table[data-stack='mid']) {
+    display: table;
+    table-layout: fixed !important;
+  }
+
+  .root :global(table[data-stack='mid'] thead) {
+    display: table-header-group;
+  }
+
+  .root :global(table[data-stack='mid'] tbody) {
+    display: table-row-group;
+  }
+
+  .root :global(table[data-stack='mid'] tfoot) {
+    display: table-footer-group;
+  }
+
+  .root :global(table[data-stack='mid'] tr) {
+    display: table-row;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+  }
+
+  .root :global(table[data-stack='mid'] td),
+  .root :global(table[data-stack='mid'] th) {
+    display: table-cell;
+    width: auto;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 7px 8px !important;
+    text-align: left;
+  }
+
+  .root :global(table[data-stack='mid'] td::before) {
+    content: none;
+  }
+}
+
 /* ---------- 6. Dashboard: kartu metrik & shortcut ---------- */
 .root :global(.cards) {
   gap: 12px;
