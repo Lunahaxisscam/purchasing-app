@@ -31,6 +31,7 @@
 // docs/rap-contract.md bagian "Wiring yang dibutuhkan".
 // ============================================================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import { supabase } from '../../lib/supabaseClient'
 import {
   LINE_KIND,
@@ -418,7 +419,7 @@ export default function RapModule({
   const materialOptions = catalog
 
   return (
-    <div className="rap-root" data-testid="rap-root">
+    <CompactRoot className="rap-root" data-testid="rap-root">
       {/* ---------- Banner kejujuran penyimpanan ---------- */}
       <div className="rap-honest" data-testid="rap-persistence-banner">
         <strong>Draft saja — belum tersimpan di server.</strong>
@@ -956,7 +957,7 @@ export default function RapModule({
         .rap-field { min-width: 0; }
         .rap-field select, .rap-field input, .rap-field textarea { max-width: 100%; }
       `}</style>
-    </div>
+    </CompactRoot>
   )
 }
 

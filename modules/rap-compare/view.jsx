@@ -29,6 +29,7 @@
 // - Selisih = RAP - RAB (positif = rencana melebihi acuan).
 // ============================================================
 import React, { useMemo, useState } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import { buildComparison, toCsv, readRabLines, detailFor } from './logic'
 
 const DIFF_LABEL = {
@@ -171,7 +172,7 @@ export default function RapCompareModule({
   }
 
   return (
-    <div className="rc-root" data-testid="rap-compare-root">
+    <CompactRoot className="rc-root" data-testid="rap-compare-root">
       <div className="rc-intro">
         <div className="rc-intro-copy">
           <strong>Perbandingan RAB vs RAP vs Aktual</strong>
@@ -442,6 +443,6 @@ export default function RapCompareModule({
           </li>
         </ul>
       </div>
-    </div>
+    </CompactRoot>
   )
 }

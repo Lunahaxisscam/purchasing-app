@@ -10,6 +10,7 @@ import {
   volumeText,
   normalizeStatus
 } from '../lib/constants'
+import CompactRoot from './CompactRoot'
 
 // ============================================================
 // Modul BUDGETING — khusus role admin (adminOnly).
@@ -672,7 +673,7 @@ export default function Planning({ rows, say, setPage, refresh }) {
   }
 
   return (
-    <>
+    <CompactRoot className="planning-compact">
       {/* Header & filter proyek */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
@@ -1505,6 +1506,6 @@ export default function Planning({ rows, say, setPage, refresh }) {
           </form>
         </div>
       )}
-    </>
+    </CompactRoot>
   )
 }

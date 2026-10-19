@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { formatDateTime, timeAgo } from '../lib/constants'
+import CompactRoot from './CompactRoot'
 
 // ============================================================
 // Modul SETTINGS — khusus role admin.
@@ -266,7 +267,7 @@ export default function Settings({ role = 'user', session }) {
   const filteredLogs = entityFilter === 'all' ? logs : logs.filter(l => l.entity === entityFilter)
 
   return (
-    <>
+    <CompactRoot className="settings-compact">
       <div className="toolbar">
         <div className="filter-tabs">
           <button type="button" className={`pill ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>
@@ -609,6 +610,6 @@ export default function Settings({ role = 'user', session }) {
           </form>
         </div>
       )}
-    </>
+    </CompactRoot>
   )
 }

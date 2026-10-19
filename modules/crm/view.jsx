@@ -22,6 +22,7 @@
 // - Tidak ada customer contoh. Kosong berarti kosong.
 // ============================================================
 import React, { useMemo, useState } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import {
   readCustomers,
   mergeCustomers,
@@ -201,7 +202,7 @@ export default function CrmModule({
   }
 
   return (
-    <div className="crm-root" data-testid="crm-root" data-capability={capability}>
+    <CompactRoot className="crm-root" data-testid="crm-root" data-capability={capability}>
       <div className="crm-intro">
         <div className="crm-intro-copy">
           <strong>Customer CRM</strong>
@@ -538,6 +539,6 @@ export default function CrmModule({
           {DATA_LIMITATIONS.map(l => <li key={l}>{l}</li>)}
         </ul>
       </div>
-    </div>
+    </CompactRoot>
   )
 }

@@ -26,6 +26,7 @@
 // - Tidak ada lead contoh. Papan kosong berarti kosong.
 // ============================================================
 import React, { useMemo, useState } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import {
   readLeads,
   mergeLeads,
@@ -251,7 +252,7 @@ export default function MarketingModule({
   }
 
   return (
-    <div className="mk-root" data-testid="mk-root" data-capability={capability}>
+    <CompactRoot className="mk-root" data-testid="mk-root" data-capability={capability}>
       <div className="mk-intro">
         <div className="mk-intro-copy">
           <strong>Marketing Lead Pipeline</strong>
@@ -699,7 +700,7 @@ export default function MarketingModule({
           {DATA_LIMITATIONS.map(l => <li key={l}>{l}</li>)}
         </ul>
       </div>
-    </div>
+    </CompactRoot>
   )
 }
 

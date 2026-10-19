@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { rupiah, formatDateTime, timeAgo } from '../lib/constants'
+import CompactRoot from './CompactRoot'
 
 // ============================================================
 // Modul UPAH TUKANG — khusus role admin (READ-ONLY).
@@ -226,7 +227,7 @@ export default function TukangUpah() {
   }, [tukang])
 
   return (
-    <>
+    <CompactRoot className="upah-compact">
       {/* Toolbar: pilih tukang + refresh dari Drive */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
@@ -651,6 +652,6 @@ export default function TukangUpah() {
           )}
         </>
       )}
-    </>
+    </CompactRoot>
   )
 }

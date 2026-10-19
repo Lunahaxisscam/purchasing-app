@@ -11,6 +11,7 @@
 // modules/stock/logic.js (DATA_LIMITATIONS) dan dirender di panel bawah.
 // ============================================================
 import React, { useMemo, useState } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import {
   UNAVAILABLE_LABEL,
   PREVIEW_LABEL,
@@ -75,7 +76,7 @@ export default function StockModule({ allMaterials = [] }) {
   }
 
   return (
-    <div className="st-root" data-testid="stock-root">
+    <CompactRoot className="st-root" data-testid="stock-root">
       <div className="st-intro">
         <div className="st-intro-copy">
           <strong>Stok Workshop</strong>
@@ -282,6 +283,6 @@ export default function StockModule({ allMaterials = [] }) {
         .st-limits ul { margin:0; padding-left:18px; }
         .st-limits li { margin-bottom:2px; }
       `}</style>
-    </div>
+    </CompactRoot>
   )
 }

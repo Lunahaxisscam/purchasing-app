@@ -19,6 +19,7 @@
 // ============================================================
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import CreateInvoiceModal from './CreateInvoiceModal'
 import { buildSalesInvoicePdf, downloadPdf, missingPaymentFields, missingIssuerFields } from './pdf'
 import {
@@ -274,7 +275,7 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   })()
 
   return (
-    <div className="si-root" data-testid="sales-invoice-root">
+    <CompactRoot className="si-root" data-testid="sales-invoice-root">
       {/* HEADER */}
       <div className="si-intro">
         <div className="si-intro-copy">
@@ -723,6 +724,6 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         .si-btn-danger { background: #b91c1c; border: 1px solid #991b1b; color: #fff; padding: 7px 18px; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
         .si-btn-submit:disabled, .si-btn-danger:disabled, .si-btn-cancel:disabled { opacity: 0.55; cursor: not-allowed; }
       `}</style>
-    </div>
+    </CompactRoot>
   )
 }

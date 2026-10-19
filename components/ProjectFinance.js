@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatusStyle } from '../lib/constants'
 import { targetBudget70 } from '../lib/money'
 import { WBS_ESTIMATE_LABEL, WBS_ESTIMATE_NOTE, actualLaborForProject } from '../lib/laborSource'
+import CompactRoot from './CompactRoot'
 
 // ============================================================
 // Modul PROJECT FINANCE — khusus role admin (READ-ONLY).
@@ -182,7 +183,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
   const hasDriveData = !!(drive && (summary.revenue > 0 || summary.material > 0))
 
   return (
-    <>
+    <CompactRoot className="project-finance-compact">
       {/* Toolbar: pilih proyek on-going */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
@@ -529,6 +530,6 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
           )}
         </>
       )}
-    </>
+    </CompactRoot>
   )
 }

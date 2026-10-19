@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { rupiah, formatDateTime, timeAgo, persen } from '../lib/constants'
 import { targetBudget70 } from '../lib/money'
 import { WBS_ESTIMATE_LABEL } from '../lib/laborSource'
+import CompactRoot from './CompactRoot'
 
 // ============================================================
 // Modul FINANCE — khusus role admin.
@@ -642,7 +643,7 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
   }, [rows])
 
   return (
-    <>
+    <CompactRoot className="finance-compact">
       {/* ==== FILTER PERIODE — tab Ringkasan Perusahaan (arahan DAT) ====
           Pilihan Cepat: Semua Periode (default) / Bulan Ini / Bulan Lalu /
           Kustom Tanggal (+ input Dari & Sampai Tanggal). Mengontrol kolom
@@ -1705,6 +1706,6 @@ export default function Finance({ rows, session, refresh, initialDriveRows, init
           </div>
         </div>
       )}
-    </>
+    </CompactRoot>
   )
 }

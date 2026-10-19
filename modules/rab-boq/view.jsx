@@ -17,6 +17,7 @@
 //      source (XSS/limits/type validation).
 // ============================================================
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import {
   num, calcCostArea, calcCostPart, calcItem, breakdownTotal, calcTotals,
   thousand, rupiahFromK, normalizeItem, defaultBreakdown,
@@ -494,7 +495,7 @@ export default function BoqModule({ projects = [], refresh }) {
   const plainPanelVisible = selectedTemplate && selectedTemplate !== 'Plain' && selectedTemplate !== 'Interior'
 
   return (
-    <div className="boq-root">
+    <CompactRoot className="boq-root">
       <style>{boqScopedCss}</style>
 
       {/* ===== Toolbar (run 58 — feedback DAT screenshot 1792155471393): hanya
@@ -953,7 +954,7 @@ export default function BoqModule({ projects = [], refresh }) {
           onClose={() => setProjectModal(false)}
         />
       )}
-    </div>
+    </CompactRoot>
   )
 }
 

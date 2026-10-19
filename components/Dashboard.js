@@ -1,6 +1,7 @@
 import React from 'react'
 import { exportWorkbook } from '../lib/workflow'
 import { headersFor, parseHandoverNote } from '../lib/constants'
+import CompactRoot from './CompactRoot'
 
 // Ikon kartu metrik (stroke SVG) — menggantikan emoji agar terlihat rapi
 // dan konsisten di semua platform. Murni visual.
@@ -74,7 +75,7 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     ['settings', 'Settings', 'Admin', 'tone-neutral']
   ] : []
   return (
-    <>
+    <CompactRoot className="dashboard-compact">
       <div className="cards">
         {cards.map(([k, t, count, tone, hint]) => (
           <button className={`card ${tone}`} onClick={() => setPage(k)} key={k} type="button">
@@ -145,6 +146,6 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
           </button>
         </div>
       </div>
-    </>
+    </CompactRoot>
   )
 }

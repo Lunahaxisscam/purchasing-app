@@ -19,6 +19,7 @@
 //   - Filter project & periode + ekspor CSV hanya dari baris yang tampil.
 // ============================================================
 import React, { useMemo, useState } from 'react'
+import CompactRoot from '../../components/CompactRoot'
 import {
   UNAVAILABLE_LABEL,
   ESTIMATE_LABEL,
@@ -545,7 +546,7 @@ export default function LaborStockModule({
   }
 
   return (
-    <div className="ls-root" data-testid="labor-stock-root" data-capability={capability}>
+    <CompactRoot className="ls-root" data-testid="labor-stock-root" data-capability={capability}>
       <div className="ls-intro">
         <div className="ls-intro-copy">
           <strong>Actual Labor &amp; Workshop Stock</strong>
@@ -579,6 +580,6 @@ export default function LaborStockModule({
           {DATA_LIMITATIONS.map(l => <li key={l}>{l}</li>)}
         </ul>
       </div>
-    </div>
+    </CompactRoot>
   )
 }
