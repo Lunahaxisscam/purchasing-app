@@ -192,7 +192,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
             <select
               value={projectId}
               onChange={e => setProjectId(e.target.value)}
-              style={{ minWidth: '280px', padding: '9px 13px', fontSize: '13px' }}
+              style={{ width: '100%', maxWidth: '360px', padding: '9px 13px', fontSize: '13px' }}
             >
               {activeProjects.length === 0 && <option value="">— belum ada proyek on-going —</option>}
               {activeProjects.map(p => (

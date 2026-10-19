@@ -28,10 +28,13 @@ function headerLabels(table) {
   if (!head || !head.rows.length) return null
   // Ambil baris header terakhir (header bertingkat: label paling spesifik).
   const row = head.rows[head.rows.length - 1]
-  const labels = Array.from(row.cells).map(c => (c.textContent || '').replace(/\s+/g, ' ').trim())
+  const labels = Array.from(row.cells).map(c => {
+    const text = (c.textContent || '').replace(/\s+/g, ' ').trim()
+    // Kolom aksi sering hanya punya aria-label (header visual kosong).
+    return text || (c.getAttribute('aria-label') || '').trim()
+  })
   return labels.length ? labels : null
 }
-
 /**
  * Tandai semua tabel di dalam `rootEl` supaya bisa stacked + berlabel.
  * Idempoten: aman dipanggil berkali-kali (observer / re-render).
@@ -52,11 +55,25 @@ export function decorateTables(rootEl) {
     if (table.getAttribute('data-stack') === 'off') continue
 
     const labels = headerLabels(table)
-    if (!labels) continue
+    if (!labels) {
+      // Tabel tanpa <thead> (mis. daftar label|nilai 2 kolom seperti
+      // "Rekap Pos Umum") tidak perlu mode stacked — cukup tabel rapat.
+      if (!table.hasAttribute('data-stack')) table.setAttribute('data-stack', 'off')
+      table.setAttribute('data-compact', '')
+      continue
+    }
 
     if (!table.hasAttribute('data-stack')) {
       table.setAttribute('data-stack', labels.length >= 8 ? 'wide' : '1')
     }
+    // Penanda bahwa lapisan compact menormalkan lebar kolom tabel ini.
+    table.setAttribute('data-compact', '')
+    // Petunjuk lebar: kolom "No" sempit, kolom aksi cukup untuk tombol.
+    // Hanya memengaruhi lebar kolom, bukan isi/data.
+    const firstBodyRow = table.tBodies && table.tBodies[0] && table.tBodies[0].rows[0]
+    const firstText = firstBodyRow && firstBodyRow.cells[0] ? (firstBodyRow.cells[0].textContent || '').trim() : ''
+    if (/^\d{1,3}$/.test(firstText)) table.setAttribute('data-col-narrow', '')
+    if (/aksi|action/i.test(labels[labels.length - 1] || '')) table.setAttribute('data-col-actions', '')
 
     const bodies = table.tBodies ? Array.from(table.tBodies) : []
     const footer = table.tFoot ? [table.tFoot] : []

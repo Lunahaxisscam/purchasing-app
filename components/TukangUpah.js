@@ -236,7 +236,7 @@ export default function TukangUpah() {
             <select
               value={tukangKey}
               onChange={e => setTukangKey(e.target.value)}
-              style={{ minWidth: '280px', padding: '9px 13px', fontSize: '13px' }}
+              style={{ width: '100%', maxWidth: '360px', padding: '9px 13px', fontSize: '13px' }}
             >
               {rows.length === 0 && <option value="">— belum ada data tukang —</option>}
               {rows.map(r => (
