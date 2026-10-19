@@ -140,10 +140,10 @@
   border-collapse: collapse;
 }
 
-.root :global(.table),
-.root :global(.panel.table),
-.root :global([class$='-table-wrap']),
-.root :global(.table-wrap) {
+.root.root :global(.table),
+.root.root :global(.panel.table),
+.root.root :global([class$='-table-wrap']),
+.root.root :global(.table-wrap) {
   overflow: visible !important;
   max-width: 100%;
   min-width: 0;

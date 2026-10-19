@@ -93,7 +93,7 @@ const MODULES = [
   { id: 'labor-stock', file: 'modules/labor-stock/view.jsx', props: '{ rows: MOCK, laborRows: MOCK.tukang_projects, estimateRows: MOCK.project_plans, materials: MOCK.materials }' },
   { id: 'marketing', file: 'modules/marketing/view.jsx', props: '{ rows: MOCK, leads: MOCK.leads, customers: MOCK.customers }' },
   { id: 'rap-compare', file: 'modules/rap-compare/view.jsx', props: '{ rows: MOCK, allProjects: MOCK.projects, rabItems: MOCK.rab_items }' },
-  { id: 'sales-invoice', file: 'modules/sales-invoice/view.jsx', props: '{ invoices: MOCK.sales_invoices, projects: MOCK.projects, allProjects: MOCK.projects }' },
+  { id: 'sales-invoice', file: 'modules/sales-invoice/view.jsx', props: '{ invoices: MOCK.sales_invoices, projects: MOCK.projects, allProjects: MOCK.projects }', clicks: ['.si-btn-create'] },
   { id: 'rap', file: 'modules/rap/view.jsx', props: '{ projects: MOCK.projects, say: () => {}, setPage: () => {}, materials: MOCK.materials, initialDraft: RAP_DRAFT }', clicks: ['[data-testid="rap-act-add-line"]', '[data-testid="rap-act-add-material"]'] },
   { id: 'rab-boq', file: 'modules/rab-boq/view.jsx', props: '{ projects: MOCK.projects, refresh: () => {} }', clicks: ['.boq-add-row'] }
 ]
@@ -222,6 +222,10 @@ for (const mod of MODULES) {
   rendered += 1
 
   const host = globalThis.__HOST__
+  const clicked = globalThis.__CLICKED__ || []
+  const missing = clicked.filter(c => !c.found)
+  check(`${mod.id}: semua pemicu state ditemukan (${clicked.length - missing.length}/${clicked.length})`,
+    missing.length === 0, missing.map(c => c.sel).join(', '))
   const compactRoot = host.firstElementChild
   check(`${mod.id}: root memakai scope compact`,
     !!compactRoot && String(compactRoot.className || '').includes('cm_root'))
