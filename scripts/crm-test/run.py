@@ -47,11 +47,55 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 SB = '/tmp/crm-verify'
 
+# --- COMPACT_ADMIN_ADAPTER: dependency CompactRoot (compact UI Admin Suite) ------------
+# CompactRoot mengimpor CSS module; Node ESM tidak bisa memuat .css. Helper
+# di bawah menulis stub kelas ke sandbox dan mengalihkan specifier CSS
+# module ke stub itu. Tidak ada assertion yang diubah.
+def _compact_copy_root():
+    """Harness yang menyalin file eksplisit: pastikan CompactRoot.js ada."""
+    src = os.path.join(REPO, 'components', 'CompactRoot.js')
+    dst_dir = os.path.join(SB, 'components')
+    os.makedirs(dst_dir, exist_ok=True)
+    dst = os.path.join(dst_dir, 'CompactRoot.js')
+    if not os.path.exists(dst):
+        shutil.copy(src, dst)
+
+
+def _compact_fix_sandbox(sb=None):
+    root = sb or SB
+    stub = os.path.join(root, 'components', 'compact-admin.stub.mjs')
+    os.makedirs(os.path.dirname(stub), exist_ok=True)
+    open(stub, 'w', encoding='utf-8').write(
+        "export default new Proxy({}, { get: (t, k) => 'cm_' + String(k) })\n"
+    )
+    pat = re.compile(r"(['\"])[^'\"]*compact-admin\.module(\.css|\.mjs)?\1")
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in ('node_modules', 'dist', '.next')]
+        for name in filenames:
+            if not name.endswith(('.mjs', '.js', '.jsx', '.mts')):
+                continue
+            p = os.path.join(dirpath, name)
+            try:
+                src = open(p, encoding='utf-8').read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if 'compact-admin.module' not in src:
+                continue
+            rel_stub = os.path.relpath(stub, dirpath).replace(os.sep, '/')
+            if not rel_stub.startswith('.'):
+                rel_stub = './' + rel_stub
+            new = pat.sub(lambda m: m.group(1) + rel_stub + m.group(1), src)
+            if new != src:
+                open(p, 'w', encoding='utf-8').write(new)
+# --- end COMPACT_ADMIN_ADAPTER ---------------------------------------------------------
+
+
 # Closure import dari modules/crm/{view,selector}.jsx -> logic.js (self-contained).
 REL_FILES = [
     'modules/crm/view.jsx',
     'modules/crm/selector.jsx',
-    'modules/crm/logic.js'
+    'modules/crm/logic.js',
+    'components/CompactRoot.js'
 ]
 
 
@@ -106,6 +150,7 @@ shutil.copy(os.path.join(HERE, 'render_test.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'responsive_test.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
+_compact_fix_sandbox()
 r = subprocess.run(['node', 'compile_sandbox.mjs', REPO], cwd=SB)
 if r.returncode:
     sys.exit(r.returncode)

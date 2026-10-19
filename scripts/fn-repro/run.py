@@ -38,6 +38,50 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 SB = '/tmp/fn-review03'
 
+# --- COMPACT_ADMIN_ADAPTER: dependency CompactRoot (compact UI Admin Suite) ----------
+# CompactRoot mengimpor CSS module; Node ESM tidak bisa memuat .css. Helper
+# di bawah menulis stub kelas ke sandbox dan mengalihkan specifier CSS
+# module ke stub itu. Tidak ada assertion yang diubah.
+def _compact_copy_root():
+    """Harness yang menyalin file eksplisit: pastikan CompactRoot.js ada."""
+    src = os.path.join(REPO, 'components', 'CompactRoot.js')
+    dst_dir = os.path.join(SB, 'components')
+    os.makedirs(dst_dir, exist_ok=True)
+    dst = os.path.join(dst_dir, 'CompactRoot.js')
+    if not os.path.exists(dst):
+        shutil.copy(src, dst)
+
+
+def _compact_fix_sandbox(sb=None):
+    """Ganti import CSS module dengan objek kelas inline (tanpa file stub).
+
+    Dilakukan pada SALINAN di sandbox, bukan pada repo. Bentuk inline dipilih
+    karena beberapa harness menambahkan '.mjs' ke setiap specifier relatif,
+    sehingga file stub bisa berubah nama dan gagal di-resolve.
+    """
+    root = sb or SB
+    line_pat = re.compile(r"^[ \t]*import\s+([A-Za-z_$][\w$]*)\s+from\s+[\x27\x22][^\x27\x22]*compact-admin\.module\.css[\x27\x22][ \t]*;?[ \t]*$", re.M)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in ('node_modules', 'dist', '.next')]
+        for name in filenames:
+            if not name.endswith(('.mjs', '.js', '.jsx', '.mts')):
+                continue
+            p = os.path.join(dirpath, name)
+            try:
+                src = open(p, encoding='utf-8').read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if 'compact-admin.module.css' not in src:
+                continue
+            new = line_pat.sub(
+                lambda mm: "const " + mm.group(1) + " = new Proxy({}, { get: (t, k) => 'cm_' + String(k) })",
+                src
+            )
+            if new != src:
+                open(p, 'w', encoding='utf-8').write(new)
+# --- end COMPACT_ADMIN_ADAPTER -------------------------------------------------------
+
+
 FILES = [
     'components/Planning.js',
     'components/Finance.js',
@@ -45,6 +89,7 @@ FILES = [
     'lib/constants.js',
     'lib/money.js',
     'lib/laborSource.js',
+    'components/CompactRoot.js'
 ]
 
 IMPORT_RE = re.compile(r"((?:\bfrom\s+|\bimport\s+)['\"])(\.[^'\"]+)(['\"])")
@@ -97,6 +142,7 @@ def main():
     shutil.copyfile(os.path.join(HERE, 'regression_test.mjs'),
                     os.path.join(SB, 'regression_test.mjs'))
 
+    _compact_fix_sandbox()
     r = subprocess.run(['node', compile_script], cwd=SB, capture_output=True, text=True)
     if r.returncode != 0:
         print('GAGAL kompilasi SWC:')
@@ -133,7 +179,8 @@ const targets = [
   'components/ProjectFinance.js',
   'lib/constants.js',
   'lib/money.js',
-  'lib/laborSource.js'
+  'lib/laborSource.js',
+  'components/CompactRoot.js'
 ]
 for (const rel of targets) {
   const src = path.join(SB, rel)

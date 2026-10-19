@@ -35,12 +35,56 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 SB = '/tmp/rap-verify'
 
+# --- COMPACT_ADMIN_ADAPTER: dependency CompactRoot (compact UI Admin Suite) ------------
+# CompactRoot mengimpor CSS module; Node ESM tidak bisa memuat .css. Helper
+# di bawah menulis stub kelas ke sandbox dan mengalihkan specifier CSS
+# module ke stub itu. Tidak ada assertion yang diubah.
+def _compact_copy_root():
+    """Harness yang menyalin file eksplisit: pastikan CompactRoot.js ada."""
+    src = os.path.join(REPO, 'components', 'CompactRoot.js')
+    dst_dir = os.path.join(SB, 'components')
+    os.makedirs(dst_dir, exist_ok=True)
+    dst = os.path.join(dst_dir, 'CompactRoot.js')
+    if not os.path.exists(dst):
+        shutil.copy(src, dst)
+
+
+def _compact_fix_sandbox(sb=None):
+    root = sb or SB
+    stub = os.path.join(root, 'components', 'compact-admin.stub.mjs')
+    os.makedirs(os.path.dirname(stub), exist_ok=True)
+    open(stub, 'w', encoding='utf-8').write(
+        "export default new Proxy({}, { get: (t, k) => 'cm_' + String(k) })\n"
+    )
+    pat = re.compile(r"(['\"])[^'\"]*compact-admin\.module(\.css|\.mjs)?\1")
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in ('node_modules', 'dist', '.next')]
+        for name in filenames:
+            if not name.endswith(('.mjs', '.js', '.jsx', '.mts')):
+                continue
+            p = os.path.join(dirpath, name)
+            try:
+                src = open(p, encoding='utf-8').read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if 'compact-admin.module' not in src:
+                continue
+            rel_stub = os.path.relpath(stub, dirpath).replace(os.sep, '/')
+            if not rel_stub.startswith('.'):
+                rel_stub = './' + rel_stub
+            new = pat.sub(lambda m: m.group(1) + rel_stub + m.group(1), src)
+            if new != src:
+                open(p, 'w', encoding='utf-8').write(new)
+# --- end COMPACT_ADMIN_ADAPTER ---------------------------------------------------------
+
+
 # File sumber yang disalin VERBATIM (hanya modul RAP; shell tidak disentuh).
 REL_FILES = [
     'modules/rap/model.js',
     'modules/rap/budgetingBridge.js',
     'modules/rap/store.js',
     'modules/rap/view.jsx',
+    'components/CompactRoot.js'
 ]
 
 
@@ -90,6 +134,7 @@ for f in ('unit_test.mjs', 'render_test.mjs'):
     shutil.copy(os.path.join(HERE, f), SB)
 
 print(f'Sandbox: {SB}\n')
+_compact_fix_sandbox()
 r = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB)
 if r.returncode:
     sys.exit(r.returncode)

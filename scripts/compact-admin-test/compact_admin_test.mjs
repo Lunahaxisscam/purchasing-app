@@ -48,17 +48,24 @@ console.log('\n=== A. KONTRAK CSS (compact-admin.module.css) ===')
 const cssPath = path.join(REPO, 'components', 'compact-admin.module.css')
 check('file CSS module ada', fs.existsSync(cssPath))
 const css = fs.readFileSync(cssPath, 'utf8')
+// Komentar CSS memuat contoh aturan globals yang di-netralkan — jangan
+// ikut diuji sebagai deklarasi.
+const cssDecls = css.replace(/\/\*[\s\S]*?\*\//g, '')
 
 check('scope .root dipakai', /\.root\b/.test(css))
 check('blok stacked table[data-stack] ada', /table\[data-stack\]/.test(css))
 check('label kolom via attr(data-label)', /content:\s*attr\(data-label\)/.test(css))
 check('tabel dipaksa table-layout: fixed', /table-layout:\s*fixed\s*!important/.test(css))
 check('tidak ada overflow-x: hidden pada tabel',
-  !/table[^{]*\{[^}]*overflow-x:\s*hidden/i.test(css))
+  !/table[^{]*\{[^}]*overflow-x:\s*hidden/i.test(cssDecls))
+check('tidak ada scroller samping pada wadah tabel (overflow-x:auto)',
+  !/overflow-x:\s*auto/i.test(cssDecls))
+check('wadah tabel menetralkan overflow globals',
+  /\.table[^{]*\{[^}]*overflow:\s*visible\s*!important/s.test(cssDecls))
 check('filter-tabs tidak lagi jadi baris geser',
-  /\.filter-tabs[^}]*overflow-x:\s*visible\s*!important/s.test(css))
+  /\.filter-tabs[^}]*overflow-x:\s*visible\s*!important/s.test(cssDecls))
 check('angka tabular-nums dipakai', /tabular-nums/.test(css))
-check('media query stacked <=1180px ada', /@media \(max-width: 1180px\)/.test(css))
+check('media query stacked <=1400px ada', /@media \(max-width: 1400px\)/.test(cssDecls))
 check('media query sentuh <=1024px ada', /@media \(max-width: 1024px\)/.test(css))
 check('editor BOQ punya aturan sendiri', /\.boq-cost-row/.test(css) && /\.boq-workspace/.test(css))
 
@@ -235,7 +242,7 @@ for (const mod of MODULES) {
         if (!text && !hasControl) continue
         cells += 1
         if (!td.hasAttribute('data-label')) unlabeled += 1
-        else if (!td.getAttribute('data-label') && text) emptyLabelWithText += 1
+        else if (!td.getAttribute('data-label') && text && tr.parentElement.tagName === 'TBODY') emptyLabelWithText += 1
       }
     }
   }

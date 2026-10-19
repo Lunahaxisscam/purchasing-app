@@ -78,6 +78,7 @@ export function decorateTables(rootEl) {
     const bodies = table.tBodies ? Array.from(table.tBodies) : []
     const footer = table.tFoot ? [table.tFoot] : []
     for (const section of [...bodies, ...footer]) {
+      const isFooter = section === table.tFoot
       const rows = section.rows
       for (let r = 0; r < rows.length; r += 1) {
         const cells = rows[r].cells
@@ -99,6 +100,13 @@ export function decorateTables(rootEl) {
             // tidak ada data yang hilang bila tidak dirender saat stacked.
             td.setAttribute('data-label', '')
             td.setAttribute('data-empty', '')
+            continue
+          }
+          if (isFooter && span > 1) {
+            // Caption baris total ("TOTAL KESELURUHAN BATCH") sudah
+            // menjelaskan dirinya sendiri — tampil selebar baris tanpa
+            // label gabungan yang membingungkan.
+            td.setAttribute('data-label', '')
             continue
           }
           td.setAttribute('data-label', label)
@@ -127,9 +135,11 @@ export default function CompactRoot({ className = '', children, ...rest }) {
     return () => obs.disconnect()
   }, [])
 
-  return (
-    <div ref={ref} className={`${className} ${compact.root}`.trim()} {...rest}>
-      {children}
-    </div>
+  // Sengaja memakai React.createElement (bukan JSX): file ini juga disalin
+  // apa adanya oleh harness regresi lama yang tidak mengompilasi JSX.
+  return React.createElement(
+    'div',
+    { ref, className: `${className} ${compact.root}`.trim(), ...rest },
+    children
   )
 }

@@ -120,11 +120,17 @@
   overflow-wrap: anywhere;
 }
 
-/* ---------- 3. Tabel: fixed layout, wrap, tanpa geser samping ---------- */
-/* Catatan spesifisitas: globals.css memakai `table.requests-table
+/* ---------- 3. Tabel: fixed layout, wrap, TANPA scroller samping ----------
+   globals.css memaksa `.table { overflow-x: auto !important }` dan
+   `.panel.table { overflow: hidden !important }` (<=1024px). Keduanya
+   di-netralkan di sini: bukan disembunyikan (data terpotong), bukan
+   dijadikan baris geser — tabel dibuat MUAT sehingga tidak ada yang
+   perlu digeser. Kalau suatu saat isi benar-benar tidak muat, halaman
+   akan melebar dan itu HARUS terlihat sebagai bug, bukan ditutupi.
+
+   Spesifisitas: globals memakai `table.requests-table
    { min-width: 1250px !important }` (0,1,1). Selector `.root.root table`
-   (0,2,1) dipakai di bawah supaya kemenangan TIDAK bergantung pada urutan
-   file CSS hasil build. */
+   (0,2,1) dipakai supaya kemenangan tidak bergantung urutan file CSS. */
 .root.root :global(table),
 .root :global(.table) :global(table) {
   width: 100% !important;
@@ -135,16 +141,20 @@
 }
 
 .root :global(.table),
+.root :global(.panel.table),
 .root :global([class$='-table-wrap']),
 .root :global(.table-wrap) {
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible !important;
   max-width: 100%;
   min-width: 0;
 }
 
-.root :global(th),
-.root :global(td) {
+/* Sel tabel: berlaku untuk tabel yang diproses lapisan compact
+   (data-compact). Tabel RAB & BOQ punya desain sel sendiri (dokumen
+   quotation) dan TIDAK diberi data-compact, jadi aturan ini tidak
+   menimpanya. */
+.root :global(table[data-compact]) :global(th),
+.root :global(table[data-compact]) :global(td) {
   white-space: normal !important;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -154,7 +164,7 @@
   vertical-align: top;
 }
 
-.root :global(th) {
+.root :global(table[data-compact]) :global(th) {
   font-size: 10.5px !important;
   letter-spacing: 0.02em;
   line-height: 1.3;
@@ -177,17 +187,21 @@
 }
 
 /* Kolom "No" cukup 1–2 digit: beri porsi kecil supaya kolom teks/uang
-   lebih lega. Kolom aksi diberi porsi cukup untuk tombol. */
-.root :global(table[data-col-narrow]) > :global(thead) > :global(tr) > :global(th:first-child),
-.root :global(table[data-col-narrow]) > :global(tbody) > :global(tr) > :global(td:first-child),
-.root :global(table[data-col-narrow]) > :global(tfoot) > :global(tr) > :global(td:first-child) {
-  width: 6% !important;
-}
+   lebih lega. Kolom aksi diberi porsi cukup untuk tombol. HANYA berlaku
+   saat tabel masih berbentuk tabel (>=1401px) — di mode stacked setiap sel
+   selebar container. */
+@media (min-width: 1401px) {
+  .root :global(table[data-col-narrow]) > :global(thead) > :global(tr) > :global(th:first-child),
+  .root :global(table[data-col-narrow]) > :global(tbody) > :global(tr) > :global(td:first-child),
+  .root :global(table[data-col-narrow]) > :global(tfoot) > :global(tr) > :global(td:first-child) {
+    width: 6% !important;
+  }
 
-.root :global(table[data-col-actions]) > :global(thead) > :global(tr) > :global(th:last-child),
-.root :global(table[data-col-actions]) > :global(tbody) > :global(tr) > :global(td:last-child),
-.root :global(table[data-col-actions]) > :global(tfoot) > :global(tr) > :global(td:last-child) {
-  width: 13% !important;
+  .root :global(table[data-col-actions]) > :global(thead) > :global(tr) > :global(th:last-child),
+  .root :global(table[data-col-actions]) > :global(tbody) > :global(tr) > :global(td:last-child),
+  .root :global(table[data-col-actions]) > :global(tfoot) > :global(tr) > :global(td:last-child) {
+    width: 13% !important;
+  }
 }
 
 /* Angka: rata kanan + tabular; boleh turun baris pada spasi
@@ -247,12 +261,17 @@
   text-align: right;
 }
 
-/* ---------- 5. Baris tabel berlabel -> blok stacked (<= 1180px) ----------
+/* ---------- 5. Baris tabel berlabel -> blok stacked (<= 1400px) ----------
    Aktif untuk <table data-stack> saja. Setiap <td> punya data-label;
    td pertama tanpa label menjadi judul baris. Tidak ada kolom hilang:
    label + nilai tampil berpasangan, satu blok per baris data.
-   Di atas 1180px tabel tetap tabel rapat (fixed layout, tanpa geser). */
-@media (max-width: 1180px) {
+
+   Ambang 1400px dipilih dari hitungan nyata: viewport 1440 − sidebar
+   254 − padding konten 88 = ±1098px area tabel. Tabel 8–10 kolom uang
+   di bawah ambang itu tidak lagi terbaca sebagai tabel, jadi diubah
+   menjadi baris berlabel (grouped) — bukan dipotong, bukan digeser.
+   Di atas 1400px tabel tetap tabel rapat (fixed layout). */
+@media (max-width: 1400px) {
   .root :global(table[data-stack]) {
     display: block;
     width: 100% !important;
@@ -410,9 +429,10 @@
 }
 
 /* ---------- 7. Finance / ProjectFinance / Budgeting / Upah ---------- */
-/* Panel dengan tabel langsung (mis. Rekap Pos Umum) tidak menggeser halaman. */
+/* Panel dengan tabel langsung (mis. Rekap Pos Umum) ikut aturan tabel
+   compact di atas: tidak ada scroller samping. */
 .root :global(.panel):has(> table) {
-  overflow-x: auto;
+  overflow: visible !important;
   max-width: 100%;
 }
 
@@ -459,7 +479,15 @@
 }
 
 .root :global(.boq-workspace) {
-  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+/* Di bawah 1280px panel samping BOQ turun ke bawah editor supaya kolom
+   item (No/Item/Area/Spec/Vol/MEA/Price/Total) tetap muat tanpa geser. */
+@media (max-width: 1280px) {
+  .root :global(.boq-workspace) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 .root :global(.boq-side) {
@@ -470,7 +498,7 @@
 
 .root :global(.boq-table-wrap) {
   padding: 0 8px 12px;
-  overflow-x: auto;
+  overflow: visible !important;
   max-width: 100%;
 }
 
@@ -510,10 +538,26 @@
   }
 }
 
-/* ---------- 10. Marketing: papan stage tidak memaksa lebar ---------- */
+/* ---------- 10. Marketing: papan stage menyesuaikan lebar tersedia ----------
+   Jumlah kolom tetap mengikuti globals.css (1 → 3 → 5). Yang ditambahkan
+   hanya jaminan item boleh menyusut (minmax 0) supaya kartu lead panjang
+   tidak melebarkan halaman, plus penurunan jumlah kolom saat ruang
+   tersedia menyempit karena sidebar/zoom. */
 .root :global(.mk-board) {
-  grid-template-columns: minmax(0, 1fr) !important;
-  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 1400px) {
+  .root :global(.mk-board) {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .root :global(.mk-board) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 .root :global(.mk-column),
@@ -528,7 +572,7 @@
 
 /* ---------- 11. RAP: baris editor jadi blok berlabel saat sempit ---------- */
 .root :global(.rap-table-wrap) {
-  overflow-x: auto;
+  overflow: visible !important;
   max-width: 100%;
 }
 
@@ -556,7 +600,7 @@
 .root :global(.rc-table-wrap),
 .root :global(.ls-table-wrap),
 .root :global(.si-table-wrap) {
-  overflow-x: auto;
+  overflow: visible !important;
   max-width: 100%;
   min-width: 0;
 }
@@ -564,6 +608,77 @@
 .root :global(.crm-actions) {
   flex-wrap: wrap;
   justify-content: flex-start;
+}
+
+/* ---------- 13b. Budgeting: input persentase custom & grid 4 pilar ---------- */
+.root :global(.budget-pct-grid) {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.root :global(.budget-pct-field) {
+  min-width: 0;
+}
+
+.root :global(.custom-pct-input) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.root :global(.budget-overview-strip),
+.root :global(.anomaly-items-grid),
+.root :global(.budget-cards-grid) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .root :global(.budget-pct-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .root :global(.budget-pct-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .root :global(.anomaly-items-grid),
+  .root :global(.budget-cards-grid) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* ---------- 13c. Invoice Penjualan: modal & baris item ---------- */
+.root :global(.si-modal-overlay) {
+  padding: 10px;
+}
+
+.root :global(.si-modal-card) {
+  width: 100%;
+  max-width: min(760px, 100%);
+  max-height: calc(100dvh - 20px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.root :global(.si-modal-body) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.root :global(.si-modal-body) :global(*) {
+  max-width: 100%;
+}
+
+@media (max-width: 820px) {
+  .root :global(.si-grid-2),
+  .root :global(.si-grid-3) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 /* ---------- 13. Modal / dialog milik modul (bukan CreateModal) ---------- */
