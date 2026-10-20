@@ -27,7 +27,7 @@ import LaborStockModule from '../modules/labor-stock/view'
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
-import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE } from '../lib/constants'
+import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
 import { submitLean, closeRequestRemaining } from '../modules/requests/submitLean'
@@ -59,6 +59,21 @@ export default function App() {
     project_plans: null
   })
   const [notice, setNotice] = useState('')
+
+  // t_da4a9ef8 (B3 — konsolidasi menu): rute lama `stock` DIALIHKAN ke
+  // `materials`, bukan dibiarkan membuka halaman kedua yang isinya sama.
+  // Semua pemanggil navigasi (sidebar, kartu dashboard, tautan modul) lewat
+  // sini, jadi tidak ada jalur yang masih bisa membuka menu duplikat; state
+  // lama/bookmark tetap aman karena `page` jatuh ke modul Material.
+  const goTo = (next) => {
+    const target = navAliasFor(next)
+    if (target) {
+      setNotice(STOCK_MENU_NOTICE)
+      setPage(target)
+      return
+    }
+    setPage(next)
+  }
   const [actionBusy, setActionBusy] = useState(false)
   const finishPrLockRef = useRef(false)
   const [noteModal, setNoteModal] = useState(null)
@@ -792,7 +807,7 @@ export default function App() {
 
   return (
     <main className="shell">
-      <Sidebar page={page} setPage={setPage} session={session} logout={logout} role={role} />
+      <Sidebar page={page} setPage={goTo} session={session} logout={logout} role={role} />
       <section className="content">
         <header>
           <div>
@@ -838,7 +853,7 @@ export default function App() {
             rows={rows}
             activeProjects={activeProjects}
             pastProjects={pastProjects}
-            setPage={setPage}
+            setPage={goTo}
             role={role}
           />
         ) : page === 'planning' ? (

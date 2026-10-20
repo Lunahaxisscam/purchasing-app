@@ -67,10 +67,14 @@ const ALL_NAV_IDS = navSections.flatMap(s => s.items.map(it => it[0]))
 // jadi jumlah yang diharapkan dihitung dari kebijakan, bukan angka hard-code.
 const VISIBLE_NAV_IDS = modules.map(it => it[0])
 const APPROVAL_ON = constants.APPROVAL_MODULE_ENABLED === true
+// t_da4a9ef8 (B3): menu Stok Workshop digabung ke Material lewat kebijakan
+// terpusat — jumlah menu TAMPIL dihitung dari kebijakan, bukan angka mati.
+const STOCK_ON = constants.STOCK_MENU_CONSOLIDATED !== true
 check('navSections memuat tepat 3 section (Operasional, Pengadaan, Admin Suite)', navSections.length === 3)
 check('total menu di navSections (katalog) = 21', ALL_NAV_IDS.length === 21)
-check(`total menu TAMPIL = ${APPROVAL_ON ? 21 : 20} (mengikuti kebijakan Approval)`,
-  VISIBLE_NAV_IDS.length === (APPROVAL_ON ? 21 : 20), `n=${VISIBLE_NAV_IDS.length}`)
+const EXPECTED_VISIBLE = 21 - (APPROVAL_ON ? 0 : 1) - (STOCK_ON ? 0 : 1)
+check(`total menu TAMPIL = ${EXPECTED_VISIBLE} (kebijakan Approval + konsolidasi Stok)`,
+  VISIBLE_NAV_IDS.length === EXPECTED_VISIBLE, `n=${VISIBLE_NAV_IDS.length}`)
 check('label alias past_projects terdaftar di labels', !!labels.past_projects)
 
 const EXPECTED_22_MODS = [
@@ -88,6 +92,13 @@ for (const id of EXPECTED_22_MODS) {
     // ada (reversible) dan komponennya tetap dirender di sweep ini.
     check("ID 'approvals' tetap di katalog navSections (reversible)", ALL_NAV_IDS.includes(id))
     check("ID 'approvals' TIDAK tampil di menu (kebijakan OFF)", !VISIBLE_NAV_IDS.includes(id))
+  } else if (id === 'stock' && !STOCK_ON) {
+    // t_da4a9ef8 (B3): menu digabung ke Material. Komponen + rute lama tetap
+    // hidup (dialihkan), jadi sweep render di bawah tetap menguji StockModule.
+    check("ID 'stock' tetap di katalog navSections (reversible)", ALL_NAV_IDS.includes(id))
+    check("ID 'stock' TIDAK tampil di menu (digabung ke Material)", !VISIBLE_NAV_IDS.includes(id))
+    check("target pengalihan 'stock' = 'materials' dan menu Material tampil",
+      constants.STOCK_MENU_TARGET === 'materials' && VISIBLE_NAV_IDS.includes('materials'))
   } else {
     check(`ID '${id}' terdaftar di menu tampil`, VISIBLE_NAV_IDS.includes(id))
   }

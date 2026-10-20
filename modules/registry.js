@@ -253,6 +253,10 @@ export const modules = [
     label: 'Stok Workshop',
     adminOnly: true,
     source: 'core',
+    // t_da4a9ef8 (B3): menu digabung ke Material — lihat
+    // lib/constants.js STOCK_MENU_CONSOLIDATED. Komponen tetap ada dan tetap
+    // dirender di /__smoke (bukan stub): rute lama dialihkan, data tidak dihapus.
+    mergedInto: 'materials',
     files: [
       'modules/stock/view.jsx',
       'modules/stock/logic.js',

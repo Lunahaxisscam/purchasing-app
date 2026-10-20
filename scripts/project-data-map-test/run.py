@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Harness uji kontrak Tahap A (project data map) — tanpa DB, tanpa jaringan.
+"""Harness uji kontrak Tahap A + regresi integrasi Tahap B — tanpa DB, tanpa jaringan.
 
 Cara kerja:
   1. Sandbox TMPDIR resmi (bukan /tmp global): lib/projectCrosswalk.js disalin
      apa adanya ke sandbox sebagai .mjs (ESM) supaya bisa diimpor Node.
-  2. Jalankan crosswalk_test.mjs terhadap sandbox.
-  3. Cetak laporan JSON; exit code mengikuti hasil tes.
+  2. Jalankan setiap skrip uji terhadap sandbox:
+       - crosswalk_test.mjs        (kontrak Tahap A, 36 cek)
+       - regression_integrator.mjs (tiga regresi VERIFICATION_A, lane B)
+  3. Cetak laporan JSON gabungan; exit code mengikuti hasil tes.
 
 Tidak menyentuh .next, tidak menulis DB, tidak memanggil Drive.
 
@@ -22,6 +24,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = os.path.join(REPO, 'lib', 'projectCrosswalk.js')
 
+SUITES = ['crosswalk_test.mjs', 'regression_integrator.mjs']
+
 
 def main():
     sandbox = tempfile.mkdtemp(prefix='project-data-map-')
@@ -33,12 +37,30 @@ def main():
             return 1
         shutil.copyfile(LIB, os.path.join(sandbox, 'lib', 'projectCrosswalk.js'))
 
-        proc = subprocess.run(
-            ['node', os.path.join(HERE, 'crosswalk_test.mjs'), sandbox],
-            capture_output=True, text=True, timeout=180)
-        sys.stdout.write(proc.stdout)
-        sys.stderr.write(proc.stderr)
-        return proc.returncode
+        total_pass = 0
+        failures = []
+        for suite in SUITES:
+            proc = subprocess.run(
+                ['node', os.path.join(HERE, suite), sandbox],
+                capture_output=True, text=True, timeout=300)
+            out = (proc.stdout or '').strip()
+            try:
+                parsed = json.loads(out)
+                total_pass += int(parsed.get('pass', 0))
+                for f in parsed.get('failures', []):
+                    failures.append(f'{suite}: {f}')
+            except Exception:
+                sys.stderr.write(proc.stderr or '')
+                failures.append(f'{suite}: keluaran tidak terbaca (exit {proc.returncode})')
+                failures.append((out or '')[-400:])
+        report = {
+            'suites': SUITES,
+            'pass': total_pass,
+            'fail': len(failures),
+            'failures': failures,
+        }
+        print(json.dumps(report, indent=2))
+        return 1 if failures else 0
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
 

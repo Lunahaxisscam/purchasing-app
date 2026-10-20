@@ -66,19 +66,21 @@ function isCheckViolation(error) {
 // Stamp referensi internal: PH-<epoch36>-<rand> — unik per submit MESKI dua
 // klik jatuh di detik yang sama (race B6j). epoch36 pendek+acak: tidak bisa
 // disalahartikan nomor toko, dan bisa dideteksi oleh laporan sebagai internal.
-function internalRefStamp(now = Date.now()) {
+// `prefix` bisa diganti pemanggil (konektor memakai BK- supaya asal-usulnya
+// jelas) tanpa membuat fungsi kedua.
+function internalRefStamp(prefix = 'PH', now = Date.now()) {
   const epoch = now.toString(36).toUpperCase().padStart(8, '0')
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase().padStart(4, 'X')
-  return `PH-${epoch}-${rand}`
+  return `${prefix}-${epoch}-${rand}`
 }
 
 // Cari nota DIBELI lain dengan vendor + no. nota sama (anti dobel).
 // Tanpa no. nota (RefInternal inline), duplikasi dicegah pada stamp yang
 // disimpan saat submit — stamp tidak pernah dihitung ulang setelah tercatat.
-async function findExistingNota({ vendorId, invoiceNo }) {
+async function findExistingNota({ client, vendorId, invoiceNo }) {
   try {
     if (!invoiceNo) return { ok: true, existing: null }
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('receivings')
       .select('id, invoice_no, vendor_id, status, note')
       .eq('invoice_no', invoiceNo)
@@ -134,8 +136,40 @@ export function validatePurchaseBoundary(nota) {
   return { ok: true, nota: { vendorId, tanggal, biayaLain, diskon, material, total, items: clean } }
 }
 
-export async function savePurchase({ form, receivings = [], receivingItems = [], prItems = [], requests = [], vendors = [] } = {}) {
-  if (!supabase) return { ok: false, error: 'Supabase tidak tersedia.' }
+// --------------------------------------------------------
+// SATU BOUNDARY TULIS UNTUK SEMUA KANAL (G7 — integrasi t_da4a9ef8)
+// --------------------------------------------------------
+// `savePurchaseWithClient` adalah SATU-SATUNYA jalur tulis nota. Jalur admin
+// memanggilnya dengan klien anon browser (lewat `savePurchase`), konektor
+// Bakpau memanggilnya dengan klien service-role yang disuntikkan. Tidak ada
+// mapper kolom kedua yang bisa menyimpang.
+//
+// Opsi khusus kanal (semua opsional, default = perilaku admin apa adanya):
+//   headerNoteSuffix  : penanda asal-usul (konektor: jejak event/bukti)
+//   lineNoteSuffixes  : array sejajar items untuk jejak per baris
+//   shellReceivingId  : header cangkang yang sudah ditemukan pemanggil
+//   projectIdOverride : proyek tunggal yang sudah diverifikasi pemanggil
+//   prIdOverride      : PR header tunggal yang sudah diverifikasi pemanggil
+//   queueHandover     : admin true (barang masuk antrean serah terima);
+//                       konektor false — nota BUKAN penerimaan fisik.
+//   internalRefPrefix : prefix referensi internal nota tanpa nomor (PH/BK)
+export async function savePurchaseWithClient({
+  client,
+  form,
+  receivings = [],
+  receivingItems = [],
+  prItems = [],
+  requests = [],
+  vendors = [],
+  headerNoteSuffix = '',
+  lineNoteSuffixes = [],
+  shellReceivingId = null,
+  projectIdOverride = null,
+  prIdOverride = null,
+  queueHandover = true,
+  internalRefPrefix = 'PH'
+} = {}) {
+  if (!client) return { ok: false, error: 'Supabase tidak tersedia.' }
 
   // --- 0a) Boundary reusable: validasi + normalisasi payload ---
   const inline = validatePurchaseBoundary(form)
@@ -162,11 +196,11 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
   let isInternalRef = false
   if (!invoiceNo) {
     isInternalRef = true
-    invoiceNo = internalRefStamp()
+    invoiceNo = internalRefStamp(internalRefPrefix)
   }
 
   // --- 0c) Anti dobel: nota toko yang sama tidak boleh tercatat dua kali ---
-  const dup = await findExistingNota({ vendorId: header.vendorId, invoiceNo })
+  const dup = await findExistingNota({ client, vendorId: header.vendorId, invoiceNo })
   if (!dup.ok) return { ok: false, error: `Gagal memeriksa nota: ${dup.error}` }
   if (dup.existing) {
     return {
@@ -185,7 +219,9 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     .filter(it => it.prItemId)
     .map(it => itemByPrItem.get(it.prItemId)?.receiving_id)
     .filter(Boolean))]
-  const shellHeader = shellIds.length === 1 ? (receivings || []).find(r => r.id === shellIds[0]) || null : null
+  const shellHeader = shellReceivingId
+    ? (receivings || []).find(r => String(r.id) === String(shellReceivingId)) || null
+    : (shellIds.length === 1 ? (receivings || []).find(r => r.id === shellIds[0]) || null : null)
   // JANGAN memakai ulang header yang SUDAH menjadi nota selesai. Satu cangkang
   // Approval mewakili satu PR, jadi bila admin membeli sebagian barang hari ini
   // dan sisanya besok (atau ke toko lain), keduanya menunjuk cangkang yang sama.
@@ -194,11 +230,31 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
   // keluar lenyap dari catatan. Nota yang sudah selesai = header yang sudah
   // DIBELI atau sudah bernomor; dalam kasus itu nota baru dibuat terpisah dan
   // baris item dipindahkan ke header baru (satu barang tetap satu baris).
+  // Pemanggil yang sudah mencari cangkang sendiri (konektor) memberi
+  // `shellReceivingId`; baris header hasilnya TIDAK diperlukan di sana.
   const shellIsFinishedNota = !!shellHeader && (
     isPurchasedNota(shellHeader) || !!String(shellHeader.invoice_no || '').trim()
   )
-  const reuseId = shellHeader && !shellIsFinishedNota ? shellHeader.id : null
-  const reuseRow = reuseId ? shellHeader : null
+  const reuseId = shellReceivingId
+    ? String(shellReceivingId)
+    : (shellHeader && !shellIsFinishedNota ? shellHeader.id : null)
+  const reuseRow = reuseId
+    ? (shellHeader || (receivings || []).find(r => String(r.id) === String(reuseId)) || null)
+    : null
+
+  // Pemanggil server-side (konektor) tidak membawa baris cangkang di memori.
+  // Tanpa pembacaan ini, baris qty 0 milik header yang sama akan DIDUPLIKASI
+  // (dua baris untuk satu barang). Jalur admin tetap memakai baris yang sudah
+  // dimuat host — perilakunya tidak berubah.
+  if (reuseId && (!receivingItems || receivingItems.length === 0)) {
+    const { data: shellRows } = await client
+      .from('receiving_items')
+      .select('id, receiving_id, pr_item_id, quantity_received')
+      .eq('receiving_id', reuseId)
+    for (const row of shellRows || []) {
+      if (row?.pr_item_id && !itemByPrItem.has(row.pr_item_id)) itemByPrItem.set(row.pr_item_id, row)
+    }
+  }
 
   // PR/proyek hanya bisa diisi bila SELURUH barang di nota ini satu PR/proyek.
   // Sumber jejak: baris item (pr_item_id → receiving_items.pr_id) bila ada,
@@ -215,8 +271,12 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     const projOfItem = rec?.project_id || it.projectId
     if (projOfItem) projectIds.add(projOfItem)
   }
-  const prId = prIds.size === 1 ? [...prIds][0] : null
-  const projectId = projectIds.size === 1 ? [...projectIds][0] : null
+  const prId = prIdOverride
+    ? String(prIdOverride)
+    : (prIds.size === 1 ? [...prIds][0] : null)
+  const projectId = projectIdOverride
+    ? String(projectIdOverride)
+    : (projectIds.size === 1 ? [...projectIds][0] : null)
 
   const note = buildPurchaseNote({
     material: header.material,
@@ -228,6 +288,9 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     catatan: header.catatan,
     tahap: TAHAP_DIBELI
   })
+  // Jejak asal-usul kanal (konektor) DITAMBAHKAN, tidak menggantikan penanda
+  // nota. Jalur admin mengirim string kosong -> perilaku lama tidak berubah.
+  const headerNote = [note, String(headerNoteSuffix || '').trim()].filter(Boolean).join(' ').trim()
 
   const baseHeader = {
     vendor_id: header.vendorId,
@@ -241,7 +304,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     received_date: header.tanggal,
     // note: kolom catatan lama — selalu string (bukan null) supaya aman bila
     // kolomnya NOT NULL di skema.
-    note: note || '',
+    note: headerNote || '',
     kendala: null
   }
 
@@ -257,11 +320,11 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     const patch = { ...baseHeader }
     if (prId) patch.purchase_request_id = prId
     if (projectId) patch.project_id = projectId
-    let { error } = await supabase.from('receivings').update({ ...patch, status: PURCHASED_STATUS }).eq('id', receivingId)
+    let { error } = await client.from('receivings').update({ ...patch, status: PURCHASED_STATUS }).eq('id', receivingId)
     if (error && isCheckViolation(error)) {
       statusFallback = true
       statusWritten = String(reuseRow?.status || 'NORMAL')
-      const retry = await supabase.from('receivings').update(patch).eq('id', receivingId)
+      const retry = await client.from('receivings').update(patch).eq('id', receivingId)
       error = retry.error
     }
     if (error) return { ok: false, error: `Gagal menyimpan nota: ${error.message}` }
@@ -274,11 +337,11 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
       alokasi: null,
       masuk_gudang: false
     }
-    let { data, error } = await supabase.from('receivings').insert(row).select()
+    let { data, error } = await client.from('receivings').insert(row).select()
     if (error && isCheckViolation(error)) {
       statusFallback = true
       statusWritten = 'NORMAL'
-      const retry = await supabase.from('receivings').insert({ ...row, status: 'NORMAL' }).select()
+      const retry = await client.from('receivings').insert({ ...row, status: 'NORMAL' }).select()
       data = retry.data
       error = retry.error
     }
@@ -289,8 +352,11 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
 
   // --- 3) Baris barang ---
   const saved = []
-  for (const it of items) {
+  for (const [idx, it] of items.entries()) {
     const existing = it.prItemId ? itemByPrItem.get(it.prItemId) : null
+    // Jejak per baris (konektor: spesifikasi/spek awal/proyek/pr item).
+    const lineSuffix = String(lineNoteSuffixes[idx] || '').trim()
+    const itemNote = [itemPriceNoteOf(it.harga), lineSuffix].filter(Boolean).join(' ').trim() || null
     const payload = {
       receiving_id: receivingId,
       // pr_item_id = null -> belanja langsung tanpa request (sah di Tahap B).
@@ -298,7 +364,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
       item_name: it.itemName,
       unit: it.unit || null,
       quantity_received: it.qty,
-      note: itemPriceNoteOf(it.harga)
+      note: itemNote
     }
     // Pakai ulang baris HANYA bila baris itu memang milik nota yang sedang
     // ditulis, atau bila ia masih baris cangkang kosong (qty 0 — belum pernah
@@ -313,7 +379,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
       || !isFinite(existingQty) || existingQty <= 0
     )
     if (canReuseRow) {
-      const { error } = await supabase.from('receiving_items').update(payload).eq('id', existing.id)
+      const { error } = await client.from('receiving_items').update(payload).eq('id', existing.id)
       if (error) {
         return {
           ok: false,
@@ -325,7 +391,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
       }
       saved.push({ ...it, itemRowId: existing.id, reused: true })
     } else {
-      const { data, error } = await supabase.from('receiving_items').insert(payload).select()
+      const { data, error } = await client.from('receiving_items').insert(payload).select()
       if (error) {
         return {
           ok: false,
@@ -350,8 +416,12 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
   // membatalkan nota (uang sudah keluar) — dilaporkan apa adanya.
   let handoverQueued = false
   let handoverError = ''
-  try {
-    const { data: existingHo, error: hoReadErr } = await supabase
+  if (!queueHandover) {
+    // Konektor: nota/pembayaran BUKAN penerimaan fisik — tidak membuat dokumen
+    // serah terima. Dicatat eksplisit supaya UI/laporan tidak menjawab "gagal".
+    handoverError = ''
+  } else try {
+    const { data: existingHo, error: hoReadErr } = await client
       .from('handovers')
       .select('id')
       .eq('receiving_id', receivingId)
@@ -361,7 +431,7 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     } else if (existingHo && existingHo.length) {
       handoverQueued = true
     } else {
-      const { error: hoErr } = await supabase.from('handovers').insert({
+      const { error: hoErr } = await client.from('handovers').insert({
         receiving_id: receivingId,
         project_id: projectId,
         received_by: 'Belum ditentukan',
@@ -400,7 +470,25 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
     invoiceNo,
     isInternalRef,
     alokasi,
+    items: saved.map(s => ({
+      id: s.itemRowId || null,
+      receiving_id: receivingId,
+      pr_item_id: s.prItemId || null,
+      item_name: s.itemName,
+      unit: s.unit || null,
+      quantity_received: s.qty,
+      projectId: s.projectId || null,
+      subtotal: s.subtotal,
+      harga: s.harga,
+      reused: !!s.reused
+    })),
     itemCount: saved.length,
+    // Nilai flat (dipakai konektor & notifikasi) — sama dengan payload yang ditulis.
+    material: header.material,
+    biayaLain: header.biayaLain,
+    diskon: header.diskon,
+    total: header.total,
+    note: headerNote,
     totals: plan_totalsOf(header),
     reusedHeader: !!reuseId,
     message: `Nota ${labelNota}${vendorName ? ` (${vendorName})` : ''} tersimpan: ${saved.length} barang, total ${new Intl.NumberFormat('id-ID').format(header.total)}.${isInternalRef ? ' Nota tidak punya nomor vendor — referensi internal dicatat di kolom No. Nota.' : ''}`
@@ -408,6 +496,15 @@ export async function savePurchase({ form, receivings = [], receivingItems = [],
       + (statusFallback ? ' Penanda tahap disimpan di catatan nota (kolom status belum menerima nilai DIBELI).' : '')
       + (handoverError ? ` ⚠️ Antrean Serah Terima belum terbuat otomatis (${handoverError}) — tambahkan dokumen serah terima manual di modul Serah Terima.` : '')
   }
+}
+
+// --------------------------------------------------------
+// JALUR ADMIN — pembungkus tipis, perilaku identik dengan sebelumnya.
+// --------------------------------------------------------
+// Semua pemanggil lama (pages/index.js, form pembelian) tetap memakai nama ini;
+// yang berubah hanya DI MANA klien datang. Tidak ada logika tulis kedua.
+export async function savePurchase(args = {}) {
+  return savePurchaseWithClient({ client: supabase, ...args })
 }
 
 // Total dari payload — bukan hitungan ulang yang bisa berbeda.

@@ -74,7 +74,11 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     // dirender pages/index.js (source:'core') dengan guard admin.
     ['rap', 'RAP (Rencana Pelaksanaan)', 'DRAFT_ONLY', 'tone-neutral'],
     ['rap_compare', 'Perbandingan RAB/RAP/Aktual', 'Read-only', 'tone-neutral'],
-    ['stock', 'Stok Workshop', 'Read-only', 'tone-neutral'],
+    // t_da4a9ef8 (B3): Stok Workshop sudah digabung ke Material. Kartu ini
+    // dipertahankan sebagai jalur lama (ID navigasi lama tetap bekerja) dan
+    // akan dialihkan ke Material oleh navAliasFor — labelnya jujur menyebut
+    // tujuan barunya, bukan menjanjikan halaman terpisah.
+    ['stock', 'Stok (di Material)', 'Gabungan', 'tone-neutral', 'Stok ada di Material'],
     ['crm', 'Customer CRM', 'Read-only', 'tone-neutral'],
     ['labor_stock', 'Actual Labor & Stok', 'Read-only', 'tone-neutral'],
     ['planning', 'Budgeting', 'Rencana', 'tone-neutral'],

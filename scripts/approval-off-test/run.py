@@ -14,7 +14,7 @@ Menjalankan uji NYATA terhadap file sumber (bukan salinan logika):
                         pages/index.js WAJIB memanggil approvalGuard SEBELUM
                         operasi DB/RPC apa pun (fail closed terbukti statis).
 
-Sandbox /tmp/approval-off-sandbox: file VERBATIM repo, transform SWC Next.js,
+Sandbox TMPDIR resmi (bukan /tmp global): file VERBATIM repo, transform SWC Next.js,
 mock supabase perekam. TIDAK ada koneksi DB/jaringan.
 
 Jalankan dari root repo:  python3 scripts/approval-off-test/run.py
@@ -27,7 +27,7 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
-SB = '/tmp/approval-off-sandbox'
+SB = os.path.join(os.environ.get('TMPDIR') or '/tmp', 'approval-off-sandbox')
 
 REL_FILES = [
     'components/ModuleView.js', 'components/CreateModal.js', 'components/Common.js',
@@ -130,6 +130,11 @@ for script, label in [
 # Uji statis membaca SUMBER REPO (bukan hasil kompilasi) — jalankan di repo.
 print('\n--- 3. URUTAN GUARD FAIL-CLOSED (STATIS) ---')
 results.append(subprocess.run(['node', os.path.join(HERE, 'static_test.mjs'), REPO], cwd=REPO))
+
+# Regresi integrasi t_da4a9ef8: jalur MAINTENANCE (seed-simulation) tidak boleh
+# menulis approval_steps saat OFF. Handler asli + klien DB penipu, tanpa jaringan.
+print('\n--- 4. JALUR MAINTENANCE SAAT OFF (SEED-SIMULATION) ---')
+results.append(subprocess.run(['node', os.path.join(HERE, 'seed_guard_test.mjs'), REPO], cwd=REPO))
 
 if any(r.returncode != 0 for r in results):
     print('\n[STATUS: RED] Ada pengujian yang gagal.')

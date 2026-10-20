@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatusStyle } from '../lib/constants'
 import { targetBudget70 } from '../lib/money'
-import { WBS_ESTIMATE_LABEL, WBS_ESTIMATE_NOTE, actualLaborForProject } from '../lib/laborSource'
+import { WBS_ESTIMATE_LABEL, WBS_ESTIMATE_NOTE } from '../lib/laborSource'
+// t_da4a9ef8 (Tahap B): breakdown cost per proyek dari kontrak Tahap A
+// (nomor proyek sebagai identitas, alokasi per baris nota, upah = hak tercatat).
+import { buildCostBreakdown } from '../lib/projectCostBreakdown'
 import CompactRoot from './CompactRoot'
 
 // ============================================================
@@ -112,10 +115,30 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
   // 👷 AKTUAL upah — tukang_projects.total_upah hasil sync Google Sheets.
   // SENGAJA dipisah dari estimasi WBS di atas: FN-EST_LABEL (REVIEW-03).
   // null = belum ada catatan aktual untuk proyek ini (bukan Rp 0).
-  const actualLabor = useMemo(
-    () => (project ? actualLaborForProject(rows.tukang_projects, project.name) : null),
-    [project, rows.tukang_projects]
+  //
+  // t_da4a9ef8 (Tahap B/B1): penghubungnya NOMOR PROYEK (kontrak Tahap A),
+  // BUKAN kemiripan nama. `actualLaborForProject` yang lama mencocokkan
+  // `project.name` — pada data nyata itu gagal ("Proyek Josh - Mabes" vs
+  // "Josh - Mabes") dan membuat upah hilang tanpa jejak. Baris yang tidak
+  // punya nomor maupun alias terkonfirmasi TIDAK dipinjamkan ke proyek mirip;
+  // ia masuk ember "belum terhubung" yang ditampilkan terpisah.
+  const breakdown = useMemo(
+    () => buildCostBreakdown({
+      projects: rows.projects || [],
+      laborRows: rows.tukang_projects || [],
+      receivings: rows.receivings || [],
+      receivingItems: rows.receiving_items || [],
+      vendors: rows.vendors || [],
+      summaryRows: driveRows || []
+    }),
+    [rows, driveRows]
   )
+  const breakdownProject = project && project.kode ? breakdown.forProject(project.kode) : null
+  const actualLabor = useMemo(() => {
+    const labor = breakdownProject && breakdownProject.labor
+    if (!labor || labor.entitlement === null) return null
+    return { actual: labor.entitlement, rows: labor.rows }
+  }, [breakdownProject])
 
   // 🧱 Material — rincian pengadaan internal proyek ini: estimasi PR vs
   // purchase riil (nominal dari nota penerimaan), per nomor PR.
@@ -497,6 +520,84 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
                     </tfoot>
                   )}
                 </table>
+              </div>
+
+              {/* ============================================================
+                  RINCIAN COST AKTUAL PER NOTA (t_da4a9ef8 Tahap B/B2)
+                  ============================================================
+                  Sumber: receiving_items (nota belanja yang SUDAH DIBELI).
+                  - alokasi PER BARIS/qty, bukan total header ke semua proyek;
+                  - baris tanpa proyek / tanpa harga TIDAK dihitung sebagai
+                    biaya proyek ini (muncul di daftar celah di bawah);
+                  - upah = hak tercatat (tukang_projects), kasbon/pelunasan
+                    adalah pembayaran atas hak yang sama -> tidak dijumlahkan;
+                  - saldo upah per proyek = null (pembayaran di sumber bersifat
+                    per tukang) -> ditulis "belum teralokasi", bukan Rp 0;
+                  - revenue/rasio/margin TIDAK dihitung di sini (masih HOLD). */}
+              <div className="panel" style={{ marginTop: '16px' }}>
+                <h2>🧾 Rincian Cost Aktual — nota per proyek</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No. Nota</th>
+                      <th>Vendor</th>
+                      <th>Tanggal</th>
+                      <th>Baris</th>
+                      <th style={{ textAlign: 'right' }}>Alokasi proyek ini</th>
+                      <th style={{ textAlign: 'right' }}>Total nota</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {breakdownProject && breakdownProject.material.notes.length ? breakdownProject.material.notes.map((n, i) => (
+                      <tr key={`${n.noteId}-${i}`}>
+                        <td><b>{n.invoiceNo || '—'}</b></td>
+                        <td>{n.vendorName || '—'}</td>
+                        <td>{n.date || '—'}</td>
+                        <td>{n.itemCount}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(n.allocated)}</td>
+                        <td style={{ textAlign: 'right' }}>{rupiah(n.noteTotal)}</td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={6} className="empty">
+                        Belum ada nota belanja yang teralokasi ke proyek ini. Angka ini tidak diisi 0 —
+                        artinya belum ada catatan nota (bukan "biaya nol").
+                      </td></tr>
+                    )}
+                  </tbody>
+                  {breakdownProject && breakdownProject.material.notes.length > 0 && (
+                    <tfoot>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
+                        <td colSpan={4} style={{ textAlign: 'right' }}>TOTAL MATERIAL TERCATAT</td>
+                        <td style={{ textAlign: 'right' }}>{rupiah(breakdownProject.material.total || 0)}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+                {breakdownProject && (
+                  <div className="muted" style={{ fontSize: '12px', marginTop: '8px' }}>
+                    Upah hak tercatat proyek ini: {breakdownProject.labor.entitlement === null
+                      ? 'belum ada baris upah yang terhubung lewat nomor proyek'
+                      : `${rupiah(breakdownProject.labor.entitlement)} (${breakdownProject.labor.rows} baris)`}.
+                    {' '}Saldo upah (hak − kasbon − pelunasan): belum teralokasi per proyek — pembayaran di sumber
+                    dicatat per tukang, jadi tidak ditampilkan sebagai Rp 0.
+                  </div>
+                )}
+              </div>
+
+              {/* Celah data yang HARUS terlihat (tidak disamarkan sebagai 0) */}
+              <div className="panel" style={{ marginTop: '12px' }}>
+                <h2>⚠️ Celah data breakdown</h2>
+                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px' }}>
+                  {breakdown.gaps.filter(g => g.code !== 'revenue_ratio_hold').map(g => (
+                    <li key={g.code} style={{ marginBottom: '4px' }}>
+                      {g.message}
+                      {g.amount ? ` — ${rupiah(g.amount)}` : ''}
+                      {g.count ? ` (${g.count} baris)` : ''}
+                    </li>
+                  ))}
+                  <li>Revenue, rasio cost/revenue, dan margin final masih HOLD sesuai arahan DAT.</li>
+                </ul>
               </div>
 
               {/* Kartu mobile */}

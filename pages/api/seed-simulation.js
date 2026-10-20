@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { approvalGuard } from '../../lib/constants'
 
 export default async function handler(req, res) {
   // KEAMANAN: endpoint maintenance ini dapat mengubah/menghapus data produksi.
@@ -10,6 +11,25 @@ export default async function handler(req, res) {
   const provided = req.headers['x-maintenance-token'] || req.query.token
   if (provided !== MAINT_TOKEN) {
     return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  // ------------------------------------------------------------
+  // GUARD PUSAT APPROVAL OFF (t_50b783de / integrasi t_da4a9ef8)
+  // ------------------------------------------------------------
+  // Jalur maintenance ini masih menulis & menghapus `approval_steps` saat
+  // diminta. Selama modul Approval OFF, MUTASI APA PUN di sini harus berhenti
+  // SEBELUM klien DB dibuat / write pertama — bukan sekadar dokumentasi
+  // "jangan dijalankan". Token maintenance yang sah TIDAK membuka approval.
+  // Read-only inspection tetap tersedia lewat pages/api/inspect.js & schema.js.
+  const gate = approvalGuard('seed-simulation')
+  if (!gate.ok) {
+    return res.status(409).json({
+      error: gate.error,
+      code: gate.code,
+      action: gate.action,
+      approvalWrites: 0,
+      writes: 0
+    })
   }
 
 

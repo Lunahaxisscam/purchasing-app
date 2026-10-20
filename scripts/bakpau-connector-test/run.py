@@ -3,7 +3,7 @@
 HARNESS KONEKTOR BAKPAU (t_310dfb07) — Bandeng
 ==============================================
 Menguji KODE YANG SAMA PERSIS dengan yang dipakai Next (bukan salinan yang
-bisa menyimpang): file sumber disalin verbatim ke sandbox /tmp/bakpau-verify,
+bisa menyimpang): file sumber disalin verbatim ke sandbox TMPDIR resmi,
 spesifier import ditulis ulang, lalu ditransform SWC. Tidak ada DB, tidak ada
 jaringan, tidak ada pesan keluar sungguhan.
 
@@ -36,7 +36,7 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
-SB = '/tmp/bakpau-verify'
+SB = os.path.join(os.environ.get('TMPDIR') or '/tmp', 'bakpau-verify')
 
 # File sumber yang disalin VERBATIM ke sandbox (read-only, tidak diubah).
 REL_FILES = [
