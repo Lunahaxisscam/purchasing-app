@@ -150,4 +150,11 @@ rc = run(['node', os.path.join(HERE, 'db_rpc_test.mjs')], cwd=REPO, env=env)
 # RPC memakai retur_qty) — jadi keduanya harus dijalankan.
 print('\n=== 5. Matriks retur: pilihan form → modal → RPC ===')
 rc2 = run(['node', os.path.join(HERE, 'probe_retur_matrix.mjs')], cwd=REPO, env=env)
-sys.exit(rc or rc2)
+
+# --------------------------------- 6. resolusi retur (status × tindakan)
+# Menutup defect run 195: modal menawarkan tindakan yang PASTI ditolak RPC
+# (DISCARD untuk event belum dikonfirmasi dibuang) dan tindakan yang
+# bertentangan dengan status barang (RETURN untuk barang yang sudah dibuang).
+print('\n=== 6. Resolusi retur: ditawarkan aplikasi vs diterima RPC ===')
+rc3 = run(['node', os.path.join(HERE, 'probe_retur_resolution.mjs')], cwd=REPO, env=env)
+sys.exit(rc or rc2 or rc3)

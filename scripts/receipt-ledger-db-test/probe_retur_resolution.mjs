@@ -131,6 +131,19 @@ console.log('\nD. Regresi alur normal')
   cek('D2 REFUND diterima RPC', r?.ok === true, r?.ok ? 'ok' : r?.reason)
 }
 
+// ---------- E. Data tidak konsisten: DISCARDED tapi discard_confirmed=false
+// (mungkin terjadi pada data hasil backfill / perubahan manual). RPC menolak
+// DISCARD untuk event seperti ini, jadi UI tidak boleh menawarkan apa pun.
+console.log('\nE. Data tidak konsisten (DISCARDED tanpa konfirmasi)')
+{
+  const ev = { id: 'x', qty_rusak: 2, retur_qty: 2, retur_status: 'DISCARDED', discard_confirmed: false, item_name: 'X' }
+  const allow = logic.allowedResolutionsFor(ev)
+  cek('E1 tidak ada tindakan yang sah (UI melaporkan, bukan menawarkan)', allow.length === 0, `allowed=[${allow.join(',')}]`)
+  const evOk = { ...ev, discard_confirmed: true }
+  cek('E2 setelah konfirmasi dicatat, DISCARD tersedia', logic.allowedResolutionsFor(evOk).join(',') === 'DISCARD')
+}
+
+
 console.log(`\n=== HASIL: ${pass} PASS / ${fails.length} FAIL ===`)
 if (fails.length) { for (const f of fails) console.log(`  FAIL: ${f}`) }
 await client.end()

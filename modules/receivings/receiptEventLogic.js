@@ -314,9 +314,17 @@ export function returPlan(events, { alreadyReturned = {} } = {}) {
 // ubah di sini juga (dikunci probe_retur_resolution.mjs).
 export function allowedResolutionsFor(ev) {
   const status = String(ev?.retur_status || RETUR_NONE).toUpperCase()
-  if (status === RETUR_DISCARDED || ev?.discard_confirmed) return ['DISCARD']
-  if (status === RETUR_PENDING) return ['RETURN', 'REPLACE', 'REFUND']
-  return ['RETURN', 'REPLACE', 'REFUND']
+  // Barang yang sudah DIBUANG tidak mungkin dikembalikan/diganti/direfund.
+  // Status DISCARDED tanpa `discard_confirmed` adalah data tidak konsisten
+  // (RPC menolak DISCARD untuk itu) → TIDAK ada tindakan yang sah; UI
+  // melaporkannya, bukan menawarkan aksi yang pasti gagal.
+  if (status === RETUR_DISCARDED) return ev?.discard_confirmed ? ['DISCARD'] : []
+  // Selain itu RPC mengizinkan RETURN/REPLACE/REFUND; DISCARD hanya bila event
+  // memang sudah dikonfirmasi dibuang (`discard_confirmed`) — kalau tidak,
+  // RPC menolak `discard_not_confirmed`.
+  const out = ['RETURN', 'REPLACE', 'REFUND']
+  if (ev?.discard_confirmed) out.push('DISCARD')
+  return out
 }
 
 // Irisan tindakan yang boleh dipakai untuk SEMUA baris terpilih.
