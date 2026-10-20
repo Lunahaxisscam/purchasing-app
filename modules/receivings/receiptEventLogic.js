@@ -49,32 +49,13 @@ export function returStatusFromChoice(choice) {
   return RETUR_NONE
 }
 
-// Baris form dari baris nota + qty pesanan.
-// `orderedFor(item)` → number | null (null = beli langsung / qty tak diketahui)
-// prevCum WAJIB dari qty_arrived (DATANG), bukan quantity_received (BELI).
-export function buildRows(items, orderedFor) {
-  return (items || []).map(it => {
-    let ordered = null
-    if (orderedFor) {
-      const raw = orderedFor(it)
-      const n = Number(raw)
-      if (raw !== null && raw !== undefined && isFinite(n) && n > 0) ordered = n
-    }
-    const prevRaw = num(it.qty_arrived)
-    const prevCum = isFinite(prevRaw) && prevRaw > 0 ? prevRaw : 0
-    const bought = num(it.quantity_received)
-    return {
-      id: it.id,
-      prItemId: it.pr_item_id || null,
-      item_name: it.item_name || '—',
-      unit: it.unit || '',
-      bought: isFinite(bought) ? bought : 0,
-      ordered,
-      prevCum,
-      sisa: ordered === null ? null : Math.max(0, ordered - prevCum)
-    }
-  })
-}
+// ⚠️ DUPLIKAT yang sudah dihapus (defect run 199). Fungsi ini dulu menyalin
+// aturan `receiptLogic.buildRows` dan menjadi SALINAN KEDUA yang bisa
+// menyimpang: ia masih menghitung `sisa` dari qty pesanan PR (bukan qty BELI)
+// dan tidak menandai baris yang belum dibeli. Sekarang satu sumber aturan:
+// `receiptLogic.buildRows`. Ekspor dipertahankan supaya pemanggil lama tidak
+// pecah, tetapi TIDAK boleh menyalin logika lagi.
+export { buildRows } from './receiptLogic'
 
 // State awal satu item di form.
 export function emptyEntry() {
@@ -158,6 +139,12 @@ export function buildEventDrafts(rows, entries, { receivingId, createdBy = null 
     const tk = isFinite(tkRaw) ? tkRaw : 0
     const retur = returStatusFromChoice(e.retur)
     const baik = Math.max(0, datang - rusak)
+    // Tidak ada barang rusak → tidak ada yang bisa diretur/dibuang. Status
+    // retur dinormalkan ke NONE supaya event tidak pernah membawa
+    // `retur_status PENDING/DISCARDED` dengan `retur_qty 0` (ditolak RPC
+    // `retur_without_qty` — defect run 199). Pilihan dropdown tetap disimpan
+    // di UI; yang dinormalkan hanya nilai yang tidak bermakna.
+    const returEff = rusak > EPS ? retur : RETUR_NONE
     out.push({
       client_event_id: clientEventId(receivingId, row.id, row.prevCum, datang),
       receiving_item_id: row.id,
@@ -171,9 +158,9 @@ export function buildEventDrafts(rows, entries, { receivingId, createdBy = null 
       tujuan_ws: ws,
       tujuan_tukang: tk,
       penerima_tukang: tk > EPS ? String(e.penerima || '').trim() : null,
-      retur_status: retur,
-      retur_qty: retur === RETUR_NONE ? 0 : rusak,
-      discard_confirmed: retur === RETUR_DISCARDED ? !!e.konfirmasiBuang : false,
+      retur_status: returEff,
+      retur_qty: returEff === RETUR_NONE ? 0 : rusak,
+      discard_confirmed: returEff === RETUR_DISCARDED ? !!e.konfirmasiBuang : false,
       foto_ref: e.foto ? String(e.foto.nama || 'foto-lokal') : null,
       created_by: createdBy,
       _computed: { baik }
@@ -200,6 +187,12 @@ export function validateEventDrafts(drafts, { sisaById = {} } = {}) {
     }
     if (d.retur_status === RETUR_DISCARDED && !d.discard_confirmed) {
       errors.push(`"${tag}": konfirmasi barang dibuang wajib dicentang.`)
+    }
+    // DEFECT run 199: RPC menolak `retur_status PENDING/DISCARDED` dengan
+    // `retur_qty <= 0` (reason `retur_without_qty`). Validasi ini mencerminkan
+    // aturan server supaya admin tidak menekan Simpan lalu pasti gagal.
+    if (d.retur_status !== RETUR_NONE && (!isFinite(num(d.retur_qty)) || num(d.retur_qty) <= EPS)) {
+      errors.push(`"${tag}": tidak ada jumlah rusak yang diisi, jadi tidak ada yang bisa diretur/dibuang.`)
     }
     if (d.retur_status !== RETUR_NONE && rq !== null && d.retur_qty !== rq) {
       errors.push(`"${tag}": qty retur harus sama dengan qty rusak.`)

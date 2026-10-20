@@ -39,6 +39,20 @@ export function toQty(v) {
 
 // Baris item untuk form: pesanan, kumulatif sudah DATANG, sisa.
 // orderedFor(item) => number | null (null = tidak terhubung PR / qty tak diketahui)
+//
+// BATAS ATAS KEDATANGAN = QTY BELI BARIS INI (`quantity_received`), BUKAN qty
+// pesanan PR (defect run 199):
+//   1) Baris cangkang Approval ber-qty BELI 0 = barang BELUM DIBELI. Menawarkan
+//      baris itu membuat admin mencatat kedatangan barang yang tidak pernah
+//      dibeli (di data live 6 dari 6 baris ber-qty 0). Baris seperti ini
+//      ditandai `notBought` dan TIDAK boleh diisi.
+//   2) Nota yang membeli 3 dari pesanan 5 hanya boleh menerima 3. Memakai qty
+//      pesanan membuat DATANG (5) > BELI (3) lolos ke RPC.
+//   3) Baris beli langsung tanpa PR (`pr_item_id` null) tidak punya pesanan;
+//      tanpa batas BELI, over-receipt sama sekali tidak dicek.
+// Bila `quantity_received` NULL (baris lama yang qty belinya tidak tercatat),
+// batas memakai qty pesanan dan baris diberi `boughtKnown:false` supaya UI bisa
+// mengatakannya apa adanya — bukan menebak 0 (yang akan menyembunyikan barang).
 export function buildRows(items, orderedFor) {
   return (items || []).map(it => {
     let ordered = null
@@ -50,16 +64,25 @@ export function buildRows(items, orderedFor) {
     // DATANG — bukan BELI. Lihat header.
     const arrivedRaw = toQty(it.qty_arrived)
     const prevCum = isFinite(arrivedRaw) && arrivedRaw > 0 ? arrivedRaw : 0
-    const boughtRaw = toQty(it.quantity_received)
+    const rawBought = it.quantity_received
+    const boughtKnown = rawBought !== null && rawBought !== undefined && rawBought !== ''
+    const boughtRaw = toQty(rawBought)
+    const bought = boughtKnown && isFinite(boughtRaw) ? boughtRaw : null
+    const notBought = boughtKnown && isFinite(boughtRaw) && boughtRaw <= EPS
+    // Batas atas = BELI (kalau diketahui), selain itu qty pesanan.
+    const basis = boughtKnown && isFinite(boughtRaw) ? boughtRaw : ordered
     return {
       id: it.id,
       prItemId: it.pr_item_id || null,
       item_name: it.item_name || '—',
       unit: it.unit || '',
-      bought: isFinite(boughtRaw) ? boughtRaw : 0,
+      bought,
+      boughtKnown,
+      notBought,
       ordered,
       prevCum,
-      sisa: ordered === null ? null : Math.max(0, ordered - prevCum)
+      basis,
+      sisa: basis === null ? null : Math.max(0, basis - prevCum)
     }
   })
 }
@@ -77,7 +100,10 @@ export function computeItem(row, entry) {
   const tk = toQty(entry?.tukang)
   const baik = (isFinite(d) && isFinite(r) && r <= d + EPS) ? d - r : NaN
   const datangN = isFinite(d) ? d : 0
-  const belum = row.ordered === null ? null : Math.max(0, row.ordered - row.prevCum - datangN)
+  // Sisa dihitung dari BASIS baris (qty BELI bila diketahui, selain itu qty
+  // pesanan) — bukan selalu qty pesanan (defect run 199).
+  const basis = row.basis !== undefined ? row.basis : row.ordered
+  const belum = basis === null || basis === undefined ? null : Math.max(0, basis - row.prevCum - datangN)
   const tujuan = (isFinite(ws) ? ws : 0) + (isFinite(tk) ? tk : 0)
   return { d, r, ws, tk, baik, belum, tujuan }
 }
@@ -88,13 +114,22 @@ export function validateItem(row, entry) {
   const errs = {}
   const d = c.d
   const r = c.r
+  // Barang yang BELUM DIBELI tidak boleh dicatat datang (defect run 199):
+  // baris cangkang Approval ber-qty BELI 0 tampil di form dengan sisa = qty
+  // pesanan, dan RPC menerima kedatangannya → DATANG tanpa BELI.
+  if (row.notBought && isFinite(d) && d > EPS) {
+    errs.datang = 'Barang ini belum dibeli pada nota mana pun (qty beli 0). Catat pembeliannya dulu di modul Pembelian — kedatangan tidak boleh mendahului pembelian.'
+    return { errors: errs, computed: c, valid: false }
+  }
   if (!isFinite(d) || d < 0) errs.datang = 'Jumlah datang harus angka ≥ 0.'
   if (!isFinite(r) || r < 0) errs.rusak = 'Jumlah rusak harus angka ≥ 0.'
   if (!errs.datang && !errs.rusak && r > d + EPS) {
     errs.rusak = `Jumlah rusak tidak boleh lebih dari jumlah datang (${r} > ${d}).`
   }
   if (!errs.datang && row.sisa !== null && isFinite(d) && d > row.sisa + EPS) {
-    errs.datang = `Melebihi sisa pesanan (sisa ${row.sisa}${row.unit ? ' ' + row.unit : ''}). Over-receipt belum diizinkan — periksa jumlah.`
+    errs.datang = row.boughtKnown
+      ? `Melebihi jumlah yang dibeli pada nota ini (sisa ${row.sisa}${row.unit ? ' ' + row.unit : ''}). Kedatangan tidak boleh melebihi pembelian.`
+      : `Melebihi sisa pesanan (sisa ${row.sisa}${row.unit ? ' ' + row.unit : ''}). Over-receipt belum diizinkan — periksa jumlah.`
   }
   if (!isFinite(c.ws) || c.ws < 0) errs.ws = 'Jumlah ke Workshop harus angka ≥ 0.'
   if (!isFinite(c.tk) || c.tk < 0) errs.tukang = 'Jumlah ke Tukang harus angka ≥ 0.'
@@ -112,6 +147,15 @@ export function validateItem(row, entry) {
     if (retur === RETUR_DIBUANG) {
       // Foto bukti OPSIONAL — tidak memblokir transaksi. Konfirmasi TETAP wajib.
       if (!entry?.konfirmasiBuang) errs.konfirmasiBuang = 'Centang konfirmasi bahwa barang benar-benar dibuang.'
+    }
+  } else if (!errs.rusak && isFinite(r) && r <= EPS) {
+    // DEFECT run 199: pilihan retur untuk barang dengan rusak 0 membuat event
+    // terkirim `PENDING/DISCARDED` dengan `retur_qty 0` → RPC
+    // `receipt_apply_events` MENOLAK `retur_without_qty`. Admin melihat tombol
+    // Simpan aktif lalu selalu gagal. Ditolak di sini dengan instruksi jelas.
+    const retur = entry?.retur || RETUR_NANTI
+    if (retur !== RETUR_NANTI) {
+      errs.retur = 'Tidak ada jumlah rusak yang diisi, jadi tidak ada barang untuk diretur/dibuang. Isi jumlah rusak, atau pilih "Tentukan nanti".'
     }
   }
   return { errors: errs, computed: c, valid: Object.keys(errs).length === 0 }
@@ -157,6 +201,10 @@ export function buildSavePlan(rows, entries) {
     const e = entries?.[row.id] || {}
     const d = toQty(e.datang)
     if (!isFinite(d) || d <= EPS) continue
+    // Baris yang belum dibeli tidak pernah masuk rencana simpan (defect run
+    // 199) — pengaman kedua setelah validateItem, supaya pemanggil yang lupa
+    // memeriksa `valid` tetap tidak bisa mengirimnya.
+    if (row.notBought) continue
     const r = toQty(e.rusak)
     const ws = toQty(e.ws)
     const tk = toQty(e.tukang)

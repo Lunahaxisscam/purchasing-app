@@ -150,11 +150,18 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
               <div style={S.lineHead}>
                 <b>{row.item_name}</b>
                 <span style={S.hint}>
-                  dibeli <b>{row.bought}</b>{row.unit ? ` ${row.unit}` : ''}
+                  dibeli <b>{row.boughtKnown ? row.bought : '—'}</b>{row.unit ? ` ${row.unit}` : ''}
                   {' · '}sudah datang <b>{row.prevCum}</b>
-                  {row.sisa !== null ? <> {' · '}sisa pesanan <b>{row.sisa}</b></> : null}
+                  {row.sisa !== null ? <> {' · '}sisa {row.boughtKnown ? 'yang bisa diterima' : 'pesanan'} <b>{row.sisa}</b></> : null}
                 </span>
               </div>
+
+              {row.notBought && (
+                <div style={{ ...S.warn, marginTop: '6px' }} data-testid={`rc-notbought-${row.id}`}>
+                  <b>Belum dibeli.</b> Baris ini dibuat otomatis saat PR disetujui dan qty belinya masih 0 —
+                  kedatangan tidak bisa dicatat sebelum barangnya benar-benar dibeli di modul Pembelian.
+                </div>
+              )}
 
               <div style={S.grid}>
                 <label style={S.field}>

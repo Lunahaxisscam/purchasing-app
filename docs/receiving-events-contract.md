@@ -182,6 +182,46 @@ Dikunci oleh `probe_retur_resolution.mjs` (14 cek pada PG nyata) + T6a–T6k
 (jsdom). Bila schema owner mengubah aturan RPC, ubah fungsi itu **dan** probe
 dalam commit yang sama.
 
+### 3.7 Defect run 199 — BATAS KEDATANGAN & KOREKSI
+
+Tiga aturan yang sebelumnya tidak ada di UI maupun di dokumen ini. Semuanya
+diturunkan dari perilaku RPC yang sebenarnya (bukan preferensi tampilan) dan
+dikunci `probe_receipt_guards.mjs` (18 cek, PG nyata).
+
+| # | Aturan | Kenapa (perilaku server) |
+|---|---|---|
+| 1 | **Batas atas kedatangan = `receiving_items.quantity_received` (QTY BELI baris ini)**, bukan `pr_items.quantity` | RPC memvalidasi over-receipt terhadap qty pesanan PR, sehingga nota yang membeli 3 dari pesanan 5 bisa dicatat DATANG 5. Untuk baris beli langsung (`pr_item_id` NULL) server tidak punya batas sama sekali |
+| 2 | **Baris dengan `quantity_received = 0` adalah barang BELUM DIBELI** dan tidak boleh dicatat datang | Baris cangkang Approval punya qty pesanan > 0, sehingga tampak seperti barang yang menunggu diterima; RPC menerima `qty_datang` untuk baris itu (di data live 6 dari 6 baris ber-qty 0) |
+| 3 | **`retur_status != NONE` wajib `retur_qty > 0`** | RPC menolak `retur_without_qty`. Form mengirim `PENDING/DISCARDED` dengan `retur_qty = rusak`, jadi pilihan retur saat rusak 0 selalu ditolak |
+
+Konsekuensi untuk form: `validateItem` menolak ketiganya **sebelum** RPC, dan
+`buildEventDrafts` menormalkan `retur_status` ke `NONE` bila `qty_rusak = 0`
+sehingga payload tidak pernah membawa kombinasi yang ditolak server.
+
+#### 3.7.1 Koreksi vs replay (idempotensi)
+
+`client_event_id` deterministik = `rcpt:{receiving}:{item}:{prevCum}->{prevCum+datang}`.
+Artinya submit ulang dengan **qty datang sama** menghasilkan id yang sama
+walaupun `rusak`/tujuan/penerima **berbeda**. RPC menjawab
+`applied=0, already_applied=N` dan **tidak menulis perubahan** — jadi
+"idempoten" ≠ "bisa dikoreksi".
+
+Kontrak yang dipakai UI:
+
+| Keadaan | Perilaku |
+|---|---|
+| Event dengan `client_event_id` itu **belum ada** | Kirim ke RPC (jalur normal) |
+| Sudah ada dan **seluruh dimensi identik** | Replay: kirim ke RPC, server menjawab `already_applied`; UI bilang "tidak digandakan" |
+| Sudah ada dan **ada dimensi berbeda** | **Ditolak di klien** (`code=CORRECTION_UNSUPPORTED`) dengan daftar kolom yang berbeda + nilai tersimpan. Nol tulisan, nol klaim |
+| Sudah ada, user memilih **foto baru** | Ditolak dengan alasan yang sama: event pertama tidak pernah ditimpa |
+| Sudah ada, user **tidak** memilih foto | Bukan konflik (form tidak memuat ulang lampiran lama) |
+
+Koreksi sungguhan **belum didukung**: skema punya `receiving_events.reversal_of`
+tetapi belum ada RPC pembalik/pengoreksi di paket `t_03b41644`. Sampai RPC itu
+ada, UI menolak dengan penjelasan — bukan menerima lalu diam-diam mengabaikan.
+Bila schema owner menambah RPC koreksi, ganti `findSameEvents()` dengan
+pemanggilan RPC tersebut dan perbarui probe ini.
+
 ---
 
 ## 6. Yang TIDAK dibuktikan (jujur)

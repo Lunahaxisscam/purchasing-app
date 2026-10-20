@@ -122,9 +122,41 @@ console.log('\n=== R. TERIMA BARANG per item (receiptForm.jsx) ===\n')
   check('R3a sisa item1 = 10 (dari qty_arrived 0, BUKAN quantity_received 10)', rows[0].sisa === 10, String(rows[0].sisa))
   check('R3b sisa item2 = 2 (qty_arrived 2 dari pesanan 4)', rows[1].sisa === 2, String(rows[1].sisa))
   check('R3c qty BELI tetap terbaca terpisah (10)', rows[0].bought === 10, String(rows[0].bought))
-  // Bila memakai quantity_received (bug lama), sisa item1 = 0 → terbukti beda.
+  // Tanpa `qty_arrived` (data lama), prevCum = 0 → sisa = batas BELI, BUKAN 0.
+  // Yang diuji: `quantity_received` tidak pernah dibaca sebagai "sudah datang".
   const buggy = RLOGIC.buildRows([{ ...RI[0], qty_arrived: undefined }], () => 10)
-  check('R3d tanpa qty_arrived sisa = 10 (tidak jatuh ke qty BELI)', buggy[0].sisa === 10, String(buggy[0].sisa))
+  check('R3d tanpa qty_arrived prevCum = 0 (tidak jatuh ke qty BELI sebagai "sudah datang")',
+    buggy[0].prevCum === 0 && buggy[0].sisa === 10, `prevCum=${buggy[0].prevCum} sisa=${buggy[0].sisa}`)
+
+  console.log('\nR8. Batas kedatangan = QTY BELI baris (defect run 199)')
+  // Nota membeli 3 dari pesanan 5 → hanya 3 yang boleh datang.
+  const partial = RLOGIC.buildRows([{ id: 'ri3', receiving_id: 'rec1', pr_item_id: 'pi1', item_name: 'Beli Sebagian', unit: 'Pcs', quantity_received: 3, qty_arrived: 0 }], () => 5)
+  check('R8a sisa = 3 (qty BELI), bukan 5 (qty pesanan PR)', partial[0].sisa === 3, String(partial[0].sisa))
+  const v8 = RLOGIC.validateItem(partial[0], { ...RLOGIC.emptyEntry(), datang: '5' })
+  check('R8b datang 5 ditolak sebelum RPC', v8.valid === false && /dibeli/i.test(Object.values(v8.errors)[0] || ''), JSON.stringify(v8.errors))
+  // Baris cangkang Approval: BELI 0 → barang belum dibeli, tidak boleh diterima.
+  const shell = RLOGIC.buildRows([{ id: 'ri4', receiving_id: 'rec1', pr_item_id: 'pi2', item_name: 'Belum Dibeli', unit: 'Pcs', quantity_received: 0, qty_arrived: 0 }], () => 5)
+  check('R8c baris qty BELI 0 ditandai notBought', shell[0].notBought === true, JSON.stringify(shell[0]))
+  const v8c = RLOGIC.validateItem(shell[0], { ...RLOGIC.emptyEntry(), datang: '5' })
+  check('R8d barang belum dibeli TIDAK bisa dicatat datang', v8c.valid === false && /belum dibeli/i.test(Object.values(v8c.errors)[0] || ''), JSON.stringify(v8c.errors))
+  const plan8 = RLOGIC.buildSavePlan(shell, { ri4: { ...RLOGIC.emptyEntry(), datang: '5' } })
+  check('R8e pengaman kedua: baris belum dibeli tidak masuk rencana simpan', plan8.length === 0, JSON.stringify(plan8))
+  // Baris beli langsung tanpa PR: batas tetap ada (dari qty BELI).
+  const direct = RLOGIC.buildRows([{ id: 'ri5', receiving_id: 'rec1', pr_item_id: null, item_name: 'Beli Langsung', unit: 'Pcs', quantity_received: 2, qty_arrived: 0 }], () => null)
+  check('R8f beli langsung tanpa PR tetap punya batas (sisa 2, bukan null)', direct[0].sisa === 2, String(direct[0].sisa))
+
+  console.log('\nR9. Pilihan retur saat rusak = 0 tidak dikirim ke RPC (defect run 199)')
+  const rowR9 = RLOGIC.buildRows(RI, (it) => (it.pr_item_id === 'pi1' ? 10 : 4))[0]
+  const v9a = RLOGIC.validateItem(rowR9, { ...RLOGIC.emptyEntry(), datang: '2', rusak: '0', retur: RLOGIC.RETUR_SUPPLIER })
+  check('R9a rusak 0 + "Kembalikan ke supplier" ditolak dengan penjelasan',
+    v9a.valid === false && /tidak ada jumlah rusak/i.test(Object.values(v9a.errors)[0] || ''), JSON.stringify(v9a.errors))
+  const v9b = RLOGIC.validateItem(rowR9, { ...RLOGIC.emptyEntry(), datang: '2', rusak: '0', retur: RLOGIC.RETUR_DIBUANG, konfirmasiBuang: true })
+  check('R9b rusak 0 + "Dibuang" juga ditolak', v9b.valid === false, JSON.stringify(v9b.errors))
+  const v9c = RLOGIC.validateItem(rowR9, { ...RLOGIC.emptyEntry(), datang: '2', rusak: '0', retur: RLOGIC.RETUR_NANTI })
+  check('R9c rusak 0 + "Tentukan nanti" tetap boleh', v9c.valid === true, JSON.stringify(v9c.errors))
+  const drafts9 = ELOGIC.buildEventDrafts([rowR9], { ri1: { ...RLOGIC.emptyEntry(), datang: '2', rusak: '0', retur: RLOGIC.RETUR_SUPPLIER } }, { receivingId: 'rec1' })
+  check('R9d draft menormalkan retur_status ke NONE saat rusak 0',
+    drafts9[0].retur_status === 'NONE' && drafts9[0].retur_qty === 0, JSON.stringify(drafts9[0]))
 
   mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: null })
   PM.resetPhysicalModal(); resetCapability()
@@ -183,7 +215,12 @@ console.log('\n=== R. TERIMA BARANG per item (receiptForm.jsx) ===\n')
   click(tid(doc, 'receipt-submit'))
   await tick(); await tick()
   check('R7a over-receipt ditolak sebelum RPC', mock.__callsOf('rpc').length === 0, JSON.stringify(mock.__callsOf('rpc')))
-  check('R7b pesan menyebut sisa pesanan', /sisa pesanan/i.test(tid(doc, 'receipt-error')?.textContent || ''), tid(doc, 'receipt-error')?.textContent)
+  // Pesan menyebut batas yang dilanggar + sisa. Sejak run 199 batasnya QTY BELI
+  // nota ini (bukan qty pesanan PR), jadi teksnya "jumlah yang dibeli pada nota
+  // ini" — assertion tetap ketat pada angka & konsep sisa.
+  check('R7b pesan menyebut sisa yang boleh diterima + angkanya',
+    /sisa\s*2/i.test(tid(doc, 'receipt-error')?.textContent || '') && /dibeli|pesanan/i.test(tid(doc, 'receipt-error')?.textContent || ''),
+    tid(doc, 'receipt-error')?.textContent)
 
   // Isi valid: item1 datang 6 rusak 2 ws 3 tukang 1 penerima; item2 datang 2.
   typeInto(tid(doc, 'rc-datang-ri2'), '2')
@@ -357,6 +394,95 @@ console.log('\nC5. READY tanpa baris alokasi → tetap BISA dikonfirmasi (defect
   await tick(); await tick(); await tick()
   check('C5i panel "tidak ada alokasi tukang" tampil', /Tidak ada barang berstatus/i.test(tid(doc, 'handover-confirm-empty')?.textContent || ''))
   check('C5j jalur keluar header-only tersedia (bukan jalan buntu)', !!tid(doc, 'handover-confirm-headeronly'))
+}
+
+// ============================================================
+console.log('\n=== S. REPLAY vs KOREKSI (defect run 199) ===\n')
+// ============================================================
+// `client_event_id` deterministik: submit ulang dengan qty datang sama tetapi
+// kondisi/tujuan berbeda menghasilkan id yang SAMA. RPC menjawab
+// applied=0/already_applied=1 dan perubahan TIDAK tersimpan — kalau UI tidak
+// membandingkan isian, admin mengira koreksinya masuk.
+{
+  const ReceiptForm = (await importDist('modules/handovers/receiptForm.mjs')).default
+  const stored = {
+    id: 'evA', client_event_id: 'rcpt:rec1:ri1:0->2', receiving_id: 'rec1', receiving_item_id: 'ri1',
+    pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 2, qty_rusak: 0,
+    tujuan_ws: 2, tujuan_tukang: 0, penerima_tukang: null, retur_status: 'NONE', retur_qty: 0,
+    discard_confirmed: false, foto_ref: null
+  }
+  // (a) KOREKSI: isian berbeda (rusak 1, tujuan berubah) → DITOLAK dengan pesan
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: { ...LEDGER, receivingEvents: [{ ...stored }] } })
+  PM.resetPhysicalModal(); resetCapability()
+  const says1 = []
+  let closed1 = 0
+  let doc1 = mount(
+    React.createElement(ReceiptForm, {
+      receiving: REC, items: RI, orderedFor: (it) => (it.pr_item_id === 'pi1' ? 10 : 4),
+      capability: { ready: true, returnReady: true, missing: [] },
+      say: (m) => says1.push(m), refresh: noop, close: () => { closed1++ }
+    })
+  ).document
+  typeInto(tid(doc1, 'rc-datang-ri1'), '2')
+  typeInto(tid(doc1, 'rc-rusak-ri1'), '1')
+  typeInto(tid(doc1, 'rc-ws-ri1'), '1')
+  await tick()
+  click(tid(doc1, 'receipt-submit'))
+  await tick(); await tick(); await tick()
+  const err1 = tid(doc1, 'receipt-error')?.textContent || ''
+  check('S1a koreksi yang berbeda DITOLAK (bukan diam-diam diabaikan)', /berbeda dari catatan yang sudah tersimpan/i.test(err1), err1)
+  check('S1b pesan menyebut kolom yang berbeda', /rusak|tujuan/i.test(err1), err1)
+  check('S1c pesan menyatakan perubahan TIDAK ditulis', /tidak ditulis/i.test(err1), err1)
+  check('S1d TIDAK memanggil RPC (nol tulisan)', mock.__callsOf('rpc').length === 0, JSON.stringify(mock.__callsOf('rpc').map(c => c.fn)))
+  check('S1e tidak ada klaim tersimpan + modal tidak ditutup', says1.length === 0 && closed1 === 0, `${JSON.stringify(says1)} closed=${closed1}`)
+
+  // (b) REPLAY: isian identik → aman, RPC dipanggil, server menjawab already
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: { ...LEDGER, receivingEvents: [{ ...stored }] } })
+  mock.__state.replayReceipt = true
+  PM.resetPhysicalModal(); resetCapability()
+  const says2 = []
+  let doc2 = mount(
+    React.createElement(ReceiptForm, {
+      receiving: REC, items: RI, orderedFor: (it) => (it.pr_item_id === 'pi1' ? 10 : 4),
+      capability: { ready: true, returnReady: true, missing: [] },
+      say: (m) => says2.push(m), refresh: noop, close: noop
+    })
+  ).document
+  typeInto(tid(doc2, 'rc-datang-ri1'), '2')
+  typeInto(tid(doc2, 'rc-ws-ri1'), '2')
+  await tick()
+  click(tid(doc2, 'receipt-submit'))
+  await tick(); await tick(); await tick()
+  check('S2a replay isian identik tetap boleh (RPC dipanggil)', mock.__callsOf('rpc').length === 1, String(mock.__callsOf('rpc').length))
+  check('S2b pesan replay menyebut tidak digandakan', says2.some(m => /tidak digandakan/i.test(m)), JSON.stringify(says2))
+  check('S2c tidak ada error koreksi palsu', !tid(doc2, 'receipt-error'), tid(doc2, 'receipt-error')?.textContent)
+
+  // (c) FOTO BARU pada kedatangan yang sama: bukan replay, tetapi juga tidak
+  // akan tersimpan (event pertama tidak ditimpa) → harus dikatakan, bukan
+  // diam-diam "berhasil".
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: { ...LEDGER, receivingEvents: [{ ...stored }] } })
+  PM.resetPhysicalModal(); resetCapability()
+  const says3 = []
+  let doc3 = mount(
+    React.createElement(ReceiptForm, {
+      receiving: REC, items: RI, orderedFor: (it) => (it.pr_item_id === 'pi1' ? 10 : 4),
+      capability: { ready: true, returnReady: true, missing: [] },
+      say: (m) => says3.push(m), refresh: noop, close: noop
+    })
+  ).document
+  typeInto(tid(doc3, 'rc-datang-ri1'), '2')
+  typeInto(tid(doc3, 'rc-ws-ri1'), '2')
+  const fileInput = tid(doc3, 'rc-foto-ri1')
+  const file = new dom0.window.File(['x'], 'bukti-baru.jpg', { type: 'image/jpeg' })
+  Object.defineProperty(fileInput, 'files', { value: [file], configurable: true })
+  flushSync(() => fileInput.dispatchEvent(new dom0.window.Event('change', { bubbles: true })))
+  await tick()
+  click(tid(doc3, 'receipt-submit'))
+  await tick(); await tick(); await tick()
+  const err3 = tid(doc3, 'receipt-error')?.textContent || ''
+  check('S3a foto baru pada kedatangan yang sama TIDAK diklaim tersimpan',
+    /foto bukti/i.test(err3) && /tidak ditulis/i.test(err3), err3)
+  check('S3b nol RPC (tidak ada klaim palsu)', mock.__callsOf('rpc').length === 0, String(mock.__callsOf('rpc').length))
 }
 
 // ============================================================

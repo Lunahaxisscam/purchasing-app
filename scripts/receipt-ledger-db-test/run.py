@@ -157,4 +157,11 @@ rc2 = run(['node', os.path.join(HERE, 'probe_retur_matrix.mjs')], cwd=REPO, env=
 # bertentangan dengan status barang (RETURN untuk barang yang sudah dibuang).
 print('\n=== 6. Resolusi retur: ditawarkan aplikasi vs diterima RPC ===')
 rc3 = run(['node', os.path.join(HERE, 'probe_retur_resolution.mjs')], cwd=REPO, env=env)
-sys.exit(rc or rc2 or rc3)
+
+# ------------------------------ 7. penjaga kedatangan (defect run 199)
+# Menutup tiga defect yang hanya terlihat saat form → payload → RPC diuji
+# sebagai satu rantai: retur tanpa qty rusak, kedatangan barang yang BELUM
+# DIBELI, dan DATANG melebihi BELI (termasuk baris beli langsung tanpa PR).
+print('\n=== 7. Penjaga kedatangan: rusak 0 / belum dibeli / datang > beli ===')
+rc4 = run(['node', os.path.join(HERE, 'probe_receipt_guards.mjs')], cwd=REPO, env=env)
+sys.exit(rc or rc2 or rc3 or rc4)

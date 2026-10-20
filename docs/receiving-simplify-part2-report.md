@@ -150,7 +150,40 @@ T6a–T6k                      11 assertion        (jsdom, RED dulu di kode lama
 Bukti RED: pada kode `0a423ac` lima assertion T6 gagal (`Dibuang` muncul di
 daftar untuk event PENDING; `RETURN` muncul untuk event DISCARDED).
 
-### 4.3 Batasan yang TIDAK diperbaiki di card ini
+### 4.3 Defect ditemukan pada review run 199 (batas kedatangan & koreksi) — SUDAH diperbaiki
+
+Review run 199 menguji **rantai form → payload → RPC** (PG16 nyata + migrasi
+00..04), bukan menambah assertion di jalur yang sudah hijau. Empat defect
+menyala begitu migrasi dijalankan (mode READY):
+
+| # | Defect | Bukti | Fix |
+|---|---|---|---|
+| 5 | Pilihan retur (`SUPPLIER`/`DIBUANG`) saat **rusak = 0** → event terkirim `PENDING/DISCARDED` dengan `retur_qty 0` | RPC `receipt_apply_events` menolak `retur_without_qty`. `validateForm.valid=true`, `validateEventDrafts.ok=true` — admin menekan Simpan lalu **pasti gagal** | Validasi menolak pilihan retur tanpa qty rusak; `buildEventDrafts` menormalkan status ke `NONE` bila rusak 0; `validateEventDrafts` mencerminkan aturan server |
+| 6 | Baris **cangkang Approval** (`quantity_received = 0`) tampil di form dengan `sisa = qty pesanan` | RPC **menerima** kedatangannya: `BELI 0 / DATANG 5`. **Di data live 6 dari 6 baris `receiving_items` ber-qty 0** | `buildRows` menandai `notBought`; `validateItem` menolak; `buildSavePlan` tidak pernah memuatnya; UI memberi label "Belum dibeli" |
+| 7 | `sisa` dihitung dari **qty pesanan PR**, bukan qty BELI baris nota | Nota membeli 3 dari pesanan 5 menawarkan sisa 5 → `DATANG 5 > BELI 3` diterima. Untuk beli langsung tanpa PR, `sisa = null` → **tanpa batas sama sekali** | Batas atas = `quantity_received` baris; bila NULL (data lama) pakai qty pesanan + UI menandai `boughtKnown:false` |
+| 8 | **Koreksi** isian pada submit ulang hilang tanpa peringatan | `client_event_id` = `rcpt:{rec}:{item}:{prevCum}->{prevCum+datang}`. Qty datang sama + rusak/tujuan berbeda → id sama → RPC `applied=0, already_applied=1`, perubahan tidak tersimpan, UI hanya bilang "sudah pernah tercatat" | `findSameEvents()` membandingkan isian dengan event tersimpan: identik → replay (aman); berbeda → **ditolak** dengan kolom yang berbeda disebut, karena RPC koreksi belum ada di kontrak schema owner |
+
+Harness pengunci:
+
+```
+probe_receipt_guards.mjs     18 PASS / 0 FAIL   (PG16 nyata, migrasi 00..04)
+R8a–R8f, R9a–R9d             10 assertion        (logika murni, jsdom)
+S1a–S1e, S2a–S2c, S3a–S3b     8 assertion        (jsdom, jalur simpan asli)
+```
+
+Bukti RED: pada kode `bc200b0` probe yang sama memberi **6 PASS / 12 FAIL**
+(G1a/G1b/G1d/G1e, G2a–G2d, G3a/G3b/G3d/G3e gagal), dan tidak ada satu pun
+assertion yang dilonggarkan — tiga di antaranya (`R3d`, `R7b`, `R8a`) justru
+diperketat karena perilaku lama yang "benar" ternyata mengunci arti yang salah.
+
+**Temuan proses (kejujuran harness).** Mock `receipt_apply_events` selalu
+menjawab `ok:true`, sehingga ketiga defect pertama **tidak mungkin terlihat**
+di jsdom. Mock kini menolak `retur_status != NONE` dengan `retur_qty <= 0`
+seperti server sungguhan, dan mock `select` menghormati filter
+`client_event_id` (sebelumnya mengembalikan SEMUA baris sehingga setiap submit
+akan tampak "sudah ada").
+
+### 4.4 Batasan yang TIDAK diperbaiki di card ini
 
 **Serah terima tidak bisa sebagian.** `handover_confirm` melakukan CAS pada SATU
 dokumen (`diserahkan_at`), jadi satu dokumen = satu waktu penyerahan. Di UI,

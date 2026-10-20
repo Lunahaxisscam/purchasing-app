@@ -159,6 +159,11 @@ function terminalRaw(st) {
       else if (f.col === 'receiving_event_id' && f.vals) rows = rows.filter(r => f.vals.includes(r.receiving_event_id))
       else if (f.col === 'receiving_event_id' && f.val !== undefined) rows = rows.filter(r => r.receiving_event_id === f.val)
       else if (f.col === 'handover_id') rows = rows.filter(r => r.handover_id === f.val)
+      // t_7bc6246b run 199: pembeda REPLAY vs KOREKSI mencari event tersimpan
+      // lewat client_event_id. Tanpa filter ini mock mengembalikan SEMUA baris
+      // dan setiap submit dianggap "sudah ada" → hasil uji menyesatkan.
+      else if (f.col === 'client_event_id' && f.vals) rows = rows.filter(r => f.vals.includes(r.client_event_id))
+      else if (f.col === 'client_event_id' && f.val !== undefined) rows = rows.filter(r => r.client_event_id === f.val)
     }
     return { data: rows, error: null }
   }
@@ -215,6 +220,26 @@ export const supabase = {
     // membaca `data.applied` / `data.already` / `data.inserted` diuji nyata.
     if (fn === 'receipt_apply_events') {
       const evs = args?.p_events || []
+      // Emulasi penolakan server yang NYATA (migrasi 02 milik t_03b41644):
+      // `retur_status PENDING/DISCARDED` wajib `retur_qty > 0`, kalau tidak
+      // RPC menjawab ok:false reason retur_without_qty. Mock yang selalu
+      // menjawab ok:true membuat harness hijau untuk alur yang di produksi
+      // berakhir dengan penolakan (defect run 199).
+      const badRetur = evs.find(e => {
+        const st = String(e?.retur_status || 'NONE').toUpperCase()
+        return st !== 'NONE' && !(Number(e?.retur_qty) > 0)
+      })
+      if (badRetur) {
+        return {
+          data: {
+            ok: false,
+            reason: 'retur_without_qty',
+            error: `retur_status ${String(badRetur.retur_status).toUpperCase()} wajib retur_qty > 0.`,
+            client_event_id: badRetur.client_event_id
+          },
+          error: null
+        }
+      }
       const applied = evs.length
       return {
         data: {
