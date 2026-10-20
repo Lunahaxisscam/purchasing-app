@@ -139,6 +139,31 @@ nota itu (rincian barang dibaca dari baris nota). Harga satuan riil per barang
 menjadi acuan harga **HISTORIS** di modul Material (`modules/materials/acuan.js`
 → `receivingItemActualPrice`).
 
+### Handover — ledger fisik per barang (t_7bc6246b)
+
+Arah DAT: **UI fisik HANYA di Handover**; Purchase berhenti di "barang dibeli".
+Rincian kontrak: `docs/receiving-events-contract.md`.
+
+- `modules/handovers/receiptForm.jsx` — **Terima Barang** per item: satu submit
+  mencatat datang / rusak / tujuan (Workshop|Tukang) / retur / foto OPSIONAL.
+  Menulis lewat RPC `receipt_apply_events` (idempoten). Mode LEGACY (tabel
+  belum ada) memblokir submit dengan pesan gap dan **nol tulisan**.
+- `modules/handovers/confirmForm.jsx` — konfirmasi fisik per item: baris
+  di-prefill dari `tujuan_tukang` dikurangi yang sudah diserahkan, lalu RPC
+  `handover_confirm` (CAS `diserahkan_at IS NULL`). Mode LEGACY jatuh ke
+  `confirm.js` (header saja) dengan pesan jujur.
+- `modules/handovers/returnForm.jsx` — retur dari event rusak tanpa mengetik
+  ulang; qty yang sudah diretur (`return_lines`) tidak ditawarkan lagi. Bila
+  riwayat retur tak terbaca, modal **menolak** (anti double-cost).
+- `modules/handovers/physicalModal.js` + `physicalHost.jsx` — store + host
+  modal (dipakai banner antrean DAN tombol baris; tidak mengubah ctx shell).
+- `modules/receivings/receiptLogic.js` / `receiptEventLogic.js` — logika murni.
+  **Semantik qty wajib**: `sisa = pesanan − qty_arrived` (DATANG), BUKAN
+  `quantity_received` (BELI). Lihat `COMPATIBILITY_CUTOVER.md` t_03b41644.
+- `modules/receivings/receiptCapability.js` — probe READ-ONLY; UI tidak pernah
+  mengklaim tersimpan untuk tabel yang belum ada.
+- `modules/receivings/receiptEventSave.js` — satu-satunya jalur tulis RPC.
+
 ### Handover — display/confirm (t_b418827b)
 
 - `modules/handovers/display.js` — logika murni: semantik bukti fisik
