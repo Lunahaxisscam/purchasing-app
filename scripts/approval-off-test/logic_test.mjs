@@ -70,11 +70,17 @@ check('L2e visibleNavSections tidak memuat approval', !secIds.includes('approval
 check('L2f tidak ada grup menu kosong', constants.visibleNavSections.every(s => s.items.length > 0))
 // t_da4a9ef8: menu Stok Workshop digabung ke Material -> jumlah tampil ikut
 // kebijakan (bukan angka mati), supaya tes tidak mengunci menu duplikat.
+// t_6a18a263: Actual Labor & Stok & Marketing/Lead Pipeline juga ikut
+// kebijakan (LABOR_STOCK_MODULE_ENABLED / MARKETING_MODULE_ENABLED).
 const EXPECTED_MENU = 21 - (constants.APPROVAL_MODULE_ENABLED === true ? 0 : 1)
   - (constants.STOCK_MENU_CONSOLIDATED === true ? 1 : 0)
-eq(`L2g total menu tampil = ${EXPECTED_MENU} (21 - approval - stok-digabung)`, EXPECTED_MENU, navIds.length)
+  - (constants.LABOR_STOCK_MODULE_ENABLED === true ? 0 : 1)
+  - (constants.MARKETING_MODULE_ENABLED === true ? 0 : 1)
+eq(`L2g total menu tampil = ${EXPECTED_MENU} (21 - approval - stok-digabung - labor/stok - marketing)`, EXPECTED_MENU, navIds.length)
 eq('L2h isModuleVisible(approvals) false', false, constants.isModuleVisible('approvals'))
 eq('L2i isModuleVisible(requests) true', true, constants.isModuleVisible('requests'))
+eq('L2j isModuleVisible(labor_stock) false', false, constants.isModuleVisible('labor_stock'))
+eq('L2k isModuleVisible(marketing) false', false, constants.isModuleVisible('marketing'))
 
 // ---------- L3. Handler keputusan / alert fail closed ----------
 console.log('\nL3. Handler approval fail closed (0 write, 0 rpc)')

@@ -72,9 +72,20 @@ const APPROVAL_ON = constants.APPROVAL_MODULE_ENABLED === true
 const STOCK_ON = constants.STOCK_MENU_CONSOLIDATED !== true
 check('navSections memuat tepat 3 section (Operasional, Pengadaan, Admin Suite)', navSections.length === 3)
 check('total menu di navSections (katalog) = 21', ALL_NAV_IDS.length === 21)
+// t_6a18a263 (arahan DAT): Actual Labor & Stok & Marketing/Lead Pipeline
+// disembunyikan dari navigasi lewat kebijakan terpusat (UI/navigasi saja,
+// data & kode modul tetap ada). Jumlah menu TAMPIL dihitung dari kebijakan,
+// jadi angka ini ikut menurun secara otomatis — bukan di-hard-code ulang.
+const LABOR_STOCK_ON = constants.LABOR_STOCK_MODULE_ENABLED === true
+const MARKETING_ON = constants.MARKETING_MODULE_ENABLED === true
 const EXPECTED_VISIBLE = 21 - (APPROVAL_ON ? 0 : 1) - (STOCK_ON ? 0 : 1)
-check(`total menu TAMPIL = ${EXPECTED_VISIBLE} (kebijakan Approval + konsolidasi Stok)`,
+  - (LABOR_STOCK_ON ? 0 : 1) - (MARKETING_ON ? 0 : 1)
+check(`total menu TAMPIL = ${EXPECTED_VISIBLE} (kebijakan Approval + Stok + Labor/Stok + Marketing)`,
   VISIBLE_NAV_IDS.length === EXPECTED_VISIBLE, `n=${VISIBLE_NAV_IDS.length}`)
+check('total menu TAMPIL tidak memuat labor_stock (nonaktif sesuai kebijakan)',
+  !VISIBLE_NAV_IDS.includes('labor_stock'))
+check('total menu TAMPIL tidak memuat marketing (nonaktif sesuai kebijakan)',
+  !VISIBLE_NAV_IDS.includes('marketing'))
 check('label alias past_projects terdaftar di labels', !!labels.past_projects)
 
 const EXPECTED_22_MODS = [
@@ -99,6 +110,13 @@ for (const id of EXPECTED_22_MODS) {
     check("ID 'stock' TIDAK tampil di menu (digabung ke Material)", !VISIBLE_NAV_IDS.includes(id))
     check("target pengalihan 'stock' = 'materials' dan menu Material tampil",
       constants.STOCK_MENU_TARGET === 'materials' && VISIBLE_NAV_IDS.includes('materials'))
+  } else if ((id === 'labor_stock' && !LABOR_STOCK_ON) || (id === 'marketing' && !MARKETING_ON)) {
+    // t_6a18a263 (arahan DAT): modul disembunyikan dari NAVIGASI saja lewat
+    // kebijakan terpusat. Entri katalog tetap ada (reversible), komponen &
+    // datanya tetap utuh — jadi sweep render di bawah tetap mengujinya.
+    check(`ID '${id}' tetap di katalog navSections (reversible)`, ALL_NAV_IDS.includes(id))
+    check(`ID '${id}' TIDAK tampil di menu (nonaktif sesuai kebijakan)`, !VISIBLE_NAV_IDS.includes(id))
+    check(`isModuleVisible('${id}') === false`, constants.isModuleVisible(id) === false)
   } else {
     check(`ID '${id}' terdaftar di menu tampil`, VISIBLE_NAV_IDS.includes(id))
   }
@@ -253,9 +271,17 @@ console.log('\n=== D. VERIFIKASI KOMPONEN SHARED: SIDEBAR & LOGIN ===')
   const adminButtons = Array.from(adminHost.querySelectorAll('nav button'))
   // t_50b783de: jumlah item dihitung dari kebijakan (21 saat Approval ON,
   // 20 saat OFF) — bukan angka hard-code yang mengunci Approval terlihat.
-  const expectedAdmin = APPROVAL_ON ? 21 : 20
-  check(`Sidebar role admin: merender semua ${expectedAdmin} item navigasi (kebijakan Approval)`,
+  // t_6a18a263: kurangi lagi 2 saat Actual Labor & Stok dan Marketing /
+  // Lead Pipeline dinonaktifkan lewat kebijakan terpusat.
+  const expectedAdmin = 21 - (APPROVAL_ON ? 0 : 1) - (STOCK_ON ? 0 : 1)
+    - (LABOR_STOCK_ON ? 0 : 1) - (MARKETING_ON ? 0 : 1)
+  check(`Sidebar role admin: merender semua ${expectedAdmin} item navigasi (kebijakan Approval + Stok + Labor/Stok + Marketing)`,
     adminButtons.length === expectedAdmin, `n=${adminButtons.length}`)
+  // t_6a18a263: teks modul nonaktif tidak boleh muncul sama sekali.
+  check("Sidebar role admin: teks 'Actual Labor & Stok' TIDAK dirender",
+    !adminHost.textContent.includes('Actual Labor'))
+  check("Sidebar role admin: teks 'Marketing / Lead Pipeline' TIDAK dirender",
+    !adminHost.textContent.includes('Marketing / Lead Pipeline'))
   check('Sidebar role admin: menu Approval TIDAK ada saat kebijakan OFF',
     APPROVAL_ON || !adminButtons.some(b => (b.textContent || '').trim() === 'Approval'))
 
@@ -264,9 +290,17 @@ console.log('\n=== D. VERIFIKASI KOMPONEN SHARED: SIDEBAR & LOGIN ===')
     page: 'dashboard', setPage: () => {}, session: { user: { email: 'tukang@noirliving.id' } }, logout: () => {}, role: 'user'
   })
   const userButtons = Array.from(userHost.querySelectorAll('nav button'))
-  const expectedUser = APPROVAL_ON ? 8 : 7
+  // t_6a18a263: labor_stock & marketing adminOnly, jadi role user memang
+  // tidak melihatnya — angka ini tidak berubah, tapi perhitungkan kebijakan
+  // agar tetap benar kalau suatu saat salah satu modul aktif lagi.
+  const expectedUser = 8 - (APPROVAL_ON ? 0 : 1)
+    - (LABOR_STOCK_ON ? 1 : 0) - (MARKETING_ON ? 1 : 0)
   check(`Sidebar role user: hanya merender ${expectedUser} item operasional + pengadaan (adminOnly difilter)`,
     userButtons.length === expectedUser, `n=${userButtons.length}`)
+  check("Sidebar role user: teks 'Actual Labor & Stok' TIDAK dirender",
+    !userHost.textContent.includes('Actual Labor'))
+  check("Sidebar role user: teks 'Marketing / Lead Pipeline' TIDAK dirender",
+    !userHost.textContent.includes('Marketing / Lead Pipeline'))
 
   // Login component at 7 viewports
   for (const vp of VIEWPORTS) {

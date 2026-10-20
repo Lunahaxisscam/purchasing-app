@@ -3,7 +3,7 @@ import { exportWorkbook } from '../lib/workflow'
 import { headersFor, parseHandoverNote } from '../lib/constants'
 // t_50b783de (Approval OFF): kartu "Menunggu approval" dan sheet ekspor
 // Approval hanya dirender bila modul Approval aktif (satu kebijakan terpusat).
-import { isApprovalEnabled } from '../lib/constants'
+import { isApprovalEnabled, isLaborStockEnabled, isMarketingEnabled } from '../lib/constants'
 import CompactRoot from './CompactRoot'
 
 // Ikon kartu metrik (stroke SVG) — menggantikan emoji agar terlihat rapi
@@ -80,7 +80,20 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     // tujuan barunya, bukan menjanjikan halaman terpisah.
     ['stock', 'Stok (di Material)', 'Gabungan', 'tone-neutral', 'Stok ada di Material'],
     ['crm', 'Customer CRM', 'Read-only', 'tone-neutral'],
-    ['labor_stock', 'Actual Labor & Stok', 'Read-only', 'tone-neutral'],
+    // t_6a18a263 (arahan DAT): kartu pintasan Actual Labor & Stok HILANG
+    // dari dashboard — sama seperti pola Approval OFF, kartunya memang
+    // tidak dimasukkan ke daftar (bukan disembunyikan lewat CSS), jadi
+    // tidak ada tombol yang mengarah ke modul nonaktif. Kode modul &
+    // datanya tetap ada (reversible); upah tukang tetap terlihat di
+    // Project Finance.
+    ...(isLaborStockEnabled()
+      ? [['labor_stock', 'Actual Labor & Stok', 'Read-only', 'tone-neutral']]
+      : []),
+    // t_6a18a263 (arahan DAT): kartu pintasan Marketing / Lead Pipeline
+    // HILANG dari dashboard dengan pola yang sama seperti di atas.
+    ...(isMarketingEnabled()
+      ? [['marketing', 'Marketing / Lead Pipeline', 'Read-only', 'tone-neutral']]
+      : []),
     ['planning', 'Budgeting', 'Rencana', 'tone-neutral'],
     ['project_finance', 'Project Finance', 'Laba/rugi', 'tone-neutral'],
     ['finance', 'Finance', 'Ringkasan', 'tone-neutral'],

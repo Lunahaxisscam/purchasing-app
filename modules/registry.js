@@ -325,10 +325,19 @@ export const modules = [
     //   2) WORKSHOP STOCK — ringkasan rows.materials (membaca kembali
     //      modules/stock/logic.js supaya aturan "bukan 0" konsisten).
     // Detail: modules/labor-stock/README.md.
+    //
+    // t_6a18a263 (arahan DAT, screenshot 21 Okt 2026): modul ini
+    // DIHILANGKAN dari navigasi lewat kebijakan terpusat
+    // (LABOR_STOCK_MODULE_ENABLED di lib/constants.js). Entri manifest
+    // TETAP ada (bukan dihapus) supaya reversible tanpa menulis ulang
+    // registry — pola sama seperti Approval OFF. `enabled` dibaca dari
+    // kebijakan, bukan dari angka mati di file ini.
     id: 'labor_stock',
     label: 'Actual Labor & Stok',
     adminOnly: true,
     source: 'core',
+    enabled: false,
+    disabledBy: 'LABOR_STOCK_MODULE_ENABLED (lib/constants.js)',
     files: [
       'modules/labor-stock/view.jsx',
       'modules/labor-stock/logic.js',
@@ -354,10 +363,18 @@ export const modules = [
     // halaman". Lead dengan tahap yang tidak dikenali ditaruh di ember
     // "Tahap tidak diketahui" — tidak dipaksa masuk New Lead.
     // Detail: modules/marketing/README.md.
+    //
+    // t_6a18a263 (arahan DAT, screenshot 21 Okt 2026): modul ini
+    // DIHILANGKAN dari navigasi lewat kebijakan terpusat
+    // (MARKETING_MODULE_ENABLED di lib/constants.js). Entri manifest TETAP
+    // ada (reversible, tidak menulis ulang registry) — pola sama seperti
+    // Approval OFF. Tidak ada data customer/lead yang dihapus.
     id: 'marketing',
     label: 'Marketing / Lead Pipeline',
     adminOnly: true,
     source: 'core',
+    enabled: false,
+    disabledBy: 'MARKETING_MODULE_ENABLED (lib/constants.js)',
     files: [
       'modules/marketing/view.jsx',
       'modules/marketing/logic.js',

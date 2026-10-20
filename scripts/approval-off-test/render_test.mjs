@@ -80,10 +80,15 @@ const reqView = await load('modules/requests/view.mjs')
 // ---------- R1. Sidebar desktop ----------
 // t_da4a9ef8: jumlah item sidebar dihitung dari KEBIJAKAN (Approval OFF +
 // menu Stok Workshop yang digabung ke Material), bukan angka mati 20.
+// t_6a18a263: kurangi lagi 2 untuk Actual Labor & Stok dan Marketing /
+// Lead Pipeline (kebijakan LABOR_STOCK_MODULE_ENABLED /
+// MARKETING_MODULE_ENABLED di lib/constants.js).
 const constantsMod = await load('lib/constants.mjs')
 const EXPECTED_NAV = 21
   - (constantsMod.APPROVAL_MODULE_ENABLED === true ? 0 : 1)
   - (constantsMod.STOCK_MENU_CONSOLIDATED === true ? 1 : 0)
+  - (constantsMod.LABOR_STOCK_MODULE_ENABLED === true ? 0 : 1)
+  - (constantsMod.MARKETING_MODULE_ENABLED === true ? 0 : 1)
 {
   const host = render(React.createElement(Sidebar, { page: 'dashboard', setPage: noop, session, logout: noop, role: 'admin' }))
   const labels = [...host.querySelectorAll('nav button')].map(b => (b.textContent || '').trim())

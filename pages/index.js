@@ -21,13 +21,21 @@ import RapCompareModule from '../modules/rap-compare/view'
 // t_7253b859: modul "Customer CRM" — halaman source:'core' (read-only dari
 // sisi DB; customer dari form adalah draf memori halaman, tidak tersimpan).
 import CrmModule from '../modules/crm/view'
+// t_62e41e91: modul "Actual Labor & Stok" — halaman source:'core'.
+// t_6a18a263 (arahan DAT): modul ini DINONAKTIFKAN dari navigasi lewat
+// kebijakan terpusat (LABOR_STOCK_MODULE_ENABLED). Import DIPERTAHANKAN
+// supaya kode modul tetap utuh & reversible, tetapi cabang render-nya
+// sekarang fail-closed (lihat isNavModuleDisabled di bawah) — tidak ada
+// ghost link yang masih bisa membukanya.
 import LaborStockModule from '../modules/labor-stock/view'
-// t_31a1a9f9: modul "Marketing / Lead Pipeline" — halaman source:'core'
-// (read-only dari sisi DB; lead dari form adalah draf memori halaman).
+// t_31a1a9f9: modul "Marketing / Lead Pipeline" — halaman source:'core'.
+// t_6a18a263 (arahan DAT): dinonaktifkan dari navigasi lewat kebijakan
+// terpusat (MARKETING_MODULE_ENABLED); mount-nya fail-closed seperti di
+// atas. Import dipertahankan agar reversible.
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
-import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE } from '../lib/constants'
+import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE, isNavModuleDisabled } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
 import { submitLean, closeRequestRemaining } from '../modules/requests/submitLean'
@@ -944,8 +952,20 @@ export default function App() {
           // TIDAK ada penulisan, dan formula finance TIDAK disentuh.
           // Sumber yang tidak dikirim host tampil sebagai panel capability
           // 'unavailable' — bukan angka 0 yang terbaca "aktual nol rupiah".
-          // Guard admin sama seperti modul admin lainnya.
-          role === 'admin' ? (
+          //
+          // t_6a18a263 (arahan DAT): modul ini DIHILANGKAN dari navigasi
+          // lewat kebijakan terpusat. Guard di bawah fail-closed untuk
+          // rute/bookmark/state lama: halaman TIDAK dirender lagi (tidak
+          // ada ghost link), tapi tetap aman — tanpa query tambahan dan
+          // tanpa melemahkan guard role. Mengaktifkan kembali = satu nilai
+          // LABOR_STOCK_MODULE_ENABLED di lib/constants.js.
+          isNavModuleDisabled('labor_stock') ? (
+            <div className="panel empty">
+              Halaman Actual Labor &amp; Stok tidak tersedia. Upah tukang
+              aktual (tukang_projects) tetap tercatat dan tetap tampil di
+              Project Finance; estimasi WBS tetap ada di Budgeting.
+            </div>
+          ) : role === 'admin' ? (
             <LaborStockModule
               rows={rows}
               laborRows={rows.tukang_projects}
@@ -974,9 +994,20 @@ export default function App() {
           // — tidak dipaksa masuk New Lead.
           // Tautan CRM hanya bisa diselesaikan kalau host mengirim
           // `customers`; kalau tidak, halaman menulis "tidak dikirim",
-          // BUKAN "tidak ditemukan". Guard admin sama seperti modul
-          // admin lainnya.
-          role === 'admin' ? (
+          // BUKAN "tidak ditemukan".
+          //
+          // t_6a18a263 (arahan DAT): modul ini DIHILANGKAN dari navigasi
+          // lewat kebijakan terpusat. Guard fail-closed seperti
+          // 'labor_stock' di atas: rute/bookmark lama tidak lagi membuka
+          // papan pipeline, dan TIDAK ada data customer/lead yang dihapus.
+          // Mengaktifkan kembali = satu nilai MARKETING_MODULE_ENABLED.
+          isNavModuleDisabled('marketing') ? (
+            <div className="panel empty">
+              Halaman Marketing / Lead Pipeline tidak tersedia. Customer
+              CRM tetap berjalan; tidak ada data customer atau lead yang
+              dihapus.
+            </div>
+          ) : role === 'admin' ? (
             <MarketingModule
               rows={rows}
               leads={rows.leads}

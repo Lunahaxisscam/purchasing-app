@@ -15,7 +15,11 @@ import SalesInvoiceModule from '../modules/sales-invoice/view'
 import RapCompareModule from '../modules/rap-compare/view'
 import StockModule from '../modules/stock/view'
 import CrmModule from '../modules/crm/view'
-import LaborStockModule from '../modules/labor-stock/view'
+// t_6a18a263 (arahan DAT): modul Actual Labor & Stok dinonaktifkan dari
+// navigasi. Import-nya DIHAPUS dari smoke (bukan disembunyikan) supaya
+// build benar-benar tidak lagi memasang komponen itu; kode modul tetap
+// utuh di modules/labor-stock/ dan bisa dihidupkan lagi dari
+// lib/constants.js.
 
 // ------------------------------------------------------------
 // GUARD PRODUKSI (temuan audit Brooklyn #A.2):
@@ -219,16 +223,14 @@ export default function SmokePage() {
       <section id="mod-crm">
         <CrmModule rows={mock} customers={mock.customers} invoiceCounts={null} say={noop} />
       </section>
-      {/* t_62e41e91 (S5, Bit): Actual Labor & Stok — sumber sengaja null
-          supaya jalur "belum tersedia" (bukan 0) ikut ter-render saat build. */}
-      <section id="mod-labor-stock">
-        <LaborStockModule
-          rows={mock}
-          laborRows={null}
-          estimateRows={null}
-          materials={mock.materials}
-          say={noop}
-        />
+      {/* t_6a18a263 (arahan DAT): modul Actual Labor & Stok dihilangkan
+          dari navigasi (kebijakan LABOR_STOCK_MODULE_ENABLED), jadi section
+          smoke-nya juga dibuang — build tidak lagi memasang komponen itu.
+          Kode modul tetap ada di repo (reversible); import dibiarkan tidak
+          dipakai TIDAK dilakukan (lint build) — lihat catatan import di
+          bawah: section ini sengaja diganti komentar penanda. */}
+      <section id="mod-labor-stock-disabled">
+        <p className="smoke-note">Actual Labor &amp; Stok: modul dinonaktifkan dari navigasi (t_6a18a263)</p>
       </section>
       {/* Form tambah/edit per modul (data mock) */}
       {PAGES.map(p => (

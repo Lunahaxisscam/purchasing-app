@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 // `navSections` tetap utuh; hanya tampilan yang mengikuti kebijakan. Satu
 // komponen ini melayani desktop DAN drawer mobile, jadi tidak ada menu
 // Approval yang tertinggal di breakpoint mana pun.
-import { visibleNavSections, labels } from '../lib/constants'
+import { visibleNavSections, labels, isModuleVisible } from '../lib/constants'
 
 // Ikon SVG inline (stroke-based, 18px) — memberi isyarat visual per menu
 // supaya navigasi tidak terasa seperti daftar teks polos. Murni dekoratif:
@@ -122,7 +122,19 @@ export default function Sidebar({ page, setPage, session, logout, role = 'user' 
   // Section bertanda adminOnly (mis. Finance) hanya tampil untuk role admin.
   // Approval purchasing sudah disaring lebih dulu oleh kebijakan terpusat
   // (visibleNavSections), sehingga role tidak bisa "membuka kembali" menu itu.
-  const visibleSections = visibleNavSections.filter(sec => !sec.adminOnly || role === 'admin')
+  //
+  // t_6a18a263 (arahan DAT): Actual Labor & Stok dan Marketing / Lead
+  // Pipeline dihilangkan dari navigasi. Penyaringnya DI SINI juga (bukan
+  // hanya di visibleNavSections) supaya tidak ada satu jalur pun yang masih
+  // mem-render tombolnya — data & kode modul tetap ada, reversible lewat
+  // lib/constants.js. Auth guard role admin di bawah TIDAK berubah.
+  const visibleSections = visibleNavSections
+    .filter(sec => !sec.adminOnly || role === 'admin')
+    .map(sec => ({
+      ...sec,
+      items: (sec.items || []).filter(item => isModuleVisible(item.id))
+    }))
+    .filter(sec => !sec.items || sec.items.length > 0)
 
   // Inisial untuk avatar akun (maks 2 huruf).
   const email = session?.user?.email || ''
