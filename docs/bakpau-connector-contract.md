@@ -39,7 +39,7 @@ tidak mencatat pembayaran, dan tidak menulis ke Google Sheets.
 | `pages/api/bakpau/telegram.js` | Route masuk Telegram (platform dikunci route) |
 | `pages/api/bakpau/whatsapp.js` | Route masuk WhatsApp (platform dikunci route) |
 | `migrations/2026-10-21_bakpau_connector_ledger.sql` | **DRAFT** tabel ledger idempotensi + rollback |
-| `scripts/bakpau-connector-test/*` | Harness: 313 + 45 assertion |
+| `scripts/bakpau-connector-test/*` | Harness: 316 + 45 assertion + 2 probe read-only |
 
 **Tidak disentuh** (sesuai batas lane): `pages/index.js`, `lib/constants.js`,
 `lib/telegramAlert.js`, `modules/requests/**`, `modules/approvals/**`,
@@ -331,13 +331,33 @@ event yang diteruskan bridge resmi yang sudah ada.
 | 7 skenario purchasing | **VERIFIED terhadap mock** | `Q` (`S1–S24`) |
 | Regresi VERIFICATION_A | **VERIFIED** | `R` (`RA1–RA20`) |
 | `next build` | **VERIFIED** | 2 route `/api/bakpau/*` terbentuk |
-| **Transport Telegram live** | **UNVERIFIED** | belum ada `setWebhook`, belum ada pesan TEST dikirim |
+| **Transport Telegram live** | **UNVERIFIED — TERBUKTI TIDAK BERWENANG** | lihat §9.1 |
 | **WhatsApp bridge live** | **UNVERIFIED** | bridge tidak meneruskan ke route ini; tidak ada bridge kedua |
 | **DB write live** | **UNVERIFIED** | tabel ledger belum ada; tidak ada tulisan keuangan |
 | **Readback live** | **UNVERIFIED** | butuh DB nyata + otorisasi integrator |
 
 Tidak ada klaim "E2E aktif". Yang hijau adalah **kode yang dapat dieksekusi**
 dengan fixture sintetis berlabel, bukan respons live yang difabrikasi.
+
+### 9.1 Kenapa uji transport live TIDAK dijalankan (bukti, bukan alasan)
+
+`scripts/bakpau-connector-test/probe_transport_readiness.mjs` dijalankan
+read-only (hasil lengkap: `docs/bakpau-connector-transport-readiness.json`):
+
+```
+telegram_alert_status  -> 42501 permission denied for function
+telegram_send_test     -> { ok:false, reason:"not_authorized", sent:null }
+can_verify_target_identity: false
+send_test_authorized:       false
+conclusion: live_transport_test_blocked__cannot_verify_target_identity_or_not_authorized
+```
+
+Artinya lane ini **tidak bisa membuktikan** bahwa chat `1320969465` benar
+DM DAT. Mengirim "pesan TEST" tanpa bisa memverifikasi tujuan = **menebak
+recipient**, yang justru dilarang. Karena itu pesan uji tidak dikirim, dan
+statusnya dilaporkan UNVERIFIED apa adanya. Uji transport live harus dilakukan
+integrator yang punya otorisasi admin/drive-sync, setelah identitas tujuan
+diverifikasi lewat `telegram_alert_status`.
 
 ---
 
@@ -394,5 +414,5 @@ node scripts/bakpau-connector-test/probe_readonly.mjs
 flock /home/ubuntu/dev-workspaces/.purchasing-build.lock -c 'npm run build'
 ```
 
-Hasil terakhir: `313 lulus / 0 gagal` (connector) + `45 lulus / 0 gagal` (http),
-`next build` hijau.
+Hasil terakhir: `316 lulus / 0 gagal` (connector) + `45 lulus / 0 gagal` (http),
+`next build` hijau. Output mentah: `docs/bakpau-connector-test-evidence.log`.
