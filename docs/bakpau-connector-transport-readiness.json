@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "note": "READ-ONLY: tidak ada pesan yang dikirim. Kedua RPC dipanggil TANPA token otorisasi.",
+  "service_role_present_in_env": false,
+  "drive_sync_token_present_in_env": false,
+  "checks": {
+    "alert_status": {
+      "ok": false,
+      "error_code": "42501",
+      "error": "permission denied for function telegram_alert_status"
+    },
+    "can_verify_target_identity": false,
+    "send_test_authorized": false,
+    "send_test_response": {
+      "ok": false,
+      "reason": "not_authorized",
+      "sent": null
+    }
+  },
+  "conclusion": "live_transport_test_blocked__cannot_verify_target_identity_or_not_authorized"
+}

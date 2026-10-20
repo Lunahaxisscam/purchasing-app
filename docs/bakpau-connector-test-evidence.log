@@ -1,0 +1,431 @@
+SWC: 21 file dikompilasi ke dist/
+
+=== A. NORMALISASI DUA KANAL ===
+  PASS  A1 Telegram dinormalisasi
+  PASS  A2 channelKey telegram
+  PASS  A3 chatType private -> dm
+  PASS  A4 platform telegram
+  PASS  A5 WhatsApp dinormalisasi
+  PASS  A6 channelKey whatsapp
+  PASS  A7 chatType dm
+  PASS  A8 platform tak dikenal ditolak
+  PASS  A9 Telegram tanpa message ditolak
+  PASS  A10 WhatsApp tanpa id ditolak
+  PASS  A11 lampiran foto -> ref terbesar
+  PASS  A12 lampiran tanpa isi biner
+
+=== B. GERBANG MASUK (FAIL CLOSED) ===
+  PASS  B1 telegram sah lolos
+  PASS  B2 secret salah ditolak
+  PASS  B3 tanpa secret ditolak
+  PASS  B4 secret belum diset -> not_configured
+  PASS  B5 pengirim di luar allowlist ditolak
+  PASS  B6 allowlist kosong -> not_configured
+  PASS  B7 chat grup ditolak
+  PASS  B8 pengirim bot ditolak
+  PASS  B9 event kedaluwarsa (replay) ditolak
+  PASS  B10 jam terlalu jauh di depan ditolak
+  PASS  B11 WA HMAC sah lolos
+  PASS  B12 WA via hmac
+  PASS  B13 WA HMAC salah ditolak
+  PASS  B14 WA token bersama sah lolos
+  PASS  B15 WA tanpa tanda tangan ditolak
+  PASS  B16 WA pengirim di luar allowlist ditolak
+
+=== C. PARSER BUKTI (ANTI-TEBAK) ===
+  PASS  C1 vendor terbaca
+  PASS  C2 nota terbaca
+  PASS  C3 tanggal DD/MM/YYYY -> ISO
+  PASS  C4 dua baris barang
+  PASS  C5 qty baris 1
+  PASS  C6 harga baris 1
+  PASS  C7 spek baris 1
+  PASS  C8 material = 6*125000 + 5*65000
+  PASS  C9 total tertulis terbaca
+  PASS  C10 tidak ada baris tak terbaca
+  PASS  C11 bentuk inline terbaca
+  PASS  C12 inline harga
+  PASS  C13 inline satuan
+  PASS  C14 satuan asing tidak dipaksa
+  PASS  C15 normalizeUnit menolak satuan asing
+  PASS  C16 normalizeUnit menerima alias
+  PASS  C17 bukti nominal saja ditandai
+  PASS  C18 nominal saja TIDAK mengarang item
+  PASS  C19 baris tak terbaca TIDAK dibuang
+  PASS  C20 baris tak terbaca tercatat
+  PASS  C21 angka 1.075.000 dibaca benar
+  PASS  C22 angka 12,5 dibaca benar
+  PASS  C23 teks bukan angka -> null
+  PASS  C24 tanggal mustahil ditolak
+  PASS  C25 tanggal ISO sah
+
+=== D. RESOLUSI MASTER + KONFLIK IDENTITAS (fail closed) ===
+  PASS  D1 proyek kode 101 ketemu
+  PASS  D2 proyek id
+  PASS  D3 proyek lewat nama ketemu
+  PASS  D4 proyek tak dikenal
+  PASS  D5 konflik kode/code -> TIDAK matched
+  PASS  D6 alasan konflik = ambiguous
+  PASS  D7 kode 99 juga ditahan (dipakai 2 proyek)
+  PASS  D8 indeks melaporkan konflik
+  PASS  D9 proyek tidak konsisten terdeteksi
+  PASS  D10 kode dipakai 2 proyek -> ditolak
+  PASS  D11 vendor ketemu
+  PASS  D12 vendor tidak exact -> tidak ditebak
+  PASS  D13 qty PR
+  PASS  D14 sudah dibeli
+  PASS  D15 sisa
+  PASS  D16 A-12 != A1-2 (literal)
+  PASS  D17 a-12 == A-12 (case saja)
+  PASS  D18 literalKey pertahankan tanda baca
+
+=== E. IDENTITAS BUKTI & KEPUTUSAN DUPLIKAT ===
+  PASS  E1 hash bukti sama untuk bukti sama
+  PASS  E2 hash berformat sha256
+  PASS  E3 urutan baris tidak mengubah hash
+  PASS  E4 nota A-12 vs A1-2 -> hash BERBEDA
+  PASS  E5 nota "001" beda vendor -> hash beda
+  PASS  E6 tanggal beda -> hash beda (beli ulang sah)
+  PASS  E7 bukti identik -> duplicate_evidence
+  PASS  E8 nota sama isi beda -> conflict_invoice
+  PASS  E9 vendor lain nomor sama -> bukan duplikat
+  PASS  E10 nomor baru isi sama -> pembelian sah
+
+=== F. LEDGER (IDEMPOTENSI ATOMIK) ===
+  PASS  F1 klaim pertama berhasil
+  PASS  F2 klaim kedua ditolak (duplikat)
+  PASS  F3 claimBoth sukses
+  PASS  F4 race 10 event bukti sama -> tepat 1 menang
+  PASS  F5 sisanya ditandai duplikat bukti
+  PASS  F6 ledger DB tanpa tabel -> fail closed
+  PASS  F7 klaim DB pertama berhasil
+  PASS  F8 klaim DB kedua ditolak UNIQUE
+
+=== G. NOTIFIKASI — TARGET & PENOLAKAN ===
+  PASS  G1 target DAT platform
+  PASS  G2 target DAT chat
+  PASS  G3 target DAT user
+  PASS  G4 target DAT chat_type
+  PASS  G5 allowlist hanya 1 tujuan
+  PASS  G6 target DAT diizinkan
+  PASS  G7 target WhatsApp ditolak
+  PASS  G8 recipient lain (Novi) ditolak
+  PASS  G9 grup ditolak
+  PASS  G10 resolveTarget menolak WA
+  PASS  G11 tanpa requested -> target DAT
+  PASS  G12 draft menyatakan BELUM tersimpan
+  PASS  G13 draft tidak punya headline "Pembelian tercatat"
+  PASS  G14 tercatat tidak menyebut belum tersimpan
+  PASS  G15 gagal menyatakan TIDAK tersimpan
+
+=== H. ALUR PENUH — TELEGRAM MASUK, TERCATAT, NOTIFIKASI ===
+  PASS  H1 status akhir tercatat
+  PASS  H2 ada receivingId
+  PASS  H3 nomor nota tersimpan
+  PASS  H4 notifikasi terkirim
+  PASS  H5 target notifikasi = DAT
+  PASS  H6 target platform telegram
+  PASS  H7 target chat_type dm
+  PASS  H8 pesan memuat vendor
+  PASS  H9 pesan memuat refnota
+  PASS  H10 pesan memuat proyek
+  PASS  H11 satu header nota
+  PASS  H12 status DB DIBELI
+  PASS  H13 vendor DB
+  PASS  H14 tanggal DB
+  PASS  H15 dua baris barang
+  PASS  H16 harga riil tersimpan per baris
+  PASS  H17 penanda event tersimpan
+  PASS  H18 penanda bukti tersimpan
+  PASS  H19 penanda kanal tersimpan
+  PASS  H20 penanda tahap DIBELI tetap ada
+  PASS  H21 TIDAK membuat stok/handover
+  PASS  H22 TIDAK membuat approval_steps
+  PASS  H23 TIDAK membuat PR baru
+  PASS  H24 readback terverifikasi
+  PASS  H25 ledger mencatat event
+  PASS  H26 ledger mencatat bukti
+
+=== I. WHATSAPP MASUK — SATU JALUR VALIDASI ===
+  PASS  I1 WA tercatat
+  PASS  I2 penanda kanal WA
+  PASS  I3 notifikasi tetap ke Telegram DAT
+  PASS  I4 chat tujuan tetap DAT
+  PASS  I5 TIDAK ada pengiriman WA
+
+=== J. ANTI-DUPLIKAT & RACE ===
+  PASS  J1 event pertama tercatat
+  PASS  J2 retry event sama -> ignored
+  PASS  J3 retry tidak menulis nota baru
+  PASS  J4 bukti sama lintas kanal -> duplicate
+  PASS  J5 tidak ada nota kedua
+  PASS  J6 hash sama lintas kanal
+  PASS  J7 notifikasi duplikat tetap dikirim
+  PASS  J8 notifikasi duplikat menyatakan tidak ada transaksi baru
+  PASS  J9 race 8 bukti sama -> tepat 1 tercatat
+  PASS  J10 hanya satu header nota
+  PASS  J11 baris barang tidak berganda
+  PASS  J12 sisanya dilaporkan duplicate
+  PASS  J13 pembelian berulang sah tercatat
+  PASS  J14 dua nota tersimpan
+  PASS  J15 nota sama isi beda -> need_clarification
+  PASS  J16 konflik dilaporkan
+  PASS  J16b tidak ada nota ditulis saat konflik
+  PASS  J17 bukti sudah ada di DB -> duplicate
+  PASS  J18 tidak menulis apa pun
+
+=== K. KLARIFIKASI (TIDAK DITEBAK) ===
+  PASS  K1 satuan tak dikenal -> klarifikasi
+  PASS  K1 satuan tak dikenal -> klarifikasi (alasan unit_unknown)
+  PASS  K1 satuan tak dikenal -> klarifikasi -> nol tulisan
+  PASS  K2 proyek tak dikenal -> klarifikasi
+  PASS  K2 proyek tak dikenal -> klarifikasi (alasan project_unknown)
+  PASS  K2 proyek tak dikenal -> klarifikasi -> nol tulisan
+  PASS  K3 bukti nominal saja -> klarifikasi
+  PASS  K3 bukti nominal saja -> klarifikasi (alasan monetary_only)
+  PASS  K3 bukti nominal saja -> klarifikasi -> nol tulisan
+  PASS  K4 total tertulis beda -> klarifikasi
+  PASS  K4 total tertulis beda -> klarifikasi (alasan total_mismatch)
+  PASS  K4 total tertulis beda -> klarifikasi -> nol tulisan
+  PASS  K5 baris tak terbaca -> klarifikasi
+  PASS  K5 baris tak terbaca -> klarifikasi (alasan unparsed_lines)
+  PASS  K5 baris tak terbaca -> klarifikasi -> nol tulisan
+  PASS  K6 qty melebihi sisa PR -> klarifikasi
+  PASS  K6 qty melebihi sisa PR -> klarifikasi (alasan qty_exceeds_remaining)
+  PASS  K6 qty melebihi sisa PR -> klarifikasi -> nol tulisan
+  PASS  K7 proyek tidak disebut -> klarifikasi
+  PASS  K8 alasan project_missing
+  PASS  K9 nol tulisan
+  PASS  K10 tanpa tanggal -> klarifikasi
+  PASS  K11 alasan date_missing
+
+=== L. KEGAGALAN SIMPAN / READBACK / NOTIFIKASI ===
+  PASS  L1 gagal simpan -> status gagal
+  PASS  L2 pesan menyatakan tidak tersimpan
+  PASS  L3 tidak ada nota tersimpan
+  PASS  L4 klaim event dilepas (bisa retry)
+  PASS  L5 gagal item -> status gagal
+  PASS  L6 ditandai partial
+  PASS  L7 klaim DIPERTAHANKAN (cegah nota kedua)
+  PASS  L8 readback mismatch -> status gagal
+  PASS  L9 alasan readback
+  PASS  L10 TIDAK mengaku tercatat
+  PASS  L11 pembelian tetap tercatat walau notifikasi gagal
+  PASS  L12 notifikasi dilaporkan gagal
+  PASS  L13 retry notifikasi terbatas (3 percobaan)
+  PASS  L14 hanya SATU header nota (tidak dobel)
+  PASS  L15 hanya satu set baris barang
+  PASS  L16 pesan gagal tidak diklaim terkirim
+  PASS  L17 ledger hilang -> status gagal
+  PASS  L18 alasan ledger_unavailable
+  PASS  L19 nol nota ditulis (fail closed)
+  PASS  L20 nol baris barang ditulis
+  PASS  L21 CHECK tolak DIBELI -> tetap tercatat
+  PASS  L22 statusFallback dilaporkan
+  PASS  L23 penanda Tahap DIBELI ada
+  PASS  L24 pengirim tak sah -> gagal
+  PASS  L25 tidak ada notifikasi untuk event tak sah
+
+=== M. NOTIFIKASI: DEDUP & PENOLAKAN TUJUAN ===
+  PASS  M1 notifikasi pertama terkirim
+  PASS  M2 notifikasi kedua di-dedup
+  PASS  M3 hanya satu pesan terkirim
+  PASS  M4 target WA ditolak
+  PASS  M5 alasan recipient_not_allowlisted
+  PASS  M6 tidak ada pesan WA terkirim
+  PASS  M7 recipient lain (bukan DAT) ditolak
+  PASS  M8 tidak ada pesan ke recipient lain
+  PASS  M9 saklar env bisa mematikan
+  PASS  M10 tanpa transport -> gagal (bukan fallback)
+  PASS  M11 retry terbatas berhasil di percobaan ke-3
+  PASS  M12 jumlah percobaan = 3
+  PASS  M13 notify tidak mengimpor klien DB
+
+=== N. TULIS: PEMETAAN KOLOM = BOUNDARY ADMIN ===
+  PASS  N1 header kolom "vendor_id" ada di boundary admin
+  PASS  N1 header kolom "invoice_no" ada di boundary admin
+  PASS  N1 header kolom "delivery_note" ada di boundary admin
+  PASS  N1 header kolom "received_date" ada di boundary admin
+  PASS  N1 header kolom "note" ada di boundary admin
+  PASS  N1 header kolom "kendala" ada di boundary admin
+  PASS  N2 item kolom "receiving_id" ada di boundary admin
+  PASS  N2 item kolom "pr_item_id" ada di boundary admin
+  PASS  N2 item kolom "item_name" ada di boundary admin
+  PASS  N2 item kolom "unit" ada di boundary admin
+  PASS  N2 item kolom "quantity_received" ada di boundary admin
+  PASS  N2 item kolom "note" ada di boundary admin
+  PASS  N3 boundary bersama menerima payload sah
+  PASS  N4 total dihitung boundary
+  PASS  N5 vendor wajib (aturan boundary)
+  PASS  N6 harga 0 ditolak boundary
+  PASS  N7 tanggal non-ISO ditolak boundary
+  PASS  N8 ref internal berprefix BK-
+  PASS  N9 ref internal bukan nomor toko
+
+=== O. NOTA TANPA NOMOR VENDOR & CAMPURAN PR/DIRECT ===
+  PASS  O1 tanpa nomor nota tetap tercatat
+  PASS  O2 ditandai ref internal
+  PASS  O3 nomor internal berprefix BK-
+  PASS  O4 notifikasi menyebut tanpa nomor
+  PASS  O5 nota campuran tercatat
+  PASS  O6 tiga baris barang
+  PASS  O7 baris PR tertaut
+  PASS  O8 baris direct tanpa PR
+  PASS  O9 alokasi proyek per baris
+  PASS  O10 header tidak dipaksa satu proyek (2 proyek)
+  PASS  O11 header tidak dipaksa satu PR
+  PASS  O12 tidak membuat PR baru
+  PASS  O13 tidak membuat stok/handover
+  PASS  O14 qty melebihi sisa -> klarifikasi
+  PASS  O15 sisa kebutuhan dilaporkan
+  PASS  O16 qty PR awal TIDAK ditimpa
+  PASS  O17 qty tidak dipotong diam-diam
+  PASS  O18 nota atas cangkang tercatat
+  PASS  O19 baris cangkang dipakai ulang (tidak digandakan)
+  PASS  O20 baris cangkang terisi qty beli
+  PASS  O21 header cangkang dipakai, bukan header baru
+  PASS  O22 header cangkang kini bernomor
+
+=== P. PENANDA (MARKERS) TIDAK MERUSAK NOTA EXISTING ===
+  PASS  P1 event terbaca
+  PASS  P2 evidence terbaca
+  PASS  P3 kanal terbaca
+  PASS  P4 catatan bersih tanpa penanda konektor
+  PASS  P5 penanda nota existing tetap utuh
+  PASS  P6 penanda tahap tetap utuh
+  PASS  P7 spek aktual tersimpan
+  PASS  P8 spek awal dipertahankan
+  PASS  P9 proyek per baris tersimpan
+  PASS  P10 penanda kosong tidak ditulis
+  PASS  P11 hasEventMarker cocok
+  PASS  P12 hasEventMarker beda
+
+=== Q. TUJUH SKENARIO PURCHASING (NOVI_BAKPAU_ACCEPTANCE) ===
+  PASS  S1 direct purchase tercatat
+  PASS  S2 tidak ada PR dibuat
+  PASS  S3 tidak ada stok bertambah
+  PASS  S4 tidak ada handover otomatis
+  PASS  S5 beli sebagian tercatat
+  PASS  S6 sisa kebutuhan dilaporkan
+  PASS  S7 qty PR awal tidak ditimpa
+  PASS  S8 spek beda tetap tercatat
+  PASS  S9 spek aktual tersimpan
+  PASS  S10 harga aktual tersimpan
+  PASS  S11 satu nota multi proyek tercatat
+  PASS  S12 dua baris terpisah
+  PASS  S13 porsi proyek 101 = 1 baris
+  PASS  S14 total header = jumlah baris (tidak digandakan)
+  PASS  S15 campuran PR/direct didukung (lihat O5-O13)
+  PASS  S16 transaksi pertama tercatat
+  PASS  S17 bukti existing dikenali (tidak jadi biaya kedua)
+  PASS  S18 tidak ada nota kedua
+  PASS  S19 pembelian atas PR tercatat
+  PASS  S20 baris tertaut ke pr_item
+  PASS  S21 qty aktual tercatat pada baris PR
+  PASS  S22 PR+sisa dilaporkan di notifikasi
+  PASS  S23 PR tak dikenal -> klarifikasi
+  PASS  S24 nol tulisan
+
+=== R. REGRESI WAJIB VERIFICATION_A (dari handoff Brooklyn) ===
+  PASS  RA1 literalKey mempertahankan tanda baca
+  PASS  RA2 hash A-12 != A1-2 (tidak bertabrakan)
+  PASS  RA3 nota A-12 tercatat
+  PASS  RA4 nota A1-2 TIDAK dianggap duplikat
+  PASS  RA5 dua nota tersimpan
+  PASS  RA6 nomor nota literal tersimpan apa adanya
+  PASS  RA7 nota dua alokasi tercatat
+  PASS  RA8 dua baris alokasi terpisah
+  PASS  RA9 alokasi proyek 83 TIDAK hilang
+  PASS  RA10 alokasi proyek 99 TIDAK hilang
+  PASS  RA11 qty proyek 83 benar
+  PASS  RA12 qty proyek 99 benar
+  PASS  RA13 total header = jumlah baris (bukan digandakan)
+  PASS  RA14 proyek konflik -> klarifikasi (bukan matched)
+  PASS  RA15 alasan project_ambiguous
+  PASS  RA16 nol tulisan saat konflik identitas
+  PASS  RA17 proyek tidak konsisten dilaporkan sebagai kandidat tunggal
+  PASS  RA17b kode dipakai 2 proyek -> 2 kandidat dilaporkan
+  PASS  RA18 tanpa pr= eksplisit -> tercatat sebagai direct
+  PASS  RA19 TIDAK menaut PR otomatis hanya karena nama sama
+  PASS  RA20 kandidat PR dilaporkan untuk manusia
+
+=== R2. PERTAHANAN TAMBAHAN ===
+  PASS  R1 pesan kosong -> klarifikasi
+  PASS  R2 lampiran tidak menciptakan baris barang
+  PASS  R3 baris tak terbaca memblokir simpan
+  PASS  R4 event yang dikembalikan tanpa teks mentah
+  PASS  R5 ledger notifikasi memakai namespace ntf:
+  PASS  R6 nota admin dengan isi sama -> duplicate
+  PASS  R7 tidak menulis nota kedua
+  PASS  R8 nota admin isi beda -> klarifikasi
+
+============================================================
+HASIL connector_test: 321 lulus, 0 gagal
+============================================================
+
+=== S. METODE & KONFIGURASI ===
+  PASS  S1 GET ditolak 405
+  PASS  S2 Allow header POST
+  PASS  S3 tanpa kredensial server -> 503
+  PASS  S4 kode no_service_credentials
+  PASS  S5 body bukan JSON -> 400
+
+=== T. AUTENTIKASI ENDPOINT ===
+  PASS  T1 tanpa secret -> 401
+  PASS  T2 kode bad_signature
+  PASS  T3 secret salah -> 401
+  PASS  T4 allowlist kosong -> 503 (fail closed)
+  PASS  T5 pengirim asing -> 401
+  PASS  T6 grup -> 401
+  PASS  T7 replay -> 401
+  PASS  T8 secret belum diset -> 503
+
+=== U. SUKSES & KEBOCORAN DATA ===
+  PASS  U1 sukses -> 200
+  PASS  U2 status tercatat
+  PASS  U3 ada receivingId
+  PASS  U4 notifikasi terkirim
+  PASS  U5 tujuan DAT
+  PASS  U6 respons tanpa secret Telegram
+  PASS  U7 respons tanpa service key
+  PASS  U8 respons tanpa teks bukti mentah
+  PASS  U9 respons tanpa token bot
+  PASS  U10 payload WA di route telegram tidak diproses sebagai WA
+  PASS  U11 nol tulisan
+
+=== V. WHATSAPP: HMAC ATAS BODY MENTAH ===
+  PASS  V1 HMAC atas body mentah diterima
+  PASS  V2 status tercatat
+  PASS  V3 notifikasi ke Telegram DAT (bukan WA)
+  PASS  V4 HMAC atas bentuk lain ditolak
+  PASS  V5 token bersama diterima
+  PASS  V6 tanpa auth -> 401
+  PASS  V7 JID di luar allowlist -> 401
+
+=== W. STATUS HTTP UNTUK KLARIFIKASI & DUPLIKAT ===
+  PASS  W1 klarifikasi -> 202
+  PASS  W2 status need_clarification
+  PASS  W3 nol tulisan
+  PASS  W4 pertama tercatat
+  PASS  W5 retry event -> 200
+  PASS  W6 status ignored_duplicate_event
+  PASS  W7 tidak ada nota kedua
+  PASS  W8 bukti sama -> 200 duplicate
+  PASS  W9 status duplicate
+  PASS  W10 tetap satu nota
+
+=== X. LEDGER TIDAK ADA -> TIDAK MENULIS (fail closed) ===
+  PASS  X1 status HTTP 502
+  PASS  X2 alasan ledger_unavailable
+  PASS  X3 nol nota ditulis
+  PASS  X4 nol baris barang ditulis
+
+============================================================
+HASIL http_test: 45 lulus, 0 gagal
+============================================================
+Sandbox: /tmp/bakpau-verify
+File sumber verbatim: 16
+
+=== connector_test.mjs ===
+
+=== http_test.mjs ===
