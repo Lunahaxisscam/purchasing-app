@@ -173,7 +173,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
               : 'Tidak ada barang rusak yang tercatat pada penerimaan ini.'}
             {ready
               ? (blocked.length
-                ? ' Buka Terima Barang untuk barang yang sama dan pilih "Kembalikan ke supplier" atau "Dibuang" — setelah itu barisnya muncul di sini tanpa mengetik ulang.'
+                ? ' Keputusan retur untuk barang-barang di bawah tidak bisa diubah lagi dari aplikasi — lihat penjelasannya.'
                 : ' Catat dulu jumlah rusak di form Terima Barang.')
               : ' (Pencatatan jumlah rusak per barang belum aktif — menunggu migrasi skema.)'}
           </div>
@@ -194,6 +194,22 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
                 </li>
               ))}
             </ul>
+            {/* JUJUR (run 202): sebelumnya panel ini menyuruh admin "buka Terima
+                Barang dan pilih Kembalikan ke supplier — setelah itu barisnya
+                muncul di sini". Instruksi itu TIDAK BISA dijalankan: event
+                penerimaan tidak bisa dikoreksi (client_event_id deterministik →
+                RPC menjawab already_applied; aplikasi menolak dengan
+                CORRECTION_UNSUPPORTED), dan tidak ada RPC koreksi/reversal di
+                paket skema. Menyuruh admin melakukan hal yang mustahil =
+                janji palsu. */}
+            <div style={{ marginTop: '6px' }} data-testid="return-blocked-why">
+              Keputusan retur diambil saat barang dicatat datang. Untuk barang di atas, pilihannya
+              dulu dibiarkan <b>"Tentukan nanti"</b> — catatan itu <b>tidak bisa diubah lagi</b> dari
+              aplikasi (koreksi penerimaan belum didukung). Barangnya tetap tercatat rusak dan tetap
+              terlihat di sini; retur-nya perlu dicatat di luar aplikasi atau menunggu fitur koreksi
+              penerimaan dari pemilik skema. Untuk kedatangan berikutnya, pilih{" "}
+              <b>"Kembalikan ke supplier"</b> atau <b>"Dibuang"</b> saat mencatat barang rusak.
+            </div>
           </div>
         )}
 

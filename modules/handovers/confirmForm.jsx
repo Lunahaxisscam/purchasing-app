@@ -78,12 +78,21 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
 
   const totals = useMemo(() => {
     const total = lines.reduce((s, l) => s + (Number(l.qty_diserahkan) || 0), 0)
-    return { baris: lines.length, total }
+    const filled = lines.filter(l => Number(l.qty_diserahkan) > 0).length
+    return { baris: lines.length, total, filled }
   }, [lines])
 
   const validation = ready
     ? validateHandoverLines(lines, prefill)
-    : { ok: true, errors: [], lines: [] }
+    : { ok: true, errors: [], lines: [], skipped: [], remainder: 0 }
+  // Baris yang dilewati / diserahkan sebagian. RPC mengunci dokumen ini, jadi
+  // sisanya HARUS dicatat lewat dokumen Serah Terima baru — dikatakan di sini,
+  // bukan setelah admin menekan Simpan dan kehilangan sisanya (run 202).
+  const sisaInfo = useMemo(() => {
+    const list = validation.skipped || []
+    const total = Number(validation.remainder) || 0
+    return { list, total, ada: list.length > 0 }
+  }, [validation])
 
   function setLine(i, field, value) {
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l))
@@ -123,9 +132,14 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
       try {
         const res = await confirmHandoverLines({ handover, lines: validation.lines })
         if (!res.ok) { setErrorMsg(res.error); return }
+        // Sisa yang belum diserahkan HARUS disebut: dokumen ini terkunci setelah
+        // simpan, jadi sisanya hanya bisa dicatat lewat dokumen baru (run 202).
+        const sisaMsg = sisaInfo.ada
+          ? ` Sisa ${sisaInfo.total} unit belum diserahkan — catat lewat dokumen Serah Terima BARU untuk penerimaan yang sama (dokumen ini sudah terkunci).`
+          : ''
         say?.(res.already
           ? 'Serah terima ini sudah ditandai diserahkan sebelumnya — tidak ada data yang digandakan.'
-          : `Serah terima tersimpan: ${res.inserted} baris barang diserahkan (${totals.total} unit).`)
+          : `Serah terima tersimpan: ${res.inserted} baris barang diserahkan (${totals.total} unit).${sisaMsg}`)
         close?.()
         refresh?.()
       } finally {
@@ -173,7 +187,7 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
           }}
         >
           {ready
-            ? 'Rincian per barang AKTIF: baris di bawah diisi otomatis dari penerimaan (alokasi ke tukang) dikurangi yang sudah diserahkan — Anda hanya memverifikasi jumlah fisik.'
+            ? 'Rincian per barang AKTIF: baris di bawah diisi otomatis dari penerimaan (alokasi ke tukang) dikurangi yang sudah diserahkan — Anda hanya memverifikasi jumlah fisik. Kosongkan jumlah untuk barang yang BELUM benar-benar diterima; baris itu dilewati, bukan dipaksa nol.'
             : `${capabilityMessage(capability)} Konfirmasi di sini hanya mencatat waktu penyerahan (header), tanpa rincian barang.`}
         </div>
 
@@ -270,7 +284,32 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
             ))}
             <div style={{ fontSize: '11.5px', color: '#1f3a34' }} data-testid="handover-confirm-summary">
               <b>Ringkasan:</b> {totals.baris} baris · total diserahkan <b>{totals.total}</b>
+              {sisaInfo.ada ? <> · <b>{sisaInfo.total} unit belum diserahkan</b></> : null}
             </div>
+            {/* Peringatan SEBELUM simpan (run 202): dokumen ini dikunci saat
+                disimpan (RPC CAS `diserahkan_at`), jadi sisa hanya bisa dicatat
+                lewat dokumen Serah Terima BARU. Dulu hal ini baru ketahuan
+                setelah simpan — atau lebih buruk, admin mengisi qty palsu agar
+                bisa menyimpan. */}
+            {sisaInfo.ada && (
+              <div data-testid="handover-confirm-remainder" style={{ ...S.note, background: '#fdf8ea', border: '1px solid #f0dcb4', color: '#7a4a08' }}>
+                <b>{sisaInfo.list.length} baris belum diserahkan penuh ({sisaInfo.total} unit):</b>
+                <ul style={{ margin: '5px 0 0', paddingLeft: '18px' }}>
+                  {sisaInfo.list.map(s => (
+                    <li key={`${s.receiving_event_id}-${s.partial ? 'p' : 's'}`}>
+                      {s.item_name} — sisa {s.qty_sisa}{s.satuan ? ` ${s.satuan}` : ''}
+                      {s.partial ? ' (diserahkan sebagian)' : ' (dilewati)'}
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ marginTop: '5px' }}>
+                  Setelah disimpan, dokumen ini <b>terkunci</b>. Sisa di atas dicatat lewat
+                  <b> dokumen Serah Terima baru</b> untuk penerimaan yang sama — buat dari menu
+                  Serah Terima setelah ini. Kosongkan jumlah bila barangnya memang belum diterima
+                  (jangan diisi angka supaya bisa menyimpan).
+                </div>
+              </div>
+            )}
           </div>
         )}
 

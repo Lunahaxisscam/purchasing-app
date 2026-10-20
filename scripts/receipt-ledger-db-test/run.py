@@ -164,4 +164,37 @@ rc3 = run(['node', os.path.join(HERE, 'probe_retur_resolution.mjs')], cwd=REPO, 
 # DIBELI, dan DATANG melebihi BELI (termasuk baris beli langsung tanpa PR).
 print('\n=== 7. Penjaga kedatangan: rusak 0 / belum dibeli / datang > beli ===')
 rc4 = run(['node', os.path.join(HERE, 'probe_receipt_guards.mjs')], cwd=REPO, env=env)
-sys.exit(rc or rc2 or rc3 or rc4)
+
+# ------------------- 8. jalan buntu retur "Tentukan nanti" (run 202)
+# Membuktikan kenapa panel modal retur TIDAK boleh menyuruh admin mengubah
+# catatan yang sudah tersimpan: client_event_id deterministik membuat pilihan
+# retur yang diubah menghasilkan replay (already_applied), bukan koreksi —
+# dan tidak ada RPC reversal di paket skema.
+print('\n=== 8. Jalan buntu retur "Tentukan nanti": koreksi tidak mungkin ===')
+rc5 = run(['node', os.path.join(HERE, 'probe_retur_deadend.mjs')], cwd=REPO, env=env)
+
+# ---------------- 9. serah terima sebagian / melewati baris (run 202)
+# Menguji rantai prefill → validasi → RPC: qty 2 dari 5 diterima lalu dokumen
+# TERKUNCI (sisa 3 tidak bisa ditambahkan), dan satu baris kosong dulu
+# memblokir SELURUH submit. Skema mendukung dokumen susulan (H3) — jadi
+# jalan keluarnya ada, dan UI harus mengatakannya.
+print('\n=== 9. Serah terima sebagian / baris dilewati ===')
+rc6 = run(['node', os.path.join(HERE, 'probe_handover_partial.mjs')], cwd=REPO, env=env)
+
+# --------- 10. role aplikasi: apakah READY benar-benar mungkin? (run 202)
+# Paket migrasi diuji sebagai `postgres`; aplikasi berjalan sebagai
+# `authenticated`. Skrip ini menemukan bahwa GRANT SELECT pada view
+# `v_receipt_progress` BELUM ada → capability probe gagal (permission denied,
+# bukan PGRST205) sehingga mode READY tidak akan pernah menyala. Bukan sesuatu
+# yang boleh ditambal dari kode aplikasi: grant = keputusan schema owner.
+print('\n=== 10. Role aplikasi (authenticated): grant yang dibutuhkan READY ===')
+rc7 = run(['node', os.path.join(HERE, 'probe_app_role.mjs')], cwd=REPO, env=env)
+
+# CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
+# bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
+# menyimpulkan "siap DDL" padahal READY mustahil menyala.
+if rc7 == 2:
+    print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
+    print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
+    sys.exit(2)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7)

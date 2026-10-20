@@ -183,14 +183,39 @@ seperti server sungguhan, dan mock `select` menghormati filter
 `client_event_id` (sebelumnya mengembalikan SEMUA baris sehingga setiap submit
 akan tampak "sudah ada").
 
-### 4.4 Batasan yang TIDAK diperbaiki di card ini
+### 4.4 Batasan skema yang TETAP ada (bukan bug UI)
 
-**Serah terima tidak bisa sebagian.** `handover_confirm` melakukan CAS pada SATU
-dokumen (`diserahkan_at`), jadi satu dokumen = satu waktu penyerahan. Di UI,
-baris dengan qty 0 ditolak ("harus > 0"), sehingga barang yang belum tiba tidak
-bisa dilewati — admin harus menyerahkan semua baris sekaligus. Ini konsekuensi
-kontrak RPC milik `t_03b41644`, bukan bug UI; mengubahnya butuh keputusan schema
-owner. Dikunci oleh `probe_confirm_partial.mjs`.
+**Satu dokumen Serah Terima = satu waktu penyerahan.** `handover_confirm`
+melakukan CAS pada SATU dokumen (`diserahkan_at`). Setelah dokumen disimpan,
+baris yang belum diserahkan **tidak bisa ditambahkan ke dokumen itu** —
+panggilan kedua menjawab `already=true`, nol tulisan. Sisanya dicatat lewat
+**dokumen Serah Terima baru** untuk penerimaan yang sama (kuota tukang
+dihitung per event lintas dokumen, dibuktikan di PostgreSQL nyata oleh
+`probe_handover_partial.mjs` H3). Ini konsekuensi kontrak RPC milik
+`t_03b41644`; UI sekarang **mengatakannya sebelum simpan**, bukan setelah.
+
+**Koreksi penerimaan belum ada.** `receiving_events.reversal_of` ada di skema,
+tetapi tidak ada RPC penulisnya. Akibatnya keputusan retur yang diambil saat
+barang dicatat datang **tidak bisa diubah** sesudahnya: `client_event_id`
+deterministik membuat "isian ulang" menghasilkan event baru (kedatangan
+bertambah) atau replay yang diabaikan. Dibuktikan di PostgreSQL nyata oleh
+`probe_retur_deadend.mjs`.
+
+### 4.5 Dua jalan buntu yang diperbaiki di run 202
+
+Keduanya ditemukan dengan menguji **rantai keputusan** (apa yang ditawarkan UI →
+apa yang diterima server), bukan dengan menambah assertion di jalur yang sudah
+hijau. Harness run 199 (153 jsdom, 47+14+18 DB) **hijau sebelum perbaikan** —
+pola yang sama dengan run 101/188/190/195/199.
+
+| # | Defect | Bukti sebelum fix | Sesudah |
+|---|---|---|---|
+| E | **Satu barang yang belum tiba memblokir SELURUH serah terima.** `validateHandoverLines` menolak qty 0 sebagai error, jadi 2 barang yang sudah diterima tukang tidak bisa dicatat. Admin terdorong mengisi angka palsu supaya bisa menyimpan. | `probe_handover_partial` H2: `ok=false`, `lines=[]` walau 2 baris lain valid | qty kosong = **dilewati**; `skipped` + `remainder` dilaporkan, peringatan "dokumen terkunci → catat di dokumen baru" tampil **sebelum** simpan |
+| F | **Modal retur menyuruh hal yang mustahil.** Panel "Belum bisa diretur" berbunyi *"Buka Terima Barang … pilih Kembalikan ke supplier — setelah itu barisnya muncul di sini"*. Instruksi itu tidak bisa dijalankan: tidak ada RPC koreksi, dan id deterministik membuat isian ulang = event baru / replay. | `probe_retur_deadend` R1–R4: event lama tetap `NONE`, event baru muncul dengan DATANG bertambah, tidak ada fungsi koreksi di katalog | panel menjelaskan keputusan retur **tidak bisa diubah lagi**, menyebut koreksi penerimaan belum didukung, dan tetap menyarankan pilihan yang benar untuk kedatangan berikutnya |
+
+Bukti RED → GREEN (bukan klaim): `receipt_physical_test` pada kode **sebelum**
+perbaikan → **5 FAIL** (C6a–C6e) dan **3 FAIL** (T5m–T5o); sesudah → **153 PASS / 0 FAIL**.
+
 
 Probe read-only (`node scripts/receipt-physical-test/probe_live.mjs`, anon key):
 
@@ -220,6 +245,33 @@ klaim palsu.
 | Nomor proyek draft-vs-issued | tidak diaktifkan (belum diputuskan DAT) |
 | Deploy | belum — menunggu review Brooklyn |
 | Browser PC | **tidak dipakai** (sesuai batas `t_491eece0`) |
+| `v_receipt_progress` grant | **BELUM ada** untuk role `authenticated` di paket migrasi `t_03b41644` — lihat 5.1 |
+
+### 5.1 Temuan run 202 untuk schema owner: grant view belum ada
+
+Diuji di cluster PG16 setelah migrasi 00..04 (bukan opini):
+
+```
+set role authenticated; select count(*) from public.v_receipt_progress;
+  ERROR: permission denied for view v_receipt_progress
+```
+
+Empat tabel ledger punya `GRANT SELECT … TO authenticated`; **view tidak**.
+`information_schema.role_table_grants` untuk `v_receipt_progress` hanya berisi
+`postgres` — nol grant untuk `authenticated`.
+
+Dampak nyata: `receiptCapability.probeTable('v_receipt_progress', …)` menerima
+error `permission denied` (bukan PGRST205), sehingga `progress.ok=false` →
+`ready=false` **selamanya**, walaupun DDL sudah dijalankan. Artinya mode READY
+tidak akan pernah menyala tanpa grant ini. Ini **bukan** sesuatu yang bisa
+diperbaiki dari kode aplikasi (dan tidak boleh: grant adalah keputusan schema
+owner), jadi dilaporkan ke `t_03b41644` — bukan ditambal di sini.
+
+Catatan lain yang juga diverifikasi: RPC (`receipt_apply_events`,
+`handover_confirm`, `return_create`) **bisa** dipanggil sebagai
+`authenticated` (bukan permission denied), dan keempat tabel ledger bisa
+dibaca. Jadi yang kurang hanya grant pada view.
+
 
 ---
 

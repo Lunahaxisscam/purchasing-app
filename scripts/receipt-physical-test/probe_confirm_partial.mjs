@@ -1,15 +1,19 @@
 // ============================================================
-// PROBE BATASAN (t_7bc6246b) — konfirmasi serah terima TIDAK bisa sebagian
+// PROBE BATASAN (t_7bc6246b) — serah terima: baris boleh dilewati,
+// tetapi SATU dokumen tetap satu waktu penyerahan
 // ============================================================
-// Ini BUKAN bug yang diperbaiki di card ini, melainkan BATASAN yang harus
-// diketahui reviewer: `handover_confirm` melakukan CAS pada SATU dokumen
-// (`diserahkan_at`), jadi satu dokumen = satu waktu penyerahan. Konsekuensinya
-// di UI: `validateHandoverLines` menolak baris dengan qty <= 0, sehingga barang
-// yang belum tiba TIDAK bisa dilewati — admin harus menyerahkan semua baris
-// sekaligus, atau menunggu.
+// Sejak run 202, UI TIDAK lagi memaksa semua baris diserahkan sekaligus:
+// qty kosong = baris DILEWATI (bukan error), dan sisanya dilaporkan.
 //
-// Probe ini mengunci perilaku tersebut supaya kalau nanti diubah (mis. dukungan
-// serah terima parsial per dokumen), perubahan itu disengaja & terlihat.
+// Batasan yang TETAP ada dan berasal dari RPC `handover_confirm` (CAS pada
+// `diserahkan_at` per dokumen): satu dokumen = satu waktu penyerahan. Jadi
+// setelah dokumen disimpan, baris yang dilewati TIDAK bisa ditambahkan ke
+// dokumen itu — sisanya dicatat lewat dokumen Serah Terima BARU untuk
+// penerimaan yang sama (kuota dihitung per event lintas dokumen; dibuktikan
+// di PostgreSQL nyata oleh scripts/receipt-ledger-db-test/probe_handover_partial.mjs).
+//
+// Probe ini mengunci kedua hal itu supaya kalau nanti diubah (mis. dukungan
+// penambahan baris ke dokumen yang sudah terkunci), perubahannya disengaja.
 //
 // Jalankan dari root sandbox receipt-physical-verify:
 //   node probe_confirm_partial.mjs
@@ -40,25 +44,42 @@ check('A1 dua baris prefill', prefill.length === 2, String(prefill.length))
 check('A2 qty prefill = sisa alokasi tukang', prefill[0].qty_diserahkan === 6 && prefill[1].qty_diserahkan === 2,
   JSON.stringify(prefill.map(p => p.qty_diserahkan)))
 
-console.log('\nB. Batasan: satu barang belum tiba → tidak bisa dilewati')
+console.log('\nB. Barang belum tiba → baris DILEWATI (bukan memblokir)')
 const partial = [
-  { receiving_event_id: 'e1', qty_diserahkan: 6, penerima: 'Pak Joko' },
-  { receiving_event_id: 'e2', qty_diserahkan: 0, penerima: 'Pak Joko' }
+  { receiving_event_id: 'e1', item_name: 'Triplek 9mm', satuan: 'Lembar', qty_diserahkan: 6, penerima: 'Pak Joko' },
+  { receiving_event_id: 'e2', item_name: 'Cat Duco', satuan: 'Kaleng', qty_diserahkan: '', penerima: 'Pak Joko' }
 ]
 const v = EL.validateHandoverLines(partial, prefill)
-check('B1 qty 0 ditolak (tidak ada mekanisme "lewati")', v.ok === false)
-check('B2 pesan meminta qty > 0, bukan opsi melewati barang', /harus > 0/.test((v.errors || []).join(' ')), JSON.stringify(v.errors))
-check('B3 baris valid tetap dikembalikan, tetapi ok=false memblokir submit', (v.lines || []).length === 1 && v.ok === false, `${(v.lines || []).length} baris, ok=${v.ok}`)
+check('B1 baris kosong TIDAK memblokir submit', v.ok === true, JSON.stringify(v.errors))
+check('B2 hanya baris yang benar-benar diterima yang dikirim', v.lines.length === 1, String(v.lines.length))
+check('B3 baris yang dilewati DILAPORKAN dengan sisa qty', v.skipped.length === 1 && v.skipped[0].qty_sisa === 2, JSON.stringify(v.skipped))
+check('B4 total sisa dilaporkan', v.remainder === 2, String(v.remainder))
 
-console.log('\nC. Satu-satunya jalan: serahkan SEMUA baris sekaligus')
-const all = prefill.map(p => ({ receiving_event_id: p.receiving_event_id, qty_diserahkan: p.qty_diserahkan, penerima: 'Pak Joko' }))
-const vAll = EL.validateHandoverLines(all, prefill)
-check('C1 konfirmasi penuh diterima', vAll.ok === true, JSON.stringify(vAll.errors))
-check('C2 penerima boleh beda per baris', (() => {
-  const mix = all.map((l, i) => ({ ...l, penerima: i === 0 ? 'Pak Joko' : 'Pak Budi' }))
-  return EL.validateHandoverLines(mix, prefill).ok === true
+console.log('\nC. Penjaga yang TETAP berlaku')
+const allEmpty = EL.validateHandoverLines(partial.map(l => ({ ...l, qty_diserahkan: '' })), prefill)
+check('C1 semua baris kosong ditolak (tidak ada yang diserahkan)', allEmpty.ok === false)
+const over = EL.validateHandoverLines([{ receiving_event_id: 'e1', qty_diserahkan: 99, penerima: 'Pak Joko' }], prefill)
+check('C2 melebihi sisa alokasi ditolak', over.ok === false && /melebihi sisa/i.test(over.errors[0] || ''), JSON.stringify(over.errors))
+const noRecv = EL.validateHandoverLines([{ receiving_event_id: 'e1', qty_diserahkan: 1, penerima: '' }],
+  prefill.map(p => ({ ...p, penerima: '' })))
+check('C3 penerima wajib bila qty > 0 dan tidak ada penerima di penerimaan',
+  noRecv.ok === false && /penerima/i.test(noRecv.errors[0] || ''), JSON.stringify(noRecv.errors))
+const withPrefillRecv = EL.validateHandoverLines([{ receiving_event_id: 'e1', qty_diserahkan: 1, penerima: '' }], prefill)
+check('C3b penerima terisi otomatis dari penerimaan bila ada (tidak wajib ketik ulang)',
+  withPrefillRecv.ok === true && withPrefillRecv.lines[0].penerima === 'Pak Joko',
+  JSON.stringify(withPrefillRecv.lines))
+const badQty = EL.validateHandoverLines([{ receiving_event_id: 'e1', qty_diserahkan: 'abc', penerima: 'Pak Joko' }], prefill)
+check('C4 qty bukan angka ditolak (tidak dianggap "lewat")', badQty.ok === false, JSON.stringify(badQty.errors))
+check('C5 konfirmasi penuh (tanpa sisa) tidak melaporkan sisa', (() => {
+  const all = prefill.map(p => ({ receiving_event_id: p.receiving_event_id, qty_diserahkan: p.qty_diserahkan, penerima: 'Pak Joko' }))
+  const r = EL.validateHandoverLines(all, prefill)
+  return r.ok === true && r.skipped.length === 0 && r.remainder === 0
 })())
 
+console.log('\nD. Batasan skema: satu dokumen = satu waktu penyerahan')
+check('D1 hasil validasi melaporkan sisa yang harus dicatat di dokumen baru', v.remainder > 0)
+
 console.log(`\n=== HASIL: ${pass} PASS / ${fail} FAIL ===`)
-console.log('Catatan: batasan ini berasal dari RPC handover_confirm (CAS per dokumen),')
-console.log('bukan dari UI. Mengubahnya butuh keputusan schema owner t_03b41644.')
+console.log('Catatan: batas "satu dokumen satu waktu penyerahan" berasal dari RPC')
+console.log('handover_confirm (CAS per dokumen), bukan dari UI. Sisa dicatat lewat')
+console.log('dokumen Serah Terima baru untuk penerimaan yang sama.')

@@ -301,6 +301,37 @@ console.log('\n=== C. KONFIRMASI FISIK per item (confirmForm.jsx) ===\n')
   check('C2b ringkasan menghitung total', /total diserahkan/i.test(tid(doc, 'handover-confirm-summary')?.textContent || ''))
   check('C1e tidak ada tulisan DB saat form dibuka', mock.__callsOf('rpc').length === 0)
 
+  // ===== C6 (run 202): BARIS BOLEH DILEWATI ==========================
+  // Defect: satu barang yang belum tiba memblokir SELURUH submit (qty 0 =
+  // error), sehingga barang lain yang SUDAH diterima tidak bisa dicatat dan
+  // admin terdorong mengisi angka palsu. Sekarang qty kosong = dilewati.
+  typeInto(q2, '')
+  await tick()
+  check('C6a baris kosong TIDAK memblokir submit', tid(doc, 'handover-confirm-submit')?.disabled === false)
+  check('C6b peringatan sisa tampil SEBELUM simpan', !!tid(doc, 'handover-confirm-remainder'))
+  check('C6c peringatan menyebut barang yang dilewati + sisanya',
+    /Cat Duco/.test(tid(doc, 'handover-confirm-remainder')?.textContent || '') &&
+    /sisa\s*2/i.test(tid(doc, 'handover-confirm-remainder')?.textContent || ''),
+    tid(doc, 'handover-confirm-remainder')?.textContent)
+  check('C6d peringatan menyebut dokumen terkunci + dokumen baru',
+    /terkunci/i.test(tid(doc, 'handover-confirm-remainder')?.textContent || '') &&
+    /dokumen Serah Terima baru/i.test(tid(doc, 'handover-confirm-remainder')?.textContent || ''),
+    tid(doc, 'handover-confirm-remainder')?.textContent)
+  check('C6e ringkasan menyebut unit yang belum diserahkan',
+    /2 unit belum diserahkan/i.test(tid(doc, 'handover-confirm-summary')?.textContent || ''),
+    tid(doc, 'handover-confirm-summary')?.textContent)
+
+  // Semua baris dikosongkan → tetap ditolak (tidak ada yang diserahkan).
+  typeInto(q1, '')
+  await tick()
+  check('C6f semua baris kosong → submit ditolak (tidak ada yang diserahkan)',
+    tid(doc, 'handover-confirm-submit')?.disabled === true)
+
+  // Kembalikan ke isian normal untuk C3 di bawah.
+  typeInto(q1, '1')
+  typeInto(q2, '2')
+  await tick()
+
   click(tid(doc, 'handover-confirm-submit'))
   await tick(); await tick(); await tick()
   const rpcs = mock.__callsOf('rpc')
@@ -588,6 +619,24 @@ console.log('\nT5. SALDO RETUR = retur_qty, bukan qty_rusak (defect run 190)')
   check('T5b barangnya tetap DILAPORKAN (bukan hilang diam-diam)', !!tid(doc, 'return-blocked-ev1'))
   check('T5c pesan menyebut belum ditandai retur/dibuang', /belum ditandai retur/i.test(tid(doc, 'return-blocked')?.textContent || ''))
   check('T5d tombol Simpan Retur tidak aktif', tid(doc, 'return-submit')?.disabled === true)
+
+  // ===== T5l (run 202): INSTRUKSI LAMA ADALAH JANJI PALSU ==============
+  // Dulu panel ini menyuruh admin "buka Terima Barang dan pilih Kembalikan ke
+  // supplier — setelah itu barisnya muncul di sini". Itu mustahil: event
+  // penerimaan tidak bisa dikoreksi (client_event_id deterministik → RPC
+  // already_applied; aplikasi menolak CORRECTION_UNSUPPORTED) dan tidak ada
+  // RPC reversal. Diuji di PostgreSQL nyata oleh probe_retur_deadend.mjs.
+  const blockedTxt = tid(doc, 'return-blocked')?.textContent || ''
+  check('T5l panel TIDAK menyuruh mengubah catatan yang tidak bisa diubah',
+    !/buka Terima Barang untuk barang yang sama/i.test(blockedTxt), blockedTxt)
+  check('T5m panel menjelaskan keputusan retur tidak bisa diubah lagi',
+    /tidak bisa diubah lagi/i.test(tid(doc, 'return-blocked-why')?.textContent || ''),
+    tid(doc, 'return-blocked-why')?.textContent)
+  check('T5n panel menyebut koreksi penerimaan belum didukung',
+    /koreksi penerimaan belum didukung/i.test(tid(doc, 'return-blocked-why')?.textContent || ''),
+    tid(doc, 'return-blocked-why')?.textContent)
+  check('T5o panel tetap menyarankan pilihan yang benar untuk kedatangan berikutnya',
+    /Kembalikan ke supplier/i.test(tid(doc, 'return-blocked-why')?.textContent || ''))
 }
 
 // Saldo lebih kecil dari qty_rusak (kontrak mengizinkan retur sebagian).

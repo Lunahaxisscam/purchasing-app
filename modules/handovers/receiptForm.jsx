@@ -220,7 +220,7 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
                     data-testid={`rc-retur-${row.id}`}
                     onChange={e => setField(row.id, 'retur', e.target.value)}
                   >
-                    <option value={RETUR_NANTI}>Tentukan nanti</option>
+                    <option value={RETUR_NANTI}>Tentukan nanti — barang TIDAK bisa diretur lewat aplikasi</option>
                     <option value={RETUR_SUPPLIER}>Kembalikan ke supplier</option>
                     <option value={RETUR_DIBUANG}>Dibuang</option>
                   </select>

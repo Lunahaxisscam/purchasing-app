@@ -366,17 +366,51 @@ export function handoverLinesFromEvents(events, delivered = {}) {
   return out
 }
 
-// Validasi konfirmasi fisik: setiap baris ≤ sisa alokasi, qty > 0, penerima wajib.
+// Validasi konfirmasi fisik per baris.
+//
+// ⚠️ BARIS BOLEH DILEWATI (run 202). Sebelumnya qty kosong/0 = ERROR untuk
+// SELURUH form, sehingga satu barang yang belum tiba memblokir pencatatan
+// barang lain yang SUDAH diterima tukang. Itu bukan sekadar tidak nyaman:
+// admin lalu menyerahkan semua baris "supaya bisa simpan", dan angka yang
+// tidak benar masuk ke bukti serah terima.
+//
+// Sekarang:
+//   - qty > 0  → baris DISERAHKAN (harus ≤ sisa alokasi, penerima wajib)
+//   - qty kosong/0 → baris DILEWATI, dilaporkan di `skipped` (bukan error)
+//   - minimal satu baris harus diserahkan
+//
+// Konsekuensi yang WAJIB dikatakan UI (bukan disembunyikan): RPC
+// `handover_confirm` mengunci SATU dokumen (`diserahkan_at`). Baris yang
+// dilewati / diserahkan sebagian TIDAK bisa ditambahkan ke dokumen yang sama
+// setelah tersimpan — sisanya dicatat lewat dokumen Serah Terima BARU untuk
+// penerimaan yang sama (skema mendukung: kuota dihitung per event lintas
+// dokumen, dibuktikan probe_handover_partial.mjs H3).
 export function validateHandoverLines(lines, prefill) {
   const ref = new Map((prefill || []).map(p => [p.receiving_event_id, p]))
   const errors = []
   const out = []
+  const skipped = []
   for (const l of lines || []) {
     const p = ref.get(l.receiving_event_id)
-    const q = num(l.qty_diserahkan)
     if (!p) { errors.push(`Baris "${l.item_name || l.receiving_event_id}" tidak berasal dari penerimaan ini.`); continue }
-    if (!isFinite(q) || q <= EPS) { errors.push(`"${p.item_name}": jumlah diserahkan harus > 0.`); continue }
     const sisa = Math.max(0, p.qty_alokasi - p.qty_sudah_diserahkan)
+    const raw = l.qty_diserahkan
+    const kosong = raw === '' || raw === null || raw === undefined
+    const q = num(raw)
+    if (!isFinite(q)) { errors.push(`"${p.item_name}": jumlah diserahkan harus angka.`); continue }
+    // Dilewati: tidak diisi atau diisi 0. Bukan error — dilaporkan sebagai sisa.
+    if (kosong || q <= EPS) {
+      if (sisa > EPS) {
+        skipped.push({
+          receiving_event_id: l.receiving_event_id,
+          receiving_item_id: p.receiving_item_id,
+          item_name: p.item_name,
+          satuan: p.satuan,
+          qty_sisa: sisa
+        })
+      }
+      continue
+    }
     if (q > sisa + EPS) { errors.push(`"${p.item_name}": melebihi sisa yang belum diserahkan (sisa ${sisa}${p.satuan ? ' ' + p.satuan : ''}).`); continue }
     const penerima = String(l.penerima || p.penerima || '').trim()
     if (!penerima) { errors.push(`"${p.item_name}": nama penerima wajib diisi.`); continue }
@@ -390,9 +424,24 @@ export function validateHandoverLines(lines, prefill) {
       penerima,
       catatan: String(l.catatan || '').trim() || null
     })
+    // Sebagian: sisa setelah baris ini juga harus dilaporkan supaya admin tahu
+    // bahwa dokumen ini akan ditutup dengan kekurangan.
+    if (sisa - q > EPS) {
+      skipped.push({
+        receiving_event_id: l.receiving_event_id,
+        receiving_item_id: p.receiving_item_id,
+        item_name: p.item_name,
+        satuan: p.satuan,
+        qty_sisa: sisa - q,
+        partial: true
+      })
+    }
   }
-  if (!out.length && !errors.length) errors.push('Tidak ada baris yang diserahkan — isi minimal satu jumlah.')
-  return { ok: errors.length === 0, errors, lines: out }
+  if (!out.length && !errors.length) {
+    errors.push('Tidak ada baris yang diserahkan — isi minimal satu jumlah pada barang yang benar-benar diterima.')
+  }
+  const remainder = skipped.reduce((s, x) => s + (Number(x.qty_sisa) || 0), 0)
+  return { ok: errors.length === 0, errors, lines: out, skipped, remainder }
 }
 
 // ------------------------------------------------------------------
