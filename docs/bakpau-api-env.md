@@ -7,10 +7,24 @@ Tidak ada nilai di dokumen ini. Nilai hanya ada di
 
 | Nama | Isi | Status saat ini |
 |---|---|---|
-| `BAKPAU_API_TOKENS` | `<keyId>:<sha256hex>:<scope>[+<scope>]` dipisah koma | **belum diset di produksi**; diset di kandidat lokal 3011 |
+| `BAKPAU_API_TOKENS` | `<keyId>:<sha256hex>:<scope>[+<scope>]` dipisah koma | **belum diset di produksi**; diset di kandidat lokal 3001 |
+| `BAKPAU_API_CREATE_ENABLED` | **hanya** `true` (huruf kecil, tanpa spasi) yang mengaktifkan tulis; nilai lain/absen = tulis ditahan | **tidak diset** — tulis sengaja MATI |
 | `BAKPAU_API_REVOKED` | daftar `keyId` dicabut | opsional (kosong = tidak ada yang dicabut) |
 | `BAKPAU_API_RATE_PER_MIN` | bilangan bulat, default 120 | opsional |
 | `BAKPAU_API_MAX_BODY_BYTES` | default 262144, maksimum 262144 | opsional |
+
+### `BAKPAU_API_CREATE_ENABLED` — kenapa ada
+
+Review Brooklyn menahan create sampai transaksi bersama terbukti. Kalau
+saklar ini tidak ada, create akan **otomatis hidup** begitu Bandeng
+meng-apply `bakpau_save_purchase_atomic` — gate review jadi tidak bisa
+ditegakkan dari sisi deployment. Dengan saklar ini:
+
+* default (env absen) → `503 create_disabled`, nol aktivitas DB;
+* `false`, `1`, `yes`, string lain → tetap `503`;
+* hanya `true` → create berjalan (masih harus lolos RPC + readback).
+
+Rollback fitur tulis = hapus/ubah env ini. Tidak menghapus data.
 
 ## Kredensial baca (hanya kunci ber-RLS)
 

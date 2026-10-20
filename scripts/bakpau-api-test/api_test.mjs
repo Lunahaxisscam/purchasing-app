@@ -343,6 +343,29 @@ group('C. READ — DAFTAR PUTIH, PAGINATION, TANPA SQL')
   const objFilter = await callRead({ body: { resource: 'masters/projects', query: { kode: { $ne: '101' } } } })
   eq('C21f filter objek ditolak -> 400', objFilter.statusCode, 400)
 
+  // ---- SAKLAR TULIS: create WAJIB mati bila env tidak menyalakannya ----
+  // Ini yang membuat gate review Brooklyn bisa ditegakkan: RPC yang sudah
+  // di-apply Bandeng TIDAK otomatis membuka tulis.
+  for (const [label, envPatch] of [
+    ['env absen', { BAKPAU_API_CREATE_ENABLED: undefined }],
+    ['"false"', { BAKPAU_API_CREATE_ENABLED: 'false' }],
+    ['"1"', { BAKPAU_API_CREATE_ENABLED: '1' }],
+    ['"yes"', { BAKPAU_API_CREATE_ENABLED: 'yes' }],
+    ['"TRUE " (spasi+kapital) tetap true', { BAKPAU_API_CREATE_ENABLED: ' TRUE ' }]
+  ]) {
+    const env = { ...F.ENV, ...envPatch }
+    for (const k of Object.keys(env)) if (env[k] === undefined) delete env[k]
+    mock.__reset({ tables: tables() })
+    const r = await callCreate({ body: F.validCreatePayload(), env })
+    if (label.startsWith('"TRUE')) {
+      eq(`C22 ${label} -> 201`, r.statusCode, 201)
+    } else {
+      eq(`C22 create dengan ${label} -> 503`, r.statusCode, 503)
+      eq(`C23 kode create_disabled (${label})`, r.body.code, 'create_disabled')
+      eq(`C24 nol aktivitas DB (${label})`, dbCalls().length, 0)
+    }
+  }
+
   // Order sah.
   mock.__reset({ tables: tables() })
   const order = await callRead({ body: { resource: 'masters/projects', query: { order: 'kode.desc' } } })

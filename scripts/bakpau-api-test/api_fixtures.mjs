@@ -62,6 +62,9 @@ export const ENV = {
   BAKPAU_API_TOKENS: `${TEST_KEY_ID}:${TEST_HASH}:purchasing:read+purchasing:create,` +
     `${TEST_KEY_ID_RO}:${TEST_HASH_RO}:purchasing:read`,
   BAKPAU_API_REVOKED: '',
+  // Harness menyalakan saklar tulis supaya jalur create benar-benar diuji.
+  // Produksi TIDAK menyalakannya (lihat B/C regresi di bawah).
+  BAKPAU_API_CREATE_ENABLED: 'true',
   BAKPAU_NOTIFY_ENABLED: '1'
 }
 

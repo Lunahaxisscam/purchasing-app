@@ -48,7 +48,12 @@ const KEY_ID = 'realpg01'
 const SECRET = crypto.randomBytes(32).toString('base64url')
 const TOKEN = `bpk.${KEY_ID}.${SECRET}`
 const HASH = crypto.createHash('sha256').update(SECRET, 'utf8').digest('hex')
-const ENV = { BAKPAU_API_TOKENS: `${KEY_ID}:${HASH}:purchasing:read+purchasing:create`, BAKPAU_NOTIFY_ENABLED: '1' }
+const ENV = {
+  BAKPAU_API_TOKENS: `${KEY_ID}:${HASH}:purchasing:read+purchasing:create`,
+  // DB uji terisolasi: saklar tulis dinyalakan HANYA di sini, bukan produksi.
+  BAKPAU_API_CREATE_ENABLED: 'true',
+  BAKPAU_NOTIFY_ENABLED: '1'
+}
 
 function makeRes() {
   return {
