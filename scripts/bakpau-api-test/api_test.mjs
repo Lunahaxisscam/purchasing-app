@@ -42,6 +42,16 @@ function eq(name, got, want) {
 }
 function group(t) { console.log(`\n=== ${t} ===`) }
 
+// RNG deterministik: regresi pagination harus GAGAL dengan andal saat
+// tiebreaker hilang, bukan lulus kebetulan. LCG sederhana, seed tetap.
+function seededRng(seed) {
+  let s = seed >>> 0
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
+
 function makeRes() {
   return {
     statusCode: null,
@@ -342,6 +352,36 @@ group('C. READ — DAFTAR PUTIH, PAGINATION, TANPA SQL')
   mock.__reset({ tables: tables() })
   const objFilter = await callRead({ body: { resource: 'masters/projects', query: { kode: { $ne: '101' } } } })
   eq('C21f filter objek ditolak -> 400', objFilter.statusCode, 400)
+
+  // ---- REGRESI: ORDER KEMBAR MERUSAK PAGINATION (ditemukan di data NYATA) ----
+  // `purchase-request-items` diurutkan `sort_order` yang TIDAK unik. Di data
+  // produksi, 60 baris dengan limit=3 hanya menghasilkan 52 id unik: 8 baris
+  // terlewat dan 8 terduplikasi, karena Postgres bebas memilih urutan untuk
+  // nilai kembar. Kontrak \"pagination\" jadi bohong tanpa pemecah seri `id`.
+  {
+    const t = tables()
+    // 6 baris dengan sort_order KEMBAR semuanya, id acak-terurut terbalik
+    // supaya urutan kembar benar-benar tak tentu.
+    t.pr_items = Array.from({ length: 6 }, (_, i) => ({
+      ...F.SYNTH,
+      id: `${'fedcba'[i]}${'0000000-0000-4000-8000-00000000000'.slice(1)}${i}`,
+      pr_id: F.REQUESTS[0].id, material_id: null, vendor_id: null,
+      quantity: 1, estimated_price: 1000, status: 'PENDING_APPROVAL',
+      item_name: `SINTETIS Baris ${i}`, kode: `S-${i}`, unit: 'Sak',
+      supplier_category: 'Material', sort_order: 0
+    }))
+    mock.__reset({ tables: t, unstableTies: true, rng: seededRng(20261021) })
+    const seen = []
+    for (let off = 0; off < 6; off += 2) {
+      const pg = await callRead({ body: { resource: 'purchase-request-items', query: { limit: 2, offset: off, order: 'sort_order.asc' } } })
+      eq(`C31a halaman offset=${off} -> 200`, pg.statusCode, 200)
+      seen.push(...pg.body.data.map(r => r.id))
+    }
+    eq('C31b gabungan halaman = 6 baris (tidak ada yang hilang)', seen.length, 6)
+    eq('C31c semua id unik (tidak ada duplikat antar halaman)', new Set(seen).size, 6)
+    const plan = R.planRead({ resource: 'purchase-request-items', query: { order: 'sort_order.asc' } })
+    eq('C31d rencana baca memakai tiebreaker id', plan.order.tiebreaker, 'id')
+  }
 
   // ---- SAKLAR TULIS: create WAJIB mati bila env tidak menyalakannya ----
   // Ini yang membuat gate review Brooklyn bisa ditegakkan: RPC yang sudah

@@ -30,7 +30,7 @@ export function createPgClient({ connectionString }) {
   }
 
   function makeBuilder(table) {
-    const st = { table, op: 'select', data: null, filters: [], inFilter: null, limit: null, range: null, order: null, returning: false }
+    const st = { table, op: 'select', data: null, filters: [], inFilter: null, limit: null, range: null, orders: [], returning: false }
 
     const api = {
       select(cols) {
@@ -48,7 +48,7 @@ export function createPgClient({ connectionString }) {
       ilike(col, val) { st.filters.push({ col, val, op: 'ILIKE' }); return api },
       or() { return api },
       not() { return api },
-      order(col, opts) { st.order = { col, asc: !(opts && opts.ascending === false) }; return api },
+      order(col, opts) { st.orders.push({ col, asc: !(opts && opts.ascending === false) }); return api },
       limit(n) { st.limit = n; return api },
       range(from, to) { st.range = [from, to]; return api },
       single() { return exec(st) },
@@ -81,7 +81,7 @@ export function createPgClient({ connectionString }) {
       if (st.op === 'select') {
         const where = whereClause(st, params)
         sql = `SELECT ${st.cols || '*'} FROM ${ident(st.table)}${where}`
-        if (st.order) sql += ` ORDER BY ${ident(st.order.col)} ${st.order.asc ? 'ASC' : 'DESC'}`
+        if (st.orders.length) sql += ` ORDER BY ${st.orders.map(o => `${ident(o.col)} ${o.asc ? 'ASC' : 'DESC'}`).join(', ')}`
         if (st.range) sql += ` LIMIT ${st.range[1] - st.range[0] + 1} OFFSET ${st.range[0]}`
         else if (st.limit) sql += ` LIMIT ${Number(st.limit)}`
       } else if (st.op === 'insert') {

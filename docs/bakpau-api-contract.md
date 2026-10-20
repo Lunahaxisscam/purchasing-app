@@ -122,6 +122,14 @@ persis kolom yang dipakai). Tidak ada `select('*')` di jalur baca API.
 * `limit` default 50, maksimum 200 (dipotong, bukan error).
 * `offset` maksimum 100000.
 * `order` hanya boleh kolom yang ada di daftar putih, `asc`/`desc`.
+* **Pemecah seri wajib**: setiap urutan selalu ditambah `id ASC` sebagai kunci
+  akhir. Kolom urutan bisnis tidak unik (`sort_order` di
+  `purchase-request-items` dipakai 12 baris; `created_at` bisa kembar), dan
+  Postgres bebas memilih urutan untuk nilai kembar. Tanpa pemecah seri,
+  pagination offset **kehilangan dan menggandakan baris**: terbukti di data
+  produksi nyata — 60 baris `purchase-request-items` diambil 3-per-halaman
+  hanya menghasilkan **52 id unik** (8 hilang, 8 dobel). Setelah perbaikan:
+  60/60 unik (`PROBE_PAGINATION.json`).
 * Parameter tak dikenal → `400 unknown_parameter` (**tidak diabaikan** supaya
   pemanggil tidak mengira filter sudah diterapkan).
 * Filter teks memakai pencocokan **literal** (`ilike` dengan `%`/`_` di-escape),
@@ -293,11 +301,11 @@ hanya untuk baca.
 | Jalur | Status | Bukti |
 |---|---|---|
 | Read live (8 resource, data produksi nyata) | **AKTIF di kandidat 3001** | `LIVE_PROBE_3001.json` (23/23 PASS; projects 11, materials 344, vendors 22, PR 16, purchases 6, physical 1) + `PROFILE_CLIENT_PROOF_3001.json` (11/11, memakai token milik profil `bakpau-finance`) |
-| Auth ditolak sebelum DB | **TERBUKTI** | 179 assertion `api_test.mjs` (B1–B28, C22–C27) + probe live R1/R2 |
+| Auth ditolak sebelum DB | **TERBUKTI** | 216 assertion `api_test.mjs` (B1–B28, C22–C30) + probe live R1/R2 |
 | Kredensial baca tidak privileged | **TERBUKTI** | C22–C27 (service role → 503), `read_key_classify.py` (kunci 3001 = `jwt_anon`, `SUPABASE_SERVICE_ROLE_KEY` ABSENT) |
 | Revoke/rotate tanpa deploy | **TERBUKTI LIVE** | `REVOKE_LIVE_PROOF.json`: 200 → revoked → 401 `token_revoked` → restore → 200 |
 | Create validasi/ambigu/idempotensi (mock) | **TERBUKTI di harness** | E1–E34, H1–H15 |
-| **Create terhadap PostgreSQL 16 NYATA (DB terisolasi)** | **TERBUKTI — 94/94 PASS** | `scripts/bakpau-api-test/run_real_db.py`: satu transaksi, 1 nota benar tersimpan, **fault injection trigger → rollback total (0 header/0 baris/0 klaim) + retry berhasil**, race 2 paralel → tepat 1 nota, 8 payload invalid → 0 tulisan, RPC di-rename → 503 + 0 tulisan, nota admin nomor sama → duplicate, RPC langsung ditolak 5/5, ACL anon/authenticated tidak boleh EXECUTE |
+| **Create terhadap PostgreSQL 16 NYATA (DB terisolasi)** | **TERBUKTI — 103/103 PASS** | `scripts/bakpau-api-test/run_real_db.py`: satu transaksi, 1 nota benar tersimpan, **fault injection trigger → rollback total (0 header/0 baris/0 klaim) + retry berhasil**, race 2 paralel → tepat 1 nota, 8 payload invalid → 0 tulisan, RPC di-rename → 503 + 0 tulisan, nota admin nomor sama → duplicate, RPC langsung ditolak 5/5, ACL anon/authenticated tidak boleh EXECUTE, saklar `BAKPAU_API_CREATE_ENABLED` diuji di DB yang RPC-nya SUDAH ada (absen/`"1"` → 503 + 0 tulisan; `true` → 201) |
 | Create **live di produksi** (nota nyata) | **WRITE_LIVE_UNVERIFIED** | butuh (a) `bakpau_events` + RPC di-apply Bandeng, (b) nota nyata yang DAT minta |
 | DDL / applied produksi | **tidak ada (0)** | schema owner Bandeng; gate backup+restore+review belum terpenuhi |
 | Transport Telegram | tidak diuji live dari API (memakai RPC existing) | — |
@@ -373,8 +381,8 @@ opsi ini hanya dicatat sebagai keputusan pemilik deploy, bukan dilakukan.
 
 | Berkas | Isi |
 |---|---|
-| `scripts/bakpau-api-test/run.py` | harness 179 assertion (log di `BAKPAU_API_TEST.log`) |
-| `scripts/bakpau-api-test/run_real_db.py` | 94 assertion terhadap PostgreSQL 16 nyata (`BAKPAU_API_REALDB_TEST.log`) |
+| `scripts/bakpau-api-test/run.py` | harness 216 assertion (log di `BAKPAU_API_TEST_FINAL.log`) |
+| `scripts/bakpau-api-test/run_real_db.py` | 103 assertion terhadap PostgreSQL 16 nyata (`BAKPAU_API_REALDB_TEST_FINAL.log`) |
 | `LIVE_PROBE_3001.json` | 23/23 PASS terhadap kandidat 3001 (read-only, data produksi) |
 | `PROFILE_CLIENT_PROOF_3001.json` | 11/11 — token milik profil `bakpau-finance` membaca data nyata |
 | `REVOKE_LIVE_PROOF.json` | revoke/restore token live |

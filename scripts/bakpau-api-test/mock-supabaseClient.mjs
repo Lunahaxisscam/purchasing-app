@@ -56,6 +56,10 @@ export function __reset({ tables = {}, ...opts } = {}) {
   __state.failAtomic = opts.failAtomic || null
   __state.atomicResultPatch = opts.atomicResultPatch || null
   __state.failSelectTable = opts.failSelectTable || null
+  // Urutan baris ber-kunci kembar dibuat TIDAK stabil antar-panggilan,
+  // meniru kebebasan Postgres. Dipakai tes regresi pagination.
+  __state.unstableTies = !!opts.unstableTies
+  __state.rng = opts.rng || Math.random
 }
 
 export function __rows(table) { return [...tableOf(table).values()].map(r => ({ ...r })) }
@@ -110,14 +114,27 @@ function runSelect(st) {
   }
   const total = rows.length
 
-  if (st.order) {
-    const { column, ascending } = st.order
+  // Emulasi bahaya NYATA: Postgres tidak menjamin urutan untuk nilai kunci
+  // yang kembar, dan urutannya bisa BERBEDA antar-request. JS Array.sort
+  // stabil, jadi tanpa emulasi ini mock SELALU lolos walau tiebreaker hilang
+  // (itu sebabnya regresi pagination tidak pernah tertangkap di mock).
+  // `unstableTies` memberi setiap baris peringkat acak per-panggilan, lalu
+  // dipakai sebagai kunci terakhir — persis efek "urutan tak tentu".
+  if (__state.unstableTies) {
+    rows = rows.map(r => ({ ...r, __tieRank: __state.rng() }))
+  }
+
+  if (st.orders.length) {
     rows = rows.slice().sort((a, b) => {
-      const x = a[column], y = b[column]
-      if (x === y) return 0
-      if (x === null || x === undefined) return 1
-      if (y === null || y === undefined) return -1
-      return (x < y ? -1 : 1) * (ascending ? 1 : -1)
+      for (const { column, ascending } of st.orders) {
+        const x = a[column], y = b[column]
+        if (x === y) continue
+        if (x === null || x === undefined) return 1
+        if (y === null || y === undefined) return -1
+        return (x < y ? -1 : 1) * (ascending ? 1 : -1)
+      }
+      if (__state.unstableTies) return a.__tieRank - b.__tieRank
+      return 0
     })
   }
   if (st.range) {
@@ -130,7 +147,7 @@ function runSelect(st) {
 }
 
 function makeBuilder(table) {
-  const st = { table, op: null, data: null, filters: [], inFilter: null, limit: null, range: null, order: null, wantCount: false }
+  const st = { table, op: null, data: null, filters: [], inFilter: null, limit: null, range: null, orders: [], wantCount: false }
   const api = {
     select(cols, opts) {
       if (!st.op) st.op = 'select'
@@ -159,7 +176,10 @@ function makeBuilder(table) {
     or() { return api },
     not() { return api },
     order(col, opts) {
-      st.order = { column: col, ascending: !(opts && opts.ascending === false) }
+      // PostgREST mengizinkan `.order()` dirantai: kunci pertama prioritas
+      // utama, berikutnya menjadi pemecah seri. Mock harus meniru itu,
+      // kalau tidak tes pagination tidak akan pernah menangkap order kembar.
+      st.orders.push({ column: col, ascending: !(opts && opts.ascending === false) })
       return api
     },
     limit(n) { st.limit = n; return api },

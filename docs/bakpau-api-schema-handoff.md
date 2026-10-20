@@ -105,7 +105,7 @@ vendor+nomor sama (dicek di dalam fungsi), bukan untuk seluruh alur admin.
 `scripts/bakpau-api-test/run_real_db.py` — PostgreSQL 16, database
 `bakpau_api_t_dd743609`, fixture sintetis `t_03b41644`:
 
-* 94 assertion PASS / 0 FAIL;
+* 103 assertion PASS / 0 FAIL;
 * **fault injection nyata**: trigger `BEFORE INSERT` melempar `23514` pada baris
   kedua → 0 header, 0 baris, 0 klaim ledger tertinggal, dan retry dengan kunci
   yang sama berhasil (kunci tidak "terbakar");
