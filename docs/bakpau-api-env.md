@@ -12,16 +12,25 @@ Tidak ada nilai di dokumen ini. Nilai hanya ada di
 | `BAKPAU_API_RATE_PER_MIN` | bilangan bulat, default 120 | opsional |
 | `BAKPAU_API_MAX_BODY_BYTES` | default 262144, maksimum 262144 | opsional |
 
-## Kredensial baca (rantai fallback, tidak wajib baru)
+## Kredensial baca (hanya kunci ber-RLS)
 
 | Nama | Peran |
 |---|---|
 | `BAKPAU_API_READ_SUPABASE_URL` | opsional; kalau kosong → `SUPABASE_URL` → `NEXT_PUBLIC_SUPABASE_URL` |
-| `BAKPAU_API_READ_SUPABASE_KEY` | opsional; kalau kosong → `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS berlaku) → `SUPABASE_SERVICE_ROLE_KEY` |
+| `BAKPAU_API_READ_SUPABASE_KEY` | opsional; kalau kosong → `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+
+**`SUPABASE_SERVICE_ROLE_KEY` TIDAK ADA di rantai baca** (revisi 2). Kunci itu
+melewati RLS, sehingga tidak boleh menjadi kredensial baca API sempit ini.
+Bila hanya kunci privileged yang tersedia → `503 read_credential_missing`.
+Bila kunci privileged dipasang sebagai kunci baca → `503 read_credential_privileged`.
 
 Deployment existing sudah punya `NEXT_PUBLIC_SUPABASE_URL` dan
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` di `.env.local` (dan pada build Vercel),
-sehingga **baca tidak memerlukan env baru**.
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, sehingga **baca tidak memerlukan env baru**.
+
+Catatan operator: kunci anon pada proyek ini masih bisa membaca `profiles`
+(fakta di `RLS_BOUNDARY_PROBE.json`), jadi batas izin API adalah daftar putih
+resource/kolom di kode — bukan RLS. Jangan memasang service role "supaya bisa
+baca semua"; itu justru menghapus satu-satunya batas yang tersisa.
 
 ## Kredensial tulis (sudah ada, tidak berubah)
 
@@ -29,6 +38,16 @@ sehingga **baca tidak memerlukan env baru**.
 |---|---|
 | `SUPABASE_SERVICE_ROLE_KEY` | hanya server, hanya jalur tulis, **tidak pernah** dikirim ke Bakpau |
 | `SUPABASE_URL` | URL proyek |
+
+## Wajib untuk CREATE (baru, revisi 2)
+
+| Objek | Status di produksi |
+|---|---|
+| tabel `public.bakpau_events` | **belum ada** (PGRST205) — draft milik Bandeng |
+| fungsi `public.bakpau_save_purchase_atomic(jsonb)` | **belum ada** — draft `migrations/2026-10-21_bakpau_atomic_purchase_rpc.DRAFT.sql` |
+
+Tanpa keduanya, create menjawab `503 atomic_rpc_unavailable` dan **nol baris
+ditulis**. Tidak ada fallback multipart.
 
 ## Klien (profil bakpau-finance)
 

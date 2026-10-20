@@ -57,17 +57,63 @@ belum pernah dijalankan. Task ini **tidak** mengubahnya. Bila ada kebutuhan
 gabungan dari `t_03b41644` (00..06), gabungkan secara terkendali di sana —
 jangan apply dua paket terpisah yang menyentuh objek yang sama.
 
-## 4. Kebutuhan tambahan dari API (usulan, belum ditulis sebagai migrasi)
+## 4. Kebutuhan tambahan dari API (revisi 2 — RPC transaksional)
 
-API v1 **tidak menambah tabel**. Yang dibutuhkan hanya:
+Revisi 1 menyatakan "tidak ada RPC baru". **Itu berubah** setelah review
+Brooklyn: jalur multipart tidak memenuhi syarat transaksi tunggal.
 
-1. `bakpau_events` di atas (sudah ada draft).
-2. Tidak ada RPC baru: jalur tulis memakai `savePurchaseWithClient` yang
-   menulis langsung ke `receivings` + `receiving_items` (jalur yang sama
-   dengan form admin). Tidak ada fungsi SQL kedua.
-3. Tidak ada perubahan RLS pada tabel existing. API berjalan di server dengan
-   kredensial yang sudah dipakai aplikasi; token Bakpau hanya gerbang di
-   lapisan HTTP, **bukan** identitas Postgres.
+Sekarang API membutuhkan **satu fungsi SQL** (bukan tabel baru):
+
+`migrations/2026-10-21_bakpau_atomic_purchase_rpc.DRAFT.sql`
+
+```
+public.bakpau_save_purchase_atomic(p_payload jsonb) RETURNS jsonb
+  SECURITY INVOKER, SET search_path = public, pg_temp
+```
+
+Isi (semua dalam satu transaksi PostgreSQL):
+
+1. validasi bentuk payload (termasuk subtotal baris == `material`, dan
+   `total == material + biaya_lain − diskon`, baris wajib punya `[Harga: n]`);
+2. klaim event `evt:<channel>:<idempotency>` via `INSERT … ON CONFLICT DO NOTHING`
+   pada `bakpau_events.dedup_key` (UNIQUE);
+3. klaim bukti `evd:<sha256>` — bila sudah ada → `RAISE` `BK002` (rollback total);
+4. tolak nota `vendor_id + invoice_no` yang sudah DIBELI (termasuk buatan admin)
+   → `RAISE` `BK001`;
+5. `INSERT` header `receivings` + semua baris `receiving_items` (satu statement);
+6. `UPDATE` kedua baris ledger → `status='recorded'`, `receiving_id`;
+7. `RETURN jsonb` berisi `receiving_id`, `invoice_no`, `item_count`, `total`,
+   `event_key`, `evidence_hash`, `items[]`.
+
+Hak akses: `REVOKE ALL FROM PUBLIC`, `anon`, `authenticated`; hanya
+`service_role` yang boleh `EXECUTE`. **Tidak** ada SQL dinamis dan tidak ada
+nama tabel/kolom dari parameter.
+
+**Ketergantungan**: fungsi ini memerlukan `bakpau_events` (§3) sudah ada.
+Urutan apply: ledger dulu, lalu fungsi — dalam **satu** jendela yang disetujui.
+
+**Perubahan perilaku yang perlu diketahui integrator**:
+`savePurchaseWithClient` (jalur admin) tetap multipart seperti sekarang. Agar
+idempotensi benar-benar lintas kanal (admin vs Telegram vs WA vs API), jalur
+admin perlu ikut memakai fungsi/RPC bersama ini. Itu **pekerjaan integrator**,
+bukan sesuatu yang diklaim selesai oleh lane API. Sampai itu terjadi,
+idempotensi lintas kanal hanya berlaku untuk nota yang sudah DIBELI dengan
+vendor+nomor sama (dicek di dalam fungsi), bukan untuk seluruh alur admin.
+
+## 4.1 Bukti fungsi ini bekerja (DB terisolasi, BUKAN produksi)
+
+`scripts/bakpau-api-test/run_real_db.py` — PostgreSQL 16, database
+`bakpau_api_t_dd743609`, fixture sintetis `t_03b41644`:
+
+* 94 assertion PASS / 0 FAIL;
+* **fault injection nyata**: trigger `BEFORE INSERT` melempar `23514` pada baris
+  kedua → 0 header, 0 baris, 0 klaim ledger tertinggal, dan retry dengan kunci
+  yang sama berhasil (kunci tidak "terbakar");
+* race dua request paralel → tepat 1 nota;
+* RPC di-rename → `503 atomic_rpc_unavailable`, 0 tulisan;
+* 5 panggilan RPC langsung (tanpa lapisan aplikasi) yang cacat → semuanya
+  ditolak, 0 tulisan;
+* `has_function_privilege`: anon/authenticated `false`, service_role `true`.
 
 ## 5. Yang harus dibuktikan sebelum `applied` boleh dinaikkan
 
@@ -96,9 +142,9 @@ API v1 **tidak menambah tabel**. Yang dibutuhkan hanya:
 
 | Item | Status |
 |---|---|
-| Schema gap teridentifikasi | ya (1 tabel) |
-| SQL handoff tersedia | ya (`migrations/2026-10-21_bakpau_connector_ledger.sql`) |
-| DDL dijalankan task ini | **0** |
+| Schema gap teridentifikasi | ya (1 tabel `bakpau_events` + 1 fungsi RPC) |
+| SQL handoff tersedia | ya (`migrations/2026-10-21_bakpau_connector_ledger.sql` + `migrations/2026-10-21_bakpau_atomic_purchase_rpc.DRAFT.sql`) |
+| DDL dijalankan task ini | **0 di produksi**; 2 file di-apply hanya ke DB uji terisolasi (port 55434) |
 | Applied produksi | **0** |
-| Write live | **UNVERIFIED** (butuh DDL + transaksi nyata) |
-| Read live | **AKTIF** (tidak butuh DDL) |
+| Write live | **UNVERIFIED** (butuh ledger+RPC applied + transaksi nyata) |
+| Read live | **AKTIF di kandidat 3001** (tidak butuh DDL) |

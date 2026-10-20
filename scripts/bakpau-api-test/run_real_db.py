@@ -76,6 +76,14 @@ if psql(PGURL_DB, ['-f', LEDGER]):
     sys.exit('GAGAL apply migrasi ledger')
 print('  ledger bakpau_events applied ke DB UJI (bukan produksi)')
 
+print('\n=== 3b. Fungsi transaksi atomik Bakpau (DRAFT, di DB uji saja) ===')
+ATOMIC = os.path.join(REPO, 'migrations', '2026-10-21_bakpau_atomic_purchase_rpc.DRAFT.sql')
+if not os.path.isfile(ATOMIC):
+    sys.exit(f'GAGAL: fungsi atomik tidak ada: {ATOMIC}')
+if psql(PGURL_DB, ['-f', ATOMIC]):
+    sys.exit('GAGAL apply fungsi atomik')
+print('  bakpau_save_purchase_atomic applied ke DB UJI (bukan produksi)')
+
 print('\n=== 4. Sandbox modul aplikasi VERBATIM ===')
 if os.path.exists(SB):
     shutil.rmtree(SB)

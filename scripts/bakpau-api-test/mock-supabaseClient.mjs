@@ -22,7 +22,11 @@ export const __state = {
   missingTables: new Set(),
   corruptOnRead: null,
   rpcResults: new Map(),
-  rpcFailTimes: new Map()
+  rpcFailTimes: new Map(),
+  missingRpc: new Set(),
+  failAtomic: null,
+  atomicResultPatch: null,
+  failSelectTable: null
 }
 
 function tableOf(name) {
@@ -46,6 +50,12 @@ export function __reset({ tables = {}, ...opts } = {}) {
   __state.corruptOnRead = opts.corruptOnRead || null
   __state.rpcResults = new Map(Object.entries(opts.rpcResults || {}))
   __state.rpcFailTimes = new Map(Object.entries(opts.rpcFailTimes || {}))
+  // Simulasi RPC atomik: fungsi belum di-apply, gagal di tengah transaksi,
+  // atau balasan yang tidak konsisten.
+  __state.missingRpc = new Set(opts.missingRpc || [])
+  __state.failAtomic = opts.failAtomic || null
+  __state.atomicResultPatch = opts.atomicResultPatch || null
+  __state.failSelectTable = opts.failSelectTable || null
 }
 
 export function __rows(table) { return [...tableOf(table).values()].map(r => ({ ...r })) }
@@ -165,6 +175,9 @@ function makeBuilder(table) {
 function terminal(st) {
   const missing = missingError(st.table)
   if (missing) return { data: null, error: missing }
+  if (__state.failSelectTable === st.table && st.op === 'select') {
+    return { data: null, error: { code: '42P01', message: `relation "${st.table}" does not exist at character 15` } }
+  }
 
   if (st.op === 'select') {
     const r = runSelect(st)
@@ -217,10 +230,162 @@ function terminal(st) {
   return { data: [], error: null }
 }
 
+// ------------------------------------------------------------
+// SIMULASI RPC ATOMIK `bakpau_save_purchase_atomic`
+// ------------------------------------------------------------
+// Mock harus meniru SEMANTIK TRANSAKSI, bukan hanya "mengembalikan 200":
+//   * snapshot seluruh tabel diambil di awal;
+//   * setiap penolakan (duplicate/konflik/invalid) -> snapshot dipulihkan
+//     (rollback total, termasuk klaim ledger);
+//   * sukses -> satu header + N baris + dua baris ledger 'recorded'.
+// Dengan begitu tes "gagal di tengah -> nol tulisan" benar-benar diuji.
+const ATOMIC_FN = 'bakpau_save_purchase_atomic'
+
+function snapshotTables() {
+  const snap = new Map()
+  for (const [name, m] of __state.tables) {
+    snap.set(name, new Map([...m].map(([k, v]) => [k, { ...v }])))
+  }
+  return snap
+}
+
+function restoreTables(snap) {
+  __state.tables = new Map([...snap].map(([k, m]) => [k, new Map([...m].map(([kk, vv]) => [kk, { ...vv }]))]))
+}
+
+function atomicTx(args) {
+  const p = args?.p_payload
+  const deny = (code, extra = {}) => ({ data: { ok: false, code, ...extra }, error: null })
+
+  if (!p || typeof p !== 'object') return deny('invalid_payload')
+  if (Number(p.contract_version) !== 1) return deny('invalid_payload')
+  if (!String(p.event_key || '').trim() || !String(p.channel || '').trim()) return deny('invalid_payload')
+  if (!/^[0-9a-f]{64}$/.test(String(p.evidence_hash || ''))) return deny('invalid_payload')
+  const items = Array.isArray(p.items) ? p.items : []
+  if (!items.length || items.length > 80) return deny('invalid_payload')
+  for (const it of items) {
+    if (!String(it?.item_name || '').trim()) return deny('invalid_payload')
+    if (!(Number(it?.quantity_received) > 0)) return deny('invalid_payload')
+    if (!/\[Harga:\s*[0-9]/.test(String(it?.note || ''))) return deny('invalid_payload')
+  }
+  const h = p.header || {}
+  if (!String(h.vendor_id || '').trim()) return deny('invalid_payload')
+
+  // Kunci event (dedup) — atomik lewat "unique".
+  const evtKey = `evt:${p.event_key}`
+  if (__rows('bakpau_events').some(r => r.dedup_key === evtKey)) {
+    const prev = __rows('bakpau_events').find(r => r.dedup_key === evtKey)
+    return deny('duplicate_event', { receiving_id: prev?.receiving_id || null, event_key: p.event_key })
+  }
+  // Bukti lintas kanal -> ditolak (dipulihkan oleh rollback di pemanggil).
+  const evdKey = `evd:${p.evidence_hash}`
+  if (__rows('bakpau_events').some(r => r.dedup_key === evdKey)) {
+    return { data: null, error: { code: 'BK002', message: 'duplicate_evidence' } }
+  }
+  // Nota ganda vendor+nomor.
+  const invoiceNo = String(h.invoice_no || '').trim() || `BK-${nextId('inv').toUpperCase()}`
+  const conflict = __rows('receivings').find(r =>
+    String(r.vendor_id) === String(h.vendor_id)
+    && String(r.invoice_no) === invoiceNo
+    && (/\[Tahap:\s*DIBELI\]/.test(String(r.note || '')) || String(r.status || '').toUpperCase() === 'DIBELI'))
+  if (conflict) return { data: null, error: { code: 'BK001', message: 'conflict_invoice' } }
+
+  const rid = `00000000-0000-4000-8000-${String(__state.seq).padStart(12, '0')}`
+  __state.seq += 1
+  const headerRow = {
+    id: rid,
+    vendor_id: h.vendor_id,
+    invoice_no: invoiceNo,
+    delivery_note: String(h.delivery_note_label || `Nota ${invoiceNo}`),
+    received_date: h.received_date,
+    note: h.note || '',
+    kendala: null,
+    purchase_request_id: h.purchase_request_id || null,
+    project_id: h.project_id || null,
+    status: h.status || 'DIBELI',
+    alokasi: null,
+    masuk_gudang: false,
+    created_at: new Date().toISOString()
+  }
+  tableOf('receivings').set(rid, headerRow)
+  for (const it of items) {
+    const iid = nextId('ritem')
+    tableOf('receiving_items').set(iid, {
+      id: iid,
+      receiving_id: rid,
+      pr_item_id: it.pr_item_id || null,
+      item_name: it.item_name,
+      unit: it.unit || null,
+      quantity_received: Number(it.quantity_received),
+      note: it.note || null,
+      created_at: new Date().toISOString()
+    })
+  }
+  const nowIso = new Date().toISOString()
+  for (const key of [evtKey, evdKey]) {
+    tableOf('bakpau_events').set(key, {
+      id: key,
+      dedup_key: key,
+      kind: key.startsWith('evt:') ? 'event' : 'evidence',
+      status: 'recorded',
+      payload: { channel: p.channel },
+      receiving_id: rid,
+      created_at: nowIso,
+      updated_at: nowIso
+    })
+  }
+  return {
+    data: {
+      ok: true,
+      code: 'recorded',
+      receiving_id: rid,
+      invoice_no: invoiceNo,
+      is_internal_ref: !String(h.invoice_no || '').trim(),
+      item_count: items.length,
+      total: Number(h.total),
+      material: Number(h.material),
+      biaya_lain: Number(h.biaya_lain),
+      diskon: Number(h.diskon),
+      event_key: p.event_key,
+      evidence_hash: p.evidence_hash,
+      channel: p.channel,
+      items: items.map((it, i) => ({
+        line_no: i + 1,
+        item_name: it.item_name,
+        unit: it.unit || null,
+        quantity_received: Number(it.quantity_received),
+        project_id: it.project_id || null,
+        pr_item_id: it.pr_item_id || null
+      }))
+    },
+    error: null
+  }
+}
+
 export const supabase = {
   from: table => makeBuilder(table),
   rpc: async (fn, args) => {
     __state.calls.push({ op: 'rpc', fn, args })
+    if (fn === ATOMIC_FN) {
+      // "Fungsi belum di-apply" -> PostgREST menjawab PGRST202.
+      if (__state.missingRpc.has(fn)) {
+        return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${fn}(p_payload)` } }
+      }
+      const snap = snapshotTables()
+      const out = atomicTx(args)
+      // Gagal di tengah transaksi (simulasi): header sempat ditulis lalu
+      // baris gagal -> RAISE -> rollback total.
+      if (out.data?.ok === true && __state.failAtomic === 'after_header') {
+        restoreTables(snap)
+        return { data: null, error: { code: '23503', message: 'insert baris ditolak (simulasi di tengah transaksi)' } }
+      }
+      if (out.data?.ok === true && __state.atomicResultPatch) {
+        Object.assign(out.data, __state.atomicResultPatch)
+      }
+      // RAISE EXCEPTION (error) ATAU penolakan sah -> rollback total.
+      if (out.error || out.data?.ok !== true) restoreTables(snap)
+      return out
+    }
     const fails = __state.rpcFailTimes.get(fn) || 0
     if (fails > 0) {
       __state.rpcFailTimes.set(fn, fails - 1)

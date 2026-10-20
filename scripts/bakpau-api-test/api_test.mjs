@@ -5,11 +5,16 @@
 // tiruan. Membuktikan:
 //   * auth ditolak SEBELUM satu pun query DB (dihitung dari mock.calls)
 //   * scope ditegakkan server-side (bukan label nama token)
+//   * kredensial BACA tidak pernah jatuh ke service role (fail closed)
 //   * read hanya resource/kolom/filter daftar putih + pagination nyata
 //   * create: payload invalid/ambigu -> 0 tulisan; valid -> 1 nota + readback
-//   * duplikat event/bukti -> tidak ada tulisan kedua
+//   * create memakai SATU RPC transaksional (bukan tulisan multipart)
+//   * duplikat event/bukti/nota lintas kanal -> tidak ada tulisan kedua
 //   * notifikasi gagal -> pembelian TIDAK ditulis ulang
 //   * tidak ada token/key/SQL/stack di respons
+//
+// Regresi review Brooklyn (2026-10-21) ada di group C22-C30 (kredensial baca)
+// dan group H (batas transaksi atomik).
 // ============================================================
 
 import path from 'node:path'
@@ -22,7 +27,7 @@ const H = await load('lib/bakpau/apiHandler.mjs')
 const A = await load('lib/bakpau/apiAuth.mjs')
 const R = await load('lib/bakpau/apiRead.mjs')
 const C = await load('lib/bakpau/apiCreate.mjs')
-const L = await load('lib/bakpau/ledger.mjs')
+const AP = await load('lib/bakpau/atomicPurchase.mjs')
 const mock = await load('lib/supabaseClient.mjs')
 const F = await import(pathToFileURL(path.join(SB, 'api_fixtures.mjs')).href)
 
@@ -70,6 +75,11 @@ function tables() {
 function dbCalls() {
   return mock.__state.calls.filter(c => ['select', 'insert', 'update', 'delete', 'rpc'].includes(c.op))
 }
+function rowsOf(table) { return mock.__rows(table) }
+function atomicCalls() { return mock.__state.calls.filter(c => c.op === 'rpc' && c.fn === 'bakpau_save_purchase_atomic') }
+function directWrites() {
+  return mock.__state.calls.filter(c => ['insert', 'update', 'delete'].includes(c.op))
+}
 
 function fakeTransport({ failTimes = 0 } = {}) {
   const sent = []
@@ -85,10 +95,10 @@ function fakeTransport({ failTimes = 0 } = {}) {
   }
 }
 
-async function callRead({ body, headers = F.authHeaders(), env = F.ENV, client = mock.supabase } = {}) {
+async function callRead({ body, headers = F.authHeaders(), env = F.ENV, client = mock.supabase, useRealCred = false } = {}) {
   const handler = H.createBakpauReadHandler({
     env,
-    createReadClient: () => client,
+    ...(useRealCred ? {} : { createReadClient: () => client }),
     rateLimiter: A.createRateLimiter({ perMinute: 1000 })
   })
   const res = makeRes()
@@ -96,14 +106,11 @@ async function callRead({ body, headers = F.authHeaders(), env = F.ENV, client =
   return res
 }
 
-async function callCreate({ body, headers = F.authHeaders(), env = F.ENV, client = mock.supabase, transport = null, ledger = null, useDbLedger = false } = {}) {
+async function callCreate({ body, headers = F.authHeaders(), env = F.ENV, client = mock.supabase, transport = null } = {}) {
   const handler = H.createBakpauCreateHandler({
     env,
     createClient: () => client,
     loadMasters: async () => ({ ok: true, masters: F.MASTERS }),
-    // `useDbLedger` sengaja TIDAK menyuntikkan ledger supaya handler memakai
-    // createDbLedger asli (yang fail closed bila tabel ledger tidak ada).
-    ...(useDbLedger ? {} : { ledger: ledger || L.createMemoryLedger() }),
     transport: transport || fakeTransport(),
     rateLimiter: A.createRateLimiter({ perMinute: 1000 })
   })
@@ -138,6 +145,17 @@ group('A. KONFIGURASI TOKEN (fail closed)')
     BAKPAU_API_TOKENS: `${F.TEST_KEY_ID}:${F.TEST_HASH}:purchasing:read,${F.TEST_KEY_ID}:${F.TEST_HASH}:purchasing:create`
   })
   eq('A8 keyId ganda -> entri kedua dibuang', dup.entries.get(F.TEST_KEY_ID).scopes, ['purchasing:read'])
+
+  // --- Klasifikasi kredensial BACA (regresi review Brooklyn) ---
+  const svcJwt = `x.${Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url')}.y`
+  const anonJwt = `x.${Buffer.from(JSON.stringify({ role: 'anon' })).toString('base64url')}.y`
+  eq('A9 kunci service_role JWT ditolak', A.classifyReadKey(svcJwt).ok, false)
+  eq('A10 alasan privileged', A.classifyReadKey(svcJwt).reason, 'read_credential_privileged')
+  eq('A11 kunci sb_secret_ ditolak', A.classifyReadKey('sb_secret_abc').ok, false)
+  eq('A12 kunci anon JWT diterima', A.classifyReadKey(anonJwt).ok, true)
+  eq('A13 kunci publishable diterima', A.classifyReadKey('sb_publishable_abc').ok, true)
+  eq('A14 kunci kosong ditolak', A.classifyReadKey('').ok, false)
+  ok('A15 service role TIDAK ada di rantai kunci baca', !A.READ_KEY_CHAIN.includes('SUPABASE_SERVICE_ROLE_KEY'))
 }
 
 // ============================================================
@@ -226,6 +244,12 @@ group('B. AUTENTIKASI & SCOPE — DITOLAK SEBELUM DB')
   eq('B24 permintaan pertama lolos', r1.statusCode, 200)
   eq('B25 permintaan kedua kena rate limit -> 429', r2.statusCode, 429)
   ok('B26 header Retry-After ada', !!r2.headers['retry-after'])
+
+  // CREATE tanpa token -> 401 SEBELUM DB (termasuk sebelum loadMasters).
+  mock.__reset({ tables: tables() })
+  const createNoAuth = await callCreate({ body: F.validCreatePayload(), headers: {} })
+  eq('B27 create tanpa token -> 401', createNoAuth.statusCode, 401)
+  eq('B28 nol query DB pada create tanpa token', dbCalls().length, 0)
 }
 
 // ============================================================
@@ -300,11 +324,52 @@ group('C. READ — DAFTAR PUTIH, PAGINATION, TANPA SQL')
   const ro = await callRead({ body: { resource: 'masters/projects' }, headers: F.authHeaders(F.TEST_TOKEN_RO) })
   eq('C20 token read-only boleh baca', ro.statusCode, 200)
 
-  // Tanpa kredensial server (token sah, tapi service key tidak ada) -> 503,
+  // Tanpa kredensial server (token sah, tapi klien tidak ada) -> 503,
   // bukan 200 kosong.
   mock.__reset({ tables: tables() })
   const noSvc = await callRead({ body: { resource: 'masters/projects' }, client: null })
   eq('C21 tanpa klien server -> 503', noSvc.statusCode, 503)
+
+  // ---- REGRESI BROOKLYN: kredensial baca privileged TIDAK boleh dipakai ----
+  const svcJwt = `x.${Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url')}.y`
+  mock.__reset({ tables: tables() })
+  const onlyService = await callRead({
+    body: { resource: 'masters/projects' },
+    useRealCred: true,
+    env: { ...F.ENV, SUPABASE_URL: 'https://sintetis.supabase.co', SUPABASE_SERVICE_ROLE_KEY: svcJwt }
+  })
+  eq('C22 hanya service role -> 503 (fail closed)', onlyService.statusCode, 503)
+  eq('C23 kode read_credential_missing', onlyService.body.code, 'read_credential_missing')
+  eq('C24 nol query DB saat kredensial baca absen', dbCalls().length, 0)
+
+  mock.__reset({ tables: tables() })
+  const svcAsRead = await callRead({
+    body: { resource: 'masters/projects' },
+    useRealCred: true,
+    env: { ...F.ENV, SUPABASE_URL: 'https://sintetis.supabase.co', BAKPAU_API_READ_SUPABASE_KEY: svcJwt }
+  })
+  eq('C25 service role dipasang sebagai kunci baca -> 503', svcAsRead.statusCode, 503)
+  eq('C26 kode read_credential_privileged', svcAsRead.body.code, 'read_credential_privileged')
+  eq('C27 nol query DB', dbCalls().length, 0)
+
+  // Kunci anon (ber-RLS) DITERIMA sebagai kredensial baca: handler tidak lagi
+  // menolak karena "kredensial hilang". (Klien nyata menunjuk host sintetis,
+  // jadi kegagalan jaringannya bukan bagian dari asersi ini.)
+  const anonJwt = `x.${Buffer.from(JSON.stringify({ role: 'anon' })).toString('base64url')}.y`
+  mock.__reset({ tables: tables() })
+  const anonOk = await callRead({
+    body: { resource: 'masters/projects' },
+    useRealCred: true,
+    env: { ...F.ENV, SUPABASE_URL: 'https://sintetis.invalid', NEXT_PUBLIC_SUPABASE_ANON_KEY: anonJwt }
+  })
+  ok('C28 kunci anon diterima (bukan 503 kredensial)',
+    !(anonOk.statusCode === 503 && /read_credential/.test(String(anonOk.body.code))),
+    `status=${anonOk.statusCode} code=${anonOk.body.code}`)
+
+  const src = H.readCredentialSource({ SUPABASE_URL: 'https://x', SUPABASE_SERVICE_ROLE_KEY: svcJwt })
+  eq('C29 laporan sumber kredensial: bukan service role', src.usesServiceRole, false)
+  ok('C30 nama env terlarang dilaporkan (bukan nilainya)',
+    Array.isArray(src.forbiddenEnvPresent) && src.forbiddenEnvPresent.includes('SUPABASE_SERVICE_ROLE_KEY'))
 }
 
 // ============================================================
@@ -376,7 +441,7 @@ group('D. CREATE — VALIDASI SEBELUM DB')
   const r8 = await callCreate({ body: unknownVendor })
   eq('D15 vendor tak dikenal -> 422', r8.statusCode, 422)
   eq('D16 kode unknown_reference', r8.body.code, 'unknown_reference')
-  eq('D17 nol insert', mock.__callsOf('insert', 'receivings').length, 0)
+  eq('D17 nol baris nota', rowsOf('receivings').length, 0)
 
   // Proyek tidak dikenal.
   mock.__reset({ tables: tables() })
@@ -391,6 +456,16 @@ group('D. CREATE — VALIDASI SEBELUM DB')
   tooMany.purchase.items = Array.from({ length: 81 }, () => ({ itemName: 'X', qty: 1, harga: 1000 }))
   const r10 = await callCreate({ body: tooMany })
   eq('D19 >80 baris -> 422', r10.statusCode, 422)
+
+  // Nama vendor (bukan UUID) harus cocok LITERAL — bukan substring.
+  mock.__reset({ tables: tables() })
+  const fuzzy = F.validCreatePayload({ idempotencyKey: 'sintetis-fuzzy-vendor' })
+  fuzzy.purchase.invoiceNo = 'SINT-FUZZY'
+  delete fuzzy.purchase.vendorId
+  fuzzy.purchase.vendorName = 'SINTETIS Toko A1'
+  const r11 = await callCreate({ body: fuzzy })
+  eq('D20 nama vendor tidak literal -> 422', r11.statusCode, 422)
+  eq('D21 nol baris nota', rowsOf('receivings').length, 0)
 }
 
 // ============================================================
@@ -400,12 +475,13 @@ group('E. CREATE — SUKSES, READBACK, IDEMPOTENSI, NOTIFIKASI')
   // E1 sukses: satu nota + readback exact + notifikasi terkirim.
   mock.__reset({ tables: tables() })
   const tr = fakeTransport()
-  const led = L.createMemoryLedger()
-  const okRes = await callCreate({ body: F.validCreatePayload(), transport: tr, ledger: led })
+  const okRes = await callCreate({ body: F.validCreatePayload(), transport: tr })
   eq('E1 create sah -> 201', okRes.statusCode, 201)
   eq('E2 status tercatat', okRes.body.status, 'tercatat')
   ok('E3 receivingId dikembalikan', !!okRes.body.receivingId)
-  eq('E4 tepat satu header nota', mock.__callsOf('insert', 'receivings').length, 1)
+  eq('E4 tepat satu header nota di DB', rowsOf('receivings').length, 1)
+  eq('E4b SATU panggilan RPC atomik', atomicCalls().length, 1)
+  eq('E4c NOL tulisan tabel langsung (bukan multipart)', directWrites().length, 0)
   eq('E5 readback ok', okRes.body.readback.ok, true)
   eq('E6 notifikasi terkirim ke DAT', tr.sent.length, 1)
   eq('E7 tujuan notifikasi chatId DAT', tr.sent[0].target.chatId, '1320969465')
@@ -413,34 +489,36 @@ group('E. CREATE — SUKSES, READBACK, IDEMPOTENSI, NOTIFIKASI')
   ok('E9 teks notifikasi tidak memuat token', !tr.sent[0].text.includes(F.TEST_SECRET))
 
   // E10 idempotencyKey sama -> tidak ada tulisan kedua.
-  const before = mock.__callsOf('insert', 'receivings').length
-  const again = await callCreate({ body: F.validCreatePayload(), transport: tr, ledger: led })
+  const before = rowsOf('receivings').length
+  const again = await callCreate({ body: F.validCreatePayload(), transport: tr })
   eq('E10 kunci sama -> 200 ignored', again.statusCode, 200)
   eq('E11 status ignored_duplicate_event', again.body.status, 'ignored_duplicate_event')
-  eq('E12 tidak ada insert kedua', mock.__callsOf('insert', 'receivings').length, before)
+  eq('E12 tidak ada nota kedua', rowsOf('receivings').length, before)
   eq('E13 tidak ada notifikasi kedua', tr.sent.length, 1)
 
   // E14 kunci BEDA tapi bukti sama -> duplicate (lintas "kanal"/waktu).
-  const before2 = mock.__callsOf('insert', 'receivings').length
+  const before2 = rowsOf('receivings').length
   const otherKey = F.validCreatePayload({ idempotencyKey: 'sintetis-nota-0001-retry-baru' })
-  const dupEv = await callCreate({ body: otherKey, transport: tr, ledger: led })
+  const dupEv = await callCreate({ body: otherKey, transport: tr })
   eq('E14 bukti sama kunci beda -> duplicate', dupEv.body.status, 'duplicate')
-  eq('E15 tidak ada insert ketiga', mock.__callsOf('insert', 'receivings').length, before2)
+  eq('E15 tidak ada nota ketiga', rowsOf('receivings').length, before2)
+  eq('E15b klaim ledger tidak menumpuk dari percobaan gagal', rowsOf('bakpau_events').length, 2)
 
   // E16 notifikasi gagal: pembelian TIDAK ditulis ulang.
   mock.__reset({ tables: tables() })
   const failing = fakeTransport({ failTimes: 99 })
-  const r16 = await callCreate({ body: F.validCreatePayload(), transport: failing, ledger: L.createMemoryLedger() })
+  const r16 = await callCreate({ body: F.validCreatePayload(), transport: failing })
   eq('E16 create tetap 201 walau notifikasi gagal', r16.statusCode, 201)
   eq('E17 notifikasi tercatat gagal', r16.body.notification.sent, false)
-  eq('E18 hanya satu insert nota', mock.__callsOf('insert', 'receivings').length, 1)
+  eq('E18 hanya satu nota', rowsOf('receivings').length, 1)
 
-  // E19 ledger tidak tersedia (tabel hilang) -> fail closed, nol tulisan.
-  mock.__reset({ tables: tables(), missingTables: ['bakpau_events'] })
-  const r19 = await callCreate({ body: F.validCreatePayload(), transport: fakeTransport(), useDbLedger: true })
-  eq('E19 ledger hilang -> 503', r19.statusCode, 503)
-  eq('E20 kode ledger_unavailable', r19.body.code, 'ledger_unavailable')
-  eq('E21 nol insert nota', mock.__callsOf('insert', 'receivings').length, 0)
+  // E19 RPC atomik belum di-apply -> fail closed, nol tulisan.
+  mock.__reset({ tables: tables(), missingRpc: ['bakpau_save_purchase_atomic'] })
+  const r19 = await callCreate({ body: F.validCreatePayload(), transport: fakeTransport() })
+  eq('E19 RPC atomik absen -> 503', r19.statusCode, 503)
+  eq('E20 kode atomic_rpc_unavailable', r19.body.code, 'atomic_rpc_unavailable')
+  eq('E21 nol nota saat RPC absen', rowsOf('receivings').length, 0)
+  eq('E21b nol klaim ledger saat RPC absen', rowsOf('bakpau_events').length, 0)
 
   // E22 readback mismatch -> bukan 201, status tidak 'tercatat'.
   mock.__reset({ tables: tables(), corruptOnRead: { table: 'receiving_items', patch: { quantity_received: 999 } } })
@@ -467,17 +545,110 @@ group('E. CREATE — SUKSES, READBACK, IDEMPOTENSI, NOTIFIKASI')
   }
   const r27 = await callCreate({ body: withPr, transport: fakeTransport() })
   eq('E27 dengan prNumber -> 201', r27.statusCode, 201)
-  const itemInserts = mock.__callsOf('insert', 'receiving_items')
-  const flat = itemInserts.flatMap(c => Array.isArray(c.data) ? c.data : [c.data])
-  ok('E28 pr_item_id tertaut dari nomor PR', flat.some(d => String(d.pr_item_id || '') === F.PR_ITEMS[0].id))
+  const items27 = rowsOf('receiving_items').filter(i => String(i.receiving_id) === String(r27.body.receivingId))
+  ok('E28 pr_item_id tertaut dari nomor PR',
+    items27.some(d => String(d.pr_item_id || '') === F.PR_ITEMS[0].id), items27.map(i => i.pr_item_id))
 
   // E29 tidak ada PR fiktif / approval_steps / handover.
   eq('E29 tidak ada insert purchase_requests', mock.__callsOf('insert', 'purchase_requests').length, 0)
-  eq('E30 tidak ada insert handovers', mock.__callsOf('insert', 'handovers').length, 0)
-  eq('E31 tidak ada delete', mock.__state.calls.filter(c => c.op === 'delete' && c.table !== 'bakpau_events').length, 0)
+  eq('E30 tidak ada dokumen handover dibuat', rowsOf('handovers').length, 0)
+  eq('E31 tidak ada delete di jalur create', mock.__state.calls.filter(c => c.op === 'delete').length, 0)
+
+  // E32 alokasi proyek per baris dipertahankan (satu nota dua proyek).
+  mock.__reset({ tables: tables() })
+  const multi = F.validCreatePayload({ idempotencyKey: 'sintetis-dua-proyek' })
+  multi.purchase.invoiceNo = 'SINT-DUA-PROYEK'
+  multi.purchase.projectId = undefined
+  multi.purchase.statedTotal = 240000
+  multi.purchase.items = [
+    { itemName: 'SINTETIS Triplek 9mm', qty: 1, harga: 120000, unit: 'Lembar', projectId: F.PROJECTS[0].id },
+    { itemName: 'SINTETIS Triplek 9mm', qty: 1, harga: 120000, unit: 'Lembar', projectId: F.PROJECTS[1].id }
+  ]
+  const r32 = await callCreate({ body: multi, transport: fakeTransport() })
+  eq('E32 nota dua proyek -> 201', r32.statusCode, 201)
+  const head32 = rowsOf('receivings').find(r => r.id === r32.body.receivingId)
+  eq('E33 header tanpa proyek tunggal (tidak memilih salah satu)', head32.project_id, null)
+  const it32 = rowsOf('receiving_items').filter(i => i.receiving_id === r32.body.receivingId)
+  ok('E34 dua baris dengan proyek berbeda', it32.length === 2
+    && it32.some(i => String(i.note).includes(F.PROJECTS[0].id))
+    && it32.some(i => String(i.note).includes(F.PROJECTS[1].id)),
+    it32.map(i => i.note))
 }
 
-function r20code(res) { return res.body?.code }
+// ============================================================
+group('H. BATAS TRANSAKSI ATOMIK (regresi review Brooklyn)')
+// ============================================================
+{
+  // H1: nota SUDAH ada (dibuat admin) dengan vendor+nomor sama -> ditolak oleh
+  // transaksi, 0 baris baru. Ini idempotensi LINTAS KANAL, bukan hanya API.
+  mock.__reset({ tables: tables() })
+  mock.__state.tables.get('receivings').set('admin-nota-1', {
+    id: 'admin-nota-1',
+    vendor_id: F.VENDORS[0].id,
+    invoice_no: 'SINT-NOTA-0001',
+    status: 'DIBELI',
+    note: '[Nominal: Rp 240000] [Tahap: DIBELI]',
+    received_date: '2026-10-19'
+  })
+  const r1 = await callCreate({ body: F.validCreatePayload(), transport: fakeTransport() })
+  eq('H1 nota sama dari kanal admin -> 200 duplicate', r1.statusCode, 200)
+  eq('H2 status duplicate', r1.body.status, 'duplicate')
+  eq('H3 tidak ada nota kedua', rowsOf('receivings').length, 1)
+  eq('H4 nol klaim ledger tertinggal', rowsOf('bakpau_events').length, 0)
+
+  // H5: kegagalan di tengah transaksi -> TIDAK ada header/baris/klaim.
+  mock.__reset({ tables: tables(), failAtomic: 'after_header' })
+  const r5 = await callCreate({ body: F.validCreatePayload(), transport: fakeTransport() })
+  ok('H5 gagal di tengah -> bukan 201', r5.statusCode !== 201, `status=${r5.statusCode}`)
+  eq('H6 nol header tertinggal', rowsOf('receivings').length, 0)
+  eq('H7 nol baris tertinggal', rowsOf('receiving_items').filter(i => i.receiving_id !== F.RECEIVING_ITEMS_SEED[0].receiving_id).length, 0)
+  eq('H8 nol klaim ledger tertinggal', rowsOf('bakpau_events').length, 0)
+
+  // H9: balasan RPC tidak konsisten (item_count beda) -> bukan 'tercatat'.
+  mock.__reset({ tables: tables(), atomicResultPatch: { item_count: 99 } })
+  const r9 = await callCreate({ body: F.validCreatePayload(), transport: fakeTransport() })
+  ok('H9 balasan tidak konsisten tidak 201', r9.statusCode !== 201, `status=${r9.statusCode}`)
+  ok('H10 status bukan tercatat', r9.body.status !== 'tercatat')
+
+  // H11: verifikasi menolak receiving_id/rows tidak sah.
+  const bad = AP.verifyAtomicResult({
+    result: { receiving_id: 'bukan-uuid', evidence_hash: 'a'.repeat(64), event_key: 'k', item_count: 1, total: 1, items: [{}] },
+    args: { evidence_hash: 'a'.repeat(64), event_key: 'k', items: [{}, {}] },
+    expectedTotal: 1
+  })
+  eq('H11 verifikasi menolak id/rows tidak sah', bad.ok, false)
+  ok('H12 diffs menyebut receiving_id', bad.diffs.includes('receiving_id'))
+
+  // H13: readback KETAT menolak alokasi proyek yang salah (bukan candidates[0]).
+  mock.__reset({ tables: tables() })
+  const okCase = await callCreate({ body: F.validCreatePayload({ idempotencyKey: 'sintetis-proyek-salah' }), transport: fakeTransport() })
+  eq('H13 nota kontrol tersimpan', okCase.statusCode, 201)
+  const rid = okCase.body.receivingId
+  // Rusak alokasi proyek pada baris DB (simulasi bug penulisan alokasi).
+  const row = mock.__state.tables.get('receiving_items').get([...mock.__state.tables.get('receiving_items').keys()].find(k => {
+    const v = mock.__state.tables.get('receiving_items').get(k)
+    return String(v.receiving_id) === String(rid)
+  }))
+  row.note = String(row.note || '').replace(F.PROJECTS[0].id, F.PROJECTS[1].id)
+  const rb = await AP.readbackPurchaseStrict({
+    client: mock.supabase,
+    receivingId: rid,
+    expected: {
+      vendorId: F.VENDORS[0].id,
+      invoiceNo: okCase.body.invoiceNo,
+      date: '2026-10-20',
+      projectId: F.PROJECTS[0].id,
+      itemCount: 1,
+      totalRows: 1,
+      items: [{
+        item_name: 'SINTETIS Triplek 9mm', unit: 'Lembar', quantity_received: 2,
+        harga: 120000, projectId: F.PROJECTS[0].id, prItemId: null
+      }]
+    }
+  })
+  eq('H14 readback menolak proyek salah', rb.ok, false)
+  ok('H15 diff menyebut item/proyek', rb.diffs.some(d => /item_hilang|proyek/.test(d)), rb.diffs)
+}
 
 // ============================================================
 group('F. TIDAK ADA KEBOCORAN DI RESPONS')
@@ -499,6 +670,18 @@ group('F. TIDAK ADA KEBOCORAN DI RESPONS')
   // Header keamanan dasar.
   ok('F7 Cache-Control no-store', String(authFail.headers['cache-control'] || '').includes('no-store'))
   ok('F8 X-Content-Type-Options nosniff', authFail.headers['x-content-type-options'] === 'nosniff')
+
+  // F9: error DB internal tidak pernah keluar (disanitasi).
+  mock.__reset({ tables: tables(), failSelectTable: 'projects' })
+  const badDb = await callRead({ body: { resource: 'masters/projects' } })
+  eq('F9 error DB -> 502', badDb.statusCode, 502)
+  ok('F10 pesan DB internal tidak diteruskan', !/relation|character|42P01/i.test(JSON.stringify(badDb.body)),
+    JSON.stringify(badDb.body))
+
+  // F11: sanitasi log membuang nilai rahasia.
+  const clean = H.sanitizeLogMessage('failed postgres://u:password=abc123&apikey=xyz Bearer abc.def')
+  ok('F11 log tanpa password/apikey', !/abc123|xyz/.test(clean), clean)
+  ok('F12 log tanpa bearer token', !/abc\.def/.test(clean), clean)
 }
 
 // ============================================================
@@ -531,7 +714,6 @@ group('G. CLIENT RUNNABLE — KONTRAK DASAR')
   ok('G8 tidak ada perintah SQL/query bebas', !COMMANDS.includes('sql') && !COMMANDS.includes('query'))
   ok('G9 resource whitelist lengkap', RESOURCES.length === 8)
 }
-// E20 butuh r19; dideklarasikan di atas lewat fungsi agar urutan aman.
 
 // ============================================================
 console.log(`\n=== RINGKASAN ===`)

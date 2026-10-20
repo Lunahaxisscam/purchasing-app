@@ -132,7 +132,23 @@ export function createPgClient({ connectionString }) {
 
   return {
     from: table => makeBuilder(table),
-    rpc: async () => ({ data: null, error: { message: 'rpc tidak dipakai di harness ini' } }),
+    // RPC nyata: satu pemanggilan = satu statement = satu transaksi implisit.
+    // RAISE EXCEPTION di dalam fungsi me-rollback SELURUH perubahan
+    // (klaim ledger + header + baris), yang justru sedang diuji.
+    rpc: async (fn, args = {}) => {
+      const names = Object.keys(args)
+      if (!/^[a-z_][a-z0-9_]*$/i.test(fn)) return { data: null, error: { code: '42883', message: 'nama fungsi tidak sah' } }
+      const sql = `SELECT public.${fn}(${names.map((_, i) => `$${i + 1}`).join(', ')}) AS data`
+      const params = names.map(n => args[n])
+      log.push({ op: 'rpc', table: fn, sql })
+      try {
+        const res = await pool.query(sql, params)
+        return { data: res.rows[0]?.data ?? null, error: null }
+      } catch (err) {
+        log.push({ op: 'rpc', table: fn, sql, error: err.message })
+        return { data: null, error: { code: err.code, message: err.message, details: err.detail } }
+      }
+    },
     __log: log,
     __state: state,
     async __query(sql, params = []) { return pool.query(sql, params) },
