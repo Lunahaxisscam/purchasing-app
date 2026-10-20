@@ -187,9 +187,10 @@ hanya untuk baca.
 |---|---|---|
 | Read live (8 resource, data produksi nyata) | **AKTIF di kandidat** | `LIVE_PROBE_RESULT.json` (19/19 PASS; materials 344, projects 11, vendors 22, PR 16, pr_items 60, purchases 6, items 6, handovers 1) |
 | Auth ditolak sebelum DB | **TERBUKTI** | 133 assertion `api_test.mjs` (B1–B26) + probe live |
-| Create validasi/ambigu/idempotensi | **TERBUKTI di harness** | E1–E31 |
-| Create **live** (nota nyata) | **WRITE_LIVE_UNVERIFIED** | butuh transaksi nyata yang DAT minta; ledger `bakpau_events` belum ada (DDL milik Bandeng) |
-| DDL / applied | **tidak ada** (0) | schema owner Bandeng, gate backup belum terpenuhi |
+| Create validasi/ambigu/idempotensi (mock) | **TERBUKTI di harness** | E1–E31 |
+| **Create terhadap PostgreSQL 16 NYATA (DB terisolasi)** | **TERBUKTI — 59/59 PASS** | `scripts/bakpau-api-test/run_real_db.py`: 1 nota benar-benar tersimpan (status DIBELI, marker event/bukti/kanal/proyek, qty+harga), idempotency UNIQUE 23505, **race 2 request paralel → tepat 1 nota**, 8 payload invalid → 0 tulisan, notifikasi gagal → tidak menulis ulang, ledger absen → 503 + 0 tulisan, PR link nyata → `pr_item_id` tertaut & cangkang dipakai ulang |
+| Create **live di produksi** (nota nyata) | **WRITE_LIVE_UNVERIFIED** | butuh transaksi nyata yang DAT minta; ledger `bakpau_events` belum ada di produksi (DDL milik Bandeng) |
+| DDL / applied produksi | **tidak ada** (0) | schema owner Bandeng, gate backup belum terpenuhi |
 | Transport Telegram | tidak diuji live dari API (memakai RPC existing) | — |
 | File extraction | **di luar API** — agen Bakpau yang mengekstrak; API hanya menerima payload terstruktur | §4 |
 | Deploy produksi | **BELUM** — tidak ada akses deployment dari VPS | §8 |
