@@ -1,0 +1,107 @@
+{
+  "generatedAt": "2026-10-20T07:34:31.210Z",
+  "helper": "lib/projectCrosswalk.js",
+  "note": "Angka nominal & nama proyek asli tidak disimpan di git; snapshot lengkap ada di folder audit privat.",
+  "master": {
+    "projectsRows": 11,
+    "uniqueKode": 11,
+    "issueTypes": [],
+    "issueCount": 0
+  },
+  "tally": {
+    "matched": 16,
+    "ambiguous": 0,
+    "not_found": 63,
+    "non_project": 1,
+    "format_invalid": 0,
+    "blank": 0
+  },
+  "perSourceCounts": {
+    "rekap_cost.project_master": 12,
+    "upah.upah_asep.list_proyek": 1,
+    "upah.upah_pujon.list_proyek": 56,
+    "closing.tab": 11
+  },
+  "unitChecks": [
+    {
+      "sourceKey": "upah_list_proyek.total_upah",
+      "format": "id",
+      "ambiguous": false,
+      "scale": 1,
+      "reason": "VERIFIED",
+      "evidenceCount": 2
+    },
+    {
+      "sourceKey": "upah_dashboard.hak_upah",
+      "format": "id",
+      "ambiguous": false,
+      "scale": 1,
+      "reason": "VERIFIED",
+      "evidenceCount": 2
+    },
+    {
+      "sourceKey": "rekap_cost.cost_items.total_biaya",
+      "format": "id",
+      "ambiguous": true,
+      "scale": 1,
+      "reason": "VERIFIED",
+      "evidenceCount": 1
+    },
+    {
+      "sourceKey": "rekap_cost.project_summary.cumulative_cost",
+      "format": "id",
+      "ambiguous": false,
+      "scale": 1,
+      "reason": "VERIFIED",
+      "evidenceCount": 2
+    }
+  ],
+  "unitUnverified": 0,
+  "settlements": [
+    {
+      "tukang": "asep",
+      "completeness": "complete",
+      "saldoFormulaOk": true,
+      "doubleCounted": false,
+      "outstandingIsNull": false
+    },
+    {
+      "tukang": "pujon",
+      "completeness": "complete",
+      "saldoFormulaOk": true,
+      "doubleCounted": false,
+      "outstandingIsNull": false
+    }
+  ],
+  "material": {
+    "events": 117,
+    "matchedNotes": 0,
+    "onlyApp": 0,
+    "onlySheet": 117,
+    "aggregateCountedAsEvent": false,
+    "summaryRows": 12,
+    "warningTypes": [
+      "summary_equals_events"
+    ],
+    "multiProjectNotes": 67,
+    "notesBalanced": 116,
+    "notesUnbalanced": 0,
+    "notesWithBlankProject": 0,
+    "overheadItems": 90,
+    "blankItems": 0,
+    "notesWithoutKey": 1,
+    "perProjectEqual": 11,
+    "perProjectRows": 11,
+    "allocationDemo": {
+      "itemCount": 2,
+      "balanced": true,
+      "unallocated": 0,
+      "projects": [
+        "99",
+        "83"
+      ]
+    }
+  },
+  "nameOnlyRows": 20,
+  "nameOnlyWithCandidate": 1
+}

@@ -1,0 +1,178 @@
+{
+  "ok": true,
+  "note": "Parser diuji pada fungsi murni (tanpa daemon/jaringan/DB).",
+  "samples": 17,
+  "disagreements": 7,
+  "rows": [
+    {
+      "raw": "Rp 12,345,678",
+      "drive_cost_sync.parse_rupiah": 12345678.0,
+      "tukang_upah_sync.parse_rupiah_loose": 12345678.0,
+      "logic.toNumberOrNull": 12345678,
+      "crosswalk.parseSourceAmount": 12345678,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    },
+    {
+      "raw": "  12,345,678 ",
+      "drive_cost_sync.parse_rupiah": 12345678.0,
+      "tukang_upah_sync.parse_rupiah_loose": 12345678.0,
+      "logic.toNumberOrNull": 12345678,
+      "crosswalk.parseSourceAmount": 12345678,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    },
+    {
+      "raw": "15,000.76",
+      "drive_cost_sync.parse_rupiah": 1500076.0,
+      "tukang_upah_sync.parse_rupiah_loose": 15000.76,
+      "logic.toNumberOrNull": 15000.76,
+      "crosswalk.parseSourceAmount": 15000.76,
+      "crosswalk.format": "us",
+      "crosswalk.ambiguous": false,
+      "agree": false
+    },
+    {
+      "raw": "15.000,76",
+      "drive_cost_sync.parse_rupiah": 1500076.0,
+      "tukang_upah_sync.parse_rupiah_loose": 15000.76,
+      "logic.toNumberOrNull": 15000.76,
+      "crosswalk.parseSourceAmount": 15000.76,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": false,
+      "agree": false
+    },
+    {
+      "raw": "12,5",
+      "drive_cost_sync.parse_rupiah": 125.0,
+      "tukang_upah_sync.parse_rupiah_loose": 12.5,
+      "logic.toNumberOrNull": 12.5,
+      "crosswalk.parseSourceAmount": 12.5,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": false,
+      "agree": false
+    },
+    {
+      "raw": "12.5",
+      "drive_cost_sync.parse_rupiah": 125.0,
+      "tukang_upah_sync.parse_rupiah_loose": 12.5,
+      "logic.toNumberOrNull": 12.5,
+      "crosswalk.parseSourceAmount": 12.5,
+      "crosswalk.format": "us",
+      "crosswalk.ambiguous": false,
+      "agree": false
+    },
+    {
+      "raw": "1.500",
+      "drive_cost_sync.parse_rupiah": 1500.0,
+      "tukang_upah_sync.parse_rupiah_loose": 1500.0,
+      "logic.toNumberOrNull": 1500,
+      "crosswalk.parseSourceAmount": 1500,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": true,
+      "agree": true
+    },
+    {
+      "raw": "1,500",
+      "drive_cost_sync.parse_rupiah": 1500.0,
+      "tukang_upah_sync.parse_rupiah_loose": 1500.0,
+      "logic.toNumberOrNull": 1500,
+      "crosswalk.parseSourceAmount": 1500,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": true,
+      "agree": true
+    },
+    {
+      "raw": "1.234.567,89",
+      "drive_cost_sync.parse_rupiah": 123456789.0,
+      "tukang_upah_sync.parse_rupiah_loose": 1234567.89,
+      "logic.toNumberOrNull": 1234567.89,
+      "crosswalk.parseSourceAmount": 1234567.89,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": false,
+      "agree": false
+    },
+    {
+      "raw": "(-Rp 9,500)",
+      "drive_cost_sync.parse_rupiah": 9500.0,
+      "tukang_upah_sync.parse_rupiah_loose": -9500.0,
+      "logic.toNumberOrNull": null,
+      "crosswalk.parseSourceAmount": -9500,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": true,
+      "agree": false
+    },
+    {
+      "raw": "-Rp 32,107",
+      "drive_cost_sync.parse_rupiah": -32107.0,
+      "tukang_upah_sync.parse_rupiah_loose": -32107.0,
+      "logic.toNumberOrNull": null,
+      "crosswalk.parseSourceAmount": -32107,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": true,
+      "agree": false
+    },
+    {
+      "raw": "-",
+      "drive_cost_sync.parse_rupiah": null,
+      "tukang_upah_sync.parse_rupiah_loose": null,
+      "logic.toNumberOrNull": null,
+      "crosswalk.parseSourceAmount": null,
+      "crosswalk.format": "blank",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    },
+    {
+      "raw": "0",
+      "drive_cost_sync.parse_rupiah": 0.0,
+      "tukang_upah_sync.parse_rupiah_loose": 0.0,
+      "logic.toNumberOrNull": 0,
+      "crosswalk.parseSourceAmount": 0,
+      "crosswalk.format": "integer",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    },
+    {
+      "raw": "Rp 0",
+      "drive_cost_sync.parse_rupiah": 0.0,
+      "tukang_upah_sync.parse_rupiah_loose": 0.0,
+      "logic.toNumberOrNull": 0,
+      "crosswalk.parseSourceAmount": 0,
+      "crosswalk.format": "integer",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    },
+    {
+      "raw": "",
+      "drive_cost_sync.parse_rupiah": null,
+      "tukang_upah_sync.parse_rupiah_loose": null,
+      "logic.toNumberOrNull": null,
+      "crosswalk.parseSourceAmount": null,
+      "crosswalk.format": "blank",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    },
+    {
+      "raw": "n/a",
+      "drive_cost_sync.parse_rupiah": null,
+      "tukang_upah_sync.parse_rupiah_loose": null,
+      "logic.toNumberOrNull": null,
+      "crosswalk.parseSourceAmount": null,
+      "crosswalk.format": "unparseable",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    },
+    {
+      "raw": "7,890,000",
+      "drive_cost_sync.parse_rupiah": 7890000.0,
+      "tukang_upah_sync.parse_rupiah_loose": 7890000.0,
+      "logic.toNumberOrNull": 7890000,
+      "crosswalk.parseSourceAmount": 7890000,
+      "crosswalk.format": "id",
+      "crosswalk.ambiguous": false,
+      "agree": true
+    }
+  ]
+}
