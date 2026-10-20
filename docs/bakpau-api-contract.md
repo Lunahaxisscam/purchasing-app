@@ -197,20 +197,43 @@ hanya untuk baca.
 
 ## 8. Blocker deployment (persis)
 
-1. `vercel` CLI **logged out** di VPS; `VERCEL_TOKEN` tidak ada di
-   `~/.hermes/.env`, `.hermes/profiles/bamboo-tech/.env`, maupun
-   `purchasing-app/.env.local`. `.vercel/anonymous.json` yang ada sudah
-   kedaluwarsa (`expiresAt` 1792070805740 ≈ 2026-10-15).
-2. `origin/main` saat ini `ac7117b`; route v1 belum ada di sana. Produksi
-   mengembalikan **404** untuk `/api/bakpau/v1/read` dan
-   `/api/bakpau/v1/purchases` — jadi tidak bisa diklaim aktif.
-3. Env produksi untuk `BAKPAU_API_TOKENS` belum bisa diset dari VPS (butuh
-   dashboard/CLI berizin). Tanpa env itu, endpoint akan menjawab
-   `503 api_not_configured` — perilaku fail-closed yang disengaja.
+1. **Tidak ada kredensial deployment di VPS.** `vercel` CLI `whoami` →
+   `Logged out`. `VERCEL_TOKEN` tidak ada di `~/.hermes/.env`, semua
+   `.hermes/profiles/*/.env`, maupun `purchasing-app/.env.local`.
+   `.vercel/anonymous.json` yang ada sudah kedaluwarsa
+   (`expiresAt` 1792070805740 ≈ 2026-10-15).
+2. **Deployment produksi dipicu oleh push ke `main`** (Vercel GitHub
+   integration), bukan CLI: GitHub Deployments API menunjukkan deployment
+   `Production` untuk `ac7117b` pada `2026-10-20T18:55:13Z`, tepat setelah
+   push rilis. Artinya jalur deploy = push FF ke `main` setelah persetujuan,
+   bukan `vercel deploy`.
+3. **Env produksi `BAKPAU_API_TOKENS` belum bisa diset dari VPS.** Tanpa env
+   itu, endpoint (walau ter-deploy) akan menjawab `503 api_not_configured` —
+   fail-closed yang disengaja, bukan aktif.
+4. Produksi saat ini mengembalikan **404** untuk `/api/bakpau/v1/read` dan
+   `/api/bakpau/v1/purchases` (`origin/main` = `ac7117b`), jadi tidak bisa
+   diklaim aktif.
 
-Jalur input aman: setelah review Brooklyn, set env di dashboard Vercel
-(Production) dengan nilai dari `~/.hermes/secure/bakpau/` (file 600), lalu
-deploy commit yang disetujui. Jangan pernah menempelkan token di chat/commit.
+### Jalur deploy yang disarankan (setelah review Brooklyn)
+
+1. Set env di dashboard Vercel (Production) dari
+   `~/.hermes/secure/bakpau/api-server.env` (mode 600) — hanya
+   `BAKPAU_API_TOKENS` (+ opsional `BAKPAU_API_REVOKED`). Jangan pernah
+   menempelkan nilai token di chat/commit/issue.
+2. Merge `feat/bakpau-api-t_dd743609` ke `main` (fast-forward dari
+   `ac7117b`, tanpa force/reset) → Vercel build otomatis.
+3. Jalankan `post_deploy_verify.py` (sudah tersedia): route exact, GET 405,
+   tanpa/salah token 401, 8 resource read dengan **jumlah = sumber**, tanpa
+   kebocoran, create invalid 422.
+4. Bila env belum bisa diset, deploy tetap aman: endpoint hanya menjawab
+   503 dan tidak membuka data apa pun.
+
+### Alternatif yang TIDAK dipakai (dan kenapa)
+
+Hash token boleh saja ditulis di kode (SHA-256 dari 256-bit secret tidak
+reversible), tetapi itu membuat **revoke/rotate butuh deploy** dan menaruh
+materi kredensial di repo. Brief meminta vault/secure env deployment, jadi
+opsi ini hanya dicatat sebagai keputusan pemilik deploy, bukan dilakukan.
 
 ## 9. Bukti
 
