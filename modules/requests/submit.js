@@ -1,6 +1,13 @@
 // ============================================================
 // modules/requests/submit.js — Service boundary submit & submit-ulang PR (t_3032ecb7)
 // ============================================================
+// ⚠️ t_50b783de (Approval OFF): handler ini adalah KONEKTOR APPROVAL (menulis
+// approval_steps + memanggil alert Telegram approval). Saat modul Approval
+// dimatikan, seluruh handler FAIL CLOSED di baris pertama: tidak ada SELECT,
+// tidak ada INSERT/UPDATE, tidak ada RPC, tidak ada alert. PR REJECTED yang
+// diperbaiki dikirim lewat jalur lean (modules/requests/submitLean.js) dengan
+// ID yang sama — bukan lewat file ini.
+//
 // Menangani pengiriman PR ke antrean Approval:
 // 1. PR DRAFT / REVISI -> pertama kali atau setelah revisi dikirim ke Approval.
 // 2. PR REJECTED -> 'Submit Ulang' setelah diperbaiki admin/user.
@@ -21,8 +28,16 @@
 // - Non-atomic write dicek seksama & diverifikasi melalui readback.
 // - Guard actionBusy & lock ref mencegah klik ganda (double-click).
 // ============================================================
+import { approvalGuard } from '../../lib/constants'
 
 export async function handleFinishPr(pr, options = {}) {
+  // GATE PERTAMA (fail closed): tidak ada write/call sama sekali saat OFF.
+  const gate = approvalGuard('submit-legacy')
+  if (!gate.ok) {
+    if (options.setNotice) options.setNotice(gate.error)
+    return { ok: false, disabled: true, code: gate.code, error: gate.error }
+  }
+
   const {
     supabase,
     session,

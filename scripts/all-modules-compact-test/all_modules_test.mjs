@@ -61,8 +61,16 @@ const constants = await import(constPath)
 const { navSections, labels, modules } = constants
 
 const ALL_NAV_IDS = navSections.flatMap(s => s.items.map(it => it[0]))
+// t_50b783de (Approval OFF): `navSections` = KATALOG penuh (21, tetap utuh
+// supaya modul bisa dihidupkan lagi); `modules` = daftar yang benar-benar
+// tampil menurut kebijakan terpusat. Sweep ini menguji modul yang TAMPIL,
+// jadi jumlah yang diharapkan dihitung dari kebijakan, bukan angka hard-code.
+const VISIBLE_NAV_IDS = modules.map(it => it[0])
+const APPROVAL_ON = constants.APPROVAL_MODULE_ENABLED === true
 check('navSections memuat tepat 3 section (Operasional, Pengadaan, Admin Suite)', navSections.length === 3)
-check('total menu di navSections = 21', ALL_NAV_IDS.length === 21)
+check('total menu di navSections (katalog) = 21', ALL_NAV_IDS.length === 21)
+check(`total menu TAMPIL = ${APPROVAL_ON ? 21 : 20} (mengikuti kebijakan Approval)`,
+  VISIBLE_NAV_IDS.length === (APPROVAL_ON ? 21 : 20), `n=${VISIBLE_NAV_IDS.length}`)
 check('label alias past_projects terdaftar di labels', !!labels.past_projects)
 
 const EXPECTED_22_MODS = [
@@ -75,8 +83,13 @@ const EXPECTED_22_MODS = [
 for (const id of EXPECTED_22_MODS) {
   if (id === 'past_projects') {
     check(`ID '${id}' terdaftar di labels`, !!labels[id])
+  } else if (id === 'approvals' && !APPROVAL_ON) {
+    // Approval OFF: modul SENGAJA tidak tampil, tetapi entri katalog tetap
+    // ada (reversible) dan komponennya tetap dirender di sweep ini.
+    check("ID 'approvals' tetap di katalog navSections (reversible)", ALL_NAV_IDS.includes(id))
+    check("ID 'approvals' TIDAK tampil di menu (kebijakan OFF)", !VISIBLE_NAV_IDS.includes(id))
   } else {
-    check(`ID '${id}' terdaftar di navSections`, ALL_NAV_IDS.includes(id))
+    check(`ID '${id}' terdaftar di menu tampil`, VISIBLE_NAV_IDS.includes(id))
   }
 }
 
@@ -227,14 +240,22 @@ console.log('\n=== D. VERIFIKASI KOMPONEN SHARED: SIDEBAR & LOGIN ===')
     page: 'dashboard', setPage: () => {}, session: { user: { email: 'admin@noirliving.id' } }, logout: () => {}, role: 'admin'
   })
   const adminButtons = Array.from(adminHost.querySelectorAll('nav button'))
-  check('Sidebar role admin: merender semua 21 item navigasi', adminButtons.length === 21)
+  // t_50b783de: jumlah item dihitung dari kebijakan (21 saat Approval ON,
+  // 20 saat OFF) — bukan angka hard-code yang mengunci Approval terlihat.
+  const expectedAdmin = APPROVAL_ON ? 21 : 20
+  check(`Sidebar role admin: merender semua ${expectedAdmin} item navigasi (kebijakan Approval)`,
+    adminButtons.length === expectedAdmin, `n=${adminButtons.length}`)
+  check('Sidebar role admin: menu Approval TIDAK ada saat kebijakan OFF',
+    APPROVAL_ON || !adminButtons.some(b => (b.textContent || '').trim() === 'Approval'))
 
   // Sidebar Non-Admin (User)
   const userHost = await renderComponent(COMPILED.Sidebar, {
     page: 'dashboard', setPage: () => {}, session: { user: { email: 'tukang@noirliving.id' } }, logout: () => {}, role: 'user'
   })
   const userButtons = Array.from(userHost.querySelectorAll('nav button'))
-  check('Sidebar role user: hanya merender 8 item operasional + pengadaan (adminOnly difilter)', userButtons.length === 8)
+  const expectedUser = APPROVAL_ON ? 8 : 7
+  check(`Sidebar role user: hanya merender ${expectedUser} item operasional + pengadaan (adminOnly difilter)`,
+    userButtons.length === expectedUser, `n=${userButtons.length}`)
 
   // Login component at 7 viewports
   for (const vp of VIEWPORTS) {
@@ -268,6 +289,9 @@ function getModuleComponentAndProps(modId) {
     case 'requests':
       return { Comp: COMPILED.ModuleView, props: { page: 'requests', rows: MOCK.requests, allProjects: MOCK.projects, allMaterials: MOCK.materials, allPrItems: MOCK.pr_items } }
     case 'approvals':
+      // t_50b783de: komponen Approval tetap diuji (kode dipertahankan), tetapi
+      // shell ModuleView kini merender FALLBACK saat kebijakan OFF. Karena itu
+      // sweep compact memakai flag ON di salinan sandbox (lihat run.py).
       return { Comp: COMPILED.ModuleView, props: { page: 'approvals', rows: MOCK.approvals, allProjects: MOCK.projects, allMaterials: MOCK.materials, allRequests: MOCK.requests } }
     case 'receivings':
       return { Comp: COMPILED.PurchasePage, props: { rows: MOCK, refresh: () => {}, say: () => {} } }

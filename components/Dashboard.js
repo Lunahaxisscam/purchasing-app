@@ -1,6 +1,9 @@
 import React from 'react'
 import { exportWorkbook } from '../lib/workflow'
 import { headersFor, parseHandoverNote } from '../lib/constants'
+// t_50b783de (Approval OFF): kartu "Menunggu approval" dan sheet ekspor
+// Approval hanya dirender bila modul Approval aktif (satu kebijakan terpusat).
+import { isApprovalEnabled } from '../lib/constants'
 import CompactRoot from './CompactRoot'
 
 // Ikon kartu metrik (stroke SVG) — menggantikan emoji agar terlihat rapi
@@ -39,14 +42,20 @@ function CardIcon({ id }) {
 }
 
 export default function Dashboard({ rows, activeProjects, pastProjects, setPage, role = 'user' }) {
-  const pendingApprovals = rows.approvals?.filter(a => a.status === 'PENDING').length || 0
+  const approvalOn = isApprovalEnabled()
+  const pendingApprovals = approvalOn ? (rows.approvals?.filter(a => a.status === 'PENDING').length || 0) : 0
 
   // [key, label, nilai, tone, hint]
   const cards = [
     ['projects', 'Project aktif', activeProjects.length, 'tone-neutral', `${pastProjects.length} past project`],
     ['requests', 'Purchase Request', rows.requests?.length || 0, 'tone-neutral', 'lihat semua PR'],
-    ['approvals', 'Menunggu approval', pendingApprovals, pendingApprovals > 0 ? 'tone-warn' : 'tone-ok',
-      pendingApprovals > 0 ? 'perlu tindakan' : 'tidak ada antrean'],
+    // t_50b783de: kartu pintasan Approval HILANG dari dashboard saat OFF —
+    // bukan CSS-hidden, memang tidak dimasukkan ke daftar kartu (tidak ada
+    // tombol yang bisa diklik menuju modul nonaktif).
+    ...(approvalOn
+      ? [['approvals', 'Menunggu approval', pendingApprovals, pendingApprovals > 0 ? 'tone-warn' : 'tone-ok',
+          pendingApprovals > 0 ? 'perlu tindakan' : 'tidak ada antrean']]
+      : []),
     ['receivings', 'Pembelian', rows.receivings?.length || 0, 'tone-neutral', 'penerimaan barang'],
     // t_31871b64 (Sprint 1, arahan DAT): menu "Past Project" digabung ke
     // Projects (tab Aktif/Selesai). Kartu dashboard jadi satu dan mengarah
@@ -128,7 +137,10 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
                 ...it,
                 vendor_name: (rows.vendors || []).find(v => v.id === it.vendor_id)?.name || ''
               })), ['pr_id', 'material_id', 'item_name', 'kode', 'unit', 'quantity', 'estimated_price', 'status', 'supplier_category', 'vendor_name']],
-              ['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']],
+              // t_50b783de: sheet Approval hanya ada bila modul Approval aktif.
+              ...(approvalOn
+                ? [['Approval', rows.approvals || [], ['pr_number', 'project_name', 'title', 'step_number', 'status', 'note', 'decided_at']]]
+                : []),
               ['Pembelian', rows.receivings || [], ['invoice_no', 'project_name', 'delivery_note', 'status', 'received_date', 'note', 'alokasi', 'masuk_gudang', 'tukang_at']],
               ['Item Pembelian', rows.receiving_items || [], ['receiving_id', 'pr_item_id', 'item_name', 'quantity_received', 'unit', 'note', 'created_at']],
               // Kolom note handover bisa memuat bukti foto base64 (maks 2MB) —

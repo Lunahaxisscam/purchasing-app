@@ -42,7 +42,8 @@ export const LEAN_MARKER_VALUE = 'LEAN'
 const RE_LEAN = /\[\s*Jalur\s*:\s*LEAN\s*\]/i
 const RE_CLOSE = /\[\s*Tutup\s*:\s*([^\]]*)\]/i
 const RE_CLOSE_AT = /\[\s*TutupPada\s*:\s*([^\]]*)\]/i
-const RE_ANY_MARKER = /\[\s*(?:Jalur|Tutup|TutupPada)\s*:[^\]]*\]/gi
+const RE_RESUBMIT = /\[\s*KirimUlang\s*:\s*([^\]]*)\]/i
+const RE_ANY_MARKER = /\[\s*(?:Jalur|Tutup|TutupPada|KirimUlang)\s*:[^\]]*\]/gi
 
 /** True bila catatan PR memuat penanda jalur lean yang ditulis jalur baru. */
 export function isLeanMarked(notes) {
@@ -127,6 +128,29 @@ export function withCloseMarker(notes, reason, now = new Date()) {
   parts.push(`[Tutup: ${clean}]`)
   parts.push(`[TutupPada: ${stamp}]`)
   return { ok: true, notes: parts.join('\n') }
+}
+
+/** Catatan + penanda kirim ulang (jejak aksi admin; idempotent per panggilan). */
+export function withResubmitMarker(notes, now = new Date()) {
+  const stamp = now instanceof Date ? now.toISOString() : String(now)
+  const base = String(notes || '').replace(RE_RESUBMIT, ' ').replace(/[ \t]{2,}/g, ' ')
+  const human = stripLeanMarkers(base)
+  const others = (base.match(RE_ANY_MARKER) || [])
+    .filter(m => !/\[\s*KirimUlang\s*:/i.test(m))
+    .map(m => m.replace(/\s+/g, ' ').trim())
+  const unique = []
+  for (const m of others) if (!unique.includes(m)) unique.push(m)
+  const parts = []
+  if (human) parts.push(human)
+  parts.push(`[KirimUlang: ${stamp}]`)
+  if (unique.length) parts.push(unique.join(' '))
+  return parts.join('\n')
+}
+
+/** Waktu kirim ulang terakhir (string ISO) atau null. */
+export function resubmittedAtOf(notes) {
+  const m = String(notes || '').match(RE_RESUBMIT)
+  return m ? (String(m[1] || '').trim() || null) : null
 }
 
 // ============================================================

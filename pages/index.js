@@ -27,7 +27,7 @@ import LaborStockModule from '../modules/labor-stock/view'
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
-import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered } from '../lib/constants'
+import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
 import { submitLean, closeRequestRemaining } from '../modules/requests/submitLean'
@@ -123,12 +123,18 @@ export default function App() {
 
   async function loadAll() {
     if (!supabase) return
+    // t_50b783de (Approval OFF): `approval_steps` TIDAK dibaca sama sekali
+    // saat modul Approval dimatikan — daftar approval hanya melayani modul
+    // yang tidak aktif, jadi query-nya ikut diputus (bukan cuma menunya).
+    // `approvals: []` dipertahankan supaya bentuk state & komponen lama tidak
+    // pecah; Dashboard/Approval tidak dirender saat OFF.
+    const approvalOn = isApprovalEnabled()
     const specs = [
       ['projects', 'projects'],
       ['vendors', 'vendors'],
       ['materials', 'materials'],
       ['requests', 'purchase_requests'],
-      ['approvals', 'approval_steps'],
+      ...(approvalOn ? [['approvals', 'approval_steps']] : []),
       ['receivings', 'receivings'],
       ['handovers', 'handovers'],
       ['pr_items', 'pr_items'],
@@ -142,6 +148,10 @@ export default function App() {
       ['project_plans', 'project_plans']
     ]
     const result = { ...rows }
+    // Approval OFF: state approval dikosongkan supaya tidak ada baris
+    // approval_steps lama yang "hidup" di memori halaman (data DB tidak
+    // disentuh; hanya cache tampilan).
+    if (!approvalOn) result.approvals = []
     const { data: allProj } = await supabase.from('projects').select('*')
     const projList = (allProj || []).sort((a, b) => {
       const numA = parseInt(a.kode, 10)
@@ -401,7 +411,11 @@ export default function App() {
   }
 
   // Tolak / Revisi membuka dialog catatan dulu; Setujui langsung konfirmasi.
+  // t_50b783de: guard pertama — saat Approval OFF tidak ada dialog, tidak ada
+  // write, tidak ada alert. Fail closed sebelum efek samping apa pun.
   function decideApproval(approval, decision) {
+    const gate = approvalGuard('decide')
+    if (!gate.ok) { setNotice(gate.error); return }
     if (!supabase) return
     if (decision === 'REJECTED') {
       setNoteText('')
@@ -424,6 +438,10 @@ export default function App() {
   }
 
   async function executeDecision(approval, decision, userNote) {
+    // Guard kedua (defense in depth): jalur ini bisa dipanggil dari state
+    // modal lama / sisa event; tetap fail closed sebelum menyentuh DB.
+    const gate = approvalGuard('execute-decision')
+    if (!gate.ok) { setNotice(gate.error); return }
     if (!supabase || actionBusy) return
     const now = new Date().toISOString()
     const label = decision === 'APPROVED' ? 'DISETUJUI' : (decision === 'REJECTED' ? 'DITOLAK' : 'DIMINTA REVISI')
@@ -513,6 +531,8 @@ export default function App() {
 
   // Approval "Revise" -> status REVISI pada approval + PR
   function reviseApproval(approval) {
+    const gate = approvalGuard('revise')
+    if (!gate.ok) { setNotice(gate.error); return }
     if (!supabase) return
     setNoteText('')
     setNoteModal({ approval, decision: 'REVISI' })
@@ -522,6 +542,10 @@ export default function App() {
   // Barang yang disetujui otomatis masuk ke modul Purchase (RPC atomic).
   // Guard actionBusy mencegah dobel-klik; guard sebenarnya tetap di DB (advisory lock).
   async function approveItem(prItem) {
+    // t_50b783de: aksi ini menulis pr_items.status = APPROVED + membuat baris
+    // Purchase lewat approval. Fail closed saat Approval OFF (tanpa RPC/write).
+    const gate = approvalGuard('approve-item')
+    if (!gate.ok) { setNotice(gate.error); return }
     if (!supabase || actionBusy) return
     const ok = window.confirm(`Setujui material "${prItem.item_name || prItem.kode}"? Barang akan otomatis masuk ke modul Purchase.`)
     if (!ok) return
@@ -547,13 +571,14 @@ export default function App() {
   // Tombol ✓ Selesai & Kirim: mengirim request lewat JALUR LEAN (tanpa approval).
   // t_a5a73034 — alur baru: status existing SUBMITTED + penanda [Jalur: LEAN],
   // TIDAK membuat approval_steps, TIDAK membuat cangkang nota, TIDAK mengubah
-  // status item menjadi APPROVED. Request legacy yang sudah punya approval_steps
-  // tetap memakai jalur lama (handleFinishPr) supaya riwayatnya tidak rusak.
+  // status item menjadi APPROVED.
+  // t_50b783de (Approval OFF) — PR REJECTED yang DIPERBAIKI juga dikirim ulang
+  // lewat jalur lean memakai ID & nomor yang SAMA (riwayat penolakan tetap
+  // tersimpan). Selama modul Approval hidup, REJECTED tetap ke antrean approval
+  // (handleFinishPr) supaya perilaku lama tidak berubah.
   async function finishPr(pr) {
-    const isLegacy = String(pr?.status || '').toUpperCase() === 'REJECTED'
-    if (isLegacy) {
-      // REJECTED = data alur approval lama: submit ulang tetap ke antrean
-      // approval agar riwayat keputusan tidak hilang (bukan jalur lean).
+    const isRejected = String(pr?.status || '').toUpperCase() === 'REJECTED'
+    if (isRejected && isApprovalEnabled()) {
       return handleFinishPr(pr, {
         supabase,
         session,
@@ -620,7 +645,10 @@ export default function App() {
   // Tombol "🛒 Sudah Order": tandai item ORDERED. Item sudah otomatis ada di
   // modul Purchase sejak disetujui (ensureItemInPurchase), jadi di sini hanya
   // memastikan keberadaannya (dedup) lalu update status.
+  // t_50b783de: hanya dijangkau dari modul Approval → fail closed saat OFF.
   async function markPrItemOrdered(prItem) {
+    const gate = approvalGuard('mark-ordered')
+    if (!gate.ok) { setNotice(gate.error); return }
     if (!supabase || actionBusy) return
     const ok = window.confirm(`Tandai item "${prItem.item_name || prItem.kode}" sebagai SUDAH DIORDER? Item tetap terpantau di modul Purchase.`)
     if (!ok) return
@@ -704,9 +732,15 @@ export default function App() {
       requests: 'purchase_requests',
       receivings: 'receivings',
       handovers: 'handovers',
+      // t_50b783de: hapus baris approval_steps adalah konektor approval —
+      // diblokir saat modul OFF (histori TIDAK boleh hilang lewat UI).
       approvals: 'approval_steps',
       projects: 'projects',
       past_projects: 'projects'
+    }
+    if (pageTarget === 'approvals' && !isApprovalEnabled()) {
+      setNotice('Hapus data approval dinonaktifkan sementara. Riwayat approval lama tetap tersimpan.')
+      return
     }
     const table = tableMap[pageTarget]
     if (!table) {
@@ -752,6 +786,9 @@ export default function App() {
   // tidak ada data yang hilang dan tidak ada ID navigasi yang mati.
   // Modules yang dirender ModuleView selain Projects memakai tab default.
   const modulePage = page === 'past_projects' ? 'projects' : page
+  // t_50b783de: rute Approval yang dipaksa lewat state/bookmark TIDAK
+  // dirender sebagai modul — fallback aman (tanpa tabel, tanpa tombol aksi).
+  const approvalBlocked = page === 'approvals' && !isApprovalEnabled()
 
   return (
     <main className="shell">
@@ -760,7 +797,7 @@ export default function App() {
         <header>
           <div>
             <p className="eyebrow">OPERASIONAL INTERNAL</p>
-            <h1>{page === 'dashboard' ? 'Dashboard' : labels[page]}</h1>
+            <h1>{page === 'dashboard' ? 'Dashboard' : (approvalBlocked ? 'Approval (nonaktif)' : labels[page])}</h1>
           </div>
           {/* Halaman modul admin punya tombol refresh SENDIRI di toolbar modulnya
               (satu tombol per halaman — permintaan user 11 Okt). Tombol global
@@ -773,7 +810,30 @@ export default function App() {
           )}
         </header>
         {notice && <div className="notice">{notice}</div>}
-        {page === 'dashboard' ? (
+        {approvalBlocked ? (
+          // ============================================================
+          // FALLBACK AMAN RUTE APPROVAL (t_50b783de)
+          // ============================================================
+          // Modul Approval purchasing dinonaktifkan sementara. Halaman ini
+          // TIDAK merender tabel approval, TIDAK memuat approval_steps, dan
+          // TIDAK menyediakan tombol setujui/tolak/revisi — hanya penjelasan
+          // + jalan keluar ke modul yang masih aktif. Tidak ada data yang
+          // dihapus/diubah; riwayat approval tetap tersimpan di database.
+          <div className="panel empty" role="status" data-testid="approval-off-fallback">
+            <h2 style={{ marginTop: 0 }}>Modul Approval dinonaktifkan sementara</h2>
+            <p style={{ maxWidth: '640px', lineHeight: 1.6 }}>{APPROVAL_OFF_MESSAGE}</p>
+            <p style={{ maxWidth: '640px', lineHeight: 1.6 }}>
+              Request baru cukup dikirim dengan tombol <b>✓ Selesai &amp; Kirim</b> pada modul Purchase Request;
+              admin langsung menindaklanjuti di modul <b>Pembelian</b>. Riwayat approval dan penolakan lama
+              tetap tersimpan dan tidak diubah.
+            </p>
+            <div className="actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+              <button type="button" onClick={() => setPage('requests')}>Buka Purchase Request</button>
+              <button type="button" className="outline" onClick={() => setPage('receivings')}>Buka Pembelian</button>
+              <button type="button" className="outline" onClick={() => setPage('dashboard')}>Ke Dashboard</button>
+            </div>
+          </div>
+        ) : page === 'dashboard' ? (
           <Dashboard
             rows={rows}
             activeProjects={activeProjects}

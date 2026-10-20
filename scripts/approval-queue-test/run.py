@@ -102,6 +102,11 @@ shutil.copy(os.path.join(HERE, 'compile_sandbox.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'render_test.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
+# t_50b783de: suite ini menguji UI modul Approval, jadi flag dinyalakan DI
+# SALINAN SANDBOX saja (repo/produksi tetap OFF). Lihat enable_in_sandbox.py.
+sys.path.insert(0, os.path.join(REPO, 'scripts', 'approval-off-test'))
+from enable_in_sandbox import force_enable  # noqa: E402
+force_enable(SB)
 r = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB)
 if r.returncode:
     sys.exit(r.returncode)

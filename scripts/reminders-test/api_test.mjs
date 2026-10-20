@@ -91,15 +91,34 @@ const ENV_JWT = {
 function collectStub(dataset = {}, sourcesOverride = null) {
   const calls = []
   const sources = (sourcesOverride || ['purchase_requests', 'pr_items', 'approval_steps', 'receivings', 'receiving_items', 'handovers', 'projects', 'sales_invoices'])
-    .map(k => ({
-      key: k, table: k, available: dataset[k] !== null && dataset[k] !== undefined,
-      row_count: (dataset[k] || []).length, fetched: (dataset[k] || []).length, truncated: false, columns: [],
-      error_code: (dataset[k] === null || dataset[k] === undefined) ? 'SCHEMA_UNAVAILABLE' : null,
-      error_message: (dataset[k] === null || dataset[k] === undefined) ? 'tabel tidak ada' : null
-    }))
+    .map(k => {
+      // t_50b783de: tiru collect.js NYATA — saat modul Approval OFF,
+      // approval_steps tidak dibaca & dilaporkan skipped_by_policy.
+      if (k === 'approval_steps' && !R.APPROVAL_MODULE_ENABLED) {
+        return {
+          key: k, table: k, available: false, skipped_by_policy: true,
+          row_count: 0, fetched: 0, truncated: false, columns: [],
+          error_code: null, error_message: null
+        }
+      }
+      return {
+        key: k, table: k, available: dataset[k] !== null && dataset[k] !== undefined,
+        row_count: (dataset[k] || []).length, fetched: (dataset[k] || []).length, truncated: false, columns: [],
+        error_code: (dataset[k] === null || dataset[k] === undefined) ? 'SCHEMA_UNAVAILABLE' : null,
+        error_message: (dataset[k] === null || dataset[k] === undefined) ? 'tabel tidak ada' : null
+      }
+    })
   async function collectFn(args) {
     calls.push(args)
-    return { dataset, sources, meta: { read_only: true, row_limit: args.rowLimit, queries: sources.map(s => ({ table: s.table, method: 'SELECT' })) } }
+    return {
+      dataset,
+      sources,
+      meta: {
+        read_only: true,
+        row_limit: args.rowLimit,
+        queries: sources.filter(s => !s.skipped_by_policy).map(s => ({ table: s.table, method: 'SELECT' }))
+      }
+    }
   }
   return { collectFn, calls }
 }
@@ -215,7 +234,16 @@ let adminRes
   eq('B4p', 'collect dipanggil sekali dengan rowLimit default', 1, calls.length)
   ok('B4q', 'semua query tercatat SELECT',
     b.meta.queries.every(q => q.method === 'SELECT'), JSON.stringify(b.meta.queries))
-  ok('B4r', 'PR overdue muncul sebagai item', b.items.some(i => i.kind === 'pr_overdue_approval'))
+  // t_50b783de (Approval OFF): antrean approval tidak dievaluasi lagi. Laporan
+  // harus menyatakannya sebagai BLOCKED/DISABLED, bukan "0 temuan" (bersih).
+  ok('B4r', 'pr_overdue_approval dilaporkan BLOCKED (modul Approval OFF)',
+    b.readiness.kinds_blocked.some(k => k.kind === 'pr_overdue_approval'),
+    JSON.stringify(b.readiness.kinds_blocked.map(k => k.kind)))
+  ok('B4r2', 'approval_steps ditandai skipped_by_policy, bukan error',
+    b.readiness.sources_unavailable.some(s => s.key === 'approval_steps' && s.skipped_by_policy === true),
+    JSON.stringify(b.readiness.sources_unavailable))
+  ok('B4r3', 'approval_steps TIDAK muncul di daftar query yang dijalankan',
+    !b.meta.queries.some(q => q.table === 'approval_steps'), JSON.stringify(b.meta.queries.map(q => q.table)))
 }
 
 // ---------- B5. Override ambang via query + penolakan ----------
@@ -338,7 +366,9 @@ let adminRes
   const out = await C.collect({ env: {}, rowLimit: 10 })
   ok('B10e', 'tanpa kredensial tidak melempar', !!out && Array.isArray(out.sources))
   eq('B10f', 'semua sumber tidak tersedia', 0, out.sources.filter(s => s.available).length)
-  ok('B10g', 'alasan kredensial dilaporkan', out.sources.every(s => s.error_code === 'NO_CREDENTIALS'))
+  ok('B10g', 'alasan kredensial dilaporkan', out.sources.filter(s => !s.skipped_by_policy).every(s => s.error_code === 'NO_CREDENTIALS'))
+  ok('B10g2', 'approval_steps ditandai skipped_by_policy (tidak dibaca saat OFF)',
+    out.sources.some(s => s.key === 'approval_steps' && s.skipped_by_policy === true))
   ok('B10h', 'dataset kosong tapi kunci lengkap', Object.keys(out.dataset).length === out.sources.length)
   eq('B10i', 'row_limit dihormati & dilaporkan', 10, out.meta.row_limit)
 }
@@ -377,8 +407,16 @@ let adminRes
     res.body.readiness.sources_unavailable.some(s => s.key === 'sales_invoices'))
   ok('B11c', 'purchase_requests dilaporkan tersedia',
     res.body.readiness.sources_available.includes('purchase_requests'))
-  ok('B11d', 'PR overdue ditemukan dari data nyata (client palsu)',
-    res.body.items.some(i => i.kind === 'pr_overdue_approval'))
+  // t_50b783de: dengan Approval OFF, PR overdue TIDAK dievaluasi. Yang harus
+  // dibuktikan: (a) tidak ada item approval karangan, (b) jenisnya BLOCKED,
+  // (c) pengingat operasional lain tetap berjalan dari data yang sama.
+  ok('B11d', 'tidak ada item pr_overdue_approval saat modul Approval OFF',
+    !res.body.items.some(i => i.kind === 'pr_overdue_approval'),
+    JSON.stringify(res.body.items.map(i => i.kind)))
+  ok('B11d2', 'pr_overdue_approval BLOCKED (bukan dianggap bersih)',
+    res.body.readiness.kinds_blocked.some(k => k.kind === 'pr_overdue_approval'))
+  ok('B11d3', 'pengingat operasional lain tetap dievaluasi (pr_draft_stale)',
+    res.body.items.some(i => i.kind === 'pr_draft_stale') || res.body.readiness.kinds_available.includes('pr_draft_stale'))
   ok('B11e', 'invoice_due BLOCKED (bukan 0 temuan)',
     res.body.readiness.kinds_blocked.some(k => k.kind === 'invoice_due'))
 }
