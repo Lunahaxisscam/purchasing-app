@@ -767,6 +767,7 @@ export default function PurchasePage({ rows, refresh, say }) {
 
       {formRows && (
         <PurchaseForm
+          key={`${formRows.vendorId}:${formRows.rows.map(r => r.prItemId || r.formKey).join(',')}`}
           rows={formRows.rows}
           vendorId={formRows.vendorId}
           vendors={vendors}

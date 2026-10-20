@@ -533,7 +533,13 @@ function HandoverQueueBanner({ ctx }) {
     handover: ho,
     receiving: ho.receiving_id ? (recById.get(ho.receiving_id) || null) : null
   }))
-  if (!entries.length) return null
+  // PENTING: host modal TIDAK boleh ikut hilang saat antrean kosong. Tombol
+  // 📥 di aksi baris (view.jsx) tetap aktif dan menulis ke store `physicalModal`;
+  // kalau host hanya dirender di dalam banner yang `return null`, klik itu tidak
+  // menghasilkan apa pun (modal "mati" tanpa pesan). Jadi host dirender di luar
+  // guard antrean — banner boleh kosong, host tetap ada.
+  const host = <PhysicalModalHost ctx={ctx} />
+  if (!entries.length) return host
 
   return (
     <div style={S.banner} data-testid="handover-queue-banner">
