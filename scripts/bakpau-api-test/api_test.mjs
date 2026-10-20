@@ -306,6 +306,43 @@ group('C. READ — DAFTAR PUTIH, PAGINATION, TANPA SQL')
   const badOrder = await callRead({ body: { resource: 'masters/projects', query: { order: 'password.desc' } } })
   eq('C16 order kolom asing -> 400', badOrder.statusCode, 400)
 
+  // ---- REGRESI (ditemukan lewat probe LIVE 3001, bukan mock) ----
+  // PostgREST menerjemahkan `*` menjadi `%` di dalam ilike; escape backslash
+  // tidak menolong. Tanpa penolakan, `kode: "*"` mengembalikan SELURUH tabel
+  // (live: 344 baris) sehingga jaminan "filter literal" hilang.
+  for (const pat of ['*', 'A*', 'ALM*0001', '**']) {
+    mock.__reset({ tables: tables() })
+    const star = await callRead({ body: { resource: 'masters/materials', query: { kode: pat } } })
+    eq(`C20a pola "*" ditolak (${pat})`, star.statusCode, 400)
+    eq(`C20b kode bad_query (${pat})`, star.body.code, 'bad_query')
+    eq(`C20c nol query DB saat pola ditolak (${pat})`, dbCalls().length, 0)
+  }
+
+  // Filter kolom ID non-UUID harus 400 (bukan 502 internal_error seperti di
+  // live sebelum perbaikan) dan tanpa query DB.
+  for (const [res, q] of [
+    ['masters/materials', { id: 'not-a-uuid' }],
+    ['purchase-requests', { project_id: 'abc' }],
+    ['purchases', { vendor_id: 'SINTETIS' }]
+  ]) {
+    mock.__reset({ tables: tables() })
+    const badId = await callRead({ body: { resource: res, query: q } })
+    eq(`C21a filter id non-UUID -> 400 (${res})`, badId.statusCode, 400)
+    eq(`C21b kode bad_query (${res})`, badId.body.code, 'bad_query')
+    eq(`C21c nol query DB (${res})`, dbCalls().length, 0)
+  }
+
+  // UUID sah tetap boleh dipakai sebagai filter id (tidak over-blocking).
+  mock.__reset({ tables: tables() })
+  const goodId = await callRead({ body: { resource: 'masters/projects', query: { id: F.PROJECTS[0].id } } })
+  eq('C21d filter id UUID sah -> 200', goodId.statusCode, 200)
+  eq('C21e tepat satu baris', goodId.body.data.length, 1)
+
+  // Nilai filter berupa objek/array ditolak (tidak di-coerce jadi "[object Object]").
+  mock.__reset({ tables: tables() })
+  const objFilter = await callRead({ body: { resource: 'masters/projects', query: { kode: { $ne: '101' } } } })
+  eq('C21f filter objek ditolak -> 400', objFilter.statusCode, 400)
+
   // Order sah.
   mock.__reset({ tables: tables() })
   const order = await callRead({ body: { resource: 'masters/projects', query: { order: 'kode.desc' } } })

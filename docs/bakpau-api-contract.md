@@ -126,6 +126,14 @@ persis kolom yang dipakai). Tidak ada `select('*')` di jalur baca API.
   pemanggil tidak mengira filter sudah diterapkan).
 * Filter teks memakai pencocokan **literal** (`ilike` dengan `%`/`_` di-escape),
   bukan substring/fuzzy. `A-12` ≠ `A12`. Nilai `%` tidak menjadi wildcard.
+* Nilai filter yang memuat `*` **ditolak** `400 bad_query`. Alasannya empiris:
+  PostgREST menerjemahkan `*` menjadi `%` di dalam `ilike` dan escape backslash
+  tidak menolongnya, sehingga `kode:"*"` mengembalikan seluruh tabel
+  (probe live: 344/344 baris). Menolak lebih jujur daripada diam-diam
+  mengubah arti filter.
+* Filter pada kolom ID (`id`, `*_id`) **wajib UUID** → selain itu
+  `400 bad_query` tanpa query DB (sebelumnya berubah menjadi 502 karena
+  Postgres menolak cast-nya; itu salah menyalahkan server).
 * Respons: `{ ok, resource, data[], page:{limit,offset,returned,total}, order, filters, columns }`.
 
 Resource sensitif (`users`, `profiles`, `private_secrets`, `invoices`,
