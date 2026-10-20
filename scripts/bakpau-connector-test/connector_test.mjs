@@ -839,6 +839,35 @@ group('O. NOTA TANPA NOMOR VENDOR & CAMPURAN PR/DIRECT')
   eq('O15 sisa kebutuhan dilaporkan', line.sisa, 6)
   eq('O16 qty PR awal TIDAK ditimpa', line.qtyPr, 10)
   ok('O17 qty tidak dipotong diam-diam', line.qty === 20)
+  // O18: cangkang nota kosong milik PR DIPAKAI ULANG, tidak diduplikasi.
+  //      (Perilaku sama dengan jalur admin: satu barang tidak punya dua baris
+  //      penerimaan yang membingungkan acuan harga.)
+  mock.__reset({
+    tables: baseTables({
+      receivings: [{ id: 'rcv-shell', vendor_id: 'v-1', invoice_no: null, received_date: '2026-10-20', status: 'NORMAL', note: null, project_id: 'p-101', purchase_request_id: 'pr-1' }],
+      receiving_items: [
+        ...F.RECEIVING_ITEMS.map(i => ({ ...i })),
+        { id: 'ri-shell', receiving_id: 'rcv-shell', pr_item_id: 'pri-2', item_name: 'Semen 50kg', unit: 'sak', quantity_received: 0, note: null }
+      ]
+    })
+  })
+  const shellOut = await CONN.processInboundEvent({
+    platform: 'telegram',
+    payload: F.tgUpdate({
+      messageId: 7004,
+      text: ['toko: SINTETIS Toko Bangunan A-12', 'nota: O18-SHELL', 'tanggal: 2026-10-20', 'proyek: 101',
+        '- Semen 50kg | 5 | sak | 65.000 | pr=PR-2026-0001'].join('\n')
+    }),
+    headers: F.TG_HEADERS, rawBody: '{}', env: F.ENV, client: mock.supabase,
+    ledger: L.createMemoryLedger(), transport: recordingTransport(), now: F.NOW,
+    masters: F.MASTERS, existingNotas: [], requestNotify: false, sleep: async () => {}
+  })
+  eq('O18 nota atas cangkang tercatat', shellOut.status, 'tercatat')
+  const shellRows = mock.__rows('receiving_items').filter(i => i.pr_item_id === 'pri-2')
+  eq('O19 baris cangkang dipakai ulang (tidak digandakan)', shellRows.length, 1)
+  eq('O20 baris cangkang terisi qty beli', Number(shellRows[0].quantity_received), 5)
+  eq('O21 header cangkang dipakai, bukan header baru', mock.__rows('receivings').length, 1)
+  eq('O22 header cangkang kini bernomor', mock.__rows('receivings')[0].invoice_no, 'O18-SHELL')
 }
 
 // ============================================================

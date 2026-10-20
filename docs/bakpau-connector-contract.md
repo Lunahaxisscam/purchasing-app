@@ -39,7 +39,7 @@ tidak mencatat pembayaran, dan tidak menulis ke Google Sheets.
 | `pages/api/bakpau/telegram.js` | Route masuk Telegram (platform dikunci route) |
 | `pages/api/bakpau/whatsapp.js` | Route masuk WhatsApp (platform dikunci route) |
 | `migrations/2026-10-21_bakpau_connector_ledger.sql` | **DRAFT** tabel ledger idempotensi + rollback |
-| `scripts/bakpau-connector-test/*` | Harness: 316 + 45 assertion + 2 probe read-only |
+| `scripts/bakpau-connector-test/*` | Harness: 321 + 45 assertion + 2 probe read-only |
 
 **Tidak disentuh** (sesuai batas lane): `pages/index.js`, `lib/constants.js`,
 `lib/telegramAlert.js`, `modules/requests/**`, `modules/approvals/**`,
@@ -414,5 +414,5 @@ node scripts/bakpau-connector-test/probe_readonly.mjs
 flock /home/ubuntu/dev-workspaces/.purchasing-build.lock -c 'npm run build'
 ```
 
-Hasil terakhir: `316 lulus / 0 gagal` (connector) + `45 lulus / 0 gagal` (http),
+Hasil terakhir: `321 lulus / 0 gagal` (connector) + `45 lulus / 0 gagal` (http),
 `next build` hijau. Output mentah: `docs/bakpau-connector-test-evidence.log`.

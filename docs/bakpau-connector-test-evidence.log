@@ -280,6 +280,11 @@ SWC: 21 file dikompilasi ke dist/
   PASS  O15 sisa kebutuhan dilaporkan
   PASS  O16 qty PR awal TIDAK ditimpa
   PASS  O17 qty tidak dipotong diam-diam
+  PASS  O18 nota atas cangkang tercatat
+  PASS  O19 baris cangkang dipakai ulang (tidak digandakan)
+  PASS  O20 baris cangkang terisi qty beli
+  PASS  O21 header cangkang dipakai, bukan header baru
+  PASS  O22 header cangkang kini bernomor
 
 === P. PENANDA (MARKERS) TIDAK MERUSAK NOTA EXISTING ===
   PASS  P1 event terbaca
@@ -355,7 +360,7 @@ SWC: 21 file dikompilasi ke dist/
   PASS  R8 nota admin isi beda -> klarifikasi
 
 ============================================================
-HASIL connector_test: 316 lulus, 0 gagal
+HASIL connector_test: 321 lulus, 0 gagal
 ============================================================
 
 === S. METODE & KONFIGURASI ===
