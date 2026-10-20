@@ -46,14 +46,15 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
   const ready = capState === 'ready'
   const legacy = capState === 'legacy'
   const pending = capState === 'unknown' || capState === 'error'
-  // `loaded` = percobaan MEMUAT rincian sudah selesai (berhasil atau gagal).
+  // `loadedFor` = kunci pemuatan yang SUDAH selesai (berhasil atau gagal).
   // Dulu `loading` diinisialisasi `useState(ready)`; saat capability berubah
-  // null→ready (jendela probe), `loading` tetap false selama satu render
+  // null→ready (jendela probe) `loading` tetap false selama satu render,
   // sehingga panel "tidak ada alokasi" + tombol header-only SEMPAT aktif
   // sebelum baris termuat — admin bisa mengunci dokumen tanpa rincian.
-  // Sekarang `loading` DITURUNKAN dari `ready && !loaded`, jadi tidak ada
-  // frame yang mengklaim "tidak ada baris" sebelum pemuatan benar-benar selesai.
-  const [loaded, setLoaded] = useState(false)
+  // Sekarang `loading` diturunkan dari kunci: tidak ada frame yang mengklaim
+  // "tidak ada baris" sebelum pemuatan untuk receiving INI benar-benar selesai.
+  const loadKey = ready && handover?.receiving_id ? `${handover.id}:${handover.receiving_id}` : ''
+  const [loadedFor, setLoadedFor] = useState('')
   const [loadError, setLoadError] = useState('')
   const [prefill, setPrefill] = useState([])
   const [lines, setLines] = useState([])
@@ -63,16 +64,17 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
 
   useEffect(() => {
     let cancelled = false
+    const key = loadKey
     async function load() {
-      if (!ready || !handover?.receiving_id) { setLoaded(true); return }
-      setLoaded(false)
+      if (!key) return
+      setLoadError('')
       const ev = await loadReceivingEvents({ receivingId: handover.receiving_id })
       if (cancelled) return
-      if (!ev.ok) { setLoadError(ev.error); setLoaded(true); return }
+      if (!ev.ok) { setLoadError(ev.error); setLoadedFor(key); return }
       const ids = (ev.events || []).map(e => e.id)
       const del = await loadDeliveredByEvent({ eventIds: ids })
       if (cancelled) return
-      if (!del.ok) { setLoadError(del.error); setLoaded(true); return }
+      if (!del.ok) { setLoadError(del.error); setLoadedFor(key); return }
       const pf = handoverLinesFromEvents(ev.events || [], del.delivered || {})
       setPrefill(pf)
       setLines(pf.map(p => ({
@@ -85,14 +87,14 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
         penerima: p.penerima || handover?.received_by || '',
         catatan: ''
       })))
-      setLoaded(true)
+      setLoadedFor(key)
     }
     load()
     return () => { cancelled = true }
-  }, [ready, handover?.receiving_id, handover?.id])
+  }, [loadKey, handover?.receiving_id, handover?.id])
 
   // Turunan, bukan state: tidak ada frame "sudah selesai memuat" yang salah.
-  const loading = ready && !loaded
+  const loading = !!loadKey && loadedFor !== loadKey
 
   const totals = useMemo(() => {
     const total = lines.reduce((s, l) => s + (Number(l.qty_diserahkan) || 0), 0)
