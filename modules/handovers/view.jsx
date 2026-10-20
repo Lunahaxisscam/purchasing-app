@@ -31,7 +31,7 @@ export { renderHandoverQueue as banner } from './queue'
 
 import React from 'react'
 import { format, parseHandoverNote, isHandoverDelivered } from '../../lib/constants'
-import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA, validatePrototypeRow, prototypeTotals } from './display'
+import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA } from './display'
 import { alokasiLabel, isProblemNoted } from './queue'
 import { openPhysicalModal } from './physicalModal'
 
@@ -303,12 +303,11 @@ export function rowActions(r, ctx) {
 // --- Baris perluasan: detail dokumen serah terima (referensi asal, rincian) ---
 // Dirender shell lewat renderModuleRowExpand; hanya tampil bila baris dibuka.
 export function rowExpand(r, ctx) {
-  const { columns, expandedAcuan, allReceivings, allRequests, H } = ctx
+  const { columns, expandedAcuan, allReceivings, allRequests } = ctx
   if (!r?.id || expandedAcuan !== r.id) return null
   const refs = sourceRefs(r, { allReceivings, allRequests })
   const rinc = rincianInfo(r)
   const st = statusInfo(r)
-  const refItems = (r.receiving_id && H?.receivingItemsForReceiving) ? H.receivingItemsForReceiving(r.receiving_id) : []
   return (
     <tr className="acuan-expand-row">
       <td colSpan={columns.length + 1} style={{ background: '#fbfdfc', padding: '10px 14px' }}>
@@ -341,94 +340,22 @@ export function rowExpand(r, ctx) {
             <span>Status: <b>{st.label}</b>{st.delivered && st.diserahkanAt ? ` — ${new Date(st.diserahkanAt).toLocaleString('id-ID')}` : ''}</span>
             {st.legacyNote && <span style={{ color: '#a15309' }}>⚠️ {st.legacyNote}</span>}
           </div>
-          {refItems.length > 0 && <PrototypePanel handover={r} refItems={refItems} />}
+          {/* PANEL PROTOTYPE DIHAPUS (run 208).
+              Panel "🧪 rencana rincian penyerahan per item" adalah mockup dari
+              masa sebelum tabel `handover_items` ada: ia menerima qty+penerima,
+              menampilkan "Rencana tercatat (sesi ini)", tetapi NOL tulisan DB
+              dan hilang saat halaman dimuat ulang. Sekarang jalur NYATA sudah
+              ada (konfirmasi per barang → RPC handover_confirm), jadi panel itu
+              menjadi persistence palsu di layar yang sama — dua form untuk satu
+              pekerjaan, yang satu membuang datanya. Angka "Diterima" di panel
+              itu pun diambil dari `quantity_received` (QTY BELI), bukan qty
+              DATANG — semantik yang justru diperbaiki seluruh card ini.
+              Fungsi murninya (display.validatePrototypeRow/prototypeTotals)
+              TIDAK dihapus: masih diuji sebagai catatan desain, tetapi tidak
+              lagi dirender ke pengguna. */}
         </div>
       </td>
     </tr>
-  )
-}
-
-// ============================================================
-// PROTOTYPE — panel "rencana rincian penyerahan per item" (SESI SAJA).
-// ============================================================
-// Mendemokan alur yang diusulkan DAT: pilih barang dari penerimaan, isi
-// jumlah yang DISERAHKAN KALI INI (boleh parsial), pilih penerima (boleh
-// beberapa orang), lihat sisa yang belum diserahkan tanpa hitung ganda.
-// TIDAK PERNAH menulis DB / kolom note — entri hidup di memori komponen;
-// menunggu persetujuan tabel `handover_items` (docs/handover-gap-proposal.md).
-function PrototypePanel({ handover, refItems }) {
-  const [entries, setEntries] = React.useState([])
-  const [refItemId, setRefItemId] = React.useState('')
-  const [qty, setQty] = React.useState('')
-  const [penerima, setPenerima] = React.useState('')
-  const [error, setError] = React.useState('')
-  const totals = prototypeTotals(entries, refItems)
-
-  function tambah() {
-    const v = validatePrototypeRow({ refItemId, qty }, refItems, entries)
-    if (!v.ok) { setError(v.error); return }
-    setEntries(prev => [...prev, { refItemId, name: v.ref.item_name, unit: v.ref.unit || '', qty: v.qty, penerima: String(penerima || '').trim() }])
-    setError('')
-    setQty('')
-    setPenerima('')
-  }
-
-  return (
-    <div data-testid={`prototype-panel-${handover.id}`} style={{ background: '#fff8ec', border: '1px dashed #e0b96a', borderRadius: '8px', padding: '10px 12px' }}>
-      <div style={{ fontWeight: 700, color: '#8a6d1f' }}>🧪 Prototype: rencana rincian penyerahan per item (belum tersimpan)</div>
-      <div className="muted" style={{ fontSize: '11px', margin: '3px 0 7px', maxWidth: '720px' }}>
-        Contoh alur usulan — entri hanya hidup di sesi ini dan TIDAK ditulis ke database (menunggu persetujuan tabel <code>handover_items</code>).
-        Mendukung penyerahan sebagian, sisa belum diserahkan, dan beberapa penerima.
-      </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <label style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          Barang (dari penerimaan)
-          <select value={refItemId} onChange={e => setRefItemId(e.target.value)} data-testid={`proto-item-${handover.id}`} style={{ minWidth: '190px' }}>
-            <option value="">-- pilih barang --</option>
-            {refItems.map(it => (
-              <option key={it.id} value={it.id}>{it.item_name} ({Number(it.quantity_received || 0)}{it.unit ? ` ${it.unit}` : ''} diterima)</option>
-            ))}
-          </select>
-        </label>
-        <label style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          Jumlah diserahkan kini
-          <input type="number" min="0" step="any" value={qty} onChange={e => setQty(e.target.value)} data-testid={`proto-qty-${handover.id}`} style={{ width: '110px' }} />
-        </label>
-        <label style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          Penerima (nama)
-          <input type="text" value={penerima} onChange={e => setPenerima(e.target.value)} placeholder="mis. Pak Joko" data-testid={`proto-penerima-${handover.id}`} style={{ width: '150px' }} />
-        </label>
-        <button type="button" className="outline" onClick={tambah} data-testid={`proto-add-${handover.id}`} style={{ padding: '5px 10px', fontSize: '11px', fontWeight: 600 }}>＋ Catat (sesi)</button>
-      </div>
-      {error && <div style={{ color: '#c93b2b', fontSize: '11px', marginTop: '5px' }} data-testid={`proto-error-${handover.id}`}>{error}</div>}
-      {totals.length > 0 && (
-        <table className="acuan-table" style={{ marginTop: '8px', fontSize: '11px', width: 'auto' }}>
-          <thead>
-            <tr><th>Barang</th><th>Diterima</th><th>Tercatat (sesi)</th><th>Sisa belum diserahkan</th></tr>
-          </thead>
-          <tbody>
-            {totals.map(t => (
-              <tr key={t.refItemId}>
-                <td>{t.name}</td>
-                <td>{t.received}{t.unit ? ` ${t.unit}` : ''}</td>
-                <td>{t.used}{t.unit ? ` ${t.unit}` : ''}</td>
-                <td><b>{t.sisa}{t.unit ? ` ${t.unit}` : ''}</b></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {entries.length > 0 && (
-        <div style={{ marginTop: '6px', fontSize: '11px' }}>
-          <b>Rencana tercatat (sesi ini):</b>{' '}
-          {entries.map((e, i) => (
-            <span key={i} style={{ marginRight: '10px' }}>
-              {e.name} {e.qty}{e.unit ? ` ${e.unit}` : ''}{e.penerima ? ` → ${e.penerima}` : ''}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 

@@ -166,32 +166,23 @@ console.log('=== R1. DAFTAR HANDOVER (desktop): barang, status bukti fisik, aksi
   check('R3e penerima tampil', /Pak Joko/.test(dt))
   check('R3f rincian label jujur', /Rincian barang belum tersedia/.test(dt))
   check('R3g status + catatan legacy di detail', /Belum Diserahkan/.test(dt) && /Status lama/.test(dt))
-  // Prototype panel (karena receiving punya 2 item)
+  // RUN 208: panel "prototype" (input qty per barang yang TIDAK menulis DB)
+  // DIHAPUS dari layar. Ia menerima isian dan menampilkan "Rencana tercatat
+  // (sesi ini)" padahal nol tulisan dan hilang saat reload — persistence
+  // palsu tepat di sebelah jalur NYATA (konfirmasi per barang → RPC).
   const proto = doc.querySelector('[data-testid="prototype-panel-h1"]')
-  check('R3h prototype panel tampil (2 item penerimaan)', !!proto)
-  check('R3i panel menyatakan belum tersimpan', /belum tersimpan|TIDAK ditulis/i.test(proto?.textContent || ''))
-  // Isi prototype: pilih item, qty 6 (> sisa 4) -> error; qty 4 -> tercatat
-  const sel = doc.querySelector('[data-testid="proto-item-h1"]')
-  const qty = doc.querySelector('[data-testid="proto-qty-h1"]')
-  const setV = (el, val) => {
-    const proto2 = el.tagName === 'SELECT' ? doc.defaultView.HTMLSelectElement.prototype : doc.defaultView.HTMLInputElement.prototype
-    const setter = Object.getOwnPropertyDescriptor(proto2, 'value').set
-    flushSync(() => {
-      setter.call(el, val)
-      el.dispatchEvent(new doc.defaultView.Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }))
-    })
-  }
-  setV(sel, 'ri1'); await tick()
-  setV(qty, '6'); await tick()
-  click(doc.querySelector('[data-testid="proto-add-h1"]'))
-  await tick()
-  check('R3j qty 6 > diterima 4 -> error tampil', /Melebihi sisa/.test(doc.querySelector('[data-testid="proto-error-h1"]')?.textContent || ''))
-  setV(qty, '3'); await tick()
-  click(doc.querySelector('[data-testid="proto-add-h1"]'))
-  await tick()
-  check('R3k qty 3 -> tercatat di sesi', /Triplek|Fitting engsel/.test(doc.querySelector('[data-testid="prototype-panel-h1"]')?.textContent || '') && /3/.test(doc.body.textContent))
-  // Nol mutasi DB dari interaksi prototype
-  check('R3l nol insert/update DB dari prototype', mock.__callsOf('insert').length === 0 && mock.__callsOf('update').length === 0)
+  check('R3h panel prototype TIDAK lagi dirender', !proto, proto ? 'masih ada' : '')
+  check('R3i tidak ada input qty/penerima tanpa penyimpanan di detail',
+    !doc.querySelector('[data-testid="proto-qty-h1"]') && !doc.querySelector('[data-testid="proto-add-h1"]'))
+  // Pesan "belum aktif di versi ini" sudah tidak benar → diganti penjelasan
+  // apa adanya: rincian dicatat lewat konfirmasi fisik, bukan menunggu migrasi.
+  check('R3j notice menyebut cara mencatat rincian (konfirmasi fisik), bukan menunggu skema',
+    /konfirmasi fisik/i.test(dt) && !/menunggu persetujuan perbaikan skema/i.test(dt), dt.slice(0, 300))
+  // Nol mutasi DB dari membuka detail (tidak ada penulisan diam-diam).
+  check('R3k nol insert/update DB dari membuka detail', mock.__callsOf('insert').length === 0 && mock.__callsOf('update').length === 0)
+  // Angka "diterima" dari panel lama memakai quantity_received (QTY BELI).
+  // Sekarang tidak ada lagi permukaan yang menyebut qty beli sebagai "diterima".
+  check('R3l detail TIDAK menyebut qty beli sebagai "diterima"', !/\d+\s*\w*\s*diterima/i.test(dt), dt.slice(0, 200))
   // Tutup detail
   click(doc.querySelector('[data-testid="btn-detail-h1"]'))
   await tick()

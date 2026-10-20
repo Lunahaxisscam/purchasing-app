@@ -101,6 +101,9 @@ shutil.copy(os.path.join(HERE, 'receipt_physical_test.mjs'), SB)
 # Dijalankan SESUDAH harness utama; exit-nya dilaporkan terpisah supaya tidak
 # menyamarkan hasil 153+ assertion di atas.
 shutil.copy(os.path.join(HERE, 'probe_run206_adversarial.mjs'), SB)
+# run 208: pengunci temuan "permukaan input per barang tanpa penyimpanan"
+# (panel prototype) + pesan usang "menunggu skema" di detail handover.
+shutil.copy(os.path.join(HERE, 'probe_run208_prototype.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
 rc = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB).returncode
@@ -109,4 +112,6 @@ if rc:
 rc_main = subprocess.run(['node', 'receipt_physical_test.mjs'], cwd=SB).returncode
 print('\n=== PROBE ADVERSARIAL (run 206) ===')
 rc_probe = subprocess.run(['node', 'probe_run206_adversarial.mjs'], cwd=SB).returncode
-sys.exit(rc_main or rc_probe)
+print('\n=== PROBE PERMUKAAN INPUT PALSU (run 208) ===')
+rc_probe2 = subprocess.run(['node', 'probe_run208_prototype.mjs'], cwd=SB).returncode
+sys.exit(rc_main or rc_probe or rc_probe2)

@@ -510,10 +510,24 @@ function ActionCard({ entry, ctx, onDone, cap }) {
                 </span>
               ))}
               {/* Angka di atas = qty BELI, bukan jumlah yang diserahkan.
-                  Jumlah serah terima per item belum punya tabel (handover_items). */}
-              <span style={{ ...S.detailLine, opacity: 0.7 }}>
-                Jumlah serah terima per item belum tercatat terpisah — konfirmasi fisik tetap per dokumen.
-              </span>
+                  Pesannya dibedakan per mode (defect run 208): kalimat lama
+                  "jumlah serah terima per item belum tercatat terpisah —
+                  konfirmasi fisik tetap per dokumen" BENAR di mode LEGACY,
+                  tetapi SALAH di mode READY: di sana rincian per barang
+                  benar-benar ditulis (`handover_items`) dan dibaca halaman.
+                  Menampilkan kalimat "belum ada" di mode READY membuat admin
+                  mengira fitur yang sudah berjalan tidak ada. */}
+              {ledgerReady ? (
+                <span style={S.detailLine} data-testid={`queue-items-perline-ready-${handover.id}`} >
+                  Angka di atas adalah <b>qty beli</b>, bukan qty diserahkan. Jumlah yang benar-benar
+                  diserahkan per barang dicatat lewat <b>konfirmasi fisik per barang</b> (aksi
+                  &quot;Tandai Diserahkan&quot;) dan tampil di kolom 📦 Barang setelah tersimpan.
+                </span>
+              ) : (
+                <span style={{ ...S.detailLine, opacity: 0.7 }}>
+                  Jumlah serah terima per item belum tercatat terpisah — konfirmasi fisik tetap per dokumen.
+                </span>
+              )}
             </>
           ) : (
             <span style={S.detailLine} data-testid={`queue-items-unavailable-${handover.id}`}>

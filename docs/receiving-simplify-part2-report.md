@@ -295,6 +295,40 @@ oleh `run.py` di sandbox yang sama.
 ada**, jadi `foto_ref` selalu `null` dan UI mengatakannya. Ini bukan regresi —
 sebelumnya aplikasi *mengirim nama berkas* yang membuatnya tampak tersimpan.
 
+### 5.3 Temuan run 208 — permukaan input per barang yang TIDAK menyimpan
+
+Run 206 memperbaiki rantai tampilan. Run 208 menguji **permukaan layar mana
+saja yang masih menerima isian per barang**, dan apakah isian itu tersimpan.
+Harness run 206 hijau (167 jsdom + 16 probe + 125 DB) **sebelum** perbaikan —
+pola yang sama seperti tujuh run sebelumnya.
+
+| # | Defect | Bukti sebelum fix | Sesudah |
+|---|---|---|---|
+| L | **Panel "🧪 Prototype" masih hidup di layar detail Handover.** `view.rowExpand` merender `PrototypePanel` di SETIAP baris yang punya `receiving_items`. Panel menerima qty + penerima, lalu menampilkan **"Rencana tercatat (sesi ini)"** — konfirmasi visual bahwa sesuatu tercatat — padahal NOL tulisan DB dan hilang saat reload. | probe P1–P4: panel ada, input `proto-qty`/`proto-add` ada, tombol "Catat (sesi)" ada, teks "Rencana tercatat" muncul | Panel dihapus dari render. Fungsi murni `display.validatePrototypeRow/prototypeTotals` TIDAK dihapus (masih diuji sebagai catatan desain) tetapi tidak lagi bisa diisi pengguna. |
+| M | **Angka "diterima" di panel itu = QTY BELI.** Dropdown prototype menampilkan `receiving_items.quantity_received` (10) sebagai "diterima", padahal qty DATANG hanya 6. Semantik yang justru diperbaiki seluruh card ini (`COMPATIBILITY_CUTOVER.md`). | probe Q1: "10 Sak diterima" tampil untuk nota beli 10 / datang 6 | Hilang bersama panel (Q1 hijau). Label di tempat lain tetap "qty beli di nota" (bukan "diterima") |
+| N | **Dua jalur untuk satu pekerjaan di layar yang sama.** Di mode READY, panel prototype bersaing dengan konfirmasi NYATA (`confirmForm` → RPC `handover_confirm`) di halaman yang sama — yang satu membuang data. | probe (versi pertama): panel tetap tampil walau `handover.items` hasil konfirmasi nyata sudah ada | Hanya jalur nyata yang tersisa |
+| O | **Pesan usang "belum aktif di versi ini (menunggu persetujuan perbaikan skema)".** `display.rincianInfo` memakai kalimat itu untuk handover yang belum punya baris rincian. Sejak skema + UI per barang ada, itu TIDAK BENAR: fiturnya aktif, hanya DATANYA belum dicatat. Admin diarahkan menunggu migrasi yang sudah selesai. | probe R1/R2: notice persis kalimat itu | Notice menjelaskan **cara mencatat** (konfirmasi fisik per barang) dan membedakan "belum dikonfirmasi" dari "tidak terhubung ke penerimaan" |
+| P | **Detail antrean selalu bilang "jumlah serah terima per item belum tercatat terpisah".** Benar di mode LEGACY, SALAH di READY — di sana rincian benar-benar ditulis `handover_items` dan dibaca halaman. Pesan "belum ada" untuk fitur yang sudah berjalan. | probe S1/S2 (READY): panel rincian tetap berbunyi "belum tercatat terpisah" | Pesan dipilih per mode: READY → menjelaskan rincian dicatat lewat konfirmasi fisik per barang; LEGACY → pesan lama dipertahankan (probe T1/T2) |
+
+Bukti RED → GREEN: probe `probe_run208_prototype.mjs` (15 cek) dijalankan pada
+kode **`c5781fc`** (sebelum fix) → **8 FAIL** (P1, P2, P3, Q1, R1, R2, S1, S2);
+pada kode sesudah fix → **15 PASS / 0 FAIL**. Probe dijalankan otomatis oleh
+`scripts/receipt-physical-test/run.py`.
+
+**Assertion yang diubah (2, keduanya mengunci perilaku yang salah):**
+
+| Suite | Assertion | Alasan |
+|---|---|---|
+| `handover-flow-test/render_test` | R3h/R3i/R3j/R3k (prototype tampil, isi qty, "tercatat di sesi") | Mengunci panel yang membuang data. Diganti R3h–R3k baru: panel TIDAK dirender, tidak ada input tanpa penyimpanan, notice menyebut cara mencatat, nol mutasi DB |
+| `handover-flow-test/logic_test` | H2d ("notice menyebut skema belum aktif") | Mengunci pesan usang. Diganti H2d/H2d2: notice menjelaskan cara mencatat & tidak menyuruh menunggu skema |
+
+**Catatan penting untuk reviewer:** ini bukan "menambah assertion di jalur yang
+sudah benar". Yang diuji adalah **permukaan layar yang tidak pernah diperiksa
+harness mana pun** — panel prototype tidak punya assertion render sama sekali
+sebelum run 208 (hanya fungsi murninya yang diuji di `logic_test` H4a–H4l,
+dan itu tetap hijau karena fungsinya memang benar; yang salah adalah
+**merendernya ke pengguna**).
+
 ---
 
 ## 6. Runtime

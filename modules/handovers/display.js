@@ -62,9 +62,17 @@ export function sourceRefs(handover, { allReceivings = [], allRequests = [] } = 
 }
 
 // Rincian barang satu handover.
-// - Bila handover punya baris item sendiri (`items` — setelah skema
-//   handover_items disetujui DAT), itu SUMBER jumlah yang diserahkan.
-// - Sebelum itu: label "Rincian barang belum tersedia" — TANPA angka tebakan.
+// - Bila handover punya baris item sendiri (`items` — hasil konfirmasi fisik
+//   per barang lewat RPC handover_confirm), itu SUMBER jumlah yang diserahkan.
+// - Bila BELUM ada baris, label "Rincian barang belum tersedia" dengan
+//   penjelasan apa adanya. Dua keadaan yang BERBEDA dan harus dibedakan:
+//     (a) belum dikonfirmasi per barang → rinciannya memang belum dicatat;
+//     (b) data lama tanpa penerimaan → tidak akan pernah punya rincian.
+//   Sebelumnya keduanya memakai kalimat "belum aktif di versi ini (menunggu
+//   persetujuan perbaikan skema)" — itu TIDAK BENAR lagi sejak skema dan UI
+//   per barang ada: fiturnya aktif, hanya barisnya belum dicatat (defect
+//   run 208: pesan usang membuat admin mengira harus menunggu migrasi).
+//   `available` tetap false dan TIDAK ada angka tebakan dari Purchase.
 export function rincianInfo(handover) {
   const structured = Array.isArray(handover && handover.items) ? handover.items.filter(Boolean) : []
   if (structured.length) {
@@ -87,8 +95,8 @@ export function rincianInfo(handover) {
     label: RINCIAN_BELUM_TERSEDIA,
     rows: [],
     notice: handover?.receiving_id
-      ? 'Pencatatan jumlah serah terima per item belum aktif di versi ini (menunggu persetujuan perbaikan skema). Jumlah dari data Purchase tidak dipakai karena bisa berubah dan masih bercampur barang rusak.'
-      : 'Data ini belum terhubung ke penerimaan. Pencatatan jumlah serah terima per item juga belum aktif di versi ini.'
+      ? 'Jumlah yang diserahkan per barang dicatat lewat konfirmasi fisik di modul ini (aksi "Tandai Diserahkan" → per barang). Selama belum dikonfirmasi, rincian ini memang belum ada — jumlah dari data Purchase tidak dipakai karena itu qty BELI, bukan qty yang diserahkan.'
+      : 'Data ini belum terhubung ke penerimaan, jadi tidak ada barang yang bisa dirinci. Rincian serah terima hanya bisa dicatat untuk dokumen yang terhubung ke nota pembelian.'
   }
 }
 
