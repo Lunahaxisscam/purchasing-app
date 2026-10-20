@@ -12,15 +12,27 @@ export const __state = {
   receivings: new Map(),  // id -> row
   prItems: new Map(),     // id -> row
   receivingItems: new Map(), // id -> row (pr_item_id + receiving_id)
+  // Ledger per barang (t_7bc6246b). DEFAULT: TIDAK ADA — meniru PostgREST
+  // yang menjawab PGRST205 untuk tabel yang belum dimigrasikan. Tanpa ini,
+  // mock diam-diam mengembalikan [] dan capability probe menyimpulkan
+  // "skema siap" padahal tidak — persis kelas bug "mock berbohong".
+  ledger: null,            // null = belum ada; {receivingEvents:[], handoverItems:[], returnLines:[], returnCases:[], progress:[]} = ada
   calls: [],              // {op, table, ...}
   nextError: null
 }
 
-export function __reset({ handovers = [], receivings = [], prItems = [], receivingItems = [] } = {}) {
+export function __reset({ handovers = [], receivings = [], prItems = [], receivingItems = [], ledger = null } = {}) {
   __state.handovers = new Map(handovers.map(r => [r.id, { ...r }]))
   __state.receivings = new Map(receivings.map(r => [r.id, { ...r }]))
   __state.prItems = new Map(prItems.map(r => [r.id, { ...r }]))
   __state.receivingItems = new Map(receivingItems.map((r, i) => [r.id || `ri${i}`, { ...r }]))
+  __state.ledger = ledger ? {
+    receivingEvents: (ledger.receivingEvents || []).map(r => ({ ...r })),
+    handoverItems: (ledger.handoverItems || []).map(r => ({ ...r })),
+    returnLines: (ledger.returnLines || []).map(r => ({ ...r })),
+    returnCases: (ledger.returnCases || []).map(r => ({ ...r })),
+    progress: (ledger.progress || []).map(r => ({ ...r }))
+  } : null
   __state.calls = []
   __state.nextError = null
 }
@@ -32,6 +44,28 @@ function storeOf(table) {
   if (table === 'pr_items') return __state.prItems
   if (table === 'receiving_items') return __state.receivingItems
   return null
+}
+
+// Tabel ledger: hanya "ada" bila __reset({ledger:...}) dipanggil.
+const LEDGER_TABLES = ['receiving_events', 'handover_items', 'return_lines', 'return_cases', 'v_receipt_progress']
+
+function ledgerRows(table) {
+  if (!__state.ledger) return null
+  if (table === 'receiving_events') return __state.ledger.receivingEvents
+  if (table === 'handover_items') return __state.ledger.handoverItems
+  if (table === 'return_lines') return __state.ledger.returnLines
+  if (table === 'return_cases') return __state.ledger.returnCases
+  if (table === 'v_receipt_progress') return __state.ledger.progress
+  return null
+}
+
+function missingTableError(table) {
+  return {
+    code: 'PGRST205',
+    message: `Could not find the table 'public.${table}' in the schema cache`,
+    details: null,
+    hint: null
+  }
 }
 
 function idFilter(st) {
@@ -106,6 +140,19 @@ function terminalRaw(st) {
       // CAS emulasi handovers: .is('diserahkan_at', null) hanya cocok bila NULL.
       const isF = st.filters.find(f => f.col === 'diserahkan_at' && f.isNull)
       if (isF) rows = rows.filter(r => r.diserahkan_at === null || r.diserahkan_at === undefined)
+    }
+    return { data: rows, error: null }
+  }
+  // select — tabel ledger (hanya ada bila __reset({ledger}) dipanggil).
+  if (LEDGER_TABLES.includes(st.table)) {
+    const rows0 = ledgerRows(st.table)
+    if (rows0 === null) return { data: null, error: missingTableError(st.table) }
+    let rows = rows0.map(r => ({ ...r }))
+    for (const f of st.filters) {
+      if (f.col === 'receiving_id') rows = rows.filter(r => r.receiving_id === f.val)
+      else if (f.col === 'receiving_event_id' && f.vals) rows = rows.filter(r => f.vals.includes(r.receiving_event_id))
+      else if (f.col === 'receiving_event_id' && f.val !== undefined) rows = rows.filter(r => r.receiving_event_id === f.val)
+      else if (f.col === 'handover_id') rows = rows.filter(r => r.handover_id === f.val)
     }
     return { data: rows, error: null }
   }

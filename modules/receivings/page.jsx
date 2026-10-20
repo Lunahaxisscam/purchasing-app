@@ -139,6 +139,9 @@ export default function PurchasePage({ rows, refresh, say }) {
   const [projectFilter, setProjectFilter] = useState('')
   const [q, setQ] = useState('')
   const [formRows, setFormRows] = useState(null)
+  // Antrean nota per vendor (arahan DAT bagian 2): pilihan lintas toko dipecah
+  // menjadi beberapa nota berurutan, bukan satu nota bercampur.
+  const [purchaseQueue, setPurchaseQueue] = useState([])
   const [expanded, setExpanded] = useState(null)
   const readyAll = useMemo(() => buildReadyRows({
     prItems, requests, projects, vendors, materials, receivings, receivingItems
@@ -186,30 +189,71 @@ export default function PurchasePage({ rows, refresh, say }) {
     if (!selectedRows.length) return
     // Toko di form terisi otomatis (toko dengan barang terbanyak) tapi BOLEH
     // diganti ke toko lain — DAT: "Toko / Vendor (otomatis terisi atau bisa
-    // dipilih toko lain)". Karena itu SEMUA barang yang dicentang masuk nota;
-    // tidak ada barang yang dibuang diam-diam. Bila centang mencakup beberapa
-    // toko, admin diberi tahu bahwa satu nota idealnya satu toko.
-    const primary = [...selectedByVendor].sort((a, b) => b.count - a.count)[0]
-    setFormRows({ rows: selectedRows, vendorId: primary?.vendorId || '' })
+    // dipilih toko lain".
+    //
+    // PEMECAHAN PER VENDOR (arahan DAT bagian 2): satu nota toko TIDAK boleh
+    // memuat barang vendor lain — kalau boleh, nota diberi label satu vendor
+    // padahal isinya campuran, sehingga harga/retur per vendor salah cocok.
+    // Karena itu pilihan lintas toko dipecah menjadi SATU FORM PER VENDOR;
+    // jejak PR tetap di tiap baris (prItemId → purchase_request_id).
+    const groups = selectedByVendor.filter(g => g.vendorId)
+    const tanpaVendor = selectedByVendor.filter(g => !g.vendorId)
+    if (!groups.length) {
+      // Semua barang belum punya vendor: jangan mengarang label toko.
+      say?.('Barang yang dipilih belum punya vendor di PR. Lengkapi vendor di PR dulu — nota tidak boleh diberi label toko yang tidak tercatat pada barangnya.')
+      return
+    }
+    if (tanpaVendor.length) {
+      const jml = tanpaVendor.reduce((s, g) => s + g.rows.length, 0)
+      say?.(`${jml} barang belum punya vendor dan tidak ikut dibuatkan nota. Lengkapi vendor di PR dulu, lalu proses lagi.`)
+    }
+    // Urutan: vendor terbanyak lebih dulu (kebiasaan admin), sisanya menyusul.
+    const ordered = [...groups].sort((a, b) => b.count - a.count)
+    const queue = ordered.map(g => ({ rows: g.rows, vendorId: g.vendorId, vendorName: g.vendorName }))
+    setPurchaseQueue(queue)
+    // Buka nota vendor PERTAMA; sisanya berurutan setelah nota tersimpan.
+    setFormRows(queue[0])
   }
 
   // Belanja langsung (Tahap B): catat pembelian TANPA request — form tetap
   // satu dialog, toko/proyek diisi admin di dalamnya. Item langsung tidak
-  // saya seleksi via checkbox (identitasnya belum ada) — langsung buka form.
+  // dipilih via checkbox (identitasnya belum ada) — langsung buka form.
   function startDirectPurchase() {
     const row = directPurchaseRow({
       itemName: '',
       projectId: projectFilter || null
     })
+    setPurchaseQueue([])
     setFormRows({ rows: [row], vendorId: vendorFilter || '' })
   }
 
+  // Satu nota selesai → lanjut ke vendor berikutnya (bukan mencampur).
   function finishPurchase(res) {
-    setFormRows(null)
-    setSelected(new Set())
-    setTab(TAB_HISTORY)
     if (res?.message) say?.(res.message)
+    setFormRows(null)
     refresh?.()
+    setPurchaseQueue(prev => {
+      const rest = prev.slice(1)
+      if (rest.length) {
+        // Masih ada vendor lain: buka form berikutnya tanpa menutup alur.
+        setFormRows(rest[0])
+        say?.(`Nota ${res?.invoiceNo || ''} tersimpan. Lanjut nota vendor berikutnya: ${rest[0].vendorName || 'tanpa nama'}.`)
+        return rest
+      }
+      setSelected(new Set())
+      setTab(TAB_HISTORY)
+      return []
+    })
+  }
+
+  // Batal di tengah antrean vendor: hentikan sisa antrean dengan jujur
+  // (nota yang sudah tersimpan TETAP ada — tidak ada rollback data).
+  function cancelPurchaseQueue() {
+    const sisa = purchaseQueue.length
+    setFormRows(null)
+    setPurchaseQueue([])
+    setSelected(new Set())
+    if (sisa > 0) say?.('Sisa nota vendor yang belum dibuat dibatalkan. Nota yang sudah tersimpan tetap ada di Riwayat Pembelian.')
   }
 
   const allVisibleSelected = readyRows.length > 0 && readyRows.every(r => selected.has(r.prItemId))
@@ -320,12 +364,17 @@ export default function PurchasePage({ rows, refresh, say }) {
 
           {selectedRows.length > 0 && selectedByVendor.length > 1 && (
             <div className="purchase-hint" data-testid="hint-multi-vendor">
-              Pilihan mencakup <b>{selectedByVendor.length} toko</b> — satu nota untuk satu toko. Ganti toko di form bila perlu.
+              Pilihan mencakup <b>{selectedByVendor.length} toko</b> — akan dibuat <b>{selectedByVendor.filter(g => g.vendorId).length} nota terpisah</b> (satu nota per toko, berurutan). Jejak PR tetap tersimpan di tiap barang.
             </div>
           )}
           {selectedRows.length > 0 && selectedByVendor.length === 1 && (
             <div className="purchase-hint purchase-hint-ok" data-testid="hint-one-vendor">
               {selectedRows.length} barang dipilih{selectedByVendor[0].vendorName ? ` · ${selectedByVendor[0].vendorName}` : ''} — siap dibuatkan satu nota.
+            </div>
+          )}
+          {selectedRows.length > 0 && selectedByVendor.some(g => !g.vendorId) && (
+            <div className="purchase-hint" data-testid="hint-no-vendor">
+              {selectedByVendor.filter(g => !g.vendorId).reduce((s, g) => s + g.rows.length, 0)} barang belum punya vendor di PR — barang itu tidak akan dibuatkan nota sampai vendornya dilengkapi.
             </div>
           )}
 
@@ -724,7 +773,7 @@ export default function PurchasePage({ rows, refresh, say }) {
           projects={projects}
           receivings={receivings}
           receivingItems={receivingItems}
-          close={() => setFormRows(null)}
+          close={cancelPurchaseQueue}
           onDone={finishPurchase}
           say={say}
         />

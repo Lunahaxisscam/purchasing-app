@@ -316,22 +316,36 @@ console.log('\nC10. Data kosong: pesan jelas, tidak error')
   check('C10c Riwayat kosong -> pesan jelas', /Belum ada nota pembelian/.test(doc.body.textContent || ''))
 }
 
-// ---------- C11: centang lintas toko -> semua barang ikut nota, toko bisa diganti ----------
-console.log('\nC11. Centang lintas toko: semua barang ikut, toko form bisa diganti')
+// ---------- C11: centang lintas toko -> dipecah jadi nota per vendor ----------
+// ARAHAN DAT bagian 2: "PR multivendor dikelompokkan jadi pembelian per
+// vendor/nota dengan trace ke PR asal". Assertion lama (C11b/C11e) mengunci
+// perilaku SEBALIKNYA (semua barang lintas toko masuk SATU nota) — itu yang
+// membuat nota berlabel satu vendor padahal isinya campuran. Diubah sesuai
+// kontrak, bukan dilonggarkan: jumlah nota & pemisahan baris tetap diuji.
+console.log('\nC11. Centang lintas toko: dipecah per vendor, jejak PR tetap')
 {
   const { document: doc } = mount()
   await tick()
   toggleCheck(tid(doc, 'check-pi1')); await tick() // v1
   toggleCheck(tid(doc, 'check-pi3')); await tick() // v2
   check('C11a petunjuk multi-toko tampil', !!tid(doc, 'hint-multi-vendor'))
+  check('C11a2 petunjuk menyebut jumlah nota terpisah', /2 nota terpisah/i.test(tid(doc, 'hint-multi-vendor')?.textContent || ''), tid(doc, 'hint-multi-vendor')?.textContent)
   click(tid(doc, 'btn-process-purchase')); await tick()
-  check('C11b SEMUA barang tercentang masuk dialog (2)', doc.querySelectorAll('[data-testid^="form-item-"]').length === 2, String(doc.querySelectorAll('[data-testid^="form-item-"]').length))
-  check('C11c toko terisi otomatis (salah satu toko nyata)', ['v1', 'v2'].includes(tid(doc, 'form-vendor')?.value), tid(doc, 'form-vendor')?.value)
-  // ganti toko ke toko lain (DAT: "bisa dipilih toko lain")
-  selectValue(doc, tid(doc, 'form-vendor'), 'v2'); await tick()
-  check('C11d toko bisa diganti ke toko lain', tid(doc, 'form-vendor')?.value === 'v2')
-  // tidak ada barang yang hilang dari dialog
-  check('C11e tidak ada barang dibuang diam-diam', doc.querySelectorAll('[data-testid^="form-item-"]').length === 2)
+  // Nota PERTAMA = vendor dengan barang terbanyak (v1 & v2 masing2 1 → v1 dulu).
+  check('C11b dialog dibuka untuk SATU vendor saja (bukan campuran)',
+    doc.querySelectorAll('[data-testid^="form-item-"]').length === 1,
+    String(doc.querySelectorAll('[data-testid^="form-item-"]').length))
+  check('C11c toko terisi vendor nyata dari barangnya', ['v1', 'v2'].includes(tid(doc, 'form-vendor')?.value), tid(doc, 'form-vendor')?.value)
+  const firstVendor = tid(doc, 'form-vendor')?.value
+  const firstItems = [...doc.querySelectorAll('[data-testid^="form-item-"]')].map(e => e.getAttribute('data-testid'))
+  check('C11d isi nota pertama konsisten dengan vendornya', firstItems.length === 1 && firstItems[0].includes(firstVendor === 'v1' ? 'pi1' : 'pi3'), JSON.stringify(firstItems))
+  // Toko tetap bisa diganti (DAT: "bisa dipilih toko lain") — tapi TIDAK
+  // menambah barang vendor lain ke nota ini.
+  selectValue(doc, tid(doc, 'form-vendor'), firstVendor === 'v1' ? 'v2' : 'v1'); await tick()
+  check('C11e toko bisa diganti tanpa menambah barang vendor lain',
+    doc.querySelectorAll('[data-testid^="form-item-"]').length === 1,
+    String(doc.querySelectorAll('[data-testid^="form-item-"]').length))
+  check('C11f tidak ada barang dibuang diam-diam (sisa vendor diantrekan)', /nota vendor berikutnya|2 nota terpisah/i.test(doc.body.textContent || ''))
 }
 
 // ---------- C11b: item lean + tombol belanja langsung (Tahap B) ----------

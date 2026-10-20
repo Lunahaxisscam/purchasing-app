@@ -35,7 +35,7 @@
 // styles/globals.css (file itu bukan milik modul ini).
 // ============================================================
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   ACTIONS,
   ACT_GUDANG,
@@ -48,6 +48,9 @@ import {
 } from './logic'
 import { runHandoverAction } from './actions'
 import { RINCIAN_BELUM_TERSEDIA } from './display'
+import { openPhysicalModal } from './physicalModal'
+import { PhysicalModalHost } from './physicalHost'
+import { getReceiptCapability } from '../receivings/receiptCapability'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
@@ -132,12 +135,21 @@ export function isProblemNoted(receiving) {
 // scripts/handover-compact-test/queue_ui_test.mjs A11l/A11m).
 export const RECON_NOTE = 'Catat masalahnya di kolom Catatan handover ini, lalu eskalasi ke admin untuk rekonsiliasi manual dengan supplier (nota koreksi/kredit).'
 
-export function problemPlan(receiving, itemCount = 0, hasHandler = true) {
+// `ledgerReady` = tabel ledger per barang (receiving_events/handover_items/
+// return_lines) sudah ADA. Saat true, retur per barang TIDAK lagi diblokir
+// oleh keterbatasan skema — modal retur mengambil baris dari event rusak.
+// Saat false, perilaku lama dipertahankan apa adanya (alasan jujur, nol tulis).
+export function problemPlan(receiving, itemCount = 0, hasHandler = true, ledgerReady = false) {
   if (!receiving) {
     return { ok: false, reason: `Dokumen ini belum terhubung ke nota pembelian, jadi tidak ada barang yang bisa diretur. ${RECON_NOTE}` }
   }
   if (isProblemNoted(receiving)) {
     return { ok: false, reason: 'Nota ini sudah ditandai bermasalah (Retur/Refund) — tidak bisa ditandai dua kali.' }
+  }
+  // Ledger per barang aktif → retur dicatat per barang lewat modal (bukan
+  // status header), jadi batas "satu item per nota" tidak berlaku lagi.
+  if (ledgerReady) {
+    return { ok: true, reason: '', perLine: true }
   }
   if (!hasHandler) {
     return { ok: false, reason: 'Aksi bermasalah tidak tersedia di tampilan ini (pencatatan status nota hanya dari halaman utama).' }
@@ -176,7 +188,7 @@ function prItemsOf(ctx, receivingId) {
   return ctx.H?.prItemsForPr ? (ctx.H.prItemsForPr(pr.id) || []) : []
 }
 
-function ActionCard({ entry, ctx, onDone }) {
+function ActionCard({ entry, ctx, onDone, cap }) {
   const { refresh, H, say } = ctx
   const { handover, receiving } = entry
   const [busy, setBusy] = useState(false)
@@ -191,7 +203,9 @@ function ActionCard({ entry, ctx, onDone }) {
   const plan = actionPlan(handover, summary, receiving?.alokasi, receiving)
   const dest = alokasiLabel(receiving?.alokasi)
   const problemNoted = isProblemNoted(receiving)
-  const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function')
+  const ledgerReady = !!cap?.ready
+  const returnReady = !!cap?.returnReady
+  const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function', returnReady)
 
   // Lapisan tampilan DI ATAS actionPlan (logic.js tidak diubah):
   //  a) nota yang sudah bermasalah tidak ditawari distribusi — sejalan dengan
@@ -221,6 +235,12 @@ function ActionCard({ entry, ctx, onDone }) {
   const run = async (action) => {
     if (busy) return
     if (action === ACT_TERIMA) {
+      // Ledger per barang AKTIF → konfirmasi per item (prefill dari penerimaan,
+      // bukan mengetik ulang). LEGACY → form header lama di bawah.
+      if (ledgerReady) {
+        openPhysicalModal({ kind: 'confirm', handover })
+        return
+      }
       setShowTerima(true)
       return
     }
@@ -256,9 +276,9 @@ function ActionCard({ entry, ctx, onDone }) {
     }
   }
 
-  // Bermasalah: TIDAK menulis DB dari file ini — memakai handler shell yang
-  // sudah ada (kolom receivings.status + kendala). Panel ditutup setelah
-  // handler dipanggil; pesan hasil datang dari handler itu sendiri.
+  // Bermasalah: bila ledger per barang AKTIF, buka modal Retur yang mengambil
+  // baris dari event rusak (tanpa ketik ulang, anti double-retur). Bila belum,
+  // perilaku lama dipertahankan: status header lewat handler shell.
   const tandaiBermasalah = async (key) => {
     if (busy || !problem.ok) return
     if (typeof ctx.onReceivingStatusChange !== 'function') return
@@ -290,6 +310,27 @@ function ActionCard({ entry, ctx, onDone }) {
           ) : null}
         </div>
       </div>
+
+      {/* ---- LANGKAH 1: BARANG DATANG (per barang) --------------------------
+          Dipisah dari 3 aksi distribusi karena ini TAHAP BERBEDA: mencatat
+          kedatangan/kondisi/tujuan, bukan memindahkan barang. DAT: UI fisik
+          hanya di Handover, jadi pintu input ini ada di sini — bukan di
+          modul Pembelian (yang berhenti di "barang dibeli"). */}
+      {receiving && (
+        <div style={{ ...S.finish, marginTop: 0, marginBottom: 10 }} data-testid={`queue-receipt-block-${handover.id}`}>
+          <span style={S.finishLabel}>Langkah 1 — catat barang yang benar-benar datang (per barang):</span>
+          <button
+            type="button"
+            disabled={busy}
+            data-testid={`queue-terima-barang-${handover.id}`}
+            title="Catat kedatangan per barang: jumlah datang, rusak, tujuan, retur"
+            onClick={() => openPhysicalModal({ kind: 'receipt', receiving })}
+            style={S.btn}
+          >
+            📥 Terima Barang
+          </button>
+        </div>
+      )}
 
       {/* ---- 3 AKSI DISTRIBUSI FISIK ----------------------------------------
           Satu baris aksi = tanggung jawab fisik modul ini:
@@ -331,10 +372,21 @@ function ActionCard({ entry, ctx, onDone }) {
           {problem.ok ? (
             <>
               <div style={S.panelText}>
-                Tandai nota ini bermasalah? Barang tidak didistribusikan; status nota dicatat sebagai Retur/Refund.
+                {problem.perLine
+                  ? 'Barang rusak dicatat PER BARANG dari penerimaan — tidak perlu mengetik ulang nama atau jumlah. Buka form retur untuk memilih barang yang benar-benar dikembalikan.'
+                  : 'Tandai nota ini bermasalah? Barang tidak didistribusikan; status nota dicatat sebagai Retur/Refund.'}
               </div>
               <div style={S.row}>
-                {PROBLEM_OPTIONS.map(opt => (
+                {problem.perLine ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    data-testid={`queue-problem-retur-${handover.id}`}
+                    onClick={() => { setShowProblem(false); openPhysicalModal({ kind: 'return', receiving }) }}
+                  >
+                    ↩ Buka Form Retur (per barang)
+                  </button>
+                ) : PROBLEM_OPTIONS.map(opt => (
                   <button
                     key={opt.key}
                     type="button"
@@ -456,8 +508,25 @@ function ActionCard({ entry, ctx, onDone }) {
 // ------------------------------------------------------------
 // BANNER ANTREAN (slot ctx.banner / dispatcher handovers)
 // ------------------------------------------------------------
+// Banner ini juga HOST modal fisik (Terima Barang / Retur / Konfirmasi per
+// barang). Satu tempat render supaya modal tidak dobel ketika aksi dipicu
+// dari banner maupun dari tombol baris di view.jsx (keduanya memakai store
+// `physicalModal`).
 export function renderHandoverQueue(ctx) {
+  return <HandoverQueueBanner ctx={ctx} />
+}
+
+function HandoverQueueBanner({ ctx }) {
   const { rows, allReceivings } = ctx
+  // Probe kemampuan skema (READ-ONLY). null = belum diperiksa; UI memakai
+  // perilaku LEGACY sampai probe selesai (tidak pernah mengklaim tersimpan).
+  const [cap, setCap] = React.useState(null)
+  React.useEffect(() => {
+    let cancelled = false
+    getReceiptCapability().then(c => { if (!cancelled) setCap(c) })
+    return () => { cancelled = true }
+  }, [])
+
   if (!Array.isArray(rows)) return null
   const recById = new Map((allReceivings || []).map(r => [r.id, r]))
   const entries = buildDistributionQueue(rows).map(ho => ({
@@ -472,9 +541,20 @@ export function renderHandoverQueue(ctx) {
         <h3 style={{ margin: 0, fontSize: 15 }}>📦 Antrean Distribusi Fisik</h3>
         <span style={S.sub} data-testid="handover-queue-count">{entries.length} handover menunggu</span>
       </div>
+      {!cap?.ready && (
+        <div
+          data-testid="handover-capability"
+          style={{ ...S.panel, marginBottom: 10, fontSize: '11.5px', lineHeight: 1.45, color: '#e8c98a' }}
+        >
+          Penyimpanan per barang (kedatangan/rusak/tujuan/retur) belum aktif —{' '}
+          {(cap?.missing || []).filter(Boolean).join('; ') || 'memeriksa skema…'}. Antrean tetap bisa dipakai untuk
+          distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.
+        </div>
+      )}
       {entries.map(entry => (
-        <ActionCard key={entry.handover.id} entry={entry} ctx={ctx} />
+        <ActionCard key={entry.handover.id} entry={entry} ctx={ctx} cap={cap} />
       ))}
+      <PhysicalModalHost ctx={ctx} />
     </div>
   )
 }
