@@ -153,6 +153,35 @@ ditolak server `no_retur_balance`.
 Ketiganya **aktif hanya setelah migrasi** (mode READY). Mode LEGACY tidak
 terpengaruh karena modal retur tidak bisa dibuka tanpa `return_lines`.
 
+### 3.6 Defect run 195 — TINDAKAN retur harus mengikuti status barang
+
+Saldo retur saja belum cukup: modal juga menawarkan **tindakan**
+(RETURN / REPLACE / REFUND / DISCARD) yang tidak selalu sah untuk baris itu.
+
+| Keadaan event | `retur_status` | `discard_confirmed` | Tindakan yang sah |
+|---|---|---|---|
+| dipilih "Kembalikan ke supplier" | `PENDING` | false | `RETURN`, `REPLACE`, `REFUND` |
+| dipilih "Dibuang" | `DISCARDED` | true | `DISCARD` |
+| data tidak konsisten | `DISCARDED` | false | **tidak ada** — dilaporkan, bukan ditawari |
+
+Kontrak ini **wajib** diikuti UI karena `return_create`:
+
+- menolak `DISCARD` bila `discard_confirmed` event masih false
+  (`reason=discard_not_confirmed`);
+- menerima `RETURN` untuk event `DISCARDED` dan **mengubah `retur_status`
+  menjadi `PENDING`** — kalau UI menawarkannya, barang yang sudah dibuang
+  seolah kembali menunggu dikembalikan (kontradiksi data).
+
+Implementasi: `allowedResolutionsFor()` per baris + `commonResolutions()`
+(irisan untuk baris terpilih). Bila irisan kosong (mis. satu barang dibuang +
+satu menunggu dikembalikan), form **menolak menyimpan** dan meminta retur
+dipisah — bukan mengirim permintaan yang pasti ditolak. Tindakan yang tidak
+ditawarkan **dijelaskan** di panel, tidak disembunyikan diam-diam.
+
+Dikunci oleh `probe_retur_resolution.mjs` (14 cek pada PG nyata) + T6a–T6k
+(jsdom). Bila schema owner mengubah aturan RPC, ubah fungsi itu **dan** probe
+dalam commit yang sama.
+
 ---
 
 ## 6. Yang TIDAK dibuktikan (jujur)

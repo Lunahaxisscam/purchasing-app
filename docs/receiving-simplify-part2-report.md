@@ -1,6 +1,6 @@
 # Laporan Bagian 2 — Receiving, Vendor Pembelian, Handover, Retur (t_7bc6246b)
 
-Tanggal: 21 Okt 2026 · Branch `feat/receipt-ledger-t_7bc6246b` @ `fabe5fa`
+Tanggal: 21 Okt 2026 · Branch `feat/receipt-ledger-t_7bc6246b` @ `413441b`
 Base: `origin/main` **4a92bec** (produksi) · Push terverifikasi `git ls-remote`
 
 ---
@@ -71,9 +71,10 @@ RPC dipanggil lewat `pg` dengan nama parameter PostgREST.
 | retur tidak mengubah `quantity_received`/`qty_arrived` | anti double-cost |
 | anon **0 grant**, RLS aktif 4 tabel, **0 policy tulis** | tulis hanya RPC |
 
-Jalankan ulang: `python3 scripts/receipt-ledger-db-test/run.py`
+Jalankan ulang: `python3 scripts/receipt-ledger-db-test/run.py` — sekarang juga
+menjalankan matriks retur (5) dan resolusi retur (6): **47 + 14 PASS / 0 FAIL**.
 
-### 3.2 UI nyata (jsdom interaktif) — **90 PASS / 0 FAIL**
+### 3.2 UI nyata (jsdom interaktif) — **123 PASS / 0 FAIL**
 
 `python3 scripts/receipt-physical-test/run.py`
 
@@ -128,7 +129,28 @@ node scripts/receipt-physical-test/repro_host_v3.mjs              8 PASS / 0 FAI
 node scripts/receipt-physical-test/probe_confirm_partial.mjs      7 PASS / 0 FAIL
 ```
 
-### 4.2 Batasan yang TIDAK diperbaiki di card ini
+### 4.2 Defect ditemukan pada review run 195 (tindakan retur) — SUDAH diperbaiki
+
+Review run 195 menguji **sambungan** modal retur → RPC pada PostgreSQL nyata,
+bukan menambah assertion di jalur yang sudah hijau. Dua defect menyala begitu
+migrasi dijalankan (mode READY):
+
+| # | Defect | Bukti (PG nyata) | Fix |
+|---|---|---|---|
+| 3 | Dropdown "Tindakan" selalu 4 pilihan untuk semua baris | Event `PENDING` + pilih **Dibuang** → RPC menolak `discard_not_confirmed`. Admin melihat tombol aktif, menekan Simpan, **pasti gagal** | `allowedResolutionsFor()` → hanya tindakan sah; yang tidak sah **dijelaskan** |
+| 4 | Barang **sudah dibuang** masih ditawari "Kembalikan ke supplier" | Event `DISCARDED` + pilih **RETURN** → RPC **menerima** dan mengubah `retur_status` jadi `PENDING` (barang yang sudah dibuang seolah menunggu dikembalikan) | Event `DISCARDED` hanya boleh `DISCARD`; gabungan status berbeda tidak bisa disimpan (UI minta dipisah) |
+
+Harness pengunci:
+
+```
+probe_retur_resolution.mjs   14 PASS / 0 FAIL   (PG16 nyata, migrasi 00..04)
+T6a–T6k                      11 assertion        (jsdom, RED dulu di kode lama)
+```
+
+Bukti RED: pada kode `0a423ac` lima assertion T6 gagal (`Dibuang` muncul di
+daftar untuk event PENDING; `RETURN` muncul untuk event DISCARDED).
+
+### 4.3 Batasan yang TIDAK diperbaiki di card ini
 
 **Serah terima tidak bisa sebagian.** `handover_confirm` melakukan CAS pada SATU
 dokumen (`diserahkan_at`), jadi satu dokumen = satu waktu penyerahan. Di UI,
@@ -173,7 +195,7 @@ klaim palsu.
 | Kegiatan | Perkiraan |
 |---|---|
 | `next build` | ~60–90 s |
-| `receipt-ledger-db-test` (initdb + 5 migrasi + 47 cek) | ~35 s |
+| `receipt-ledger-db-test` (initdb + 5 migrasi + 47 + 14 cek) | ~60 s |
 | `receipt-physical-test` | ~20 s |
 | handover-flow + compact + purchase-flow | ~90 s total |
 | probe live read-only | < 5 s |
