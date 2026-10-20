@@ -37,6 +37,21 @@
 // ada dua kebenaran yang menyimpang tanpa ketahuan.
 
 // ------------------------------------------------------------
+// 0. TANDA KEBIJAKAN APPROVAL (t_50b783de) — HARUS SAMA dengan
+//    lib/constants.js (APPROVAL_MODULE_ENABLED).
+// ------------------------------------------------------------
+// File ini paket ESM terpisah yang tidak bisa mengimpor lib/ (root package
+// bukan type:module), jadi nilai ini DIDUPLIKASI dan dijaga paritas test
+// `scripts/approval-off-test/logic_test.mjs`.
+// Saat false:
+//   * `approval_steps` TIDAK dibaca sama sekali oleh collect.js,
+//   * jenis reminder `pr_overdue_approval` (khusus antrean approval) mati,
+//   * pemeriksaan "APPROVED tanpa jejak approval" dilewati secara jujur.
+// Reminder operasional lain (draft stale, pending delivery, handover, invoice)
+// TIDAK terpengaruh.
+export const APPROVAL_MODULE_ENABLED = false
+
+// ------------------------------------------------------------
 // 1. KATALOG JENIS REMINDER
 // ------------------------------------------------------------
 // `threshold`  : kunci ambang hari (null = tidak memakai ambang waktu)
@@ -52,7 +67,9 @@ export const KINDS = Object.freeze([
     severity: 'warning',
     threshold: 'pr_overdue_days',
     required: ['purchase_requests'],
-    optional: ['approval_steps', 'projects']
+    optional: ['approval_steps', 'projects'],
+    // t_50b783de: jenis ini HANYA bermakna bila modul Approval aktif.
+    requiresApprovalModule: true
   },
   {
     key: 'pr_draft_stale',
@@ -688,7 +705,7 @@ export function ruleInvoiceDraftStale(ctx) {
 // Setiap pemeriksaan berdiri sendiri; sumber yang tidak tersedia dicatat di
 // `skipped` (dilaporkan di laporan), bukan dianggap lulus.
 export function ruleMissingEvidence(ctx) {
-  const { dataset, sourcesAvailable } = ctx
+  const { dataset, sourcesAvailable, approvalModuleEnabled = APPROVAL_MODULE_ENABLED } = ctx
   const out = []
   const skipped = []
   const have = (key) => sourcesAvailable[key] !== false
@@ -818,7 +835,10 @@ export function ruleMissingEvidence(ctx) {
       if (norm(pr.status) !== 'APPROVED') continue
       const steps = byPr.get(pr.id) || []
       const approved = steps.some(s => norm(s.status) === 'APPROVED')
-      if (have('approval_steps') && !approved) {
+      // t_50b783de: saat Approval OFF, pemeriksaan "APPROVED tanpa langkah
+      // approval" TIDAK relevan (approval tidak dipakai) — dilewati secara
+      // jujur lewat `skipped`, bukan dilaporkan sebagai temuan palsu.
+      if (approvalModuleEnabled && have('approval_steps') && !approved) {
         out.push(makeItem({
           kind: 'missing_evidence',
           sub: 'pr_approved_no_step',
@@ -949,7 +969,12 @@ export function buildReport({
   asOf = null,
   kinds = null,
   generatedAt = null,
-  limit = null
+  limit = null,
+  // Parameter UJI saja: default SELALU mengikuti kebijakan terpusat. Pemanggil
+  // produksi (handler/CLI) tidak pernah mengirimnya, jadi tidak ada jalan
+  // bypass di aplikasi. Dipakai harness untuk tetap menguji aturan approval
+  // yang kodenya sengaja dipertahankan (reversible).
+  approvalModuleEnabled = APPROVAL_MODULE_ENABLED
 } = {}) {
   const asOfDate = toDateOnly(asOf) || todayISO()
   const sourcesAvailable = Object.fromEntries(arr(sources).map(s => [s.key, !!s.available]))
@@ -961,6 +986,18 @@ export function buildReport({
 
   for (const key of activeKinds) {
     const def = KIND_BY_KEY[key]
+    // t_50b783de: jenis khusus approval tidak dievaluasi saat modul Approval
+    // dimatikan — dilaporkan sebagai DISABLED (bukan "0 temuan"/bersih).
+    if (def.requiresApprovalModule && !approvalModuleEnabled) {
+      blocked.push({
+        kind: key,
+        label: def.label,
+        missing_sources: [],
+        disabled_by_policy: true,
+        reason: 'Modul Approval purchasing dinonaktifkan sementara — jenis reminder ini tidak dievaluasi (bukan berarti bersih).'
+      })
+      continue
+    }
     const missing = def.required.filter(s => sourcesAvailable[s] === false)
     if (missing.length) {
       blocked.push({
@@ -973,7 +1010,13 @@ export function buildReport({
   }
   const blockedKeys = new Set(blocked.map(b => b.kind))
 
-  const ctx = { dataset, thresholds, asOf: asOfDate, sourcesAvailable, approvalAvailable: sourcesAvailable.approval_steps }
+  // Saat Approval OFF, `approval_steps` tidak dibaca (collect.js) sehingga
+  // sumbernya dilaporkan tidak tersedia. Itu BUKAN degradasi data: jangan
+  // menandai laporan "degraded" hanya karena satu sumber yang sengaja mati.
+  const policyDisabledSources = approvalModuleEnabled ? [] : ['approval_steps']
+  const unavailable = arr(sources).filter(s => !s.available && !policyDisabledSources.includes(s.key))
+
+  const ctx = { dataset, thresholds, asOf: asOfDate, sourcesAvailable, approvalAvailable: sourcesAvailable.approval_steps, approvalModuleEnabled }
   const collected = []
 
   if (activeKinds.includes('pr_overdue_approval') && !blockedKeys.has('pr_overdue_approval')) {
@@ -1004,12 +1047,17 @@ export function buildReport({
 
   const items = sortItems(collected)
   const summary = summarize(items)
-  const unavailable = arr(sources).filter(s => !s.available)
   const truncated = arr(sources).filter(s => s.truncated)
 
   const notes = []
   if (unavailable.length) {
     notes.push(`Sumber data tidak tersedia: ${unavailable.map(s => `${s.key}${s.error_code ? ` (${s.error_code})` : ''}`).join(', ')}. Jenis reminder yang bergantung padanya dilaporkan BLOCKED.`)
+  }
+  // t_50b783de: sumber yang sengaja tidak dibaca dilaporkan terpisah — jujur,
+  // bukan error dan bukan "0 baris".
+  const skippedByPolicy = arr(sources).filter(s => s.skipped_by_policy)
+  if (skippedByPolicy.length) {
+    notes.push(`Sumber dilewati karena kebijakan Approval OFF: ${skippedByPolicy.map(s => s.key).join(', ')}. Tabel tidak dibaca dan jenis reminder khusus approval tidak dievaluasi.`)
   }
   if (evidenceSkipped.length) {
     notes.push(`Pemeriksaan bukti dilewati karena sumber tidak tersedia: ${[...new Set(evidenceSkipped)].join(', ')}.`)
@@ -1098,10 +1146,12 @@ export function renderText(report) {
   const width = Math.max(12, ...(report.sources || []).map(s => String(s.key).length))
   if (!(report.sources || []).length) L.push('  (tidak ada sumber yang diperiksa)')
   for (const s of report.sources || []) {
-    const state = s.available ? 'TERSEDIA' : 'TIDAK   '
-    let extra = s.available
-      ? `${s.row_count} baris${s.truncated ? ' (TERPOTONG)' : ''}`
-      : `${s.error_code || 'ERROR'} — ${s.error_message || 'tidak bisa dibaca'}`
+    const state = s.skipped_by_policy ? 'DILEWATI' : (s.available ? 'TERSEDIA' : 'TIDAK   ')
+    let extra = s.skipped_by_policy
+      ? 'sengaja tidak dibaca (modul Approval dinonaktifkan)'
+      : (s.available
+        ? `${s.row_count} baris${s.truncated ? ' (TERPOTONG)' : ''}`
+        : `${s.error_code || 'ERROR'} — ${s.error_message || 'tidak bisa dibaca'}`)
     if (s.key === 'sales_invoices' && s.durable !== undefined) {
       extra += s.durable ? ' · durable (Supabase)' : ' · TIDAK durable'
     }

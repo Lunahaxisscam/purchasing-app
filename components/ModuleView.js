@@ -9,6 +9,10 @@ import { sortRows } from '../modules/shared/sortRows'
 import {
   PAGE_SIZE, limitRows, shownLabel
 } from '../modules/shared/visibleRows'
+// t_50b783de (Approval OFF): guard lapis kedua di shell modul. Kalau ada
+// pemanggil lain (smoke/uji/state lama) yang memaksa page='approvals', tabel
+// approval TIDAK dirender — fallback aman, bukan sekadar menu disembunyikan.
+import { isApprovalEnabled, APPROVAL_OFF_MESSAGE } from '../lib/constants'
 import { renderGenericCell } from '../modules/shared/renderGenericCell'
 // t_27e26b0e: Export Data Material (CSV & PDF) — modul-terisolasi.
 import { MaterialExportButtons } from '../modules/materials/export'
@@ -280,6 +284,25 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
     onStatusChange, onReceivingStatusChange, onMoveToWarehouse, onSendToTukang,
     onMarkHandoverDelivered, onDecideApproval, onReviseApproval, onApproveItem,
     onFinishPr, onCloseRemaining, onMarkPrItemOrdered, onDelete, setPage
+  }
+
+  // t_50b783de: fallback aman bila modul Approval dimatikan tetapi shell ini
+  // dipanggil dengan page='approvals' (mis. rute lama/stub). Tidak ada tabel,
+  // tidak ada tombol keputusan, tidak ada query — hanya penjelasan.
+  if (page === 'approvals' && !isApprovalEnabled()) {
+    return (
+      <div className={styles.opsContainer || 'ops-container'}>
+        <div className="panel empty" role="status" data-testid="approval-off-fallback">
+          <h2 style={{ marginTop: 0 }}>Modul Approval dinonaktifkan sementara</h2>
+          <p style={{ maxWidth: '640px', lineHeight: 1.6 }}>{APPROVAL_OFF_MESSAGE}</p>
+          <p style={{ maxWidth: '640px', lineHeight: 1.6 }}>
+            Gunakan tombol <b>✓ Selesai &amp; Kirim</b> di modul Purchase Request; admin
+            langsung menindaklanjuti di modul Pembelian. Riwayat approval lama tetap
+            tersimpan dan tidak diubah.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -63,6 +63,11 @@ export const modules = [
     label: 'Approval',
     adminOnly: false,
     source: 'module',
+    // t_50b783de: modul ini dinonaktifkan sementara lewat lib/constants.js.
+    // Entri manifest TETAP ada (bukan dihapus) supaya bisa dihidupkan lagi
+    // tanpa menulis ulang registry; `enabled` dibaca dari satu kebijakan.
+    enabled: false,
+    disabledBy: 'APPROVAL_MODULE_ENABLED (lib/constants.js)',
     files: ['modules/approvals/view.jsx']
   },
   {

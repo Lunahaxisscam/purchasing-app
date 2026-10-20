@@ -12,6 +12,10 @@
 // ============================================================
 import React from 'react'
 import { format, rupiah } from '../../lib/constants'
+// t_50b783de (Approval OFF): label tombol kirim ulang mengikuti kebijakan
+// terpusat — saat Approval OFF, PR REJECTED yang diperbaiki dikirim ulang
+// lewat jalur lean dengan ID yang sama (bukan ke antrean approval).
+import { isApprovalEnabled } from '../../lib/constants'
 import { classifyRequest, requestStatusLabel, isLeanMarked, closeReasonOf, stripLeanMarkers } from './leanRequest'
 import { requestFulfillment, FULFILL_DONE, FULFILL_CLOSED, FULFILL_PARTIAL } from './fulfillment'
 
@@ -230,8 +234,20 @@ export function filters(ctx) {
 // ============================================================
 // Nilai enum di DB TIDAK diubah. Yang diterjemahkan hanya tampilannya:
 //   SUBMITTED + penanda lean -> "Siap Ditindaklanjuti"
-//   SUBMITTED tanpa penanda  -> "Submitted lama (…)": riwayat, bukan antrean.
+//   SUBMITTED tanpa penanda  -> "Submitted lama (…)" : riwayat, bukan antrean.
 // Class warna dipisah (badge-lean / badge-legacy) supaya tidak tertukar.
+
+// t_50b783de: tooltip tombol kirim ulang mengikuti kebijakan Approval.
+// Saat OFF: kirim ulang jalur lean (ID sama, riwayat penolakan tetap).
+// Saat ON : perilaku lama — kembali ke antrean approval.
+export function resubmitTitle(r, fallbackTitle) {
+  const label = r?.pr_number || fallbackTitle
+  if (isApprovalEnabled()) {
+    return `Submit Ulang — kirim kembali ${label} ke modul Approval (riwayat lama dipertahankan)`
+  }
+  return `Kirim Ulang — perbaikan ${label} langsung dikirim ke daftar kebutuhan siap dibeli (ID & nomor sama, riwayat penolakan tetap tersimpan)`
+}
+
 export function statusBadge(r, ctx = {}) {
   const stepCount = ctx.approvalStepsForPr ? ctx.approvalStepsForPr(r.id).length : 0
   const cls = classifyRequest(r, { approvalStepCount: stepCount })
@@ -564,7 +580,7 @@ export function desktopRow(r, ctx) {
               type="button"
               className="btn-finish btn-resubmit"
               onClick={() => onFinishPr(r)}
-              title={`Submit Ulang — kirim kembali ${r.pr_number || title} ke modul Approval (riwayat lama dipertahankan)`}
+              title={resubmitTitle(r, title)}
               style={{ fontSize: '10px', padding: '3px 6px', whiteSpace: 'nowrap', width: '100%', marginBottom: '2px' }}
             >
               ↻ Submit Ulang
@@ -649,7 +665,7 @@ export function rowActions(r, ctx) {
             type="button"
             className="btn-finish btn-resubmit"
             onClick={() => onFinishPr(r)}
-            title={`Submit Ulang — kirim kembali ${r.pr_number || title} ke modul Approval (riwayat lama dipertahankan)`}
+            title={resubmitTitle(r, title)}
             style={{ fontSize: '10px', padding: '3px 6px', whiteSpace: 'nowrap', width: '100%', marginBottom: '2px' }}
           >
             ↻ Submit Ulang

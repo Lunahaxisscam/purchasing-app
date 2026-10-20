@@ -133,7 +133,10 @@ export function createRemindersHandler(deps = {}) {
         key: s.key,
         table: s.table,
         error_code: s.error_code,
-        error_message: s.error_message
+        error_message: s.error_message,
+        // t_50b783de: sumber yang SENGAJA tidak dibaca (modul Approval OFF)
+        // dibedakan dari sumber yang gagal/tiada, supaya tidak terbaca error.
+        skipped_by_policy: !!s.skipped_by_policy
       })),
       kinds_blocked: report.blocked,
       kinds_available: report.kinds.filter(k => !k.blocked).map(k => k.key),

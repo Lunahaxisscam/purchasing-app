@@ -40,9 +40,19 @@
 // IDEMPOTEN: request yang sudah ber-penanda lean tidak ditulis ulang
 // (0 write, hasil `alreadySubmitted: true`). Klik ganda aman.
 // ============================================================
-import { withLeanMarker, isLeanMarked, stripLeanMarkers, withCloseMarker, composeNotesWithMarkers } from './leanRequest'
+import { withLeanMarker, isLeanMarked, stripLeanMarkers, withCloseMarker, composeNotesWithMarkers, withResubmitMarker } from './leanRequest'
+import { isApprovalEnabled } from '../../lib/constants'
 
-const ELIGIBLE_STATUSES = ['DRAFT', 'REVISI']
+// t_50b783de (Approval OFF): saat modul Approval dimatikan, PR berstatus
+// REJECTED yang DIPERBAIKI boleh dikirim ulang oleh admin lewat jalur lean —
+// memakai ID & pr_number yang SAMA, tanpa membuat approval_steps baru.
+// Riwayat penolakan (baris approval_steps + teks catatan) TIDAK dihapus dan
+// TIDAK diubah; penanda `[KirimUlang: <ISO>]` dicatat sebagai jejak aksi.
+// Saat modul Approval hidup lagi, REJECTED kembali ke antrean approval.
+const BASE_ELIGIBLE_STATUSES = ['DRAFT', 'REVISI']
+const ELIGIBLE_STATUSES = isApprovalEnabled()
+  ? BASE_ELIGIBLE_STATUSES
+  : [...BASE_ELIGIBLE_STATUSES, 'REJECTED']
 
 /**
  * Kirim request lewat jalur lean (tanpa approval).
@@ -63,9 +73,16 @@ export async function submitLean(pr, options = {}) {
   }
   if (!pr?.id) return { ok: false, error: 'Request tidak valid (id kosong).' }
 
-  const confirmed = confirmFn
-    ? confirmFn(`Kirim request "${pr.pr_number || pr.title || ''}" ke daftar kebutuhan siap dibeli?\n\nTidak perlu approval terpisah — admin langsung menindaklanjuti.`)
-    : true
+  // t_50b783de: saat Approval OFF, PR REJECTED yang sudah diperbaiki boleh
+  // dikirim ulang lewat jalur lean. Konfirmasi menyebut konsekuensinya secara
+  // eksplisit supaya tidak ada "pembukaan otomatis" data historis.
+  const resubmitIntent = String(pr.status || '').toUpperCase() === 'REJECTED' && !isApprovalEnabled()
+  const confirmMsg = resubmitIntent
+    ? `Kirim ulang PR yang pernah DITOLAK "${pr.pr_number || pr.title || ''}" ke daftar kebutuhan siap dibeli?\n\n` +
+      'PR memakai nomor & ID yang sama. Riwayat penolakan lama TETAP tersimpan; ' +
+      'tidak ada approval_steps baru dan status lama tidak dihapus.'
+    : `Kirim request "${pr.pr_number || pr.title || ''}" ke daftar kebutuhan siap dibeli?\n\nTidak perlu approval terpisah — admin langsung menindaklanjuti.`
+  const confirmed = confirmFn ? confirmFn(confirmMsg) : true
   if (!confirmed) return { ok: false, reason: 'cancelled' }
 
   if (lockRef) lockRef.current = true
@@ -95,7 +112,8 @@ export async function submitLean(pr, options = {}) {
     }
 
     if (!ELIGIBLE_STATUSES.includes(latestStatus)) {
-      const msg = `Request ${latest.pr_number || ''} tidak dapat dikirim (status: ${latest.status || 'tidak diketahui'}). Hanya DRAFT atau REVISI.`
+      const msg = `Request ${latest.pr_number || ''} tidak dapat dikirim (status: ${latest.status || 'tidak diketahui'}). ` +
+        (isApprovalEnabled() ? 'Hanya DRAFT atau REVISI.' : 'Hanya DRAFT, REVISI, atau REJECTED yang sudah diperbaiki.')
       if (setNotice) setNotice(msg)
       return { ok: false, error: msg }
     }
@@ -131,7 +149,10 @@ export async function submitLean(pr, options = {}) {
     }
 
     // 4. Tulis status existing + penanda. Catatan manusia DIPERTAHANKAN.
-    const nextNotes = withLeanMarker(composeNotesWithMarkers(stripLeanMarkers(latest.notes), latest.notes))
+    //    Kirim ulang PR REJECTED menambahkan penanda `[KirimUlang: …]` sebagai
+    //    jejak aksi admin; baris approval_steps lama TIDAK disentuh sama sekali.
+    let nextNotes = withLeanMarker(composeNotesWithMarkers(stripLeanMarkers(latest.notes), latest.notes))
+    if (latestStatus === 'REJECTED') nextNotes = withResubmitMarker(nextNotes)
     const { error: upErr } = await supabase
       .from('purchase_requests')
       .update({ status: 'SUBMITTED', notes: nextNotes })
@@ -157,9 +178,13 @@ export async function submitLean(pr, options = {}) {
       return { ok: false, error: msg }
     }
 
-    if (setNotice) setNotice(`Request ${latest.pr_number || ''} terkirim — siap ditindaklanjuti admin (tanpa approval).`)
+    if (setNotice) {
+      setNotice(latestStatus === 'REJECTED'
+        ? `PR ${latest.pr_number || ''} dikirim ulang (ID sama) — siap ditindaklanjuti admin tanpa approval. Riwayat penolakan tetap tersimpan.`
+        : `Request ${latest.pr_number || ''} terkirim — siap ditindaklanjuti admin (tanpa approval).`)
+    }
     if (loadAll) loadAll()
-    return { ok: true, pr_id: latest.id, pr_number: latest.pr_number, itemCount: items.length }
+    return { ok: true, pr_id: latest.id, pr_number: latest.pr_number, itemCount: items.length, resubmitted: latestStatus === 'REJECTED' }
   } finally {
     if (lockRef) lockRef.current = false
     if (setActionBusy) setActionBusy(false)

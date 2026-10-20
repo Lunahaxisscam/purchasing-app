@@ -36,12 +36,17 @@ const ALL_SOURCES = ['purchase_requests', 'pr_items', 'approval_steps', 'receivi
 function sources(opts = {}) {
   return ALL_SOURCES.map(k => src(k, opts[k] !== false, opts[k] === false ? 0 : 1))
 }
-function report(dataset, { asOf = '2026-10-18', thresholds = null, srcOpts = {} } = {}) {
+function report(dataset, { asOf = '2026-10-18', thresholds = null, srcOpts = {}, approvalModule = true } = {}) {
+  // t_50b783de: default harness = modul Approval AKTIF, supaya aturan
+  // approval yang kodenya sengaja dipertahankan (reversible) tetap teruji.
+  // Perilaku produksi (OFF) diuji eksplisit di blok A11 dan di
+  // scripts/approval-off-test.
   return R.buildReport({
     dataset,
     sources: sources(srcOpts),
     thresholds: thresholds || R.DEFAULT_THRESHOLDS,
-    asOf
+    asOf,
+    approvalModuleEnabled: approvalModule
   })
 }
 function itemsOf(rep, kind) {
@@ -393,6 +398,22 @@ ok('A1d', 'jenis dengan required_sources hanya menyebut sumber yang dikenal',
   eq('A10k', 'tidak ada item karangan', 0, rep.items.length)
   eq('A10l', 'semua jenis yang butuh data dilaporkan BLOCKED',
     R.KINDS.filter(k => k.required.length).length, rep.blocked.length)
+}
+
+// ---------- A10b. Approval OFF (t_50b783de): jenis approval disabled ----------
+{
+  const ds = {
+    purchase_requests: [{ id: 'pr1', pr_number: 'PR-001', status: 'SUBMITTED', created_at: '2026-10-08T00:00:00Z' }],
+    approval_steps: [{ id: 's1', purchase_request_id: 'pr1', status: 'PENDING', created_at: '2026-10-08T00:00:00Z' }]
+  }
+  const rep = report(ds, { approvalModule: false, srcOpts: { approval_steps: false } })
+  const blocked = rep.blocked.find(b => b.kind === 'pr_overdue_approval')
+  ok('A10b-1', 'pr_overdue_approval BLOCKED saat modul Approval OFF', !!blocked)
+  ok('A10b-2', 'alasan menyebut dinonaktifkan', !!blocked && /dinonaktifkan/i.test(blocked.reason))
+  eq('A10b-3', 'tidak ada item pr_overdue_approval', 0, itemsOf(rep, 'pr_overdue_approval').length)
+  ok('A10b-4', 'approval_steps tidak dihitung sumber gagal', !rep.notes.some(n => n.includes('Sumber data tidak tersedia: approval_steps')))
+  ok('A10b-5', 'pr_draft_stale tetap dievaluasi (reminder lain hidup)',
+    report({ purchase_requests: [{ id: 'p2', status: 'DRAFT', created_at: '2026-09-01T00:00:00Z' }] }, { approvalModule: false }).items.some(i => i.kind === 'pr_draft_stale'))
 }
 
 // ---------- A11. Read-only: dataset tidak dimutasi ----------

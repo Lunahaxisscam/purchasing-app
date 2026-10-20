@@ -18,6 +18,7 @@
 import { createClient } from '@supabase/supabase-js'
 import fs from 'node:fs'
 import path from 'node:path'
+import { APPROVAL_MODULE_ENABLED } from './rules.js'
 
 // Tabel yang dibaca. `key` dipakai oleh aturan di rules.js.
 // `expect` = kolom yang WAJIB ada agar jenis reminder terkait bisa dipercaya.
@@ -165,6 +166,27 @@ export async function collect({ env = process.env, rowLimit = DEFAULT_ROW_LIMIT,
   const dataset = {}
   const sources = []
   for (const def of SOURCES) {
+    // t_50b783de (Approval OFF): tabel `approval_steps` TIDAK dibaca sama
+    // sekali saat modul Approval dimatikan — konektor query ikut diputus,
+    // bukan hanya menunya. Sumber dilaporkan `skipped_by_policy` (bukan
+    // "tersedia 0 baris" dan bukan error) supaya laporan tetap jujur.
+    if (def.key === 'approval_steps' && !APPROVAL_MODULE_ENABLED) {
+      dataset[def.key] = []
+      sources.push({
+        key: def.key,
+        table: def.table,
+        available: false,
+        skipped_by_policy: true,
+        row_count: 0,
+        fetched: 0,
+        truncated: false,
+        columns: [],
+        error_code: null,
+        error_message: null,
+        note: 'Modul Approval purchasing dinonaktifkan sementara — tabel ini sengaja TIDAK dibaca.'
+      })
+      continue
+    }
     const res = await readOne(c, def, { rowLimit: limit })
     dataset[def.key] = res.available ? res.rows : []
     const { rows, ...status } = res
@@ -195,7 +217,11 @@ export async function collect({ env = process.env, rowLimit = DEFAULT_ROW_LIMIT,
       row_limit: limit,
       client_ready: !!c,
       client_reason: reason,
-      queries: SOURCES.map(d => ({ table: d.table, method: 'SELECT' }))
+      // t_50b783de: daftar query yang BENAR-BENAR dijalankan (approval_steps
+      // tidak muncul saat modul Approval OFF).
+      queries: SOURCES
+        .filter(d => !(d.key === 'approval_steps' && !APPROVAL_MODULE_ENABLED))
+        .map(d => ({ table: d.table, method: 'SELECT' }))
     }
   }
 }

@@ -125,6 +125,8 @@ const mock = {
 // t_9109cf5e: 'receivings' TIDAK lagi dirender lewat ModuleView (Purchase kini
 // halaman sendiri: dua tab + dialog Proses Pembelian) — diuji terpisah di
 // bawah lewat PurchasePage.
+// t_50b783de: section 'approvals' tetap ada di smoke, tetapi shell ModuleView
+// kini merender FALLBACK saat Approval OFF (dibuktikan di build & uji runtime).
 const PAGES = ['projects', 'past_projects', 'vendors', 'materials', 'requests', 'approvals', 'handovers']
 
 export default function SmokePage() {

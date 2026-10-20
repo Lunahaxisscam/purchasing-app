@@ -83,6 +83,12 @@ os.symlink(os.path.join(REPO, 'node_modules'), os.path.join(SB, 'node_modules'))
 open(os.path.join(SB, 'package.json'), 'w').write('{ "type": "module" }')
 
 print(f'Sandbox: {SB}\n')
+# t_50b783de: suite ini menguji HANDLER APPROVAL LEGACY (handleFinishPr), yang
+# kini fail-closed saat modul Approval OFF. Flag dinyalakan DI SALINAN SANDBOX
+# saja supaya kontrak handler lama tetap teruji; repo/produksi tetap OFF.
+sys.path.insert(0, os.path.join(REPO, 'scripts', 'approval-off-test'))
+from enable_in_sandbox import force_enable  # noqa: E402
+force_enable(SB)
 r_swc = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB)
 if r_swc.returncode:
     sys.exit(r_swc.returncode)
