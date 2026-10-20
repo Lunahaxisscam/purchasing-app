@@ -250,6 +250,16 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
                 {row.sisa !== null && datang > 0 ? ` · belum datang: ${Math.max(0, row.sisa - datang)}` : ''}
               </div>
 
+              {/* Barang rusak yang dibiarkan "Tentukan nanti" TIDAK punya saldo
+                  retur (retur_qty 0) → tidak bisa diretur sampai diputuskan.
+                  Dikatakan di sini, bukan baru ketahuan di modal retur. */}
+              {rusak > 0 && entry.retur === RETUR_NANTI && (
+                <div style={S.warn} data-testid={`rc-warn-nanti-${row.id}`}>
+                  {rusak} rusak dibiarkan <b>tanpa keputusan</b> — barang ini belum bisa diretur
+                  sampai Anda memilih "Kembalikan ke supplier" atau "Dibuang".
+                </div>
+              )}
+
               {Object.keys(errs).length > 0 && (
                 <div style={S.err} data-testid={`rc-err-${row.id}`}>{Object.values(errs)[0]}</div>
               )}

@@ -139,4 +139,12 @@ if rc:
 print('\n=== 4. Uji RPC NYATA ===')
 env = dict(os.environ, PGURL=PGURL_DB)
 rc = run(['node', os.path.join(HERE, 'db_rpc_test.mjs')], cwd=REPO, env=env)
-sys.exit(rc)
+
+# ------------------------------------------- 5. matriks retur (rantai penuh)
+# db_rpc_test membuktikan RPC-nya benar. Skrip ini membuktikan HAL YANG
+# BERBEDA: setiap baris yang DITAWARKAN modal retur benar-benar DITERIMA RPC.
+# Ditemukan defect run 190 justru di sambungan ini (UI menawarkan qty_rusak,
+# RPC memakai retur_qty) — jadi keduanya harus dijalankan.
+print('\n=== 5. Matriks retur: pilihan form → modal → RPC ===')
+rc2 = run(['node', os.path.join(HERE, 'probe_retur_matrix.mjs')], cwd=REPO, env=env)
+sys.exit(rc or rc2)
