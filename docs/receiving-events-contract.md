@@ -216,6 +216,28 @@ Kontrak yang dipakai UI:
 | Sudah ada, user memilih **foto baru** | Ditolak dengan alasan yang sama: event pertama tidak pernah ditimpa |
 | Sudah ada, user **tidak** memilih foto | Bukan konflik (form tidak memuat ulang lampiran lama) |
 
+### Foto: `foto_ref` = referensi arsip, BUKAN nama berkas (run 206)
+
+`receiving_events.foto_ref` menyimpan **path/ID arsip** (Drive/Storage),
+sesuai `DATA_DICTIONARY_v2` schema owner. Nama berkas di perangkat admin
+(`IMG_20261021_0912.jpg`) **bukan** referensi: berkas itu tidak pernah
+diunggah, dan menyimpannya membuat baris DB tampak punya bukti foto padahal
+tidak ada yang bisa dibuka.
+
+Kontrak yang dipakai UI sekarang:
+
+| Keadaan | Nilai `foto_ref` | Yang dikatakan UI |
+|---|---|---|
+| Tidak ada berkas dipilih | `null` | — (foto memang opsional) |
+| Berkas dipilih, unggah belum tersedia | `null` | "berkas ini **tidak ikut tersimpan**" per baris, SEBELUM simpan |
+| Ada referensi arsip nyata (`foto.ref`) | string referensi | — |
+
+Unggah ke arsip **belum diimplementasikan** (`modules/receivings/attachments.js`
+mencatat bahwa bucket Storage kosong). Sampai itu ada, satu-satunya nilai
+jujur adalah `null`; UI tidak boleh diam saja saat admin memilih berkas.
+Kalau nanti unggah aktif, isi `entry.foto.ref` dengan hasil unggah — bukan
+nama berkas.
+
 Koreksi sungguhan **belum didukung**: skema punya `receiving_events.reversal_of`
 tetapi belum ada RPC pembalik/pengoreksi di paket `t_03b41644`. Sampai RPC itu
 ada, UI menolak dengan penjelasan — bukan menerima lalu diam-diam mengabaikan.

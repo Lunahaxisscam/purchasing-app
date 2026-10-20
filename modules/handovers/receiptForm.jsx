@@ -239,6 +239,17 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
                 </label>
               </div>
 
+              {/* DEFECT run 206: berkas yang dipilih TIDAK diunggah ke mana pun
+                  (arsip Drive/Storage belum terintegrasi), tetapi UI diam saja —
+                  admin mengira bukti fotonya ikut tersimpan. Sekarang dikatakan
+                  apa adanya per baris, sebelum Simpan. */}
+              {entry.foto && (
+                <div style={S.warn} data-testid={`rc-foto-jujur-${row.id}`}>
+                  Foto <b>{entry.foto.nama}</b> belum bisa disimpan: unggah ke arsip bukti belum aktif, jadi
+                  berkas ini <b>tidak ikut tersimpan</b>. Data penerimaan tetap bisa disimpan tanpa foto.
+                </div>
+              )}
+
               {entry.retur === RETUR_DIBUANG && (
                 <label style={{ ...S.field, flexDirection: 'row', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                   <input

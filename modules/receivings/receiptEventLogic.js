@@ -161,7 +161,14 @@ export function buildEventDrafts(rows, entries, { receivingId, createdBy = null 
       retur_status: returEff,
       retur_qty: returEff === RETUR_NONE ? 0 : rusak,
       discard_confirmed: returEff === RETUR_DISCARDED ? !!e.konfirmasiBuang : false,
-      foto_ref: e.foto ? String(e.foto.nama || 'foto-lokal') : null,
+      // ⚠️ JANGAN mengarang referensi foto (defect run 206). `foto_ref` di
+      // kontrak schema = path/ID arsip (Drive/Storage), BUKAN nama berkas di
+      // perangkat admin. Sebelum ini yang dikirim hanya `file.name`
+      // ("IMG_20261021_0912.jpg") — baris DB lalu tampak punya bukti foto
+      // padahal berkasnya tidak pernah diunggah ke mana pun. Unggah berkas
+      // belum aktif (lihat modules/receivings/attachments.js), jadi satu-
+      // satunya nilai jujur adalah null sampai ada referensi nyata.
+      foto_ref: e.foto && e.foto.ref ? String(e.foto.ref) : null,
       created_by: createdBy,
       _computed: { baik }
     })

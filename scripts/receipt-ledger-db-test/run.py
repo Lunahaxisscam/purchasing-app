@@ -89,6 +89,11 @@ for root, dirs, files in os.walk(os.path.join(REPO, 'modules', 'receivings')):
         if f.endswith(('.js', '.jsx')):
             REL_FILES.append(os.path.relpath(os.path.join(root, f), REPO))
 
+# run 206: probe rincian serah terima memakai modul display handover VERBATIM
+# (rincianInfo/rincianCell) supaya yang diuji adalah kode yang dipakai UI,
+# bukan salinannya. display.js hanya bergantung pada lib/constants.
+REL_FILES.append('modules/handovers/display.js')
+
 
 def sb_rel(rel):
     base, _ = os.path.splitext(rel)
@@ -190,6 +195,14 @@ rc6 = run(['node', os.path.join(HERE, 'probe_handover_partial.mjs')], cwd=REPO, 
 print('\n=== 10. Role aplikasi (authenticated): grant yang dibutuhkan READY ===')
 rc7 = run(['node', os.path.join(HERE, 'probe_app_role.mjs')], cwd=REPO, env=env)
 
+# ---------- 11. rincian serah terima benar-benar TERLIHAT (run 206) ----------
+# `handover_confirm` menulis handover_items, tetapi halaman tidak pernah
+# membacanya → rincian mustahil tampil walau datanya ADA. Probe ini menulis
+# lewat RPC nyata, membaca dengan kolom yang dipakai loadAll, lalu menjalankan
+# display.rincianInfo/rincianCell VERBATIM pada baris hasilnya.
+print('\n=== 11. Rincian serah terima terlihat (handover_items terbaca halaman) ===')
+rc8 = run(['node', os.path.join(HERE, 'probe_handover_items_visible.mjs')], cwd=REPO, env=env)
+
 # CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
 # bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
 # menyimpulkan "siap DDL" padahal READY mustahil menyala.
@@ -197,4 +210,4 @@ if rc7 == 2:
     print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
     print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
     sys.exit(2)
-sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8)

@@ -272,6 +272,28 @@ Catatan lain yang juga diverifikasi: RPC (`receipt_apply_events`,
 `authenticated` (bukan permission denied), dan keempat tabel ledger bisa
 dibaca. Jadi yang kurang hanya grant pada view.
 
+### 5.2 Temuan run 206 — 5 defect yang membuat fitur MUSTAHIL terlihat
+
+Run 202 menutup dua jalan buntu. Run 206 menguji **rantai tampilan**, bukan
+hanya rantai simpan: apa yang benar-benar bisa DILIHAT pengguna setelah data
+tersimpan. Lima defect ditemukan; semuanya diperbaiki di commit run 206.
+
+| # | Defect | Bukti sebelum fix | Sesudah |
+|---|---|---|---|
+| G | **`handover_items` tidak pernah dibaca halaman.** `pages/index.js` `loadAll` hanya memuat tabel `handovers`; `display.rincianInfo()` menunggu `handover.items` yang tidak pernah diisi. Jadi walau RPC `handover_confirm` menulis rincian, daftar/detail/modal SELALU berbunyi "Rincian barang belum tersedia". | `probe_handover_items_visible` P5/P6/P8 gagal pada kode lama; `Object.keys(handoverRow)` dari `select('*')` tidak punya `items` | `loadAll` membaca `handover_items` (best-effort, tidak memblokir halaman) dan menempelkan `items` hanya bila ada barisnya. Diuji di PG16 nyata: **11 PASS / 0 FAIL** |
+| H | **Tombol penutup "Tandai Diserahkan" mati di mode READY.** `actionPlan` menilai `summary.done` dari `pr_items.status` (DI_GUDANG/DI_TUKANG). Alokasi ke tukang sekarang dicatat di `receiving_events.tujuan_tukang` dan TIDAK mengubah status pr_items → tombol selalu "Belum ada barang yang didistribusikan", sehingga konfirmasi per barang mustahil dibuka dari antrean. | probe A1: `disabled=true`, title "Belum ada barang yang didistribusikan (gudang/tukang)" walau 2 barang sudah dialokasikan | Di mode READY gerbang aksi TERIMA diserahkan ke modal konfirmasi (yang punya jalur untuk semua keadaan: baris prefill / header-only / tolak jelas). probe A1–A3 hijau |
+| I | **Tombol ✓ di baris melewati konfirmasi per barang.** `view.rowActions` memanggil `onMarkHandoverDelivered` langsung (window.confirm + tulis header). Di mode READY itu mengunci dokumen (CAS `diserahkan_at`) tanpa menulis rincian — rincian untuk dokumen itu tidak akan pernah bisa dicatat. | probe B2/B3: `legacyCalled=1`, modal tidak terbuka | ✓ (desktop + mobile) membuka modal konfirmasi yang sama; konfirmasi header tetap tersedia di dalam modal saat skema belum ada |
+| J | **Modal retur menuduh data rusak saat admin belum memilih apa pun.** Dengan semua centang dilepas, `allowed` kosong → panel "tidak punya tindakan yang sah — datanya tidak konsisten: berstatus sudah dibuang tetapi konfirmasi buang tidak tercatat", padahal datanya normal. | probe C2: pesan itu muncul untuk 1 baris PENDING yang sehat | Panel diagnostik hanya tampil bila ADA baris terpilih; keadaan "belum memilih" dijelaskan apa adanya (`return-none-selected`) |
+| K | **Nama berkas lokal dikirim sebagai `foto_ref`.** `buildEventDrafts` mengirim `file.name` ("IMG_20261021_0912.jpg"), padahal `foto_ref` di kontrak schema = path/ID arsip. Baris DB tampak punya bukti foto padahal berkas tidak pernah diunggah; UI tidak pernah menyatakannya (hanya muncul sebagai "konflik" saat submit ulang). | probe D2: `foto_ref="IMG_20261021_0912.jpg"` di payload RPC | `foto_ref` hanya diisi bila ada referensi nyata (`foto.ref`); peringatan "tidak ikut tersimpan" tampil per baris SEBELUM simpan |
+
+Bukti RED → GREEN: `receipt_physical_test` pada kode **sebelum** perbaikan →
+**7 FAIL** (S3a, S3b, X1a, X2b, X2c, X3a, X3b); sesudah → **167 PASS / 0 FAIL**.
+Probe adversarial (`probe_run206_adversarial.mjs`, 16 cek) dijalankan otomatis
+oleh `run.py` di sandbox yang sama.
+
+**Batasan yang tetap (jujur):** unggah foto ke arsip Drive/Storage **belum
+ada**, jadi `foto_ref` selalu `null` dan UI mengatakannya. Ini bukan regresi —
+sebelumnya aplikasi *mengirim nama berkas* yang membuatnya tampak tersimpan.
 
 ---
 
@@ -280,8 +302,8 @@ dibaca. Jadi yang kurang hanya grant pada view.
 | Kegiatan | Perkiraan |
 |---|---|
 | `next build` | ~60–90 s |
-| `receipt-ledger-db-test` (initdb + 5 migrasi + 47 + 14 cek) | ~60 s |
-| `receipt-physical-test` | ~20 s |
+| `receipt-ledger-db-test` (initdb + 5 migrasi + 47 + 14 + 18 + 15 + 20 + 11 cek) | ~70 s |
+| `receipt-physical-test` (167 assertion + 16 probe adversarial) | ~25 s |
 | handover-flow + compact + purchase-flow | ~90 s total |
 | probe live read-only | < 5 s |
 

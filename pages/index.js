@@ -216,6 +216,45 @@ export default function App() {
 
       result[name] = items
     }))
+
+    // ---------------------------------------------------------------
+    // RINCIAN BARANG SERAH TERIMA (t_7bc6246b, defect run 206)
+    // ---------------------------------------------------------------
+    // `handover_items` adalah sumber jumlah yang DISERAHKAN per barang.
+    // Sebelum ini tabel itu TIDAK PERNAH dibaca halaman, sehingga
+    // `display.rincianInfo()` selalu jatuh ke label "Rincian barang belum
+    // tersedia" — bahkan setelah migrasi dijalankan dan RPC
+    // `handover_confirm` menulis barisnya. Artinya fitur "rincian barang"
+    // mustahil terlihat, bukan sekadar belum aktif.
+    //
+    // Sifat pembacaan ini: BEST-EFFORT & TIDAK MEMBLOKIR halaman. Saat tabel
+    // belum ada (mode LEGACY, PGRST205) atau RLS menolak, halaman tetap
+    // memuat data lain dan label jujur tetap dipakai — bukan error, bukan
+    // angka karangan.
+    try {
+      const { data: hiRows, error: hiErr } = await supabase
+        .from('handover_items')
+        .select('id, handover_id, receiving_event_id, receiving_item_id, item_name, qty_diserahkan, satuan, penerima, catatan, created_at')
+      if (!hiErr && Array.isArray(hiRows)) {
+        const byHandover = new Map()
+        for (const row of hiRows) {
+          if (!row || !row.handover_id) continue
+          const list = byHandover.get(row.handover_id) || []
+          list.push(row)
+          byHandover.set(row.handover_id, list)
+        }
+        result.handovers = (result.handovers || []).map(h => {
+          const items = byHandover.get(h.id)
+          // Hanya ditempel bila ADA baris: `rincianInfo` memakai keberadaan
+          // `items` sebagai bukti rincian tersimpan, jadi array kosong akan
+          // salah dianggap "tersedia".
+          return items && items.length ? { ...h, items } : h
+        })
+      }
+    } catch (e) {
+      // Sengaja tidak menghentikan loadAll: rincian opsional, data inti wajib.
+    }
+
     setRows(result)
   }
 

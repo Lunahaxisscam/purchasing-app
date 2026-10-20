@@ -97,9 +97,16 @@ os.symlink(os.path.join(REPO, 'node_modules'), os.path.join(SB, 'node_modules'))
 open(os.path.join(SB, 'package.json'), 'w').write('{ "type": "module" }')
 shutil.copy(os.path.join(REPO, 'scripts', 'vendors-toolbar-test', 'compile_sandbox.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'receipt_physical_test.mjs'), SB)
+# run 206: probe adversarial (keadaan lapangan yang tidak diuji harness utama).
+# Dijalankan SESUDAH harness utama; exit-nya dilaporkan terpisah supaya tidak
+# menyamarkan hasil 153+ assertion di atas.
+shutil.copy(os.path.join(HERE, 'probe_run206_adversarial.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
 rc = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB).returncode
 if rc:
     sys.exit(rc)
-sys.exit(subprocess.run(['node', 'receipt_physical_test.mjs'], cwd=SB).returncode)
+rc_main = subprocess.run(['node', 'receipt_physical_test.mjs'], cwd=SB).returncode
+print('\n=== PROBE ADVERSARIAL (run 206) ===')
+rc_probe = subprocess.run(['node', 'probe_run206_adversarial.mjs'], cwd=SB).returncode
+sys.exit(rc_main or rc_probe)

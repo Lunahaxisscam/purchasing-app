@@ -248,9 +248,19 @@ export function rowActions(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-${r.id}`}
-            onClick={() => onMarkHandoverDelivered(r)}
+            onClick={() => {
+              // DEFECT run 206: tombol ✓ dulu langsung memanggil
+              // `onMarkHandoverDelivered` (window.confirm + tulis header saja).
+              // Di mode READY itu MELEWATI konfirmasi per barang dan langsung
+              // mengunci dokumen (CAS `diserahkan_at`), sehingga rincian barang
+              // tidak akan pernah bisa dicatat untuk dokumen itu. Sekarang ✓
+              // membuka modal konfirmasi yang SAMA dengan antrean: per barang
+              // bila skema siap, dan otomatis jatuh ke konfirmasi header
+              // (perilaku lama) bila belum — jadi tidak ada jalur yang hilang.
+              openPhysicalModal({ kind: 'confirm', handover: r })
+            }}
             style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 7px', fontSize: '11px', cursor: 'pointer', fontWeight: 700, lineHeight: 1 }}
-            title="Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik)"
+            title="Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik — rincian per barang bila tersedia)"
           >
             ✓
           </button>
@@ -518,7 +528,7 @@ export function mobileCard(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-mobile-${r.id}`}
-            onClick={() => onMarkHandoverDelivered(r)}
+            onClick={() => openPhysicalModal({ kind: 'confirm', handover: r })}
             style={{ width: '100%', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: 700 }}
           >
             ✓ Tandai Sudah Diserahkan

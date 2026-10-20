@@ -216,6 +216,27 @@ function ActionCard({ entry, ctx, onDone, cap }) {
   //     tanpa mengubah apa pun (loadContext → receiving null → 0 baris) —
   //     klaim palsu. Sekarang nonaktif dengan alasan yang bisa dibaca.
   const gated = plan.map(a => {
+    // ---- DEFECT run 206: "Tandai Diserahkan" mati total di mode READY ----
+    // `actionPlan` (logic.js) menentukan aksi TERIMA dari `summary.done`, yaitu
+    // status `pr_items` (DI_GUDANG/DI_TUKANG) — dimensi DISTRIBUSI legacy.
+    // Sejak alokasi ke tukang dicatat per barang di form Terima Barang
+    // (`receiving_events.tujuan_tukang`), `pr_items.status` TIDAK ikut berubah.
+    // Akibatnya tombol penutup selalu nonaktif ("Belum ada barang yang
+    // didistribusikan") padahal ada 2 barang menunggu diserahkan — dan
+    // satu-satunya jalan membuka konfirmasi per barang jadi buntu.
+    // Di mode READY kebenaran bukti fisik ada di event + kuota tukang yang
+    // divalidasi RPC `handover_confirm`; modalnya sendiri yang memutuskan
+    // (termasuk menolak bila tidak ada baris). Jadi gerbangnya diserahkan ke
+    // modal — bukan ditebak dari status nota.
+    if (a.key === ACT_TERIMA && ledgerReady) {
+      if (handover?.diserahkan_at) return a
+      // Tidak disaring lagi di sini: modal konfirmasi sudah punya jalur yang
+      // benar untuk SEMUA keadaan — baris prefill bila ada alokasi tukang,
+      // panel "tidak ada alokasi" + konfirmasi header-only bila tidak ada,
+      // dan penolakan jelas bila rincian gagal dimuat. Menyaring lagi di sini
+      // hanya menutup jalan keluar yang sudah diperbaiki di run 190.
+      return { ...a, ok: true, reason: 'Buka konfirmasi per barang — jumlah fisik diverifikasi di sana.' }
+    }
     if (a.key !== ACT_GUDANG && a.key !== ACT_TUKANG) return a
     if (problemNoted) {
       return { ...a, ok: false, reason: 'Nota sudah ditandai bermasalah (Retur/Refund) — barang tidak didistribusikan.' }

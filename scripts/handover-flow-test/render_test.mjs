@@ -131,15 +131,23 @@ console.log('=== R1. DAFTAR HANDOVER (desktop): barang, status bukti fisik, aksi
 
 // ---------- R2: konfirmasi fisik dari UI ----------
 {
+  // RUN 206: tombol ✓ TIDAK lagi menulis header langsung. Ia membuka modal
+  // konfirmasi (store `physicalModal`) supaya jalur per barang tidak dilewati.
+  const PM = await import(pathToFileURL(path.join(SB, 'dist/modules/handovers/physicalModal.mjs')).href)
   mock.__reset({ handovers: [{ id: 'h1', status: 'CONFIRMED', diserahkan_at: null }] })
+  PM.resetPhysicalModal()
   let confirmed = null
   const { document: doc } = mountModule(HANDOVERS, { onMarkHandoverDelivered: (r) => { confirmed = r } })
   await tick()
   click(doc.querySelector('[data-testid="btn-deliver-h1"]'))
   await tick()
-  check('R2a klik ✓ memanggil onMarkHandoverDelivered dgn baris benar', confirmed?.id === 'h1')
+  const target = PM.__peekForTest ? PM.__peekForTest() : null
+  check('R2a klik ✓ membuka modal konfirmasi utk baris yang benar',
+    target?.kind === 'confirm' && target?.handover?.id === 'h1', JSON.stringify(target?.kind || null))
+  check('R2a2 ✓ TIDAK menulis header langsung (jalur per barang tidak dilewati)', confirmed === null)
   // h2 (sudah diserahkan) tidak menawarkan tombol lagi
   check('R2b baris sudah diserahkan tidak punya tombol konfirmasi', !doc.querySelector('[data-testid="btn-deliver-h2"]'))
+  PM.resetPhysicalModal()
 }
 
 // ---------- R3: detail expand + prototype ----------

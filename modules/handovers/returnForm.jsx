@@ -241,13 +241,24 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
                 Tidak ditawarkan untuk barang yang dipilih: {blockedActions.map(b => `${b.label} (${b.why})`).join('; ')}.
               </div>
             )}
-            {!allowed.length && (
+            {!allowed.length && chosen.length > 0 && (
               <div data-testid="return-no-common-action" style={{ ...S.note, background: '#fdf8ea', border: '1px solid #f0dcb4', color: '#7a4a08' }}>
                 {chosen.every(r => (r.allowed_resolutions || []).length === 0)
                   ? <>Barang yang dipilih tidak punya tindakan retur yang sah — {NO_ACTION_WHY}.</>
                   : <>Barang yang dipilih mencampur barang <b>sudah dibuang</b> dan <b>menunggu dikembalikan</b> —
                     tidak ada satu tindakan yang sah untuk semuanya. Retur dipisah: centang kelompok yang sama
                     (atau simpan dua kali).</>}
+              </div>
+            )}
+            {/* DEFECT run 206: saat SEMUA centang dilepas, `allowed` kosong dan
+                panel diagnostik di atas menuduh "datanya tidak konsisten /
+                mencampur barang dibuang" — padahal admin hanya belum memilih
+                apa pun. Itu menyesatkan ke arah memperbaiki data yang benar.
+                Keadaan "belum memilih" dijelaskan apa adanya di sini. */}
+            {!chosen.length && (
+              <div data-testid="return-none-selected" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
+                Belum ada barang yang dipilih. Centang minimal satu barang rusak di bawah untuk melihat tindakan
+                yang tersedia dan menyimpan retur.
               </div>
             )}
 

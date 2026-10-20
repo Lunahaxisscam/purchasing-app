@@ -488,9 +488,14 @@ console.log('\n=== S. REPLAY vs KOREKSI (defect run 199) ===\n')
   check('S2b pesan replay menyebut tidak digandakan', says2.some(m => /tidak digandakan/i.test(m)), JSON.stringify(says2))
   check('S2c tidak ada error koreksi palsu', !tid(doc2, 'receipt-error'), tid(doc2, 'receipt-error')?.textContent)
 
-  // (c) FOTO BARU pada kedatangan yang sama: bukan replay, tetapi juga tidak
-  // akan tersimpan (event pertama tidak ditimpa) → harus dikatakan, bukan
-  // diam-diam "berhasil".
+  // (c) FOTO pada kedatangan yang sama.
+  // RUN 206: kontrak foto diperketat. `foto_ref` di schema = path/ID arsip,
+  // BUKAN nama berkas lokal. Dulu `file.name` dikirim apa adanya, sehingga
+  // (i) baris DB tampak punya bukti foto padahal berkas tidak pernah diunggah,
+  // dan (ii) submit ulang dengan foto baru terdeteksi sebagai "konflik" —
+  // satu-satunya saat aplikasi menyebut foto. Untuk kedatangan PERTAMA tidak
+  // ada peringatan sama sekali. Sekarang: foto TIDAK PERNAH dikirim sebagai
+  // referensi palsu, dan UI menyatakannya SEBELUM simpan (bukan sesudah).
   mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: { ...LEDGER, receivingEvents: [{ ...stored }] } })
   PM.resetPhysicalModal(); resetCapability()
   const says3 = []
@@ -508,12 +513,16 @@ console.log('\n=== S. REPLAY vs KOREKSI (defect run 199) ===\n')
   Object.defineProperty(fileInput, 'files', { value: [file], configurable: true })
   flushSync(() => fileInput.dispatchEvent(new dom0.window.Event('change', { bubbles: true })))
   await tick()
+  check('S3a UI menyatakan berkas foto TIDAK ikut tersimpan (sebelum simpan)',
+    /tidak ikut tersimpan/i.test(tid(doc3, 'rc-foto-jujur-ri1')?.textContent || ''),
+    tid(doc3, 'rc-foto-jujur-ri1')?.textContent)
   click(tid(doc3, 'receipt-submit'))
   await tick(); await tick(); await tick()
-  const err3 = tid(doc3, 'receipt-error')?.textContent || ''
-  check('S3a foto baru pada kedatangan yang sama TIDAK diklaim tersimpan',
-    /foto bukti/i.test(err3) && /tidak ditulis/i.test(err3), err3)
-  check('S3b nol RPC (tidak ada klaim palsu)', mock.__callsOf('rpc').length === 0, String(mock.__callsOf('rpc').length))
+  const payload3 = mock.__callsOf('rpc')[0]?.args?.p_events?.[0] || null
+  check('S3b payload tidak membawa nama berkas sebagai foto_ref (bukan referensi palsu)',
+    payload3 !== null && (payload3.foto_ref === null || payload3.foto_ref === undefined),
+    JSON.stringify(payload3?.foto_ref))
+  check('S3c tidak ada pesan yang mengklaim foto tersimpan', !says3.some(m => /foto/i.test(m)), JSON.stringify(says3))
 }
 
 // ============================================================
@@ -862,6 +871,112 @@ console.log('\n=== Q. LOGIKA MURNI (tanpa UI) ===\n')
   check('Q10 retur penuh tidak ditawarkan lagi', offered.length === 0, JSON.stringify(offered))
   const partial = ELOGIC.returLinesFromEvents(returEvs, { alreadyReturned: { e1: 1 } })
   check('Q11 retur sebagian menawarkan sisa', partial.length === 1 && partial[0].qty === 1, JSON.stringify(partial))
+}
+
+console.log('\n=== X. DEFECT RUN 206 — 4 temuan yang dikunci ===\n')
+// ============================================================
+{
+  // ---- X1: tombol penutup (Tandai Diserahkan) di antrean READY ----
+  // Alokasi tukang dicatat lewat event penerimaan; pr_items.status TIDAK
+  // berubah. Sebelum fix, actionPlan menilai "belum ada distribusi" dan
+  // tombol penutup mati → konfirmasi per barang mustahil dibuka dari antrean.
+  const ctx = {
+    rows: [HO], allReceivings: [REC], allReceivingItems: RI,
+    allRequests: [{ id: 'pr1', pr_number: 'PR-1', title: 'x' }],
+    H: { receivingItemsForReceiving: () => RI, prItemsForPr: () => PR_ITEMS },
+    say: noop, refresh: noop, onReceivingStatusChange: noop
+  }
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: LEDGER })
+  PM.resetPhysicalModal(); resetCapability()
+  const { document: doc } = mount(Q.renderHandoverQueue(ctx))
+  await tick(); await tick(); await tick()
+  const finishBtn = tid(doc, 'queue-act-terima-h1')
+  check('X1a READY: tombol penutup AKTIF walau pr_items belum DI_TUKANG',
+    !!finishBtn && finishBtn.disabled === false,
+    `disabled=${finishBtn?.disabled} title=${finishBtn?.getAttribute('title')}`)
+  if (finishBtn && !finishBtn.disabled) {
+    click(finishBtn)
+    await tick(); await tick(); await tick()
+    check('X1b klik membuka konfirmasi per barang', !!tid(doc, 'handover-confirm-form'))
+    check('X1c baris prefill alokasi tukang tampil', !!tid(doc, 'hc-qty-ev1'))
+  }
+
+  // ---- X2: pesan "belum ada yang dipilih" di modal retur ----
+  const RET_LEDGER = {
+    receivingEvents: [
+      { id: 'ev1', receiving_id: 'rec1', receiving_item_id: 'ri1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 6, qty_rusak: 2, tujuan_ws: 0, tujuan_tukang: 0, penerima_tukang: null, retur_status: 'PENDING', retur_qty: 2, discard_confirmed: false }
+    ],
+    handoverItems: [], returnLines: [], returnCases: [], progress: []
+  }
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: RET_LEDGER })
+  PM.resetPhysicalModal(); resetCapability()
+  const ReturnForm = (await importDist('modules/handovers/returnForm.mjs')).default
+  const m2 = mount(React.createElement(ReturnForm, {
+    receiving: REC, capability: { ready: true, returnReady: true, missing: [] },
+    say: noop, refresh: noop, close: noop
+  }))
+  await tick(); await tick(); await tick()
+  const box = m2.document.querySelector('[data-testid="return-lines"] input[type="checkbox"]')
+  check('X2a baris retur tampil', !!box)
+  if (box) {
+    click(box) // lepas centang satu-satunya baris
+    await tick()
+    const diagnostic = tid(m2.document, 'return-no-common-action')?.textContent || ''
+    const noneSel = tid(m2.document, 'return-none-selected')?.textContent || ''
+    check('X2b tanpa baris dipilih TIDAK muncul tuduhan data tidak konsisten',
+      !/tidak konsisten|mencampur/i.test(diagnostic), diagnostic)
+    check('X2c dijelaskan apa adanya: belum ada barang dipilih', /belum ada barang yang dipilih/i.test(noneSel), noneSel)
+  }
+
+  // ---- X3: foto yang dipilih tidak boleh dikirim sebagai referensi palsu ----
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: LEDGER })
+  PM.resetPhysicalModal(); resetCapability()
+  const ReceiptForm = (await importDist('modules/handovers/receiptForm.mjs')).default
+  const says3 = []
+  const m3 = mount(React.createElement(ReceiptForm, {
+    receiving: REC, items: RI, orderedFor: (it) => (it.pr_item_id === 'pi1' ? 10 : 4),
+    capability: { ready: true, returnReady: true, missing: [] },
+    say: (m) => says3.push(m), refresh: noop, close: noop
+  }))
+  typeInto(tid(m3.document, 'rc-datang-ri1'), '2')
+  await tick()
+  const fi = tid(m3.document, 'rc-foto-ri1')
+  const file = new dom0.window.File(['x'], 'IMG_20261021_0912.jpg', { type: 'image/jpeg' })
+  Object.defineProperty(fi, 'files', { value: [file], configurable: true })
+  flushSync(() => fi.dispatchEvent(new dom0.window.Event('change', { bubbles: true })))
+  await tick()
+  check('X3a UI menyatakan berkas foto TIDAK ikut tersimpan',
+    /tidak ikut tersimpan/i.test(tid(m3.document, 'rc-foto-jujur-ri1')?.textContent || ''),
+    tid(m3.document, 'rc-foto-jujur-ri1')?.textContent)
+  click(tid(m3.document, 'receipt-submit'))
+  await tick(); await tick(); await tick()
+  const payload3 = mock.__callsOf('rpc')[0]?.args?.p_events?.[0] || null
+  check('X3b payload TIDAK mengirim nama berkas sebagai foto_ref',
+    payload3 !== null && (payload3.foto_ref === null || payload3.foto_ref === undefined),
+    JSON.stringify(payload3?.foto_ref))
+  check('X3c pesan sukses tidak mengklaim foto tersimpan', !/foto/i.test(says3[0] || ''), JSON.stringify(says3[0]))
+
+  // ---- X4: rincian handover_items yang SUDAH tersimpan harus tampil ----
+  // Baris handover seperti hasil loadAll SETELAH fix: `items` ditempel dari
+  // tabel handover_items (bukan dari Purchase).
+  const HO_ITEMS = {
+    ...HO,
+    diserahkan_at: '2026-10-21T02:00:00Z',
+    status: 'CONFIRMED',
+    items: [
+      { id: 'hi1', handover_id: 'h1', receiving_event_id: 'ev1', item_name: 'Triplek 9mm', qty_diserahkan: 5, satuan: 'Lembar', penerima: 'Pak Joko' }
+    ]
+  }
+  const D = await importDist('modules/handovers/display.mjs')
+  const rinc = D.rincianInfo(HO_ITEMS)
+  check('X4a rincian tersimpan ditampilkan (bukan "belum tersedia")', rinc.available === true && rinc.source === 'HANDOVER', JSON.stringify(rinc))
+  check('X4b qty yang tampil = qty DISERAHKAN, bukan qty beli',
+    rinc.rows?.[0]?.qty === 5 && /diserahkan/.test(rinc.rows?.[0]?.qtyLabel || ''), JSON.stringify(rinc.rows))
+  const cellR = D.rincianCell(HO_ITEMS)
+  check('X4c sel daftar menyebut jumlah barang diserahkan', cellR.unavailable === false && cellR.count === 1, JSON.stringify(cellR))
+  // Tanpa baris → tetap label jujur (tidak mengarang dari Purchase)
+  const rincEmpty = D.rincianInfo({ ...HO, items: [] })
+  check('X4d tanpa baris tetap label jujur', rincEmpty.available === false && /belum tersedia/i.test(rincEmpty.label))
 }
 
 // ============================================================
