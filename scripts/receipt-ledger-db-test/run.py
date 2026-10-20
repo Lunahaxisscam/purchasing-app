@@ -203,6 +203,16 @@ rc7 = run(['node', os.path.join(HERE, 'probe_app_role.mjs')], cwd=REPO, env=env)
 print('\n=== 11. Rincian serah terima terlihat (handover_items terbaca halaman) ===')
 rc8 = run(['node', os.path.join(HERE, 'probe_handover_items_visible.mjs')], cwd=REPO, env=env)
 
+# ---------------- 12. qty PECAHAN (m3/kg) — run 210 ----------------
+# Run 184..208 semuanya menguji qty BULAT. Padahal keempat input form memakai
+# `step="any" inputMode="decimal"`, jadi admin memang boleh mengisi 3.5 m2
+# atau 12.75 kg. Tiga lapisan memakai toleransi BERBEDA: JS EPS=1e-9,
+# constraint/RPC `+0.001`, checker `> 0.001`. Probe ini membuktikan qty
+# pecahan sah tersimpan utuh, alokasi pecahan berlebih tetap ditolak, dan
+# retur pecahan mengikuti qty rusak pecahan.
+print('\n=== 12. Qty pecahan (m3/kg): simpan utuh, batas & retur tetap benar ===')
+rc9 = run(['node', os.path.join(HERE, 'probe_run210_fractional.mjs')], cwd=REPO, env=env)
+
 # CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
 # bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
 # menyimpulkan "siap DDL" padahal READY mustahil menyala.
@@ -210,4 +220,4 @@ if rc7 == 2:
     print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
     print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
     sys.exit(2)
-sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9)
