@@ -317,7 +317,7 @@ hanya untuk baca.
 | Lingkungan | Commit | BUILD_ID | Status |
 |---|---|---|---|
 | **Produksi** `purchasing-app-dun.vercel.app` | `ac7117b` (origin/main) | `y030zEoDMPYjabZi0druQ` | tidak punya route `/api/bakpau/v1/*` → **404**, bukan kandidat ini |
-| **Kandidat 3001** (PM2 `purchasing-staging-3001`) | `feat/bakpau-api-t_dd743609` @ `0e1363c` | `sOvJsANQ--709JRjr9jDg` | READ live nyata; create fail-closed |
+| **Kandidat 3001** (PM2 `purchasing-staging-3001`) | `feat/bakpau-api-t_dd743609` @ `b2d2e29` | `bsHNTfz3rz0GC3UN4nusg` | READ live nyata; create fail-closed |
 | 3001 sebelum switch (rollback) | — | `KN37g9i7McKTJy6wFYiO0` | snapshot `3001-before-api-switch.json` |
 
 Aturan pelaporan:
@@ -328,8 +328,37 @@ Aturan pelaporan:
   berlaku lagi.
 * Setiap klaim "AKTIF" harus menyebut commit + BUILD_ID yang diuji. Tanpa
   keduanya, statusnya **tidak terverifikasi**.
-* Rollback 3001: `bash switch_3001_api.sh rollback` (kembali ke build
-  `KN37g9i7McKTJy6wFYiO0`), lalu verifikasi BUILD_ID di HTML = disk.
+* Rollback 3001: `bash scripts/bakpau-api-ops/switch_3001_api.sh --rollback`
+  (kembali ke build `KN37g9i7McKTJy6wFYiO0`), lalu verifikasi BUILD_ID di HTML
+  = disk. Skrip **menolak** rollback bila snapshot hilang/tidak lengkap, target
+  tidak ada, atau BUILD_ID disk ≠ snapshot — dan **exit non-zero** bila root
+  bukan 200 atau buildId HTML ≠ snapshot. Lihat §7.2.
+
+### 7.2 Operasional: switch/rollback 3001 diuji lewat jalur GAGAL
+
+`scripts/bakpau-api-ops/switch_3001_api.sh` (R5) mengubah **urutan gerbang**.
+Versi sebelumnya memeriksa artefak kandidat **sebelum** cabang `--rollback`,
+sehingga kandidat yang rusak/hilang membuat rollback ke rilis lama yang sehat
+ikut gagal — tepat saat rollback paling dibutuhkan. Versi lama juga hanya
+**mencetak** kode HTTP dan BUILD_ID tanpa menyatakan gagal.
+
+| Jalur gagal | Perilaku R5 |
+|---|---|
+| Kandidat hilang/rusak + `--rollback` | rollback **tetap jalan** (kandidat tidak diperiksa) |
+| Snapshot hilang / `cwd`-`build_id` kosong | ditolak, proses PM2 **tidak disentuh** |
+| Snapshot menunjuk build lain (`BAKPAU_SWITCH_EXPECT_BUILD_ID`) | ditolak, proses tidak disentuh |
+| Direktori target tidak ada | ditolak **sebelum** `pm2 delete` (tanpa downtime sia-sia) |
+| `.next/BUILD_ID` disk ≠ snapshot | ditolak sebelum `pm2 delete` |
+| Root ≠ 200 setelah rollback/switch | **exit non-zero** |
+| buildId HTML ≠ target | **exit non-zero** (bukan "kembali" palsu) |
+| `--apply` kedua | snapshot pertama **tidak ditimpa**, riwayat ke `.history.json` |
+
+Diuji dengan `pm2`/`curl` **stub** + direktori sementara: `scripts/bakpau-api-ops/ops_review_r5.py`
+→ **27/27 PASS**, termasuk kontras eksplisit terhadap skrip lama (A4, F3).
+Tidak ada `pm2` asli, port 3001, atau proses produksi yang disentuh saat pengujian.
+Snapshot preservation saja **bukan** bukti rollback berjalan; bukti rollback
+nyata tetap butuh eksekusi terjadwal dengan verifikasi buildId (belum dilakukan
+pada run ini karena 3001 sedang melayani kandidat yang diuji).
 
 ## 8. Blocker deployment (persis)
 
@@ -381,8 +410,10 @@ opsi ini hanya dicatat sebagai keputusan pemilik deploy, bukan dilakukan.
 
 | Berkas | Isi |
 |---|---|
-| `scripts/bakpau-api-test/run.py` | harness 216 assertion (log di `BAKPAU_API_TEST_FINAL.log`) |
-| `scripts/bakpau-api-test/run_real_db.py` | 103 assertion terhadap PostgreSQL 16 nyata (`BAKPAU_API_REALDB_TEST_FINAL.log`) |
+| `scripts/bakpau-api-test/run.py` | harness 222 assertion (log di `BAKPAU_API_TEST_R4FINAL.log`; R5 rerun: `BAKPAU_API_TEST_R5FINAL.log`) |
+| `scripts/bakpau-api-test/run_real_db.py` | 103 assertion terhadap PostgreSQL 16 nyata (`BAKPAU_API_REALDB_TEST_R4FINAL.log`; R5 rerun: `BAKPAU_API_REALDB_TEST_R5FINAL.log`) |
+| `scripts/bakpau-api-ops/ops_review_r5.py` | 27/27 PASS jalur gagal switch/rollback 3001 (stub pm2+curl, tanpa menyentuh proses nyata) |
+| `scripts/bakpau-api-ops/switch_3001_api.sh` | skrip switch/rollback dengan gerbang terverifikasi (§7.2) |
 | `LIVE_PROBE_3001.json` | 23/23 PASS terhadap kandidat 3001 (read-only, data produksi) |
 | `PROFILE_CLIENT_PROOF_3001.json` | 11/11 — token milik profil `bakpau-finance` membaca data nyata |
 | `REVOKE_LIVE_PROOF.json` | revoke/restore token live |
