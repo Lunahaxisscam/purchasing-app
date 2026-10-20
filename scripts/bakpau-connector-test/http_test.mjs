@@ -94,9 +94,24 @@ group('S. METODE & KONFIGURASI')
   eq('S1 GET ditolak 405', get.statusCode, 405)
   ok('S2 Allow header POST', String(get.headers.Allow).includes('POST'))
 
-  const noCreds = await call('telegram', { client: null })
-  eq('S3 tanpa kredensial server -> 503', noCreds.statusCode, 503)
+  const noCreds = await call('telegram', { client: null, body: F.tgUpdate(), headers: F.TG_HEADERS })
+  eq('S3 tanda tangan sah tanpa kredensial server -> 503', noCreds.statusCode, 503)
   eq('S4 kode no_service_credentials', noCreds.body.code, 'no_service_credentials')
+
+  // DEFECT YANG DITUTUP (t_dd743609): permintaan TIDAK SAH harus ditolak
+  // SEBELUM klien DB dibuat / master dibaca. Tanpa kredensial DAN tanpa
+  // tanda tangan -> 401, bukan 503 (bukti bahwa gerbang auth jalan lebih dulu).
+  mock.__reset({ tables: tables() })
+  const noCredsNoSig = await call('telegram', { client: null, body: F.tgUpdate(), headers: {} })
+  eq('S6 tanpa kredensial & tanpa tanda tangan -> 401 (auth lebih dulu)', noCredsNoSig.statusCode, 401)
+
+  // Dan dengan klien tersedia, penolakan auth tidak boleh menghasilkan satu
+  // pun query DB (master/nota) — inilah inti perbaikan urutan gerbang.
+  mock.__reset({ tables: tables() })
+  const badSigNoDb = await call('telegram', { body: F.tgUpdate(), headers: { 'X-Telegram-Bot-Api-Secret-Token': 'palsu' } })
+  eq('S7 tanda tangan salah -> 401', badSigNoDb.statusCode, 401)
+  const dbTouches = mock.__state.calls.filter(c => ['select', 'insert', 'update', 'delete', 'rpc'].includes(c.op)).length
+  eq('S8 nol aktivitas DB saat tanda tangan salah', dbTouches, 0)
 
   mock.__reset({ tables: tables() })
   const badJson = await call('telegram', { raw: '{bukan json' })
