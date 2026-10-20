@@ -108,6 +108,35 @@ vendornya, dan sisa vendor tetap diantrekan.
 
 ## 4. Status live — aplikasi masih LEGACY (jujur)
 
+### 4.1 Dua defect ditemukan pada review run 188 dan SUDAH diperbaiki
+
+Review independen (menjalankan modul terkompilasi dengan input tidak lazim,
+bukan menambah assertion di jalur yang sudah "benar") menemukan dua defect yang
+**menyala hari ini di mode LEGACY** — keduanya tidak terlihat oleh harness yang
+sudah hijau:
+
+| # | Defect | Dampak | Fix |
+|---|---|---|---|
+| 1 | `<PurchaseForm>` tanpa `key` → `useState` tidak re-init saat antrean pindah vendor | UI bilang "Lanjut nota vendor berikutnya", tapi form tetap vendor + barang + nomor nota #1. Simpan lagi = nota kedua untuk vendor yang SAMA; barang vendor berikutnya tidak pernah jadi nota | `key` deterministik (`vendorId` + daftar baris) |
+| 2 | Satu-satunya `<PhysicalModalHost>` dirender di dalam banner, banner `return null` saat antrean kosong | Tombol 📥 di aksi baris tetap aktif tapi tidak berefek sama sekali (tanpa pesan) bila semua handover sudah `diserahkan_at` | Host dirender di luar guard antrean |
+
+Harness pengunci (permanen, bisa dijalankan ulang):
+
+```
+node scripts/purchase-flow-test/repro_vendor_queue_advance.mjs   9 PASS / 0 FAIL
+node scripts/receipt-physical-test/repro_host_v3.mjs              8 PASS / 0 FAIL
+node scripts/receipt-physical-test/probe_confirm_partial.mjs      7 PASS / 0 FAIL
+```
+
+### 4.2 Batasan yang TIDAK diperbaiki di card ini
+
+**Serah terima tidak bisa sebagian.** `handover_confirm` melakukan CAS pada SATU
+dokumen (`diserahkan_at`), jadi satu dokumen = satu waktu penyerahan. Di UI,
+baris dengan qty 0 ditolak ("harus > 0"), sehingga barang yang belum tiba tidak
+bisa dilewati — admin harus menyerahkan semua baris sekaligus. Ini konsekuensi
+kontrak RPC milik `t_03b41644`, bukan bug UI; mengubahnya butuh keputusan schema
+owner. Dikunci oleh `probe_confirm_partial.mjs`.
+
 Probe read-only (`node scripts/receipt-physical-test/probe_live.mjs`, anon key):
 
 ```
