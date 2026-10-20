@@ -115,9 +115,9 @@ function fakeTransport({ failTimes = 0 } = {}) {
   }
 }
 
-async function callCreate({ body, transport = null } = {}) {
+async function callCreate({ body, transport = null, env = null } = {}) {
   const handler = H.createBakpauCreateHandler({
-    env: ENV,
+    env: env || ENV,
     createClient: () => client,
     loadMasters: async () => ({
       ok: true,
@@ -477,6 +477,42 @@ group('Y. HAK AKSES FUNGSI (anon/authenticated tidak boleh EXECUTE)')
   eq('Y1 anon TIDAK boleh execute', acl[0].anon_ok, false)
   eq('Y2 authenticated TIDAK boleh execute', acl[0].auth_ok, false)
   eq('Y3 service_role boleh execute', acl[0].svc_ok, true)
+}
+
+// ============================================================
+group('W. SAKLAR TULIS MATI -> 0 BARIS WALAU RPC ADA (gate Brooklyn)')
+// ============================================================
+// Ini yang membuktikan gate bisa ditegakkan: fungsi SQL SUDAH di-apply di DB
+// uji, token sah, payload sah — tetapi tanpa BAKPAU_API_CREATE_ENABLED create
+// tidak menyentuh DB sama sekali.
+{
+  const before = await counts()
+  const off = await callCreate({
+    body: payload({ idempotencyKey: 'realpg-switch-off' }),
+    env: { ...ENV, BAKPAU_API_CREATE_ENABLED: undefined }
+  })
+  eq('W1 create saat saklar absen -> 503', off.statusCode, 503)
+  eq('W2 kode create_disabled', off.body.code, 'create_disabled')
+  const after = await counts()
+  eq('W3 nol header', after.receivings, before.receivings)
+  eq('W4 nol baris', after.items, before.items)
+  eq('W5 nol klaim ledger', after.events, before.events)
+
+  // Nilai "1" juga tidak boleh dianggap menyala.
+  const off2 = await callCreate({
+    body: payload({ idempotencyKey: 'realpg-switch-one' }),
+    env: { ...ENV, BAKPAU_API_CREATE_ENABLED: '1' }
+  })
+  eq('W6 "1" bukan true -> 503', off2.statusCode, 503)
+  const after2 = await counts()
+  eq('W7 tetap nol tulisan', after2.receivings, before.receivings)
+
+  // Dengan saklar menyala, RPC yang sama BERHASIL -> membuktikan 503 di atas
+  // berasal dari saklar, bukan dari RPC yang rusak.
+  const on = await callCreate({ body: payload({ idempotencyKey: 'realpg-switch-on' }) })
+  eq('W8 saklar true -> 201', on.statusCode, 201)
+  const after3 = await counts()
+  eq('W9 +1 header', after3.receivings - after2.receivings, 1)
 }
 
 await client.__end()
