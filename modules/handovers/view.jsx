@@ -33,6 +33,7 @@ import React from 'react'
 import { format, parseHandoverNote, isHandoverDelivered } from '../../lib/constants'
 import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA, validatePrototypeRow, prototypeTotals } from './display'
 import { alokasiLabel, isProblemNoted } from './queue'
+import { openPhysicalModal } from './physicalModal'
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -225,12 +226,13 @@ export function renderCell(h, r, rawVal, ctx) {
 
 // --- Aksi per baris (desktop) ---
 // Arahan DAT (t_b418827b): hindari tombol bertumpuk — satu baris ikon ringkas:
-// ✓ (tandai sudah diserahkan; hanya bila belum), ✏️ edit, 🗑️ hapus.
-// Konfirmasi fisik menulis diserahkan_at lewat onMarkHandoverDelivered
-// (modules/handovers/confirm.js) — bukan sekadar mengubah status.
+// ✓ (konfirmasi fisik), ✏️ edit, 🗑️ hapus.
+// Konfirmasi fisik menulis diserahkan_at lewat RPC handover_confirm per barang
+// (modal confirmForm) atau confirm.js (header) saat skema belum ada.
 export function rowActions(r, ctx) {
   const { title, page, setEditRow, onMarkHandoverDelivered, onDelete } = ctx
   const delivered = isHandoverDelivered(r)
+  const rec = (ctx?.allReceivings || []).find(x => x && x.id === r.receiving_id) || null
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
@@ -253,6 +255,18 @@ export function rowActions(r, ctx) {
             ✓
           </button>
         )}
+        {/* Terima Barang: satu-satunya pintu input kedatangan/kondisi/tujuan
+            per barang (DAT: UI fisik hanya di Handover). */}
+        <button
+          type="button"
+          data-testid={`btn-terima-${r.id}`}
+          disabled={!rec}
+          onClick={() => rec && openPhysicalModal({ kind: 'receipt', receiving: rec })}
+          style={{ background: '#1f6feb', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 7px', fontSize: '11px', cursor: rec ? 'pointer' : 'not-allowed', fontWeight: 700, lineHeight: 1 }}
+          title={rec ? 'Catat barang datang (per barang: datang/rusak/tujuan)' : 'Belum terhubung ke nota pembelian'}
+        >
+          📥
+        </button>
         <button
           type="button"
           className="btn-edit icon-btn"

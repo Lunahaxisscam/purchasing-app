@@ -1,0 +1,37 @@
+{
+  "probed_at": "2026-10-20T18:05:28.081Z",
+  "base": "https://wuurovgjflrhczlsbixm.supabase.co",
+  "results": [
+    {
+      "table": "receiving_events",
+      "ok": false,
+      "status": 404,
+      "code": "PGRST205",
+      "message": "Could not find the table 'public.receiving_events' in the schema cache"
+    },
+    {
+      "table": "handover_items",
+      "ok": false,
+      "status": 404,
+      "code": "PGRST205",
+      "message": "Could not find the table 'public.handover_items' in the schema cache"
+    },
+    {
+      "table": "return_lines",
+      "ok": false,
+      "status": 404,
+      "code": "PGRST205",
+      "message": "Could not find the table 'public.return_lines' in the schema cache"
+    },
+    {
+      "table": "v_receipt_progress",
+      "ok": false,
+      "status": 404,
+      "code": "PGRST205",
+      "message": "Could not find the table 'public.v_receipt_progress' in the schema cache"
+    }
+  ],
+  "ready": false,
+  "returnReady": false,
+  "ui_mode": "LEGACY"
+}
