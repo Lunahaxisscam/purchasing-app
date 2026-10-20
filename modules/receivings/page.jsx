@@ -288,6 +288,8 @@ export default function PurchasePage({ rows, refresh, say }) {
               className="btn-purchase-primary"
               onClick={startPurchase}
               disabled={!selectedRows.length}
+              title={selectedRows.length ? undefined : 'Pilih minimal satu barang dulu — centang kotak di kolom paling kiri tabel.'}
+              aria-describedby={selectedRows.length ? undefined : 'purchase-select-hint'}
               data-testid="btn-process-purchase"
             >
               Proses Pembelian{selectedRows.length ? ` (${selectedRows.length})` : ''}
@@ -301,6 +303,19 @@ export default function PurchasePage({ rows, refresh, say }) {
             >
               + Belanja langsung (tanpa request)
             </button>
+            {/* Petunjuk pemilihan (t_b3768506): jumlah pilihan + alasan tombol
+                nonaktif harus terbaca tanpa menebak. */}
+            <div className="purchase-select-status" role="status" aria-live="polite">
+              {selectedRows.length > 0 ? (
+                <span className="purchase-select-count" data-testid="select-count">
+                  {selectedRows.length} barang dipilih — siap dibuatkan satu nota
+                </span>
+              ) : (
+                <span className="purchase-select-hint" id="purchase-select-hint" data-testid="select-empty-hint">
+                  Pilih barang untuk satu nota/toko: centang kotak di kolom <b>Pilih</b>, lalu klik <b>Proses Pembelian</b>.
+                </span>
+              )}
+            </div>
           </div>
 
           {selectedRows.length > 0 && selectedByVendor.length > 1 && (
@@ -322,15 +337,18 @@ export default function PurchasePage({ rows, refresh, say }) {
             <table className="purchase-table">
               <thead>
                 <tr>
-                  <th style={{ width: '34px' }}>
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={toggleAllVisible}
-                      title="Pilih semua barang yang tampil"
-                      data-testid="select-all"
-                      aria-label="Pilih semua barang yang tampil"
-                    />
+                  <th className="purchase-select-col" scope="col">
+                    <label className="purchase-select-all-label">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={toggleAllVisible}
+                        title="Pilih semua barang yang tampil"
+                        data-testid="select-all"
+                        aria-label="Pilih semua barang yang tampil"
+                      />
+                      <span>Pilih</span>
+                    </label>
                   </th>
                   <th>Barang</th>
                   <th style={{ width: '92px' }}>Qty</th>
@@ -344,7 +362,7 @@ export default function PurchasePage({ rows, refresh, say }) {
                   const on = selected.has(r.prItemId)
                   return (
                     <tr key={r.prItemId} className={on ? 'purchase-row-on' : undefined} data-testid={`ready-row-${r.prItemId}`}>
-                      <td>
+                      <td className="purchase-select-col">
                         <input
                           type="checkbox"
                           checked={on}
