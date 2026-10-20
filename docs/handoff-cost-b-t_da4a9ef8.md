@@ -108,6 +108,10 @@ Kegagalan pre-existing (stash-verified oleh Bit, bukan dari perubahan ini): `s7-
 **Label untuk reviewer:** preview ini = kode integrasi terbaru, tetapi datanya **data aplikasi existing**
 (bukan transaksi uji baru). Simpan nota / konektor / DDL / migrasi **TIDAK aktif** di preview ini.
 
+Catatan ketepatan: rilis yang disajikan dibangun dari commit **`7e4b4ef`**. Commit setelahnya hanya
+menyesuaikan EKSPEKTASI TES (jumlah item sidebar kini dihitung dari kebijakan 21−approval−stok),
+tidak mengubah kode aplikasi yang disajikan.
+
 ---
 
 ## 4. Yang TIDAK diklaim

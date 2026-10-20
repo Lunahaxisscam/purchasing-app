@@ -68,7 +68,11 @@ for (const id of ['dashboard', 'projects', 'vendors', 'materials', 'requests', '
 const secIds = constants.visibleNavSections.flatMap(s => s.items.map(i => i[0]))
 check('L2e visibleNavSections tidak memuat approval', !secIds.includes('approvals'))
 check('L2f tidak ada grup menu kosong', constants.visibleNavSections.every(s => s.items.length > 0))
-eq('L2g total menu tampil = 20 (21 - approval)', 20, navIds.length)
+// t_da4a9ef8: menu Stok Workshop digabung ke Material -> jumlah tampil ikut
+// kebijakan (bukan angka mati), supaya tes tidak mengunci menu duplikat.
+const EXPECTED_MENU = 21 - (constants.APPROVAL_MODULE_ENABLED === true ? 0 : 1)
+  - (constants.STOCK_MENU_CONSOLIDATED === true ? 1 : 0)
+eq(`L2g total menu tampil = ${EXPECTED_MENU} (21 - approval - stok-digabung)`, EXPECTED_MENU, navIds.length)
 eq('L2h isModuleVisible(approvals) false', false, constants.isModuleVisible('approvals'))
 eq('L2i isModuleVisible(requests) true', true, constants.isModuleVisible('requests'))
 

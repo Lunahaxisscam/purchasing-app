@@ -78,10 +78,16 @@ const ModuleView = (await load('components/ModuleView.mjs')).default
 const reqView = await load('modules/requests/view.mjs')
 
 // ---------- R1. Sidebar desktop ----------
+// t_da4a9ef8: jumlah item sidebar dihitung dari KEBIJAKAN (Approval OFF +
+// menu Stok Workshop yang digabung ke Material), bukan angka mati 20.
+const constantsMod = await load('lib/constants.mjs')
+const EXPECTED_NAV = 21
+  - (constantsMod.APPROVAL_MODULE_ENABLED === true ? 0 : 1)
+  - (constantsMod.STOCK_MENU_CONSOLIDATED === true ? 1 : 0)
 {
   const host = render(React.createElement(Sidebar, { page: 'dashboard', setPage: noop, session, logout: noop, role: 'admin' }))
   const labels = [...host.querySelectorAll('nav button')].map(b => (b.textContent || '').trim())
-  check('R1a Sidebar admin: 20 item (Approval tidak dirender)', labels.length === 20, `n=${labels.length} :: ${labels.join('|')}`)
+  check(`R1a Sidebar admin: ${EXPECTED_NAV} item (Approval OFF + Stok digabung ke Material)`, labels.length === EXPECTED_NAV, `n=${labels.length} :: ${labels.join('|')}`)
   check('R1b tidak ada tombol menu "Approval"', !labels.includes('Approval'), labels.join('|'))
   for (const m of ['Dashboard', 'Projects', 'Vendors', 'Materials', 'Purchase Request', 'Pembelian', 'Serah Terima']) {
     check(`R1c menu inti "${m}" tetap ada`, labels.includes(m))
@@ -102,7 +108,7 @@ const reqView = await load('modules/requests/view.mjs')
   const host = render(React.createElement(Sidebar, { page: 'dashboard', setPage: noop, session, logout: noop, role: 'admin' }))
   const labels = [...host.querySelectorAll('nav button')].map(b => (b.textContent || '').trim())
   check('R2a drawer mobile: Approval juga tidak ada', !labels.includes('Approval'), labels.join('|'))
-  check('R2b drawer mobile tetap 20 item (sama dengan desktop)', labels.length === 20, `n=${labels.length}`)
+  check(`R2b drawer mobile tetap ${EXPECTED_NAV} item (sama dengan desktop)`, labels.length === EXPECTED_NAV, `n=${labels.length}`)
   check('R2c tombol buka menu mobile ada', !!host.querySelector('.mobile-menu-btn'))
   stubMatchMedia(1440)
 }
