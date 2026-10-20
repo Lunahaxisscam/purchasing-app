@@ -241,34 +241,64 @@ export function eventTotals(events) {
 // Retur TANPA KETIK ULANG: baris retur diambil langsung dari event rusak yang
 // BELUM pernah diretur.
 //
-// ANTI DOUBLE-RETUR: event yang sudah punya status retur TIDAK boleh
-// ditawarkan lagi. `alreadyReturned` = { [receiving_event_id]: qty } dari
-// `return_lines`. Bila qty pengembalian tidak bisa dibaca, event berstatus
-// retur dianggap SUDAH diretur penuh (lebih aman tidak menawarkan).
-export function returLinesFromEvents(events, { alreadyReturned = {}, trustStatus = true } = {}) {
-  const out = []
+// ⚠️ SALDO RETUR = `retur_qty`, BUKAN `qty_rusak` (defect run 190).
+// Kontrak schema owner (DATA_DICTIONARY_v2 §B.4) menyebut `retur_qty` sebagai
+// "saldo yang boleh diretur", dan RPC `return_create` MENOLAK event dengan
+// `retur_qty <= 0` (reason `no_retur_balance`) walaupun `qty_rusak > 0`.
+// Menawarkan `qty_rusak` membuat admin menekan Simpan lalu ditolak server.
+//
+// `retur_qty` 0 berarti "belum ada komitmen retur" (pilihan default
+// 'Tentukan nanti' di form Terima Barang) — baris seperti itu TIDAK
+// ditawarkan, tetapi dikembalikan di `blocked` supaya UI bisa menjelaskan
+// apa yang harus dilakukan, bukan diam-diam menyembunyikan barang rusak.
+//
+// ANTI DOUBLE-RETUR: `alreadyReturned` = { [receiving_event_id]: qty } dari
+// `return_lines`. Bila riwayat retur tidak bisa dibaca, form MENOLAK membuka
+// (lihat returnForm.jsx) — bukan menganggap 0.
+export function returPlan(events, { alreadyReturned = {} } = {}) {
+  const lines = []
+  const blocked = []
   for (const ev of events || []) {
     const rusak = num(ev.qty_rusak) || 0
     if (rusak <= EPS) continue
-    const hasLedger = Object.prototype.hasOwnProperty.call(alreadyReturned, ev.id)
-    const status = ev.retur_status || RETUR_NONE
-    if (!hasLedger && trustStatus && status !== RETUR_NONE) continue
-    const used = hasLedger ? (num(alreadyReturned[ev.id]) || 0) : 0
-    const sisa = Math.max(0, rusak - used)
+    // `retur_qty` absen (bentuk data lama / hasil backfill) → pakai qty_rusak
+    // supaya data yang belum punya kolom itu tidak otomatis hilang. Nilai 0
+    // TIDAK di-fallback: 0 adalah pernyataan "belum ada saldo retur".
+    const punyaSaldo = ev.retur_qty !== undefined && ev.retur_qty !== null && ev.retur_qty !== ''
+    const saldo = punyaSaldo ? (num(ev.retur_qty) || 0) : rusak
+    const used = num(alreadyReturned[ev.id]) || 0
+    if (saldo <= EPS) {
+      blocked.push({
+        receiving_event_id: ev.id,
+        item_name: ev.item_name || '—',
+        satuan: ev.unit || '',
+        qty_rusak: rusak,
+        retur_status: ev.retur_status || RETUR_NONE,
+        reason: 'belum_ditandai_retur'
+      })
+      continue
+    }
+    const sisa = Math.max(0, saldo - used)
     if (sisa <= EPS) continue
-    out.push({
+    lines.push({
       receiving_event_id: ev.id,
       receiving_item_id: ev.receiving_item_id || null,
       pr_item_id: ev.pr_item_id || null,
       item_name: ev.item_name || '—',
       satuan: ev.unit || '',
       qty_rusak: rusak,
+      qty_saldo: saldo,
       qty_sudah_retur: used,
       qty: sisa,
-      retur_status: status
+      retur_status: ev.retur_status || RETUR_NONE
     })
   }
-  return out
+  return { lines, blocked }
+}
+
+// Pembungkus kompatibel: hanya baris yang bisa disimpan.
+export function returLinesFromEvents(events, { alreadyReturned = {} } = {}) {
+  return returPlan(events, { alreadyReturned }).lines
 }
 
 // Prefill Handover: alokasi tukang dari event penerimaan dikurangi yang SUDAH

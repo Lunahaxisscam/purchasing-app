@@ -70,6 +70,30 @@ double-click, dan dua user tidak menggandakan qty. **Dibuktikan pada
 PostgreSQL nyata** (bukan mock): submit ulang → `applied=0`,
 `already_applied=2`, `qty_arrived` tetap.
 
+### 3.4 SALDO RETUR = `retur_qty`, BUKAN `qty_rusak`
+
+Ini bukan detail gaya: `return_create` menolak event dengan `retur_qty <= 0`
+(`reason=no_retur_balance`) dan memakai `retur_qty` sebagai plafon
+(`over_return`). `qty_rusak` hanya *fakta fisik*; `retur_qty` adalah *saldo
+yang boleh diretur*.
+
+| Keadaan event | `qty_rusak` | `retur_qty` | Boleh diretur? |
+|---|---|---|---|
+| rusak, pilihan **"Tentukan nanti"** (default form) | 2 | **0** | **TIDAK** |
+| rusak, pilihan **"Kembalikan ke supplier"** | 2 | 2 | ya, maks 2 |
+| rusak, pilihan **"Dibuang"** | 2 | 2 | ya, maks 2 (butuh `discard_confirmed`) |
+| retur sebagian sudah tercatat 1 | 2 | 2 | ya, sisa 1 |
+
+Karena itu `returPlan()` (bukan `qty_rusak`) menentukan baris yang ditawarkan
+modal retur, dan barang rusak yang belum punya saldo **dilaporkan** di panel
+"Belum bisa diretur" — tidak disembunyikan, tidak ditawarkan lalu ditolak
+server. Data lama tanpa kolom `retur_qty` di-fallback ke `qty_rusak` supaya
+tidak hilang.
+
+Konsekuensi untuk operator: memilih "Tentukan nanti" berarti barang rusak
+**belum bisa diretur**. Form Terima Barang menampilkan peringatan saat itu
+terjadi, supaya keputusan diambil di tempat yang benar.
+
 ---
 
 ## 4. Mode LEGACY vs READY
@@ -101,8 +125,8 @@ purchase_requests 16 · pr_items 60 · vendors 22.
 
 | Harness | Cakupan | Hasil |
 |---|---|---|
-| `scripts/receipt-ledger-db-test/` | RPC **nyata** di PostgreSQL 16 terisolasi + migrasi 00..04 schema owner | **47 PASS / 0 FAIL** |
-| `scripts/receipt-physical-test/` | jsdom interaktif: form Terima Barang, konfirmasi, retur, pintu masuk, logika murni | **90 PASS / 0 FAIL** |
+| `scripts/receipt-ledger-db-test/` | RPC **nyata** di PostgreSQL 16 terisolasi + migrasi 00..04 schema owner, **plus** matriks retur ujung-ke-ujung | **47 PASS / 0 FAIL** + matriks 4/4 |
+| `scripts/receipt-physical-test/` | jsdom interaktif: form Terima Barang, konfirmasi, retur, pintu masuk, logika murni | **112 PASS / 0 FAIL** |
 | `scripts/handover-flow-test/` | regresi Handover | 61 / 66 / 73 lulus |
 | `scripts/handover-compact-test/` | kontrak 3 aksi fisik + scope Purchase | 89/89 (+ 50/52 status quo main) |
 | `scripts/purchase-flow-test/` | regresi Pembelian | 218 / 105 lulus |
@@ -110,6 +134,24 @@ purchase_requests 16 · pr_items 60 · vendors 22.
 DB test membuktikan antara lain: `quantity_received` tetap 10 saat
 `qty_arrived` 6; over-receipt ditolak server; konfirmasi kedua `already`;
 quota tukang ditolak → CAS ikut rollback; retur kedua ditolak; anon 0 grant.
+
+**Matriks retur (`probe_retur_matrix.mjs`)** menjawab pertanyaan berbeda:
+untuk tiap pilihan di form Terima Barang, apakah baris yang **ditawarkan**
+modal benar-benar **diterima** RPC? Hasil: 4/4 jalur bersaldo diterima;
+"Tentukan nanti" (saldo 0) tidak ditawarkan dan dilaporkan sebagai belum bisa
+diretur. Sebelum perbaikan run 190, jalur default ini menawarkan qty lalu
+ditolak server `no_retur_balance`.
+
+### 3.5 Defect run 190 (ditemukan setelah harness hijau)
+
+| # | Defect | Dampak | Fix |
+|---|---|---|---|
+| 1 | `returLinesFromEvents` memakai `qty_rusak`, bukan `retur_qty` | Barang rusak berstatus "Tentukan nanti" ditawarkan di modal retur; RPC menolak `no_retur_balance` → tombol aktif tapi selalu gagal | `returPlan()` memakai saldo `retur_qty`; baris tanpa saldo dilaporkan terpisah + peringatan di form Terima Barang |
+| 2 | Konfirmasi READY dengan 0 baris alokasi tukang: tombol submit membaca `validation.ok` (selalu false) dan tidak ada input header | Handover tanpa alokasi tukang — termasuk **data lama tanpa `receiving_id`** — MUSTAHIL dikonfirmasi di mode READY, padahal mode LEGACY bisa. Teks form menyuruh "konfirmasi header saja" tanpa jalan | Jalur eksplisit "Tandai Sudah Diserahkan (tanpa rincian)" + nama penerima wajib; `markHandoverDelivered` kini benar-benar menyimpan `received_by` |
+| 3 | Fixture harness memakai `qty_rusak=2, retur_qty=0` | Harness hijau untuk alur yang di produksi berakhir dengan penolakan server — mock lebih longgar dari RPC | Fixture diperbaiki; ditambah T5a–T5k + C5a–C5j yang mengunci ketiga perilaku |
+
+Ketiganya **aktif hanya setelah migrasi** (mode READY). Mode LEGACY tidak
+terpengaruh karena modal retur tidak bisa dibuka tanpa `return_lines`.
 
 ---
 

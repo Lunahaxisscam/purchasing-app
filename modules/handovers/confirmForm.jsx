@@ -89,6 +89,30 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l))
   }
 
+  // Konfirmasi TANPA rincian: hanya waktu penyerahan (status + diserahkan_at).
+  // Dipakai saat READY tetapi tidak ada baris alokasi tukang untuk di-prefill —
+  // jalur yang sebelumnya mati (defect run 190). Nama penerima WAJIB, sama
+  // seperti jalur LEGACY, supaya bukti serah terima tetap bisa
+  // dipertanggungjawabkan.
+  async function submitHeaderOnly() {
+    if (saving) return
+    setErrorMsg('')
+    const nama = String(penerimaHeader || '').trim()
+    if (!nama) { setErrorMsg('Nama penerima wajib diisi sebelum menandai diserahkan.'); return }
+    setSaving(true)
+    try {
+      const res = await markHandoverDelivered({ handover, receivedBy: nama })
+      if (!res.ok) { setErrorMsg(res.error); return }
+      say?.(res.already
+        ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.'
+        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang tidak ditulis karena tidak ada alokasi ke tukang pada penerimaan ini.')
+      close?.()
+      refresh?.()
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function submit(e) {
     e.preventDefault()
     if (saving) return
@@ -112,7 +136,7 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
     // LEGACY: konfirmasi header saja — rincian TIDAK diklaim tersimpan.
     setSaving(true)
     try {
-      const res = await markHandoverDelivered({ handover })
+      const res = await markHandoverDelivered({ handover, receivedBy: String(penerimaHeader || '').trim() })
       if (!res.ok) { setErrorMsg(res.error); return }
       say?.(res.already
         ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.'
@@ -164,7 +188,43 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
           <div data-testid="handover-confirm-empty" style={{ ...S.note, background: '#fef6e7', border: '1px solid #fcdfa6', color: '#7a4a08' }}>
             Tidak ada barang berstatus <b>alokasi ke tukang</b> yang belum diserahkan pada penerimaan ini.
             Bila barang dikirim langsung ke tukang tanpa dicatat di Terima Barang, catat dulu alokasinya —
-            atau konfirmasi header saja (tanpa rincian) bila memang tidak ada rincian yang bisa dicatat.
+            atau konfirmasi header saja (tanpa rincian) lewat tombol di bawah bila memang tidak ada rincian yang bisa dicatat.
+          </div>
+        )}
+
+        {/* KONFIRMASI TANPA RINCIAN — jalur keluar yang NYATA.
+            Defect run 190: teks di atas menyuruh "konfirmasi header saja",
+            tetapi satu-satunya tombol submit membaca `validation.ok`, yang
+            selalu false saat tidak ada baris → tombol mati dan tidak ada
+            input header. Akibatnya handover tanpa alokasi tukang (termasuk
+            handover lama tanpa receiving_id) TIDAK BISA dikonfirmasi sama
+            sekali di mode READY — padahal mode LEGACY bisa.
+            Tombol ini eksplisit: ia mencatat `diserahkan_at` + status saja,
+            dan mengatakannya apa adanya (tidak mengklaim rincian tersimpan). */}
+        {ready && !loading && !loadError && lines.length === 0 && (
+          <div data-testid="handover-confirm-headeronly" style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed #d5e0dc', paddingTop: '10px' }}>
+            <label style={S.field}>
+              Diterima oleh (nama) — wajib untuk konfirmasi tanpa rincian
+              <input
+                type="text"
+                value={penerimaHeader}
+                placeholder="Contoh: Pak Joko (Mandor)"
+                data-testid="hc-header-penerima"
+                onChange={e => setPenerimaHeader(e.target.value)}
+              />
+            </label>
+            <div style={S.hint}>
+              Tombol ini mencatat <b>waktu penyerahan</b> saja. Rincian per barang
+              TIDAK ditulis karena tidak ada alokasi ke tukang pada penerimaan ini.
+            </div>
+            <button
+              type="button"
+              data-testid="handover-confirm-headeronly-submit"
+              disabled={saving || !penerimaHeader.trim()}
+              onClick={submitHeaderOnly}
+            >
+              {saving ? 'Menyimpan…' : '✓ Tandai Sudah Diserahkan (tanpa rincian)'}
+            </button>
           </div>
         )}
 
