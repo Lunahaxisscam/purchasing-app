@@ -237,6 +237,13 @@ console.log('\n=== D. READY: aksi BORONGAN gudang/tukang — R2 ===\n')
   // muncul — yang penting TIDAK ADA klaim sukses palsu. Alasan bagi user ada
   // di title tombol (D4/D5) + panel capability.
   check('D9 tidak ada klaim sukses palsu ke user', !says.some(m => /ditandai masuk gudang|dikirim ke tukang/i.test(m)), JSON.stringify(says))
+  // Lanjutan R2: ringkasan progres TIDAK boleh memakai dimensi pr_items yang
+  // sudah tidak ditulis di READY (angkanya akan selalu 0 → menyesatkan).
+  const sum = tid(doc, 'queue-summary-h1')?.textContent || ''
+  check('D10 ringkasan READY tidak menampilkan angka dari pr_items.status',
+    !/\d+\s+dari\s+\d+\s+barang/i.test(sum), sum)
+  check('D11 ringkasan READY mengarahkan ke pencatatan per barang',
+    /per barang/i.test(sum), sum)
 }
 
 // ============================================================

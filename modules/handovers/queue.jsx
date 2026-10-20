@@ -344,7 +344,14 @@ function ActionCard({ entry, ctx, onDone, cap }) {
             {handover.received_by || 'Serah Terima'}
           </strong>
           <span style={S.sub} data-testid={`queue-summary-${handover.id}`}>
-            {distributionLabel(summary)}
+            {ledgerReady
+              // DEFECT run 212 / BUG-R2 (lanjutan): di READY, `pr_items.status`
+              // TIDAK lagi ditulis oleh aksi mana pun (tujuan barang dicatat di
+              // `receiving_events`), jadi angka "x dari y barang didistribusikan"
+              // akan SELALU 0 dan menyesatkan. Jangan menampilkan angka dari
+              // dimensi yang sudah tidak dipakai — katakan di mana kebenarannya.
+              ? 'Distribusi dicatat per barang — lihat Terima Barang (tujuan) & konfirmasi fisik'
+              : distributionLabel(summary)}
           </span>
         </div>
         <div style={S.tags}>

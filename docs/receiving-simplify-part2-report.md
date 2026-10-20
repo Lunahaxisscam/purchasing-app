@@ -350,8 +350,8 @@ pada **dua** pohon:
 
 | Pohon | Hasil |
 |---|---|
-| `340a319` (kandidat sebelum fix, worktree terpisah) | **16 PASS / 23 FAIL** — A2/A3/A4/A5/A6/A7/A10/A11 (R1), B1–B4 (R1b), D2–D9 (R2), F1/F5 (R3) |
-| sesudah fix | **39 PASS / 0 FAIL** |
+| `340a319` (kandidat sebelum fix, worktree terpisah) | **16 PASS / 25 FAIL** — A2/A3/A4/A5/A6/A7/A10/A11 (R1), B1–B4 (R1b), D2–D11 (R2), F1/F5 (R3) |
+| sesudah fix | **41 PASS / 0 FAIL** |
 
 Probe ini juga mengunci hal yang **tidak boleh** ikut berubah: LEGACY asli
 (`ready:false` hasil probe) tetap punya input nama penerima, tombol tulis aktif,
@@ -364,6 +364,14 @@ benar): `capstate` 9P/5F (S3a/S3b/S5a/S5b/S5c), `capunknown` 8P/6F
 (U1a/U1c/U1d/U2a/U2c/U2e), `bulk` 5P/4F (K1c/K1d/K1e/K2c), `bulk2` 5P/2F
 (M1a/M1b). Tidak ada assertion yang dilonggarkan — probe milik reviewer
 sengaja **tidak** diubah.
+
+**Lanjutan R2 yang ikut ditutup:** `summarizeDistribution`/`distributionLabel`
+membaca `pr_items.status` — dimensi yang di READY **tidak lagi ditulis siapa
+pun**, jadi ringkasan kartu akan selalu berbunyi "0 dari N barang
+didistribusikan". Di READY ringkasan diganti kalimat yang mengarahkan ke
+sumber yang benar ("Distribusi dicatat per barang — lihat Terima Barang
+(tujuan) & konfirmasi fisik"); di LEGACY label lama dipertahankan apa adanya.
+Dikunci D10/D11.
 
 **Perbaikan tambahan yang ditemukan saat memperbaiki R1:** `loading`
 diinisialisasi `useState(ready)`. Saat capability berubah `null → ready` dalam
