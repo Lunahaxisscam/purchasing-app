@@ -58,17 +58,24 @@ async function probeTable(table, columns) {
     if (code === 'PGRST204' || code === '42703' || /column .* does not exist/i.test(error.message || '')) {
       return { ok: false, reason: `kolom ${table} belum lengkap` }
     }
-    // Error lain (mis. RLS) → anggap belum siap, jangan menebak.
-    return { ok: false, reason: `${table}: ${error.message || 'tidak bisa dibaca'}` }
+    // Error lain (mis. RLS / permission denied / jaringan) → TIDAK BISA
+    // DISIMPULKAN. Dulu ini dianggap sama dengan "tabel belum ada" (LEGACY),
+    // padahal tabelnya bisa saja SUDAH ADA dan hanya hak aksesnya kurang —
+    // persis keadaan blocker `GRANT SELECT v_receipt_progress`. Menyimpulkan
+    // LEGACY di situ berarti menulis dokumen tanpa rincian lalu mengunci
+    // selamanya (defect run 212 / BUG-R1). Sekarang ditandai `indeterminate`.
+    return { ok: false, reason: `${table}: ${error.message || 'tidak bisa dibaca'}`, indeterminate: true }
   } catch (err) {
-    return { ok: false, reason: `${table}: ${err.message}` }
+    return { ok: false, reason: `${table}: ${err.message}`, indeterminate: true }
   }
 }
 
 // Probe utama. Selalu resolve (tidak pernah throw) supaya UI bisa jatuh ke
-// mode legacy dengan pesan jujur.
+// mode legacy dengan pesan jujur — TETAPI kegagalan probe ditandai eksplisit
+// (`probeFailed`) agar UI tidak menyimpulkan "skema belum ada" dari error yang
+// tidak bisa disimpulkan (RLS/jaringan). Lihat `capabilityState`.
 export async function getReceiptCapability({ force = false } = {}) {
-  if (!supabase) return { ready: false, returnReady: false, events: false, progress: false, missing: ['Supabase tidak tersedia'], checkedAt: null }
+  if (!supabase) return { ready: false, returnReady: false, events: false, progress: false, probeFailed: true, missing: ['Supabase tidak tersedia'], checkedAt: null }
   if (!force && cache && Date.now() - cache.at < TTL_MS) return cache.value
   if (inflight) return inflight
 
@@ -93,6 +100,10 @@ export async function getReceiptCapability({ force = false } = {}) {
     // `returnReady` = tambahan riwayat retur; tombol Retur hanya aktif bila
     // keduanya ada, karena tanpa `return_lines` retur bisa tercatat ganda.
     const coreReady = events.ok && handoverItems.ok && progress.ok
+    // Probe TIDAK KONKLUSIF bila ada objek yang gagal dengan alasan selain
+    // "belum ada" (mis. permission denied pada view). Di keadaan itu UI tidak
+    // boleh memilih LEGACY (yang MENULIS) — harus menunggu/berhenti.
+    const indeterminate = [events, handoverItems, returnLines, progress].some(p => p.indeterminate)
     const value = {
       ready: coreReady,
       returnReady: coreReady && returnLines.ok,
@@ -100,6 +111,8 @@ export async function getReceiptCapability({ force = false } = {}) {
       handoverItems: handoverItems.ok,
       returnLines: returnLines.ok,
       progress: progress.ok,
+      // `ready:false` + `probeFailed:true` = TIDAK DIKETAHUI, bukan LEGACY.
+      probeFailed: !coreReady && indeterminate,
       missing,
       checkedAt: new Date().toISOString()
     }
@@ -120,9 +133,39 @@ export function resetReceiptCapability() {
   inflight = null
 }
 
+// ------------------------------------------------------------
+// TIGA KEADAAN capability — bukan dua (defect run 212 / BUG-R1)
+// ------------------------------------------------------------
+// `null` = probe BELUM SELESAI (frame pertama setiap modal dibuka). Dulu
+// keadaan ini diperlakukan sama dengan LEGACY (`ready:false`), dan karena
+// `confirmForm` di LEGACY MENULIS header (`status=CONFIRMED` + `diserahkan_at`)
+// tanpa satu pun baris `handover_items`, satu klik di jendela probe mengunci
+// dokumen selamanya: `handover_confirm` memakai CAS `diserahkan_at IS NULL`,
+// jadi rincian per barang tidak akan pernah bisa dicatat untuk dokumen itu.
+//
+//   unknown  → JANGAN menulis apa pun; tombol tulis DISABLED + label
+//              "memeriksa kesiapan skema…"
+//   error    → probe gagal (jaringan/RLS): juga JANGAN menulis; minta ulangi
+//   legacy   → probe selesai & skema belum ada: perilaku lama (header saja)
+//   ready    → ledger aktif: rincian per barang
+export function capabilityState(cap) {
+  if (cap === null || cap === undefined) return 'unknown'
+  if (cap.probeFailed) return 'error'
+  if (cap.ready) return 'ready'
+  return 'legacy'
+}
+
 // Pesan jujur standar (dipakai UI & form) — tidak pernah mengklaim tersimpan.
 export function capabilityMessage(cap) {
-  if (cap?.ready) return ''
+  const st = capabilityState(cap)
+  if (st === 'ready') return ''
+  if (st === 'unknown') {
+    return 'Kesiapan skema masih DIPERIKSA — belum ada data yang ditulis. Tunggu sebentar; tombol simpan aktif setelah pemeriksaan selesai.'
+  }
+  if (st === 'error') {
+    const why = (cap?.missing || []).filter(Boolean).join('; ') || 'tidak diketahui'
+    return `Pemeriksaan kesiapan skema GAGAL (${why}). Tidak ada data yang ditulis — tutup lalu buka lagi form ini.`
+  }
   const list = (cap?.missing || []).filter(Boolean).join('; ')
   return `Penyimpanan per barang (kondisi/tujuan/retur/rincian serah terima) belum aktif: ${list || 'skema belum tersedia'}. Tidak ada data yang ditulis.`
 }

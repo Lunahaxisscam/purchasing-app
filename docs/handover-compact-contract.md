@@ -23,7 +23,7 @@ Isi kartu, dari atas ke bawah:
 | Bagian | Isi | Catatan |
 |---|---|---|
 | Header | penerima (`received_by`), ringkasan progres, badge **Tujuan** | Tujuan ditulis sebagai kalimat (`Gudang` / `Tukang` / `Langsung ke lapangan`), **bukan** kode DB |
-| **3 aksi fisik** | `📦 Masuk Stok Gudang` · `👷 Serah Terima ke Tukang` · `⚠ Bermasalah` | Dua aksi pertama memakai gaya tombol aksi; **Bermasalah sengaja tidak ditonjolkan** (border putus-putus, font 11.5px, tanpa warna aksi) sesuai arahan DAT |
+| **3 aksi fisik** | `📦 Tandai Masuk Gudang` · `👷 Serah Terima ke Tukang` · `⚠ Bermasalah` | Dua aksi pertama memakai gaya tombol aksi; **Bermasalah sengaja tidak ditonjolkan** (border putus-putus, font 11.5px, tanpa warna aksi) sesuai arahan DAT. Label pertama **bukan** "Masuk Stok Gudang" (run 212 / R3): aksi ini hanya menandai `receivings.masuk_gudang` + `pr_items.status`, **tidak** memanggil `receive_to_warehouse`, jadi `materials.current_stock` tidak berubah |
 | Panel Bermasalah | `↩ Retur ke Supplier` / `💸 Refund` (atau alasan penolakan) | Hanya muncul setelah tombol Bermasalah ditekan |
 | Langkah penutup | `✅ Tandai Diserahkan` + input "Diterima oleh" (opsional) | Dipisah dari baris aksi: ini **bukti penerimaan**, bukan langkah distribusi |
 | Rincian barang | `▾ Rincian barang` (collapsed) | Nama barang + qty beli + label "qty beli di nota"; data tanpa rincian → **"Rincian barang belum tersedia"** |

@@ -238,6 +238,23 @@ function ActionCard({ entry, ctx, onDone, cap }) {
       return { ...a, ok: true, reason: 'Buka konfirmasi per barang — jumlah fisik diverifikasi di sana.' }
     }
     if (a.key !== ACT_GUDANG && a.key !== ACT_TUKANG) return a
+    // ---- DEFECT run 212 / BUG-R2: aksi BORONGAN di mode READY -------------
+    // `actions.js` menulis `pr_items.status` untuk SEMUA baris nota sekaligus.
+    // Di mode READY tujuan barang dicatat PER BARANG di ledger
+    // (`receiving_events.tujuan_ws` / `tujuan_tukang`), jadi satu klik borongan
+    // MENIMPA keputusan per barang (mis. Cat Duco tujuan Tukang ikut jadi
+    // DI_GUDANG). Karena itu di READY aksi ini dinonaktifkan dengan alasan
+    // terbaca — jalur yang benar adalah form Terima Barang (tujuan per barang)
+    // + konfirmasi fisik. Di LEGACY tombol ini TETAP (satu-satunya jalur).
+    if (ledgerReady) {
+      return {
+        ...a,
+        ok: false,
+        reason: a.key === ACT_GUDANG
+          ? 'Tujuan barang sudah dicatat PER BARANG di Terima Barang (Workshop/Tukang). Aksi borongan ini akan menimpa tujuan per barang, jadi tidak dipakai saat pencatatan per barang aktif.'
+          : 'Tujuan ke tukang dicatat PER BARANG di Terima Barang, lalu bukti fisiknya lewat konfirmasi per barang. Aksi borongan ini akan menimpa tujuan per barang, jadi tidak dipakai saat pencatatan per barang aktif.'
+      }
+    }
     if (problemNoted) {
       return { ...a, ok: false, reason: 'Nota sudah ditandai bermasalah (Retur/Refund) — barang tidak didistribusikan.' }
     }
@@ -263,6 +280,13 @@ function ActionCard({ entry, ctx, onDone, cap }) {
         return
       }
       setShowTerima(true)
+      return
+    }
+    // Pertahanan kedua (run 212 / BUG-R2): tombolnya sudah nonaktif di mode
+    // READY, tetapi jalur tulis ini juga menolak sendiri — supaya tidak ada
+    // jalan (mis. klik programatik / test lama) yang menimpa tujuan per barang.
+    if (ledgerReady && (action === ACT_GUDANG || action === ACT_TUKANG)) {
+      say('Aksi borongan tidak dipakai saat pencatatan per barang aktif — catat tujuan barang di Terima Barang, lalu konfirmasi fisik per barang.')
       return
     }
     setBusy(true)
@@ -558,7 +582,11 @@ function HandoverQueueBanner({ ctx }) {
   const [cap, setCap] = React.useState(null)
   React.useEffect(() => {
     let cancelled = false
-    getReceiptCapability().then(c => { if (!cancelled) setCap(c) })
+    getReceiptCapability()
+      .then(c => { if (!cancelled) setCap(c || { ready: false, returnReady: false, probeFailed: true, missing: ['probe tidak mengembalikan hasil'] }) })
+      .catch(err => {
+        if (!cancelled) setCap({ ready: false, returnReady: false, probeFailed: true, missing: [String(err?.message || err || 'probe gagal')] })
+      })
     return () => { cancelled = true }
   }, [])
 
@@ -585,11 +613,16 @@ function HandoverQueueBanner({ ctx }) {
       {!cap?.ready && (
         <div
           data-testid="handover-capability"
+          data-capability-state={cap === null ? 'unknown' : (cap?.probeFailed ? 'error' : 'legacy')}
           style={{ ...S.panel, marginBottom: 10, fontSize: '11.5px', lineHeight: 1.45, color: '#e8c98a' }}
         >
-          Penyimpanan per barang (kedatangan/rusak/tujuan/retur) belum aktif —{' '}
-          {(cap?.missing || []).filter(Boolean).join('; ') || 'memeriksa skema…'}. Antrean tetap bisa dipakai untuk
-          distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.
+          {cap === null
+            ? 'Memeriksa kesiapan penyimpanan per barang… antrean tetap bisa dipakai untuk distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.'
+            : cap?.probeFailed
+              ? <>Pemeriksaan kesiapan skema <b>GAGAL</b> — {(cap?.missing || []).filter(Boolean).join('; ') || 'tidak diketahui'}. Tidak ada data per barang yang ditulis; jangan anggap fitur ini aktif.</>
+              : <>Penyimpanan per barang (kedatangan/rusak/tujuan/retur) belum aktif —{' '}
+                  {(cap?.missing || []).filter(Boolean).join('; ') || 'skema belum tersedia'}. Antrean tetap bisa dipakai untuk
+                  distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.</>}
         </div>
       )}
       {entries.map(entry => (

@@ -25,7 +25,7 @@ import {
 } from '../receivings/receiptLogic'
 import { buildEventDrafts } from '../receivings/receiptEventLogic'
 import { applyReceiptEvents } from '../receivings/receiptEventSave'
-import { capabilityMessage } from '../receivings/receiptCapability'
+import { capabilityMessage, capabilityState } from '../receivings/receiptCapability'
 
 const num = (v) => {
   const n = Number(v)
@@ -45,6 +45,12 @@ const S = {
 
 export default function ReceiptForm({ receiving, items = [], orderedFor, capability = null, say, refresh, close }) {
   const ready = !!capability?.ready
+  // TIGA keadaan (run 212 / BUG-R1): `null`/probe gagal ≠ LEGACY. Form ini
+  // memang sudah memblokir tulisan saat belum READY, tetapi pesannya harus
+  // membedakan "masih diperiksa" dari "skema belum ada" — kalau tidak, admin
+  // diberi tahu hal yang salah tentang keadaan database.
+  const capState = capabilityState(capability)
+  const pending = capState === 'unknown' || capState === 'error'
   const rows = useMemo(() => buildRows(items, orderedFor), [items, orderedFor])
   const [entries, setEntries] = useState(() => {
     const init = {}
@@ -121,11 +127,12 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
 
         <div
           data-testid="receipt-capability"
+          data-capability-state={capState}
           style={{
             ...S.note,
-            background: ready ? '#e6f4ea' : '#fef6e7',
-            border: `1px solid ${ready ? '#ceead6' : '#fcdfa6'}`,
-            color: ready ? '#137333' : '#7a4a08'
+            background: ready ? '#e6f4ea' : (pending ? '#eef3f1' : '#fef6e7'),
+            border: `1px solid ${ready ? '#ceead6' : (pending ? '#cbd8d4' : '#fcdfa6')}`,
+            color: ready ? '#137333' : (pending ? '#1f3a34' : '#7a4a08')
           }}
         >
           {ready
@@ -299,6 +306,7 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
           <button
             type="submit"
             disabled={saving || plan.length === 0}
+            title={pending ? capabilityMessage(capability) : undefined}
             data-testid="receipt-submit"
           >
             {saving ? 'Menyimpan…' : '📥 Simpan Penerimaan'}

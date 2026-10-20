@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { returPlan, commonResolutions } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadReturnedByEvent, createReturnCase } from '../receivings/receiptEventSave'
-import { capabilityMessage } from '../receivings/receiptCapability'
+import { capabilityMessage, capabilityState } from '../receivings/receiptCapability'
 
 const RESOLUTIONS = [
   { id: 'RETURN', label: 'Kembalikan ke supplier' },
@@ -46,6 +46,11 @@ const S = {
 
 export default function ReturnForm({ receiving, capability = null, say, refresh, close }) {
   const ready = !!capability?.returnReady
+  // TIGA keadaan (run 212 / BUG-R1): `null` = probe belum selesai, BUKAN
+  // "skema belum ada". Pesan & tampilan dibedakan supaya admin tidak diberi
+  // tahu hal yang salah tentang database.
+  const capState = capabilityState(capability)
+  const pending = capState === 'unknown' || capState === 'error'
   const [loading, setLoading] = useState(ready)
   const [loadError, setLoadError] = useState('')
   const [rows, setRows] = useState([])
@@ -149,11 +154,12 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
 
         <div
           data-testid="return-capability"
+          data-capability-state={capState}
           style={{
             ...S.note,
-            background: ready ? '#e6f4ea' : '#fef6e7',
-            border: `1px solid ${ready ? '#ceead6' : '#fcdfa6'}`,
-            color: ready ? '#137333' : '#7a4a08'
+            background: ready ? '#e6f4ea' : (pending ? '#eef3f1' : '#fef6e7'),
+            border: `1px solid ${ready ? '#ceead6' : (pending ? '#cbd8d4' : '#fcdfa6')}`,
+            color: ready ? '#137333' : (pending ? '#1f3a34' : '#7a4a08')
           }}
         >
           {ready

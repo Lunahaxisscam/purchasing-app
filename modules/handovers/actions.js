@@ -63,9 +63,16 @@ async function loadPrItems(items) {
 }
 
 // ------------------------------------------------------------
-// AKSI 1 — KIRIM KE GUDANG
+// AKSI 1 — TANDAI MASUK GUDANG
 // ------------------------------------------------------------
 // Tanda nota sudah masuk gudang dan angkat status item menjadi DI_GUDANG.
+//
+// PENTING (run 212 / BUG-R3): fungsi ini TIDAK mengubah stok material.
+// Satu-satunya penulis `materials.current_stock` adalah RPC
+// `receive_to_warehouse` (migrations/2026-10-12_sprint1_alerts_stock.sql),
+// yang dipanggil dari halaman Pembelian (pages/index.js → moveToWarehouse).
+// Pesan sukses di bawah karena itu TIDAK boleh berbunyi "masuk stok" —
+// melainkan "ditandai masuk gudang".
 export async function kirimKeGudang(handoverId) {
   try {
     const ctx = await loadContext(handoverId)
@@ -86,7 +93,14 @@ export async function kirimKeGudang(handoverId) {
       if (error) return fail(error.message)
     }
 
-    return ok(pending.length ? `${pending.length} barang ditandai masuk gudang.` : 'Semua barang sudah tercatat masuk gudang.')
+    // Jujur soal efek: TIDAK ada penambahan stok di sini. Aksi "Ke Gudang"
+    // lama (RPC `receive_to_warehouse`) sudah tidak dirender di modul Pembelian
+    // sejak distribusi fisik pindah ke Handover, jadi jangan mengarahkan admin
+    // ke tombol yang tidak ada.
+    const tail = ' Stok material TIDAK bertambah dari sini — angka stok Workshop belum diperbarui oleh aksi ini.'
+    return ok(pending.length
+      ? `${pending.length} barang DITANDAI masuk gudang.${tail}`
+      : `Semua barang sudah bertanda masuk gudang.${tail}`)
   } catch (err) {
     return fail(err.message)
   }

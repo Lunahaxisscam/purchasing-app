@@ -104,6 +104,9 @@ shutil.copy(os.path.join(HERE, 'probe_run206_adversarial.mjs'), SB)
 # run 208: pengunci temuan "permukaan input per barang tanpa penyimpanan"
 # (panel prototype) + pesan usang "menunggu skema" di detail handover.
 shutil.copy(os.path.join(HERE, 'probe_run208_prototype.mjs'), SB)
+# run 215: pengunci perbaikan review run 212 (R1 capability null / R2 aksi
+# borongan di READY / R3 klaim stok). Dijalankan terakhir, exit terpisah.
+shutil.copy(os.path.join(HERE, 'probe_run215_review_fixes.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
 rc = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB).returncode
@@ -114,4 +117,6 @@ print('\n=== PROBE ADVERSARIAL (run 206) ===')
 rc_probe = subprocess.run(['node', 'probe_run206_adversarial.mjs'], cwd=SB).returncode
 print('\n=== PROBE PERMUKAAN INPUT PALSU (run 208) ===')
 rc_probe2 = subprocess.run(['node', 'probe_run208_prototype.mjs'], cwd=SB).returncode
-sys.exit(rc_main or rc_probe or rc_probe2)
+print('\n=== PROBE PERBAIKAN REVIEW RUN 212 (run 215: R1/R2/R3) ===')
+rc_probe3 = subprocess.run(['node', 'probe_run215_review_fixes.mjs'], cwd=SB).returncode
+sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3)

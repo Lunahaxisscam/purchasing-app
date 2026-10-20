@@ -331,6 +331,49 @@ dan itu tetap hijau karena fungsinya memang benar; yang salah adalah
 
 ---
 
+### 5.4 Temuan review run 212 — 3 defect yang HANYA aktif saat READY (R1/R2/R3)
+
+Review independen run 212 memblok task ini dengan dua MAJOR + satu MEDIUM.
+Semuanya **laten di `origin/main`** dan **dipersenjatai** oleh aktivasi READY
+di branch ini — jadi wajib ditutup **sebelum** migrasi/grant dijalankan.
+
+| # | Defect | Akar masalah | Perbaikan |
+|---|---|---|---|
+| **R1** | Jendela `capability = null` (probe belum selesai) menulis `status=CONFIRMED` + `diserahkan_at` **tanpa** satu pun baris `handover_items`, lalu mengunci dokumen permanen (CAS `diserahkan_at IS NULL`) | `const ready = !!capability?.ready` menyamakan `null` dengan LEGACY. Dua form lain aman; hanya `confirmForm` yang jalur LEGACY-nya **menulis** | `capabilityState()` dengan **tiga** keadaan: `unknown` (null) / `error` (probe gagal) / `legacy` / `ready`. Saat `unknown`/`error`: input LEGACY tidak dirender, tombol tulis **disabled** + label "Memeriksa kesiapan skema…", dan `submit()` menolak menulis |
+| **R1b** | Probe **gagal** (RLS/jaringan) juga disimpulkan LEGACY — padahal `permission denied` pada `v_receipt_progress` adalah blocker nyata card ini | `probeTable()` menganggap SEMUA error selain "tabel tidak ada" sebagai "belum siap" | Error non-konklusif ditandai `indeterminate` → `probeFailed:true`; UI menampilkan "pemeriksaan GAGAL + sebabnya", tetap **nol tulisan** |
+| **R2** | `ACT_GUDANG`/`ACT_TUKANG` di mode READY menulis `pr_items.status` untuk **SEMUA** baris nota → menimpa tujuan per barang dari ledger (Cat Duco tujuan Tukang ikut jadi DI_GUDANG) | Run 206 hanya memasang gerbang `ledgerReady` untuk `ACT_TERIMA` | Gerbang `ledgerReady` yang sama untuk gudang/tukang: tombol **tetap terlihat** tetapi nonaktif dengan alasan terbaca, **plus** pertahanan kedua di `run()` sehingga klik programatik pun ditolak. LEGACY tidak berubah (tetap satu-satunya jalur) |
+| **R3** | Label "Masuk **Stok** Gudang" mengklaim stok bertambah, padahal `actions.kirimKeGudang` tidak memanggil RPC `receive_to_warehouse` (`materials.current_stock` tidak berubah) | Label & pesan sukses menjanjikan efek yang tidak terjadi | Label → "Tandai Masuk Gudang"; pesan sukses menyatakan eksplisit **"Stok material TIDAK bertambah dari sini"** |
+
+**Bukti RED → GREEN (bukan klaim).** Probe baru
+`scripts/receipt-physical-test/probe_run215_review_fixes.mjs` (39 cek) dijalankan
+pada **dua** pohon:
+
+| Pohon | Hasil |
+|---|---|
+| `340a319` (kandidat sebelum fix, worktree terpisah) | **16 PASS / 23 FAIL** — A2/A3/A4/A5/A6/A7/A10/A11 (R1), B1–B4 (R1b), D2–D9 (R2), F1/F5 (R3) |
+| sesudah fix | **39 PASS / 0 FAIL** |
+
+Probe ini juga mengunci hal yang **tidak boleh** ikut berubah: LEGACY asli
+(`ready:false` hasil probe) tetap punya input nama penerima, tombol tulis aktif,
+dan tetap menulis header (C1–C5); aksi borongan LEGACY tetap aktif dan tetap
+menulis `DI_GUDANG` (E1–E3).
+
+**Probe reviewer run 212 dijalankan ulang di pohon fix** — keempatnya sekarang
+gagal **hanya** pada assertion yang mendokumentasikan defect (inversi yang
+benar): `capstate` 9P/5F (S3a/S3b/S5a/S5b/S5c), `capunknown` 8P/6F
+(U1a/U1c/U1d/U2a/U2c/U2e), `bulk` 5P/4F (K1c/K1d/K1e/K2c), `bulk2` 5P/2F
+(M1a/M1b). Tidak ada assertion yang dilonggarkan — probe milik reviewer
+sengaja **tidak** diubah.
+
+**Perbaikan tambahan yang ditemukan saat memperbaiki R1:** `loading`
+diinisialisasi `useState(ready)`. Saat capability berubah `null → ready` dalam
+satu mount (persis alur `physicalHost`), `loading` tetap `false` selama satu
+render sehingga panel "tidak ada alokasi tukang" + tombol header-only **sempat
+aktif** sebelum baris termuat. Kini `loading` diturunkan (`ready && !loaded`),
+jadi tidak ada frame yang mengklaim "tidak ada baris" sebelum pemuatan selesai.
+
+---
+
 ## 6. Runtime
 
 | Kegiatan | Perkiraan |

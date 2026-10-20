@@ -21,7 +21,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { handoverLinesFromEvents, validateHandoverLines } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadDeliveredByEvent, confirmHandoverLines } from '../receivings/receiptEventSave'
-import { capabilityMessage } from '../receivings/receiptCapability'
+import { capabilityMessage, capabilityState } from '../receivings/receiptCapability'
 import { markHandoverDelivered } from './confirm'
 
 const fmt = (v) => (v === undefined || v === null || v === '' ? '—' : v)
@@ -37,8 +37,23 @@ const S = {
 }
 
 export default function HandoverConfirmForm({ handover, capability = null, say, refresh, close }) {
-  const ready = !!capability?.ready
-  const [loading, setLoading] = useState(ready)
+  // TIGA keadaan (defect run 212 / BUG-R1): `null` = probe BELUM SELESAI,
+  // BUKAN LEGACY. Di LEGACY form ini MENULIS `diserahkan_at` tanpa rincian dan
+  // mengunci dokumen permanen (CAS), jadi jendela probe tidak boleh dianggap
+  // LEGACY. Hanya `ready:false` yang benar-benar hasil probe (skema belum ada)
+  // yang boleh memakai jalur tulis header.
+  const capState = capabilityState(capability)
+  const ready = capState === 'ready'
+  const legacy = capState === 'legacy'
+  const pending = capState === 'unknown' || capState === 'error'
+  // `loaded` = percobaan MEMUAT rincian sudah selesai (berhasil atau gagal).
+  // Dulu `loading` diinisialisasi `useState(ready)`; saat capability berubah
+  // null→ready (jendela probe), `loading` tetap false selama satu render
+  // sehingga panel "tidak ada alokasi" + tombol header-only SEMPAT aktif
+  // sebelum baris termuat — admin bisa mengunci dokumen tanpa rincian.
+  // Sekarang `loading` DITURUNKAN dari `ready && !loaded`, jadi tidak ada
+  // frame yang mengklaim "tidak ada baris" sebelum pemuatan benar-benar selesai.
+  const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [prefill, setPrefill] = useState([])
   const [lines, setLines] = useState([])
@@ -49,15 +64,15 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
   useEffect(() => {
     let cancelled = false
     async function load() {
-      if (!ready || !handover?.receiving_id) { setLoading(false); return }
-      setLoading(true)
+      if (!ready || !handover?.receiving_id) { setLoaded(true); return }
+      setLoaded(false)
       const ev = await loadReceivingEvents({ receivingId: handover.receiving_id })
       if (cancelled) return
-      if (!ev.ok) { setLoadError(ev.error); setLoading(false); return }
+      if (!ev.ok) { setLoadError(ev.error); setLoaded(true); return }
       const ids = (ev.events || []).map(e => e.id)
       const del = await loadDeliveredByEvent({ eventIds: ids })
       if (cancelled) return
-      if (!del.ok) { setLoadError(del.error); setLoading(false); return }
+      if (!del.ok) { setLoadError(del.error); setLoaded(true); return }
       const pf = handoverLinesFromEvents(ev.events || [], del.delivered || {})
       setPrefill(pf)
       setLines(pf.map(p => ({
@@ -70,11 +85,14 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
         penerima: p.penerima || handover?.received_by || '',
         catatan: ''
       })))
-      setLoading(false)
+      setLoaded(true)
     }
     load()
     return () => { cancelled = true }
   }, [ready, handover?.receiving_id, handover?.id])
+
+  // Turunan, bukan state: tidak ada frame "sudah selesai memuat" yang salah.
+  const loading = ready && !loaded
 
   const totals = useMemo(() => {
     const total = lines.reduce((s, l) => s + (Number(l.qty_diserahkan) || 0), 0)
@@ -126,6 +144,13 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
     e.preventDefault()
     if (saving) return
     setErrorMsg('')
+    // JENDELA PROBE (run 212 / BUG-R1): capability belum diketahui atau probe
+    // gagal → JANGAN menulis apa pun. Dulu jalur LEGACY dipakai di sini dan
+    // mengunci dokumen tanpa rincian, permanen.
+    if (pending) {
+      setErrorMsg(capabilityMessage(capability))
+      return
+    }
     if (ready) {
       if (!validation.ok) { setErrorMsg(validation.errors[0]); return }
       setSaving(true)
@@ -179,17 +204,30 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
 
         <div
           data-testid="handover-confirm-capability"
+          data-capability-state={capState}
           style={{
             ...S.note,
-            background: ready ? '#e6f4ea' : '#fef6e7',
-            border: `1px solid ${ready ? '#ceead6' : '#fcdfa6'}`,
-            color: ready ? '#137333' : '#7a4a08'
+            background: ready ? '#e6f4ea' : (pending ? '#eef3f1' : '#fef6e7'),
+            border: `1px solid ${ready ? '#ceead6' : (pending ? '#cbd8d4' : '#fcdfa6')}`,
+            color: ready ? '#137333' : (pending ? '#1f3a34' : '#7a4a08')
           }}
         >
           {ready
             ? 'Rincian per barang AKTIF: baris di bawah diisi otomatis dari penerimaan (alokasi ke tukang) dikurangi yang sudah diserahkan — Anda hanya memverifikasi jumlah fisik. Kosongkan jumlah untuk barang yang BELUM benar-benar diterima; baris itu dilewati, bukan dipaksa nol.'
-            : `${capabilityMessage(capability)} Konfirmasi di sini hanya mencatat waktu penyerahan (header), tanpa rincian barang.`}
+            : pending
+              ? capabilityMessage(capability)
+              : `${capabilityMessage(capability)} Konfirmasi di sini hanya mencatat waktu penyerahan (header), tanpa rincian barang.`}
         </div>
+
+        {/* Jendela probe / probe gagal: dikatakan apa adanya, dan tombol tulis
+            di bawah NONAKTIF. Tidak ada jalur tulis yang tersembunyi. */}
+        {pending && (
+          <div data-testid="handover-confirm-waiting" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
+            {capState === 'unknown'
+              ? 'Memeriksa kesiapan skema… tombol simpan akan aktif setelah pemeriksaan selesai. Tidak ada data yang ditulis sekarang.'
+              : 'Pemeriksaan skema gagal — tutup lalu buka lagi form ini. Tidak ada data yang ditulis.'}
+          </div>
+        )}
 
         {loading && <div className="muted" style={{ fontSize: '12px' }}>Memuat rincian penerimaan…</div>}
         {loadError && (
@@ -313,8 +351,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
           </div>
         )}
 
-        {/* LEGACY: penerima header tetap bisa diubah; rincian tidak diklaim. */}
-        {!ready && (
+        {/* LEGACY: penerima header tetap bisa diubah; rincian tidak diklaim.
+            HANYA saat probe benar-benar selesai (legacy) — bukan saat probe
+            masih berjalan (pending), karena di jendela itu tidak boleh ada
+            jalur tulis sama sekali. */}
+        {legacy && (
           <label style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
             Diterima oleh (nama)
             <input type="text" value={penerimaHeader} onChange={e => setPenerimaHeader(e.target.value)} data-testid="hc-header-penerima" />
@@ -331,10 +372,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
           <button type="button" className="outline" onClick={close}>Batal</button>
           <button
             type="submit"
-            disabled={saving || (ready && (!validation.ok || loading || !!loadError))}
+            disabled={saving || pending || (ready && (!validation.ok || loading || !!loadError))}
+            title={pending ? capabilityMessage(capability) : undefined}
             data-testid="handover-confirm-submit"
           >
-            {saving ? 'Menyimpan…' : '✓ Tandai Sudah Diserahkan'}
+            {pending ? 'Memeriksa kesiapan skema…' : (saving ? 'Menyimpan…' : '✓ Tandai Sudah Diserahkan')}
           </button>
         </div>
       </form>

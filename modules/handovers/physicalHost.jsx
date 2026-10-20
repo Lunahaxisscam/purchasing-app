@@ -41,11 +41,20 @@ export function PhysicalModalHost({ ctx }) {
 
   // Probe setiap kali modal dibuka. `force` supaya hasil setelah migrasi
   // langsung terbaca tanpa reload halaman.
+  //
+  // PENTING (run 212 / BUG-R1): `null` berarti BELUM DIKETAHUI. Kalau probe
+  // GAGAL (jaringan/RLS), jangan biarkan `cap` tetap null — form akan menunggu
+  // selamanya tanpa penjelasan. Kegagalan ditandai `probeFailed:true` supaya
+  // UI bisa bilang "pemeriksaan gagal" (dan tetap TIDAK menulis).
   useEffect(() => {
     let cancelled = false
     if (!target) { setCap(null); return }
     setCap(null)
-    getReceiptCapability({ force: true }).then(c => { if (!cancelled) setCap(c) })
+    getReceiptCapability({ force: true })
+      .then(c => { if (!cancelled) setCap(c || { ready: false, returnReady: false, probeFailed: true, missing: ['probe tidak mengembalikan hasil'] }) })
+      .catch(err => {
+        if (!cancelled) setCap({ ready: false, returnReady: false, probeFailed: true, missing: [String(err?.message || err || 'probe gagal')] })
+      })
     return () => { cancelled = true }
   }, [target])
 
