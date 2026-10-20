@@ -15,7 +15,7 @@
 // submit diblok dengan pesan jujur — tidak ada tulisan, tidak ada klaim.
 // ============================================================
 import React, { useEffect, useMemo, useState } from 'react'
-import { returPlan } from '../receivings/receiptEventLogic'
+import { returPlan, commonResolutions } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadReturnedByEvent, createReturnCase } from '../receivings/receiptEventSave'
 import { capabilityMessage } from '../receivings/receiptCapability'
 
@@ -25,6 +25,14 @@ const RESOLUTIONS = [
   { id: 'REFUND', label: 'Minta refund (uang kembali)' },
   { id: 'DISCARD', label: 'Dibuang (tidak dikembalikan)' }
 ]
+
+// Alasan tindakan tidak ditawarkan — dibaca admin, bukan istilah teknis.
+const WHY = {
+  DISCARD: 'barang ini belum dikonfirmasi dibuang di form Terima Barang, jadi tindakan "Dibuang" tidak tersedia di sini',
+  RETURN: 'barang ini sudah dicatat DIBUANG, jadi tidak bisa dikembalikan ke supplier',
+  REPLACE: 'barang ini sudah dicatat DIBUANG, jadi tidak bisa diminta pengganti',
+  REFUND: 'barang ini sudah dicatat DIBUANG, jadi tidak bisa diminta refund'
+}
 
 const fmt = (v) => (v === undefined || v === null || v === '' ? '—' : v)
 
@@ -82,6 +90,20 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
 
   const chosen = useMemo(() => rows.filter(r => picked[r.receiving_event_id]), [rows, picked])
   const totalQty = useMemo(() => chosen.reduce((s, r) => s + (Number(r.qty) || 0), 0), [chosen])
+  // Tindakan yang sah untuk SEMUA baris terpilih (defect run 195): modal
+  // sebelumnya menawarkan 4 tindakan untuk semua baris, sehingga "Dibuang"
+  // pada barang yang belum dikonfirmasi dibuang PASTI ditolak server
+  // (`discard_not_confirmed`), dan barang yang sudah dibuang masih ditawari
+  // "Kembalikan ke supplier" (kontradiksi + status event berubah).
+  const allowed = useMemo(() => commonResolutions(chosen), [chosen])
+  const options = useMemo(() => RESOLUTIONS.filter(r => allowed.includes(r.id)), [allowed])
+  const blockedActions = useMemo(
+    () => RESOLUTIONS.filter(r => !allowed.includes(r.id)).map(r => ({ ...r, why: WHY[r.id] })),
+    [allowed]
+  )
+  // Pilihan aktif harus selalu salah satu yang sah — jangan biarkan form
+  // mengirim tindakan yang tidak ditawarkan.
+  const effectiveResolution = allowed.includes(resolution) ? resolution : (allowed[0] || '')
 
   async function submit(e) {
     e.preventDefault()
@@ -92,11 +114,16 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
       return
     }
     if (!chosen.length) { setErrorMsg('Pilih minimal satu barang rusak yang akan diretur.'); return }
+    // Penjaga terakhir: jangan kirim tindakan yang tidak sah untuk baris terpilih.
+    if (!allowed.length || !effectiveResolution) {
+      setErrorMsg('Barang yang dipilih tidak punya tindakan retur yang sama (ada yang sudah dibuang dan ada yang menunggu dikembalikan). Retur dipisah per tindakan — buka modal ini dua kali.')
+      return
+    }
     setSaving(true)
     try {
-      const res = await createReturnCase({ receiving, lines: chosen, resolution, reason })
+      const res = await createReturnCase({ receiving, lines: chosen, resolution: effectiveResolution, reason })
       if (!res.ok) { setErrorMsg(res.error); return }
-      say?.(`Retur tercatat: ${chosen.length} baris · total ${totalQty}. Status: ${RESOLUTIONS.find(r => r.id === resolution)?.label || resolution}.`)
+      say?.(`Retur tercatat: ${chosen.length} baris · total ${totalQty}. Status: ${RESOLUTIONS.find(r => r.id === effectiveResolution)?.label || effectiveResolution}.`)
       close?.()
       refresh?.()
     } finally {
@@ -174,8 +201,14 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <label style={{ fontSize: '11.5px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 Tindakan
-                <select value={resolution} onChange={e => setResolution(e.target.value)} data-testid="return-resolution">
-                  {RESOLUTIONS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                <select
+                  value={effectiveResolution}
+                  onChange={e => setResolution(e.target.value)}
+                  disabled={!options.length}
+                  data-testid="return-resolution"
+                >
+                  {options.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                  {!options.length && <option value="">— tidak ada tindakan yang sah —</option>}
                 </select>
               </label>
               <label style={{ fontSize: '11.5px', display: 'flex', flexDirection: 'column', gap: '3px', flex: '1 1 240px' }}>
@@ -183,6 +216,21 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
                 <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="mis. penyok saat pengiriman" data-testid="return-reason" />
               </label>
             </div>
+
+            {/* Tindakan yang TIDAK sah untuk baris terpilih dijelaskan, bukan
+                disembunyikan diam-diam (defect run 195). */}
+            {blockedActions.length > 0 && allowed.length > 0 && (
+              <div data-testid="return-blocked-actions" style={{ ...S.note, background: '#fdf8ea', border: '1px solid #f0dcb4', color: '#7a4a08' }}>
+                Tidak ditawarkan untuk barang yang dipilih: {blockedActions.map(b => `${b.label} (${b.why})`).join('; ')}.
+              </div>
+            )}
+            {!allowed.length && (
+              <div data-testid="return-no-common-action" style={{ ...S.note, background: '#fdf8ea', border: '1px solid #f0dcb4', color: '#7a4a08' }}>
+                Barang yang dipilih mencampur barang <b>sudah dibuang</b> dan <b>menunggu dikembalikan</b> —
+                tidak ada satu tindakan yang sah untuk semuanya. Retur dipisah: centang kelompok yang sama
+                (atau simpan dua kali).
+              </div>
+            )}
 
             <div data-testid="return-lines" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {rows.map(r => (
@@ -202,6 +250,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
                     {' · '}saldo retur <b>{fmt(r.qty_saldo)}</b>
                     {r.qty_sudah_retur > 0 ? <> · sudah diretur {r.qty_sudah_retur}</> : null}
                     {' '}· akan diretur <b>{fmt(r.qty)}{r.satuan ? ` ${r.satuan}` : ''}</b>
+                    {' '}· status <b>{r.retur_status === 'DISCARDED' ? 'sudah dibuang' : 'menunggu dikembalikan'}</b>
                   </span>
                 </label>
               ))}
@@ -209,7 +258,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
 
             <div style={{ fontSize: '11.5px', color: '#1f3a34' }} data-testid="return-summary">
               <b>Ringkasan retur:</b> {chosen.length} baris · total {totalQty} unit · tindakan{' '}
-              <b>{RESOLUTIONS.find(r => r.id === resolution)?.label}</b>
+              <b>{RESOLUTIONS.find(r => r.id === effectiveResolution)?.label || '—'}</b>
             </div>
             <div style={S.warn}>
               Retur tidak mengurangi jumlah yang sudah diterima dan tidak membuat biaya baru — kalau supplier
@@ -224,7 +273,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
 
         <div className="actions">
           <button type="button" className="outline" onClick={close}>Batal</button>
-          <button type="submit" disabled={saving || !rows.length || (ready && !chosen.length)} data-testid="return-submit">
+          <button type="submit" disabled={saving || !rows.length || (ready && (!chosen.length || !allowed.length))} data-testid="return-submit">
             {saving ? 'Menyimpan…' : '↩ Simpan Retur'}
           </button>
         </div>

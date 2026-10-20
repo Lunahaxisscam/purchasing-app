@@ -290,11 +290,50 @@ export function returPlan(events, { alreadyReturned = {} } = {}) {
       qty_saldo: saldo,
       qty_sudah_retur: used,
       qty: sisa,
-      retur_status: ev.retur_status || RETUR_NONE
+      retur_status: ev.retur_status || RETUR_NONE,
+      discard_confirmed: !!ev.discard_confirmed,
+      // Tindakan yang MASUK AKAL untuk baris ini (defect run 195).
+      allowed_resolutions: allowedResolutionsFor(ev)
     })
   }
   return { lines, blocked }
 }
+
+// Tindakan retur yang boleh dipilih untuk SATU event.
+//
+// Kenapa dibatasi di UI, bukan hanya di server:
+//   - `return_create` MENOLAK `DISCARD` bila event belum `discard_confirmed`
+//     (reason `discard_not_confirmed`). Menampilkan "Dibuang" untuk barang
+//     yang di form Terima Barang dipilih "Kembalikan ke supplier" membuat
+//     admin menekan Simpan lalu PASTI gagal — persis pola defect run 190.
+//   - Sebaliknya, barang yang sudah DIBUANG tidak mungkin dikembalikan ke
+//     supplier; menawarkan RETURN/REPLACE/REFUND untuk event DISCARDED
+//     menghasilkan kontradiksi (RPC bahkan mengubah statusnya jadi PENDING,
+//     seolah barang yang sudah dibuang kembali menunggu dikembalikan).
+// Batas ini harus sama dengan aturan RPC; kalau schema owner mengubah RPC,
+// ubah di sini juga (dikunci probe_retur_resolution.mjs).
+export function allowedResolutionsFor(ev) {
+  const status = String(ev?.retur_status || RETUR_NONE).toUpperCase()
+  if (status === RETUR_DISCARDED || ev?.discard_confirmed) return ['DISCARD']
+  if (status === RETUR_PENDING) return ['RETURN', 'REPLACE', 'REFUND']
+  return ['RETURN', 'REPLACE', 'REFUND']
+}
+
+// Irisan tindakan yang boleh dipakai untuk SEMUA baris terpilih.
+// Kosong = tidak ada satu tindakan pun yang sah untuk gabungan baris itu
+// (mis. satu barang dibuang + satu menunggu dikembalikan) → UI harus meminta
+// admin memisahkan prosesnya, bukan mengirim permintaan yang pasti ditolak.
+export function commonResolutions(lines) {
+  const list = Array.isArray(lines) ? lines.filter(Boolean) : []
+  if (!list.length) return []
+  let acc = null
+  for (const l of list) {
+    const allow = Array.isArray(l.allowed_resolutions) ? l.allowed_resolutions : allowedResolutionsFor(l)
+    acc = acc === null ? [...allow] : acc.filter(r => allow.includes(r))
+  }
+  return acc || []
+}
+
 
 // Pembungkus kompatibel: hanya baris yang bisa disimpan.
 export function returLinesFromEvents(events, { alreadyReturned = {} } = {}) {

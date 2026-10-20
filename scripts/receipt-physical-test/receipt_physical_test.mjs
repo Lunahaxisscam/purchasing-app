@@ -504,6 +504,78 @@ console.log('\nT5. SALDO RETUR = retur_qty, bukan qty_rusak (defect run 190)')
 }
 
 // ============================================================
+console.log('\nT6. TINDAKAN RETUR yang ditawarkan = yang diterima RPC (defect run 195)')
+// ============================================================
+// Defect: dropdown "Tindakan" selalu berisi 4 pilihan untuk semua baris.
+//   - event PENDING + "Dibuang"  → RPC menolak `discard_not_confirmed`
+//   - event DISCARDED + "Kembalikan ke supplier" → diterima, status berubah
+//     jadi PENDING (barang yang sudah dibuang "hidup" lagi)
+// Test ini mengunci: pilihan yang tampil HANYA yang sah, yang tidak sah
+// DIJELASKAN, dan kombinasi campuran tidak bisa disimpan.
+{
+  // (a) Event PENDING → hanya 3 tindakan non-discard.
+  const ledgerPending = {
+    ...LEDGER,
+    receivingEvents: [
+      { id: 'ev1', receiving_id: 'rec1', receiving_item_id: 'ri1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 6, qty_rusak: 2, tujuan_ws: 3, tujuan_tukang: 1, penerima_tukang: 'Pak Joko', retur_status: 'PENDING', retur_qty: 2, discard_confirmed: false }
+    ]
+  }
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: ledgerPending })
+  PM.resetPhysicalModal(); resetCapability()
+  const ReturnForm = (await importDist('modules/handovers/returnForm.mjs')).default
+  const { document: doc } = mount(
+    React.createElement(ReturnForm, {
+      receiving: REC, capability: { ready: true, returnReady: true, missing: [] },
+      say: noop, refresh: noop, close: noop
+    })
+  )
+  await tick(); await tick(); await tick()
+  const sel = tid(doc, 'return-resolution')
+  const opts = Array.from(sel?.options || []).map(o => o.value)
+  check('T6a event PENDING: "Dibuang" TIDAK ditawarkan', !opts.includes('DISCARD'), JSON.stringify(opts))
+  check('T6b event PENDING: RETURN/REPLACE/REFUND ditawarkan', ['RETURN', 'REPLACE', 'REFUND'].every(v => opts.includes(v)), JSON.stringify(opts))
+  check('T6c tindakan yang tidak sah DIJELASKAN, bukan disembunyikan', /Dibuang/i.test(tid(doc, 'return-blocked-actions')?.textContent || ''), tid(doc, 'return-blocked-actions')?.textContent)
+  check('T6d tombol Simpan tetap aktif untuk pilihan yang sah', tid(doc, 'return-submit')?.disabled === false)
+}
+
+// (b) Event DISCARDED → hanya DISCARD.
+{
+  const ledgerDiscard = {
+    ...LEDGER,
+    receivingEvents: [
+      { id: 'ev1', receiving_id: 'rec1', receiving_item_id: 'ri1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 6, qty_rusak: 2, tujuan_ws: 3, tujuan_tukang: 1, penerima_tukang: 'Pak Joko', retur_status: 'DISCARDED', retur_qty: 2, discard_confirmed: true }
+    ]
+  }
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: ledgerDiscard })
+  PM.resetPhysicalModal(); resetCapability()
+  const ReturnForm = (await importDist('modules/handovers/returnForm.mjs')).default
+  const { document: doc } = mount(
+    React.createElement(ReturnForm, {
+      receiving: REC, capability: { ready: true, returnReady: true, missing: [] },
+      say: noop, refresh: noop, close: noop
+    })
+  )
+  await tick(); await tick(); await tick()
+  const opts = Array.from(tid(doc, 'return-resolution')?.options || []).map(o => o.value)
+  check('T6e event DISCARDED: hanya DISCARD ditawarkan', opts.length === 1 && opts[0] === 'DISCARD', JSON.stringify(opts))
+  check('T6f event DISCARDED: "Kembalikan ke supplier" tidak ditawarkan', !opts.includes('RETURN'), JSON.stringify(opts))
+  check('T6g status baris disebut apa adanya', /sudah dibuang/i.test(tid(doc, 'return-line-ev1')?.textContent || ''), tid(doc, 'return-line-ev1')?.textContent)
+}
+
+// (c) Logika: irisan tindakan untuk baris campuran kosong → UI memisahkan.
+{
+  const pending = { id: 'p', qty_rusak: 2, retur_qty: 2, retur_status: 'PENDING', item_name: 'P' }
+  const discard = { id: 'd', qty_rusak: 2, retur_qty: 2, retur_status: 'DISCARDED', discard_confirmed: true, item_name: 'D' }
+  const plan = ELOGIC.returPlan([pending, discard])
+  const common = ELOGIC.commonResolutions(plan.lines)
+  check('T6h allowed per baris: PENDING tanpa DISCARD', !plan.lines[0].allowed_resolutions.includes('DISCARD'), JSON.stringify(plan.lines[0].allowed_resolutions))
+  check('T6i allowed per baris: DISCARDED hanya DISCARD', plan.lines[1].allowed_resolutions.join(',') === 'DISCARD', JSON.stringify(plan.lines[1].allowed_resolutions))
+  check('T6j irisan campuran kosong (tidak ada tindakan sah)', common.length === 0, JSON.stringify(common))
+  check('T6k irisan satu kelompok tetap sah', ELOGIC.commonResolutions([plan.lines[0]]).includes('RETURN'))
+}
+
+
+// ============================================================
 console.log('\n=== P. PINTU MASUK di Handover + kontrak DAT ===\n')
 // ============================================================
 {

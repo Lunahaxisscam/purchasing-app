@@ -46,7 +46,7 @@ import os, re, shutil, subprocess, sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
-SB = '/tmp/receipt-physical-verify'
+SB = os.environ.get('SB', '/tmp/receipt-physical-verify-t7bc')
 
 REL_FILES = ['components/ModuleView.js', 'components/CreateModal.js', 'components/Common.js',
              'lib/constants.js', 'lib/purchaseNote.js']

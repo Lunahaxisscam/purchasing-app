@@ -21,8 +21,11 @@ const REPO = process.cwd()
 const { Client } = require(path.join(REPO, 'node_modules', 'pg'))
 const PGURL = process.env.PGURL || 'postgresql://postgres@127.0.0.1:55434/receipt_ledger_t7bc'
 
-const logic = await import(pathToFileURL(path.join('/tmp/receipt-ledger-app', 'dist', 'modules', 'receivings', 'receiptEventLogic.mjs')).href)
-const rlogic = await import(pathToFileURL(path.join('/tmp/receipt-ledger-app', 'dist', 'modules', 'receivings', 'receiptLogic.mjs')).href)
+// Sandbox dari env SB (default khusus t_7bc) — path /tmp tetap bersama bisa
+// ditimpa worker lain sehingga modul yang diuji bukan kode commit ini.
+const SB = process.env.SB || '/tmp/receipt-ledger-app-t7bc'
+const logic = await import(pathToFileURL(path.join(SB, 'dist', 'modules', 'receivings', 'receiptEventLogic.mjs')).href)
+const rlogic = await import(pathToFileURL(path.join(SB, 'dist', 'modules', 'receivings', 'receiptLogic.mjs')).href)
 
 const client = new Client({ connectionString: PGURL })
 await client.connect()

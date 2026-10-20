@@ -74,7 +74,10 @@ async function q(sql, params = []) {
 // Payload event dibentuk oleh logika aplikasi VERBATIM (dist hasil SWC),
 // bukan dikarang di skrip ini.
 async function loadAppLogic() {
-  const SB = '/tmp/receipt-ledger-app'
+  // Path sandbox dari env SB — beberapa worker menjalankan harness ini
+  // bersamaan; path /tmp tetap yang dipakai bersama bisa saling menimpa
+  // (sandbox berisi kode commit lain → hasil uji menyesatkan).
+  const SB = process.env.SB || '/tmp/receipt-ledger-app-t7bc'
   const dist = path.join(SB, 'dist', 'modules', 'receivings')
   const logic = await import(pathToFileURLSafe(path.join(dist, 'receiptEventLogic.mjs')))
   const rlogic = await import(pathToFileURLSafe(path.join(dist, 'receiptLogic.mjs')))

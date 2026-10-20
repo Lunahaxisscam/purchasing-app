@@ -24,7 +24,10 @@ import os, re, shutil, subprocess, sys, urllib.parse
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
-SB = '/tmp/receipt-ledger-app'
+# Sandbox path WAJIB bisa di-override: beberapa worker menjalankan harness ini
+# bersamaan di worktree berbeda, dan path /tmp tetap yang dipakai bersama akan
+# saling menimpa (sandbox berisi kode commit LAIN → hasil uji menyesatkan).
+SB = os.environ.get('SB', '/tmp/receipt-ledger-app-t7bc')
 DBNAME = 'receipt_ledger_t7bc'
 
 PGADMIN = os.environ.get('PGADMIN', 'postgresql://postgres@127.0.0.1:55434/postgres')
