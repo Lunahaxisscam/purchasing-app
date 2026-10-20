@@ -110,8 +110,15 @@ Kalau berbeda, laporkan sebagai kegagalan — jangan dianggap sukses.
 | 422 | `ambiguous_extraction` | minta konfirmasi manusia; **tidak ada** yang tersimpan |
 | 422 | `unknown_reference` | vendor/proyek/PR tidak ada di master; jangan buat master baru |
 | 429 | `rate_limited` | tunggu `Retry-After` detik |
+| 503 | `create_disabled` | **tulis belum diaktifkan** (gate review). Jangan akali; laporkan ke DAT |
+| 503 | `atomic_rpc_unavailable` | fungsi transaksi bersama belum ada; jangan akali, jangan pecah jadi beberapa panggilan |
 | 503 | `ledger_unavailable` | jalur tulis belum aktif (DDL belum diterapkan); laporkan, jangan akali |
 | 503 | `api_not_configured` | deployment belum punya token; laporkan |
+
+**Catatan penting tentang create:** sampai gate review lulus, server menjawab
+`503 create_disabled` untuk SEMUA permintaan create, termasuk payload yang
+sudah valid. Itu disengaja. Bakpau boleh menyiapkan payload dan menguji
+`doctor`/`read`, tetapi tidak boleh menganggap create siap produksi.
 
 ## 6. Batas yang tetap berlaku
 
