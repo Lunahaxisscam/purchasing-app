@@ -472,3 +472,78 @@ tombol ✓ membuka modal konfirmasi, dan `physicalHost` merender **form**.
   **tidak bisa** dipakai karena serah terima bertahap sah, dan partial unique
   index akan memblokir dokumen baru yang sah setelah dokumen lama diserahkan
   **hanya bila** predikatnya tepat — itu keputusan schema owner, bukan aplikasi.
+
+---
+
+## 9A. Penjaga yang SAMA, tetapi membaca DATABASE (run 243)
+
+Review independen run 242 membuktikan bahwa §9 di atas **belum menegakkan**
+invariannya dalam dua keadaan nyata di lapangan. Empat temuan (V1–V4) dan
+perbaikannya:
+
+| # | Temuan run 242 (di pohon `323bfed`) | Perbaikan run 243 |
+|---|---|---|
+| **V1** | Semua 8 titik panggil penjaga konfirmasi memakai `ctx.rows` (hasil `loadAll()` saat halaman dimuat). Halaman tanpa realtime & tanpa refresh saat tab kembali fokus → dokumen yang dibuat admin lain **tidak terlihat**; dokumen duplikat bisa dikonfirmasi (`probe_run242_stalerows` S2/S3, `stale_write2` W2: `diserahkan_at` terisi pada dokumen non-kanonik) | `guardConfirmFresh()` membaca `handovers` **dari DB** tepat sebelum menulis. Dipakai di `physicalHost` (satu choke point), `queue.run()`, `queue.submitTerima`, `view.rowActions`, `view.mobileCard`. `ctx.rows` **hanya** untuk tampilan (badge/tombol) |
+| **V2** | `save.js` = SELECT-lalu-INSERT tanpa kunci. Dua sesi bersamaan sama-sama lolos (`probe_run242_duprace`: kedua insert diterima, nol error, 2 dokumen aktif) | `insertUniqueActiveHandover()`: baca DB → INSERT → **baca DB LAGI** → bila ada dokumen aktif yang lebih awal, baris yang baru dibuat **menarik dirinya sendiri** (CAS `diserahkan_at IS NULL`) |
+| **V3** | Rantai penuh: dua dokumen → **KEDUA** `handover_confirm` diterima → rincian 2× kuota, `belum_diserahkan` negatif (`probe_run242_chain2`) | Ditutup dari dua arah: konvergensi pada pembuatan (V2) **dan** penolakan konfirmasi non-kanonik dari DB (V1) |
+| **V4** | Form Tambah menawarkan **semua** penerimaan, termasuk yang sudah punya dokumen aktif; admin baru ditolak setelah menekan Simpan | `loadActiveReceivingIds()` menandai + menonaktifkan pilihan itu (`🔒 … sudah ada Serah Terima aktif`); kegagalan probe dinyatakan jujur, bukan pura-pura aman |
+
+### 9A.1 Kenapa INSERT → VERIFIKASI → TARIK DIRI itu benar
+
+Tanpa DDL (card ini tidak boleh menjalankan SQL) dan tanpa unique index
+(§9.5), dua INSERT bersamaan tetap **mungkin** terjadi. Yang bisa dijamin
+aplikasi adalah **konvergensi**, bukan tidak adanya jendela:
+
+> Setiap penulis membaca ulang **sesudah commit-nya sendiri**, memakai urutan
+> kanonik yang **sama** (`created_at` → `handover_date` → `id`), lalu yang
+> bukan kanonik menghapus barisnya sendiri.
+
+**Tidak mungkin dua-duanya bertahan.** Agar A tidak melihat B, baca A harus
+sebelum commit B; agar B tidak melihat A, baca B harus sebelum commit A.
+Karena baca A sesudah commit A dan baca B sesudah commit B, kedua syarat itu
+berarti `commit A < commit B < baca B < commit A` — kontradiksi. Jadi paling
+sedikit satu penulis **selalu** melihat yang lain, dan karena urutannya total,
+hanya **satu** yang bertahan.
+
+### 9A.2 Keadaan yang ditampilkan saat pemeriksaan belum/tidak bisa dilakukan
+
+`physicalHost` tidak pernah merender form konfirmasi sebelum keputusan ada:
+
+| Keadaan | Yang dirender | Boleh menulis? |
+|---|---|---|
+| `dup === null` (pemeriksaan berjalan) | panel `handover-confirm-dup-checking` | **Tidak** |
+| `dup.failed` (baca DB gagal / RLS) | panel `handover-confirm-dup-check-failed` + tombol **🔄 Periksa ulang** | **Tidak** |
+| `dup.ok === false` (duplikat) | panel `handover-confirm-dup-blocked` | **Tidak** |
+| `dup.ok === true` | form konfirmasi per barang | Ya (RPC tetap memutuskan kuota) |
+
+### 9A.3 RED → GREEN
+
+| Probe | `323bfed` (sebelum) | run 243 |
+|---|---|---|
+| `probe_run243_dupfresh.mjs` | **14 PASS / 33 FAIL** | **47 PASS / 0 FAIL** |
+| `receipt-physical-test` (167) + probe 206/208/215/222/233/234/237/239 | hijau | hijau (tidak ada regresi) |
+
+Probe 242 milik reviewer dijalankan ulang **apa adanya** pada pohon run 243
+untuk memastikan temuan mereka benar-benar tertutup, bukan diakali.
+
+### 9A.4 Batas yang diakui (tidak disembunyikan)
+
+- **Jendela singkat "dua baris sempat ada" tetap ada** (insert → verify →
+  delete = 3 round-trip). Yang hilang bukan jendela itu, melainkan **keadaan
+  akhir ganda**. Bila peramban penulis yang kalah mati di antara insert dan
+  verify, baris duplikat bisa tertinggal — karena itu lapis kedua (V1) tetap
+  wajib: konfirmasi dokumen non-kanonik **ditolak dari DB**, sehingga sisa
+  duplikat tidak bisa menjadi penyerahan fisik ganda.
+- Perbaikan sejati di level database tetap milik schema owner `t_03b41644`
+  (§9.5 opsi 1/2: kunci `handover:rec:<receiving_id>` atau row lock
+  `receiving_items` **sebelum** cek kuota). Rekomendasi itu **tidak berubah**
+  dan **tidak diklaim selesai** di sini.
+- Penarikan diri memakai `delete` ber-CAS pada baris yang **baru saja dibuat
+  sendiri** (bukan ID dari input pengguna). Jalur itu diperiksa oleh
+  `probe_run237_shell_wiring` W7: setiap `.delete()` pada `handovers` di
+  `components/ modules/ lib/` harus menunjuk `inserted.id` **dan** memakai
+  `.is('diserahkan_at', null)`; kalau tidak, probe GAGAL.
+- Diuji di jsdom + mock perekam (bukan Supabase nyata) untuk jalur aplikasi;
+  dua koneksi bersamaan diuji di PG16 **lokal** (`probe_run242_duprace` milik
+  reviewer, bukan probe ini). Latensi/pooler Supabase hanya **memperbesar**
+  jendela, dan justru itu yang ditutup oleh verifikasi-sesudah-commit.

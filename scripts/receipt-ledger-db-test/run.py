@@ -241,6 +241,15 @@ rc11 = run(['node', os.path.join(HERE, 'probe_run237_fk_scope.mjs')], cwd=REPO, 
 print('\n=== 15. Dua dokumen untuk satu penerimaan: penyerahan ganda (run 239) ===')
 rc12 = run(['node', os.path.join(HERE, 'probe_run239_dupdoc.mjs')], cwd=REPO, env=env)
 
+# ------------- 16. konvergensi penjaga create di PostgreSQL NYATA (run 243) ----
+# Review run 242 membuktikan penjaga SELECT-lalu-INSERT tidak menahan dua sesi
+# bersamaan (probe_run242_duprace). Probe ini menguji MEKANISME PENGGANTINYA
+# terhadap PG16 sungguhan: dua koneksi, commit nyata, verifikasi-sesudah-commit
+# + tarik diri. Hasil yang dituntut: keadaan akhir SELALU satu dokumen aktif,
+# dan yang bertahan adalah yang `created_at` paling awal.
+print('\n=== 16. Konvergensi penjaga create di PostgreSQL nyata (run 243) ===')
+rc13 = run(['node', os.path.join(HERE, 'probe_run243_race_pg.mjs')], cwd=REPO, env=env)
+
 # CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
 # bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
 # menyimpulkan "siap DDL" padahal READY mustahil menyala.
@@ -248,4 +257,4 @@ if rc7 == 2:
     print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
     print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
     sys.exit(2)
-sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11 or rc12)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11 or rc12 or rc13)
