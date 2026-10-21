@@ -143,6 +143,9 @@ shutil.copy(os.path.join(HERE, 'probe_run243_dupfresh.mjs'), SB)
 # menggagalkan mekanisme run 243, plus menyeragamkan ketiga pintu pembuatan
 # (save.js / purchaseSave.js / pages/index.js) dan sisa dokumen ganda (L3).
 shutil.copy(os.path.join(HERE, 'probe_run245_doors_race.mjs'), SB)
+# run 248: UI pembagian satu baris → beberapa proyek (acceptance 4). Gap yang
+# dinyatakan terbuka di run 246 ("belum ada UI untuk mengisi allocations").
+shutil.copy(os.path.join(HERE, 'probe_r248_split_ui.mjs'), SB)
 # Kontrak ditulis ulang supaya §7 bisa diperiksa probe 234 (tanpa ini probe
 # membaca path sandbox dan lolos secara hampa).
 shutil.copy(os.path.join(REPO, 'docs', 'receiving-events-contract.md'), SB)
@@ -185,6 +188,8 @@ print('\n=== PROBE KUNCI SLOT + PINTU SERAGAM (run 245: review run 244 W1/W3) ==
 # REPO menunjuk ke pohon repo (bukan sandbox kompilasi).
 env_probe11 = dict(os.environ, REPO=REPO)
 rc_probe11 = subprocess.run(['node', 'probe_run245_doors_race.mjs'], cwd=SB, env=env_probe11).returncode
+print('\n=== PROBE UI PEMBAGIAN 1 BARIS → BEBERAPA PROYEK (run 248: acceptance 4) ===')
+rc_probe12 = subprocess.run(['node', 'probe_r248_split_ui.mjs'], cwd=SB).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — DIJALANKAN APA ADANYA (final: K1/K2/K3) ===')
 rc_rev1 = subprocess.run(['node', 'probe_run219_reviewer_final.mjs'], cwd=SB).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — kontrol positif READY (J) ===')
@@ -200,4 +205,4 @@ rc_rev4 = subprocess.run(['node', 'probe_run219_reviewer_problem_RAW.mjs'], cwd=
 if rc_rev3 == 0 or rc_rev4 == 0:
     print('\nPERINGATAN: probe I/H milik reviewer LULUS — berarti defect run 219 masih ada!')
     sys.exit(1)
-sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_probe7 or rc_probe8 or rc_probe9 or rc_probe10 or rc_probe11 or rc_rev1 or rc_rev2)
+sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_probe7 or rc_probe8 or rc_probe9 or rc_probe10 or rc_probe11 or rc_probe12 or rc_rev1 or rc_rev2)

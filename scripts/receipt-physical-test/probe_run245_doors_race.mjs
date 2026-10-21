@@ -232,8 +232,24 @@ const shell = fs.readFileSync(path.join(REPO, 'pages', 'index.js'), 'utf8')
 const atSend = shell.indexOf('async function sendToTukang(')
 const endSend = shell.indexOf('\n  async function ', atSend + 10)
 const sendFn = shell.slice(atSend, endSend > atSend ? endSend : shell.length)
-check('G7a `sendToTukang` memakai `insertUniqueActiveHandover` (bukan INSERT langsung)',
-  /insertUniqueActiveHandover\(/.test(sendFn), sendFn.slice(0, 120))
+check('G7a `sendToTukang` memakai SATU pembungkus create (bukan INSERT langsung)',
+  /createActiveHandover\(/.test(sendFn), sendFn.slice(0, 120))
+check('G7a2 pembungkus itu benar-benar memuat DUA jalur (RPC kontrak v1 + slot LEGACY)',
+  (() => {
+    const p = path.join(REPO, 'modules', 'handovers', 'createHandover.js')
+    if (!fs.existsSync(p)) return false
+    const s = fs.readFileSync(p, 'utf8')
+    return /handover_create_atomic/.test(s) && /insertUniqueActiveHandover\(/.test(s)
+  })(), 'createHandover.js tidak memuat salah satu jalur')
+check('G7a3 ketiga pintu create memakai pembungkus yang SAMA',
+  (() => {
+    const doors = [
+      path.join(REPO, 'modules', 'handovers', 'save.js'),
+      path.join(REPO, 'modules', 'receivings', 'purchaseSave.js'),
+      path.join(REPO, 'pages', 'index.js')
+    ]
+    return doors.every(d => fs.existsSync(d) && /createActiveHandover/.test(fs.readFileSync(d, 'utf8')))
+  })(), 'ada pintu create yang belum memakai pembungkus')
 check('G7b tidak ada lagi `from(\'handovers\').insert(` di jalur itu',
   !/from\(\s*'handovers'\s*\)\s*\.insert\(/.test(sendFn), 'masih ada INSERT langsung')
 check('G7c jalur konfirmasi shell memakai `confirmUniqueHandover` (bukan confirm.js langsung)',

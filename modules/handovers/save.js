@@ -16,7 +16,7 @@
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
 import { buildHandoverNote, parseHandoverNote, dataUrlByteSize, HANDOVER_FOTO_MAX_BYTES } from '../../lib/constants'
-import { insertUniqueActiveHandover } from './duplicateGuardDb'
+import { createActiveHandover } from './createHandover'
 
 export async function save(ctx) {
   const { form, isEdit, editRow, say, close, refresh, setSaving } = ctx
@@ -102,7 +102,10 @@ export async function save(ctx) {
     note
   }
 
-  const result = await insertUniqueActiveHandover({ data, client: supabase })
+  // TIGA pintu create memakai SATU pembungkus: bila RPC kontrak v1 terbukti
+  // ada, database yang menjamin satu dokumen aktif per penerimaan; bila belum
+  // ada (LEGACY), jalur slot lama dipakai. unknown/error = ditolak (fail closed).
+  const result = await createActiveHandover({ data, client: supabase })
   setSaving(false)
   if (!result.ok) {
     say(result.reason)

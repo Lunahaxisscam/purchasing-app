@@ -27,7 +27,8 @@ import LaborStockModule from '../modules/labor-stock/view'
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
 import { deleteDecision } from '../modules/handovers/deleteGuard'
-import { insertUniqueActiveHandover, confirmUniqueHandover } from '../modules/handovers/duplicateGuardDb'
+import { confirmUniqueHandover } from '../modules/handovers/duplicateGuardDb'
+import { createActiveHandover } from '../modules/handovers/createHandover'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
@@ -452,7 +453,7 @@ export default function App() {
         // REVIEW run 244 (BUG-W3): jalur fallback ini dulu INSERT LANGSUNG
         // tanpa penjaga — pintu ketiga yang membuat dokumen kedua untuk satu
         // penerimaan. Sekarang lewat penjaga yang SAMA dengan form Tambah.
-        const queued = await insertUniqueActiveHandover({
+        const queued = await createActiveHandover({
           data: {
             receiving_id: receiving.id,
             project_id: receiving.project_id || null,

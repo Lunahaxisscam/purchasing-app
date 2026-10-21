@@ -21,6 +21,7 @@
 
 import { parsePurchaseNote, isPurchasedNota, buildItemPriceNote } from '../../lib/purchaseNote'
 import { isLeanRequest } from '../requests/leanRequest'
+import { normalizeAllocations, validateSplit } from './allocationLogic'
 
 export const TAB_READY = 'ready'
 export const TAB_HISTORY = 'history'
@@ -364,6 +365,10 @@ export function buildFormDraft(rows, { vendorId = '', today = null } = {}) {
       // kehilangan jejak proyeknya.
       prId: r.prId || null,
       projectId: r.projectId || null,
+      // PEMBAGIAN SATU BARIS KE BEBERAPA PROYEK (acceptance 4).
+      // `null` = baris tunggal (projectId di atas yang dipakai). Array =
+      // pembagian; `projectId` diabaikan (kontrak DB: XOR).
+      allocations: null,
       // Baris langsung boleh diedit proyeknya di form (satu nota lintas
       // proyek: pilih proyek PER BARIS, bukan menimpa seluruh nota).
       formKey: r.key || null
@@ -422,11 +427,18 @@ export function validatePurchaseForm(form, { vendors = [] } = {}) {
     const c = computeItem(it)
     if (!c.validQty) err.qty = 'Qty beli harus lebih dari 0.'
     if (!c.validHarga) err.harga = 'Harga satuan riil wajib diisi (angka > 0).'
+    // PEMBAGIAN SATU BARIS → BEBERAPA PROYEK (acceptance 4).
+    // Aturan ini SAMA dengan yang ditegakkan DB (`allocation_not_exact`,
+    // `allocation_needs_two_projects`). Tanpa validasi di sini admin bisa
+    // menekan Simpan dan PASTI ditolak server — kelas defect "tawaran yang
+    // pasti gagal" (run 190/195/199).
+    const split = validateSplit({ qty: it?.qty, allocations: it?.allocations })
+    if (!split.ok) err.split = split.message
     // Item tanpa prItemId (belanja langsung) tetap divalidasi — dicatat di
     // errors global, karena itemErrors memakai prItemId sebagai kuncinya.
     if (Object.keys(err).length) {
       if (it?.prItemId) itemErrors[it.prItemId] = err
-      else errors.push(`${err.qty || err.harga} (baris "${String(it?.itemName || '—').trim()}")`)
+      else errors.push(`${err.qty || err.harga || err.split} (baris "${String(it?.itemName || '—').trim()}")`)
     }
   }
   const totals = computeTotals(form)
@@ -455,6 +467,9 @@ export function buildSavePlan(form) {
         // purchase_request_id/project_id walau tidak ada cangkang Approval.
         prId: it.prId || null,
         projectId: it.projectId || null,
+        // PEMBAGIAN SATU BARIS → BEBERAPA PROYEK (acceptance 4). Hanya porsi
+        // sah yang diteruskan; `null` berarti baris tunggal (projectId dipakai).
+        allocations: normalizeAllocations(it.allocations),
         itemNote: buildItemPriceNote(c.harga)
       }
     })

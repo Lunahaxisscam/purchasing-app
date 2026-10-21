@@ -56,6 +56,13 @@ if os.path.isfile(f'{REPO}/modules/handovers/duplicateGuardDb.js'):
 # ini gagal di IMPOR — bukan gagal di assertion.
 if os.path.isfile(f'{REPO}/modules/handovers/confirm.js'):
     shutil.copy(f'{REPO}/modules/handovers/confirm.js', f'{SB}/modules/handovers/confirm.js')
+# run 248: save.js kini memanggil `createActiveHandover` (satu pembungkus untuk
+# tiga pintu create: RPC kontrak v1 bila ada, jalur slot bila LEGACY). Rantai
+# impornya `createHandover` -> `createCapability` + `duplicateGuardDb`. Tanpa
+# file-file ini harness gagal di IMPOR, bukan di assertion.
+for f in ['createHandover.js', 'createCapability.js']:
+    if os.path.isfile(f'{REPO}/modules/handovers/{f}'):
+        shutil.copy(f'{REPO}/modules/handovers/{f}', f'{SB}/modules/handovers/{f}')
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')

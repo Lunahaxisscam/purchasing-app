@@ -705,3 +705,77 @@ dari yang paling murah:
 
 Selama ketiganya belum ada, jaminan yang berlaku adalah jaminan **aplikasi**
 (§9B.2) — dan itu dinyatakan apa adanya, bukan sebagai invarian database.
+
+## 9C. Kontrak operasional v1: RPC menjadi penjaga, slot menjadi cadangan (run 248)
+
+Paket schema owner (t_2b8dcab3) sekarang menyediakan kontrak yang **menggeser
+titik jaminan dari aplikasi ke database**:
+
+| Objek | Isi |
+|---|---|
+| `purchase_save_atomic(p_payload jsonb)` | header + baris typed + alokasi + antrean Serah Terima dalam SATU transaksi |
+| `handover_create_atomic(p_payload jsonb)` | satu dokumen aktif per penerimaan (kunci `ops_v1_lock_receiving` + `unique index (receiving_id) where diserahkan_at is null`) |
+| `receipt_apply_events` / `handover_confirm` / `return_create` | dipertahankan, ditambah kunci domain sebelum cek kuota |
+| `ops_v1_allowed()` | `profiles.id = auth.uid() AND lower(role) = 'admin'`; selain itu `{ok:false,reason:'forbidden'}` |
+
+### 9C.1 Kenapa jalur slot TIDAK boleh dipakai saat RPC ada
+
+`insertUniqueActiveHandover()` (run 245) mengarang `handovers.id` deterministik
+dari `(receiving_id, jumlah dokumen yang terlihat)`. Itu penjaga yang sah untuk
+skema LAMA, tetapi begitu kontrak v1 diterapkan ada **dua sumber kebenaran**:
+
+- id slot bisa **menolak pembuatan yang SAH** (slot terpakai baris yang sudah
+  diserahkan tetapi belum terbaca di snapshot), dan
+- id slot **tidak** memenuhi kontrak RPC (RPC memakai `gen_random_uuid()`).
+
+Karena itu `modules/handovers/createHandover.js` memilih **satu** jalur:
+
+| `createCapability.state` | Jalur |
+|---|---|
+| `ready` | RPC `handover_create_atomic` (database yang menjamin) |
+| `legacy` (RPC terbukti tidak ada: PGRST202/42883) | `insertUniqueActiveHandover` (jalur lama, teruji run 245) |
+| `unknown` / `error` | **TOLAK** menulis, sebab terbaca |
+
+Ketiga pintu create (`save.js`, `purchaseSave.js`, `pages/index.js`
+`sendToTukang`) memakai pembungkus yang SAMA. Diuji statis di probe 245
+(G7a/G7a2/G7a3) dan fungsional di probe 248 (A6/A7/A8).
+
+### 9C.2 `forbidden` bukan bukti READY
+
+`purchase_save_atomic({})` untuk non-admin menjawab `{ok:false,reason:'forbidden'}`
+— bentuk yang **sama** dengan penolakan validasi. Probe yang menerima
+`data.ok === false` tanpa memeriksa `reason` akan menyimpulkan READY untuk sesi
+yang tidak boleh menulis sama sekali. `purchaseCapability.js` sekarang:
+
+- `reason === 'forbidden'` → **tidak READY**, `forbidden:true`, sebab terbaca;
+- `ok:false` tanpa `reason`/`error` → **tidak bisa disimpulkan**, bukan READY;
+- hanya `ok:false` dengan sebab validasi yang jelas → bukti fungsi hidup.
+
+`savePurchaseWithClient` memakai `capability.forbidden` untuk berhenti dengan
+pesan admin, bukan mencoba jalur multipart (yang akan ditolak trigger
+`purchase_rpc_required` dan menampilkan error SQL mentah).
+
+### 9C.3 Pembagian satu baris ke beberapa proyek (acceptance 4)
+
+`modules/receivings/allocationLogic.js` (murni) + panel di `purchaseForm.jsx`:
+
+- tombol "⇄ Bagi ke proyek" ada di **setiap** baris (termasuk baris dari PR);
+- aturan yang sama dengan DB: ≥ 2 proyek **berbeda**, `SUM(qty) = qty beli`,
+  `project_id` XOR `allocations`;
+- ringkasan menyatakan `pas` / `sisa n` / `kelebihan n` / `butuh 2 proyek`;
+- **bila skema alokasi belum aktif, tombol Simpan DIMATIKAN** dan banner
+  menyatakan pembagian tidak akan disimpan — bukan gagal senyap;
+- baris belanja langsung wajib memilih material saat jalur atomik aktif
+  (kontrak menolak `material_unresolved`).
+
+### 9C.4 Batas yang tetap diakui
+
+- Migrasi v1 **belum** diterapkan ke produksi (`LIVE_APPLY_BLOCKED`): PG secure
+  slot tidak tersedia, backup/restore/DDL live = 0. Semua bukti di §9C berasal
+  dari cluster PG16 terisolasi + fixture sintetis.
+- RLS terhadap sesi Novi nyata belum E2E (diuji mekanis: role + grant).
+- `pages/api/seed-simulation.js` masih bisa menghapus massal dengan token
+  maintenance (bukan UI).
+- Foto belum diunggah ke arsip (`foto_ref` selalu null).
+- Koreksi penerimaan belum didukung (tidak ada RPC reversal).
+- Serah terima = satu dokumen satu waktu (CAS); sisa lewat dokumen baru.

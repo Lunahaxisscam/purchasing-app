@@ -56,7 +56,8 @@
 import { supabase } from '../../lib/supabaseClient'
 import { buildPurchaseNote, PURCHASED_STATUS, TAHAP_DIBELI, isPurchasedNota, itemPriceNoteOf } from '../../lib/purchaseNote'
 import { buildSavePlan } from './purchaseLogic'
-import { insertUniqueActiveHandover } from '../handovers/duplicateGuardDb'
+import { normalizeAllocations, validateSplit } from './allocationLogic'
+import { createActiveHandover } from '../handovers/createHandover'
 
 function isCheckViolation(error) {
   const code = String(error?.code || '')
@@ -143,19 +144,25 @@ export function validatePurchaseBoundary(nota) {
     const harga = Number(it?.harga)
     if (!isFinite(qty) || qty <= 0) return err(`Qty "${nama}" harus lebih dari 0.`, 'item_qty')
     if (!isFinite(harga) || harga <= 0) return err(`Harga satuan riil "${nama}" wajib diisi (> 0, diambil dari nota toko).`, 'item_price')
+    // PEMBAGIAN SATU BARIS → BEBERAPA PROYEK (acceptance 4).
+    // Boundary yang SAMA dipakai semua kanal (admin & konektor): aturan split
+    // ditegakkan di sini, bukan hanya di form. DB tetap penjaga terakhir.
+    const allocs = normalizeAllocations(it?.allocations)
+    if (allocs) {
+      const split = validateSplit({ qty, allocations: allocs })
+      if (!split.ok) return err(split.message, split.reason)
+    }
     clean.push({
       prItemId: it?.prItemId ? String(it.prItemId) : null,
       prId: it?.prId ? String(it.prId) : null,
-      projectId: it?.projectId ? String(it.projectId) : null,
+      // Kontrak DB: project_id XOR allocations. Baris split TIDAK membawa
+      // project_id (header proyek juga NULL untuk split/mixed).
+      projectId: allocs ? null : (it?.projectId ? String(it.projectId) : null),
       // Identitas material + alokasi split dibawa apa adanya. Validasi
       // kelengkapan material dilakukan SETELAH ini (butuh prItems untuk
       // menurunkan material dari baris PR), bukan di sini.
       materialId: it?.materialId ? String(it.materialId) : null,
-      allocations: Array.isArray(it?.allocations) && it.allocations.length
-        ? it.allocations
-          .map(a => ({ projectId: a?.projectId ? String(a.projectId) : null, qty: Number(a?.qty) }))
-          .filter(a => a.projectId && isFinite(a.qty) && a.qty > 0)
-        : null,
+      allocations: allocs,
       itemName: nama,
       unit: String(it?.unit || '').trim() || null,
       qty: Math.round(qty * 1000) / 1000,
@@ -215,6 +222,19 @@ export async function savePurchaseWithClient({
   capability = null
 } = {}) {
   if (!client) return { ok: false, error: 'Supabase tidak tersedia.' }
+
+  // --- 0a) GERBANG IZIN (kontrak v1) -------------------------------------
+  // RPC kontrak v1 menolak non-admin dengan `{ok:false,reason:'forbidden'}`
+  // dan TRIGGER menolak jalur multipart (`purchase_rpc_required`). Jadi bila
+  // probe membuktikan sesi ini `forbidden`, jangan mencoba jalur lama lalu
+  // menampilkan error SQL mentah — berhenti dengan pesan yang bisa dibaca.
+  if (capability && capability.forbidden) {
+    return {
+      ok: false,
+      reason: 'forbidden',
+      error: 'Hanya admin yang boleh menyimpan nota pembelian. Akun ini tidak punya hak menulis nota.'
+    }
+  }
 
   // --- 0a) Boundary reusable: validasi + normalisasi payload ---
   const inline = validatePurchaseBoundary(form)
@@ -554,7 +574,7 @@ export async function savePurchaseWithClient({
     // serah terima. Dicatat eksplisit supaya UI/laporan tidak menjawab "gagal".
     handoverError = ''
   } else try {
-    const queued = await insertUniqueActiveHandover({
+    const queued = await createActiveHandover({
       client,
       data: {
         receiving_id: receivingId,

@@ -59,9 +59,11 @@ function classify(error) {
   return { ok: false, indeterminate: true, reason: msg || 'tidak bisa dibaca' }
 }
 
-async function probeSelect(table, columns) {
+async function probeSelect(table, columns, client) {
+  const sb = client || supabase
+  if (!sb) return { ok: false, indeterminate: true, reason: 'Supabase tidak tersedia' }
   try {
-    const { error } = await supabase.from(table).select(columns.join(',')).limit(1)
+    const { error } = await sb.from(table).select(columns.join(',')).limit(1)
     return classify(error)
   } catch (err) {
     return { ok: false, indeterminate: true, reason: err.message }
@@ -80,9 +82,11 @@ async function probeSelect(table, columns) {
 // HANYA salah satu dari:
 //   (a) `{ok:false, reason:...}` → fungsi benar-benar berjalan & menolak, atau
 //   (b) error yang JELAS berasal dari validasi payload (bukan "tidak ada").
-async function probeAtomicRpc() {
+async function probeAtomicRpc(client) {
+  const sb = client || supabase
+  if (!sb) return { ok: false, indeterminate: true, reason: 'Supabase tidak tersedia' }
   try {
-    const { data, error } = await supabase.rpc('purchase_save_atomic', { p_payload: {} })
+    const { data, error } = await sb.rpc('purchase_save_atomic', { p_payload: {} })
     const code = String(error?.code || '')
     const msg = String(error?.message || '')
     if (error) {
@@ -102,7 +106,26 @@ async function probeAtomicRpc() {
     }
     // Tidak ada error: satu-satunya bukti sah adalah RPC menjawab `ok:false`
     // dengan sebab — artinya ia benar-benar berjalan dan menolak payload kosong.
-    if (data && typeof data === 'object' && data.ok === false) return { ok: true }
+    //
+    // PENTING (kontrak v1, catatan Bandeng): `{ok:false,reason:'forbidden'}`
+    // BUKAN bukti jalur ini bisa dipakai. Non-admin mendapat jawaban yang sama
+    // persis, jadi menerimanya sebagai bukti akan menyalakan jalur atomik untuk
+    // pengguna yang RPC-nya akan menolak setiap penulisan. `forbidden` =
+    // fungsi hidup tetapi TIDAK bisa dipakai sesi ini → jangan READY.
+    if (data && typeof data === 'object' && data.ok === false) {
+      const why = String(data.reason || '')
+      if (why === 'forbidden') {
+        return { ok: false, forbidden: true, indeterminate: true, reason: 'RPC menolak: sesi ini bukan admin (forbidden)' }
+      }
+      if (!why && !String(data.error || '')) {
+        return {
+          ok: false,
+          indeterminate: true,
+          reason: 'RPC menolak tanpa sebab yang bisa dibaca — kesiapan tidak bisa disimpulkan'
+        }
+      }
+      return { ok: true }
+    }
     // `data` kosong/null tanpa error = TIDAK BISA DISIMPULKAN. Jangan pernah
     // menyimpulkan READY dari ketiadaan jawaban.
     return {
@@ -115,24 +138,33 @@ async function probeAtomicRpc() {
   }
 }
 
-export async function getPurchaseCapability({ force = false } = {}) {
-  if (!supabase) {
+export async function getPurchaseCapability({ force = false, client = null } = {}) {
+  const sb = client || supabase
+  if (!sb) {
     return {
-      state: PURCHASE_CAP.LEGACY, typed: false, allocations: false, atomic: false,
+      // TIDAK bisa disimpulkan ≠ legacy. `legacy` berarti "RPC terbukti tidak
+      // ada"; tanpa klien kita tidak membuktikan apa pun, jadi jangan memakai
+      // jalur lama atas dasar ketiadaan bukti.
+      state: PURCHASE_CAP.PARTIAL, typed: false, allocations: false, atomic: false,
       probeFailed: true, allocationPersisted: false, missing: ['Supabase tidak tersedia'], checkedAt: null
     }
   }
-  if (!force && cache && Date.now() - cache.at < TTL_MS) return cache.value
+  // Cache hanya untuk klien modul (satu sesi aplikasi). Klien yang disuntikkan
+  // (probe/uji) selalu diprobe ulang: menyajikan hasil milik klien lain akan
+  // menyimpulkan READY untuk role yang berbeda — persis kesalahan yang
+  // ditutup di run ini.
+  const injected = !!client
+  if (!force && !injected && cache && Date.now() - cache.at < TTL_MS) return cache.value
   if (inflight) return inflight
 
   inflight = (async () => {
-    const typed = await probeSelect('receiving_items', TYPED_ITEM_COLUMNS)
-    const allocs = await probeSelect('receiving_item_allocations', ALLOCATION_COLUMNS)
+    const typed = await probeSelect('receiving_items', TYPED_ITEM_COLUMNS, sb)
+    const allocs = await probeSelect('receiving_item_allocations', ALLOCATION_COLUMNS, sb)
     // RPC hanya diprobe bila objek yang ia tulis SUDAH ada. Memanggil RPC di
     // database yang belum dimigrasi hanya menghasilkan kebisingan, dan
     // kesimpulannya sudah pasti: belum siap.
     const atomic = (typed.ok && allocs.ok)
-      ? await probeAtomicRpc()
+      ? await probeAtomicRpc(sb)
       : { ok: false, missing: true, reason: 'objek alokasi belum lengkap' }
 
     const missing = []
@@ -158,6 +190,11 @@ export async function getPurchaseCapability({ force = false } = {}) {
       // tersimpan". Bukan `state === READY` di layar mana pun.
       allocationPersisted: state === PURCHASE_CAP.READY,
       probeFailed: indeterminate,
+      // RPC menjawab `forbidden` = sesi ini TIDAK boleh menulis lewat jalur
+      // atomik. Jalur multipart juga akan ditolak trigger kontrak v1, jadi
+      // pemanggil harus berhenti dengan pesan admin — bukan mencoba jalur lain
+      // lalu menampilkan error SQL mentah.
+      forbidden: !!atomic.forbidden,
       missing,
       checkedAt: new Date().toISOString()
     }
