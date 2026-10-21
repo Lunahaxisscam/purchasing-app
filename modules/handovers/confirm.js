@@ -14,19 +14,30 @@
 // Validasi rincian qty per item menyusul saat tabel `handover_items`
 // disetujui DAT (skema belum ada — lihat docs/handover-gap-proposal.md).
 // Selama itu: minimal guard status + `diserahkan_at` selalu ditulis.
+//
+// run 245: `client` opsional supaya `confirmUniqueHandover()` (penjaga dokumen
+// ganda) bisa memakai klien yang SAMA untuk baca-sebelum dan baca-sesudah.
+// Tanpa argumen, perilakunya identik dengan sebelumnya (supabase global).
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
 
-export async function markHandoverDelivered({ handover, now } = {}) {
-  if (!supabase) return { ok: false, error: 'Supabase tidak tersedia.' }
+export async function markHandoverDelivered({ handover, now, receivedBy, client } = {}) {
+  const sb = client || supabase
+  if (!sb) return { ok: false, error: 'Supabase tidak tersedia.' }
   if (!handover?.id) return { ok: false, error: 'Data serah terima tidak dikenal.' }
   if (handover.diserahkan_at) return { ok: true, already: true }
 
   const ts = now || new Date().toISOString()
+  // Nama penerima ikut ditulis bila diberikan. Tanpa ini field "Diterima oleh"
+  // hanya hiasan: bukti serah terima tidak menyebut siapa yang menerima
+  // (defect run 190 pada jalur konfirmasi tanpa rincian).
+  const patch = { status: 'CONFIRMED', diserahkan_at: ts }
+  const nama = String(receivedBy || '').trim()
+  if (nama) patch.received_by = nama
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('handovers')
-      .update({ status: 'CONFIRMED', diserahkan_at: ts })
+      .update(patch)
       .eq('id', handover.id)
       .is('diserahkan_at', null)
       .select()

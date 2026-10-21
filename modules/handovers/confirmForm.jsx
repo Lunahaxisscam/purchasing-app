@@ -19,10 +19,11 @@
 // `confirm.js`) dengan pesan jujur bahwa rincian per barang belum tersimpan.
 // ============================================================
 import React, { useEffect, useMemo, useState } from 'react'
-import { handoverLinesFromEvents, validateHandoverLines } from '../receivings/receiptEventLogic'
+import { handoverLinesFromEvents, validateHandoverLines, deliverabilityOf } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadDeliveredByEvent, confirmHandoverLines } from '../receivings/receiptEventSave'
-import { capabilityMessage } from '../receivings/receiptCapability'
-import { markHandoverDelivered } from './confirm'
+import { capabilityMessage, capabilityState, coreLedgerReady, CAP_STATE } from '../receivings/receiptCapability'
+import { confirmUniqueHandover, verifyAfterConfirm } from './duplicateGuardDb'
+import { dbErrorText } from './dbErrorText'
 
 const fmt = (v) => (v === undefined || v === null || v === '' ? '—' : v)
 
@@ -37,27 +38,60 @@ const S = {
 }
 
 export default function HandoverConfirmForm({ handover, capability = null, say, refresh, close }) {
-  const ready = !!capability?.ready
-  const [loading, setLoading] = useState(ready)
+  // TIGA keadaan (defect run 212 / BUG-R1): `null` = probe BELUM SELESAI,
+  // BUKAN LEGACY. Di LEGACY form ini MENULIS `diserahkan_at` tanpa rincian dan
+  // mengunci dokumen permanen (CAS), jadi jendela probe tidak boleh dianggap
+  // LEGACY. Hanya `ready:false` yang benar-benar hasil probe (skema belum ada)
+  // yang boleh memakai jalur tulis header.
+  const capState = capabilityState(capability)
+  // DEFECT run 231: `ready` di sini berarti "ledger INTI siap". Konfirmasi
+  // serah terima hanya butuh `receiving_events` + `handover_items`, TIDAK butuh
+  // `return_lines` — jadi keadaan `ready_no_return` (layer retur belum) harus
+  // tetap bisa mengonfirmasi per barang. Dulu `capState === 'ready'` membuat
+  // seluruh alur serah terima mati hanya karena tabel retur belum dimigrasi.
+  const ready = coreLedgerReady(capability)
+  const legacy = capState === CAP_STATE.LEGACY
+  // `partial` (run 219 / BUG-S2) = sebagian objek ledger SUDAH ADA. Form ini
+  // TIDAK boleh jatuh ke jalur LEGACY di keadaan itu: jalur LEGACY menulis
+  // header dan mengunci dokumen tanpa rincian, padahal rincian per barang
+  // sudah tercatat. Perlakukan seperti pending: tidak menulis, pesan jujur.
+  const pending = capState === CAP_STATE.UNKNOWN || capState === CAP_STATE.ERROR || capState === CAP_STATE.PARTIAL
+  // `loadedFor` = kunci pemuatan yang SUDAH selesai (berhasil atau gagal).
+  // Dulu `loading` diinisialisasi `useState(ready)`; saat capability berubah
+  // null→ready (jendela probe) `loading` tetap false selama satu render,
+  // sehingga panel "tidak ada alokasi" + tombol header-only SEMPAT aktif
+  // sebelum baris termuat — admin bisa mengunci dokumen tanpa rincian.
+  // Sekarang `loading` diturunkan dari kunci: tidak ada frame yang mengklaim
+  // "tidak ada baris" sebelum pemuatan untuk receiving INI benar-benar selesai.
+  const loadKey = ready && handover?.receiving_id ? `${handover.id}:${handover.receiving_id}` : ''
+  const [loadedFor, setLoadedFor] = useState('')
   const [loadError, setLoadError] = useState('')
   const [prefill, setPrefill] = useState([])
   const [lines, setLines] = useState([])
+  // REVIEW run 251 / D1: apakah penerimaan ini PUNYA barang yang ditujukan ke
+  // tukang sama sekali. `null` = belum diketahui (jangan menyimpulkan apa pun).
+  // Tanpa ini form menawarkan tombol "tanpa rincian" untuk penerimaan yang
+  // seluruh barangnya ke gudang — tombol yang PASTI ditolak DB v1
+  // (`physical_rpc_required`), dan dokumennya menetap terbuka selamanya.
+  const [deliverability, setDeliverability] = useState(null)
   const [penerimaHeader, setPenerimaHeader] = useState(handover?.received_by || '')
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    const key = loadKey
     async function load() {
-      if (!ready || !handover?.receiving_id) { setLoading(false); return }
-      setLoading(true)
+      if (!key) return
+      setLoadError('')
       const ev = await loadReceivingEvents({ receivingId: handover.receiving_id })
       if (cancelled) return
-      if (!ev.ok) { setLoadError(ev.error); setLoading(false); return }
+      if (!ev.ok) { setLoadError(ev.error); setLoadedFor(key); return }
       const ids = (ev.events || []).map(e => e.id)
       const del = await loadDeliveredByEvent({ eventIds: ids })
       if (cancelled) return
-      if (!del.ok) { setLoadError(del.error); setLoading(false); return }
+      if (!del.ok) { setLoadError(del.error); setLoadedFor(key); return }
+      setDeliverability(deliverabilityOf(ev.events || [], del.delivered || {}))
       const pf = handoverLinesFromEvents(ev.events || [], del.delivered || {})
       setPrefill(pf)
       setLines(pf.map(p => ({
@@ -70,38 +104,137 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
         penerima: p.penerima || handover?.received_by || '',
         catatan: ''
       })))
-      setLoading(false)
+      setLoadedFor(key)
     }
     load()
     return () => { cancelled = true }
-  }, [ready, handover?.receiving_id, handover?.id])
+  }, [loadKey, handover?.receiving_id, handover?.id])
+
+  // Turunan, bukan state: tidak ada frame "sudah selesai memuat" yang salah.
+  const loading = !!loadKey && loadedFor !== loadKey
 
   const totals = useMemo(() => {
     const total = lines.reduce((s, l) => s + (Number(l.qty_diserahkan) || 0), 0)
-    return { baris: lines.length, total }
+    const filled = lines.filter(l => Number(l.qty_diserahkan) > 0).length
+    return { baris: lines.length, total, filled }
   }, [lines])
 
   const validation = ready
     ? validateHandoverLines(lines, prefill)
-    : { ok: true, errors: [], lines: [] }
+    : { ok: true, errors: [], lines: [], skipped: [], remainder: 0 }
+  // Baris yang dilewati / diserahkan sebagian. RPC mengunci dokumen ini, jadi
+  // sisanya HARUS dicatat lewat dokumen Serah Terima baru — dikatakan di sini,
+  // bukan setelah admin menekan Simpan dan kehilangan sisanya (run 202).
+  const sisaInfo = useMemo(() => {
+    const list = validation.skipped || []
+    const total = Number(validation.remainder) || 0
+    return { list, total, ada: list.length > 0 }
+  }, [validation])
 
   function setLine(i, field, value) {
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l))
+  }
+
+  // Konfirmasi TANPA rincian: hanya waktu penyerahan (status + diserahkan_at).
+  // Dipakai saat READY tetapi tidak ada baris alokasi tukang untuk di-prefill —
+  // jalur yang sebelumnya mati (defect run 190). Nama penerima WAJIB, sama
+  // seperti jalur LEGACY, supaya bukti serah terima tetap bisa
+  // dipertanggungjawabkan.
+  //
+  // run 245 (review run 244 / W3): jalur ini dulu memanggil `confirm.js`
+  // langsung, jadi pintu konfirmasi di dalam modal tidak memakai penjaga
+  // dokumen ganda dan tidak memverifikasi apa pun sesudah menulis. Sekarang
+  // lewat `confirmUniqueHandover()` (periksa DB → tulis → periksa DB lagi).
+  // REVIEW run 251 / D1: jalur "tanpa rincian" (tulis `diserahkan_at` langsung)
+  // DITOLAK kontrak v1 untuk dokumen yang terhubung ke penerimaan. Satu-satunya
+  // dokumen yang masih sah memakainya adalah data lama TANPA `receiving_id`
+  // (tidak ada ledger yang bisa dibaca, tidak ada kuota yang dilanggar).
+  // Untuk dokumen ber-`receiving_id` tombolnya tidak dirender sama sekali —
+  // bukan sekadar dinonaktifkan — supaya tidak ada klik yang berakhir dengan
+  // teks SQL mentah (`physical_rpc_required`).
+  //
+  // REVIEW run 253 / D4: pengecualian "tanpa receiving_id" itu SALAH di bawah
+  // v1. Trigger `ops_v1_core_guard` menolak SETIAP penulisan `diserahkan_at`
+  // oleh `authenticated` (tanpa melihat `receiving_id`), dan `handover_confirm`
+  // menjawab `handover_not_found` untuk dokumen tanpa penerimaan. Jadi begitu
+  // ledger siap, TIDAK ADA dokumen yang boleh memakai jalur header — termasuk
+  // dokumen lama. Tombolnya tidak dirender untuk semua dokumen saat `ready`.
+  const headerOnlyBlocked = ready
+
+  async function submitHeaderOnly() {
+    if (saving) return
+    setErrorMsg('')
+    if (headerOnlyBlocked) {
+      // D4: di bawah v1 SEMUA dokumen ditolak saat menulis `diserahkan_at`
+      // langsung. Pesannya dibedakan supaya tidak menyuruh admin melakukan
+      // sesuatu yang tidak ada (dulu: "catat lewat form yang tersedia" —
+      // padahal ia sudah di form itu).
+      setErrorMsg(handover?.receiving_id
+        ? 'Dokumen ini terhubung ke penerimaan, jadi penutupan tanpa rincian DITOLAK database. '
+          + 'Catat dulu barang yang benar-benar diserahkan lewat konfirmasi per barang.'
+        : 'Dokumen ini tidak terhubung ke penerimaan, jadi tidak ada rincian yang bisa dicatat — '
+          + 'dan database MENOLAK menutup dokumen tanpa rincian. Dokumen lama tanpa penerimaan TIDAK bisa '
+          + 'diperbaiki dari aplikasi (kolom sumber dokumen dikunci database), jadi hapus dokumen ini '
+          + '(belum punya bukti) lalu catat serah terima dari penerimaan yang benar.')
+      return
+    }
+    const nama = String(penerimaHeader || '').trim()
+    if (!nama) { setErrorMsg('Nama penerima wajib diisi sebelum menandai diserahkan.'); return }
+    setSaving(true)
+    try {
+      const res = await confirmUniqueHandover({ handover, receivedBy: nama })
+      if (!res.ok) {
+        // D2 (review run 251): jangan teruskan teks SQL mentah ke admin.
+        const t = dbErrorText(res.error, { fallback: 'Serah terima tidak bisa ditandai diserahkan.' })
+        setErrorMsg(t.text)
+        return
+      }
+      say?.(res.warning || (res.already
+        ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.'
+        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang tidak ditulis karena dokumen ini tidak terhubung ke penerimaan.'))
+      close?.()
+      refresh?.()
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function submit(e) {
     e.preventDefault()
     if (saving) return
     setErrorMsg('')
+    // JENDELA PROBE (run 212 / BUG-R1): capability belum diketahui atau probe
+    // gagal → JANGAN menulis apa pun. Dulu jalur LEGACY dipakai di sini dan
+    // mengunci dokumen tanpa rincian, permanen.
+    if (pending) {
+      setErrorMsg(capabilityMessage(capability))
+      return
+    }
     if (ready) {
       if (!validation.ok) { setErrorMsg(validation.errors[0]); return }
       setSaving(true)
       try {
         const res = await confirmHandoverLines({ handover, lines: validation.lines })
-        if (!res.ok) { setErrorMsg(res.error); return }
-        say?.(res.already
+        if (!res.ok) {
+          // D2 (review run 251): kode DB (`empty_lines`, `over_handover`,
+          // `physical_rpc_required`) diterjemahkan ke kalimat yang bisa
+          // ditindaklanjuti. Kode aslinya tetap disebut untuk pelaporan.
+          const t = dbErrorText(res.error, { fallback: 'Serah terima tidak bisa disimpan.' })
+          setErrorMsg(t.text)
+          return
+        }
+        // run 245 (review run 244 butir 2a): verifikasi SESUDAH menulis bukti.
+        // RPC menulis `diserahkan_at` + rincian; yang diperiksa sesudahnya
+        // adalah apakah masih ada dokumen LAIN yang belum diserahkan.
+        const after = await verifyAfterConfirm({ handover })
+        // Sisa yang belum diserahkan HARUS disebut: dokumen ini terkunci setelah
+        // simpan, jadi sisanya hanya bisa dicatat lewat dokumen baru (run 202).
+        const sisaMsg = sisaInfo.ada
+          ? ` Sisa ${sisaInfo.total} unit belum diserahkan — catat lewat dokumen Serah Terima BARU untuk penerimaan yang sama (dokumen ini sudah terkunci).`
+          : ''
+        say?.(after.warning || (res.already
           ? 'Serah terima ini sudah ditandai diserahkan sebelumnya — tidak ada data yang digandakan.'
-          : `Serah terima tersimpan: ${res.inserted} baris barang diserahkan (${totals.total} unit).`)
+          : `Serah terima tersimpan: ${res.inserted} baris barang diserahkan (${totals.total} unit).${sisaMsg}`))
         close?.()
         refresh?.()
       } finally {
@@ -112,11 +245,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
     // LEGACY: konfirmasi header saja — rincian TIDAK diklaim tersimpan.
     setSaving(true)
     try {
-      const res = await markHandoverDelivered({ handover })
+      const res = await confirmUniqueHandover({ handover, receivedBy: String(penerimaHeader || '').trim() })
       if (!res.ok) { setErrorMsg(res.error); return }
-      say?.(res.already
+      say?.(res.warning || (res.already
         ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.'
-        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang belum tersimpan — menunggu migrasi skema.')
+        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang belum tersimpan — menunggu migrasi skema.'))
       close?.()
       refresh?.()
     } finally {
@@ -141,17 +274,37 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
 
         <div
           data-testid="handover-confirm-capability"
+          data-capability-state={capState}
           style={{
             ...S.note,
-            background: ready ? '#e6f4ea' : '#fef6e7',
-            border: `1px solid ${ready ? '#ceead6' : '#fcdfa6'}`,
-            color: ready ? '#137333' : '#7a4a08'
+            background: ready ? '#e6f4ea' : (pending ? '#eef3f1' : '#fef6e7'),
+            border: `1px solid ${ready ? '#ceead6' : (pending ? '#cbd8d4' : '#fcdfa6')}`,
+            color: ready ? '#137333' : (pending ? '#1f3a34' : '#7a4a08')
           }}
         >
           {ready
-            ? 'Rincian per barang AKTIF: baris di bawah diisi otomatis dari penerimaan (alokasi ke tukang) dikurangi yang sudah diserahkan — Anda hanya memverifikasi jumlah fisik.'
-            : `${capabilityMessage(capability)} Konfirmasi di sini hanya mencatat waktu penyerahan (header), tanpa rincian barang.`}
+            ? <>Rincian per barang AKTIF: baris di bawah diisi otomatis dari penerimaan (alokasi ke tukang) dikurangi yang sudah diserahkan — Anda hanya memverifikasi jumlah fisik. Kosongkan jumlah untuk barang yang BELUM benar-benar diterima; baris itu dilewati, bukan dipaksa nol.
+                {capState === CAP_STATE.READY_NO_RETURN
+                  // Run 231: jangan sembunyikan bahwa layer retur belum siap —
+                  // form ini tidak memakainya, tetapi admin harus tahu batasnya.
+                  ? <> <b>Catatan:</b> pencatatan <b>retur</b> belum aktif ({(capability?.missing || []).filter(Boolean).join('; ') || 'tabel retur belum siap'}); konfirmasi serah terima di sini tidak terpengaruh.</>
+                  : null}</>
+            : pending
+              ? capabilityMessage(capability)
+              : `${capabilityMessage(capability)} Konfirmasi di sini hanya mencatat waktu penyerahan (header), tanpa rincian barang.`}
         </div>
+
+        {/* Jendela probe / probe gagal: dikatakan apa adanya, dan tombol tulis
+            di bawah NONAKTIF. Tidak ada jalur tulis yang tersembunyi. */}
+        {pending && (
+          <div data-testid="handover-confirm-waiting" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
+            {capState === 'unknown'
+              ? 'Memeriksa kesiapan skema… tombol simpan akan aktif setelah pemeriksaan selesai. Tidak ada data yang ditulis sekarang.'
+              : capState === 'partial'
+                ? 'Migrasi skema belum lengkap — simpan dikunci supaya dokumen tidak terkunci tanpa rincian. Tidak ada data yang ditulis.'
+                : 'Pemeriksaan skema gagal — tutup lalu buka lagi form ini. Tidak ada data yang ditulis.'}
+          </div>
+        )}
 
         {loading && <div className="muted" style={{ fontSize: '12px' }}>Memuat rincian penerimaan…</div>}
         {loadError && (
@@ -162,9 +315,89 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
 
         {ready && !loading && !loadError && lines.length === 0 && (
           <div data-testid="handover-confirm-empty" style={{ ...S.note, background: '#fef6e7', border: '1px solid #fcdfa6', color: '#7a4a08' }}>
-            Tidak ada barang berstatus <b>alokasi ke tukang</b> yang belum diserahkan pada penerimaan ini.
-            Bila barang dikirim langsung ke tukang tanpa dicatat di Terima Barang, catat dulu alokasinya —
-            atau konfirmasi header saja (tanpa rincian) bila memang tidak ada rincian yang bisa dicatat.
+            {!handover?.receiving_id ? (
+              // REVIEW run 253 / D4: dokumen TANPA penerimaan. Di bawah v1 ia
+              // tidak punya jalur penutup apa pun — katakan apa adanya, jangan
+              // menawarkan tombol yang pasti ditolak DB, dan jangan menyuruh
+              // "catat lewat form yang tersedia" (admin SUDAH di form itu).
+              <>
+                Dokumen ini <b>tidak terhubung ke penerimaan</b>, jadi tidak ada satu baris pun barang yang
+                bisa dicatat sebagai diserahkan. Sejak pencatatan per barang aktif, <b>database menolak
+                menutup dokumen tanpa rincian</b> — termasuk dokumen lama seperti ini.
+                {' '}Dokumen lama tanpa penerimaan <b>tidak bisa diperbaiki dari aplikasi</b> (kolom sumber
+                dokumen dikunci database, bukan sekadar tombolnya belum ada), jadi <b>hapus dokumen ini</b>
+                (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.
+              </>
+            ) : deliverability && !deliverability.hasTukang ? (
+              // REVIEW run 251 / D1: tidak ada satu pun barang yang PERNAH
+              // ditujukan ke tukang. Tombol header-only di bawah SENGAJA tidak
+              // dirender: kontrak v1 menolak `diserahkan_at` tanpa rincian
+              // (`physical_rpc_required`), jadi tombol itu pasti gagal.
+              <>
+                Tidak ada barang yang <b>ditujukan ke tukang</b> pada penerimaan ini — semua barang
+                tercatat ke gudang/workshop. Karena itu tidak ada rincian yang bisa dicatat sebagai
+                serah terima, dan <b>database menolak menutup dokumen tanpa rincian</b>.
+                {' '}Bila ada barang yang seharusnya ke tukang, tutup form ini lalu catat tujuannya di
+                <b> Terima Barang</b>. Bila memang tidak ada, hapus dokumen Serah Terima ini
+                (belum punya bukti) supaya antrean tidak menyisakan pekerjaan yang tidak ada.
+              </>
+            ) : deliverability && deliverability.allDelivered ? (
+              <>
+                Seluruh alokasi ke tukang pada penerimaan ini <b>sudah diserahkan</b> lewat dokumen
+                lain. Tidak ada sisa yang bisa dikonfirmasi di dokumen ini, dan database menolak
+                menutupnya tanpa rincian. Hapus dokumen ini (belum punya bukti) — penyerahan yang
+                sudah tercatat tidak terpengaruh.
+              </>
+            ) : (
+              <>
+                Tidak ada barang berstatus <b>alokasi ke tukang</b> yang belum diserahkan pada penerimaan ini.
+                Bila barang dikirim langsung ke tukang tanpa dicatat di Terima Barang, catat dulu alokasinya
+                lewat <b>Terima Barang</b> — konfirmasi per barang baru bisa diisi setelah itu.
+              </>
+            )}
+          </div>
+        )}
+
+        {/* KONFIRMASI TANPA RINCIAN — jalur keluar yang NYATA.
+            Defect run 190: teks di atas menyuruh "konfirmasi header saja",
+            tetapi satu-satunya tombol submit membaca `validation.ok`, yang
+            selalu false saat tidak ada baris → tombol mati dan tidak ada
+            input header. Akibatnya handover tanpa alokasi tukang (termasuk
+            handover lama tanpa receiving_id) TIDAK BISA dikonfirmasi sama
+            sekali di mode READY — padahal mode LEGACY bisa.
+            Tombol ini eksplisit: ia mencatat `diserahkan_at` + status saja,
+            dan mengatakannya apa adanya (tidak mengklaim rincian tersimpan).
+
+            REVIEW run 251 / D1: tombol ini HANYA untuk dokumen yang memang
+            tidak punya jalur per barang SAMA SEKALI (data lama / tanpa
+            penerimaan). Bila penerimaan punya alokasi tukang (walau sudah
+            habis diserahkan), atau tidak punya sama sekali, menulis header
+            akan DITOLAK kontrak v1 (`physical_rpc_required`) dan mengunci
+            dokumen tanpa rincian — jadi tombolnya tidak dirender. */}
+        {ready && !loading && !loadError && lines.length === 0 && !headerOnlyBlocked && (
+          <div data-testid="handover-confirm-headeronly" style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed #d5e0dc', paddingTop: '10px' }}>
+            <label style={S.field}>
+              Diterima oleh (nama) — wajib untuk konfirmasi tanpa rincian
+              <input
+                type="text"
+                value={penerimaHeader}
+                placeholder="Contoh: Pak Joko (Mandor)"
+                data-testid="hc-header-penerima"
+                onChange={e => setPenerimaHeader(e.target.value)}
+              />
+            </label>
+            <div style={S.hint}>
+              Tombol ini mencatat <b>waktu penyerahan</b> saja. Rincian per barang
+              TIDAK ditulis karena tidak ada alokasi ke tukang pada penerimaan ini.
+            </div>
+            <button
+              type="button"
+              data-testid="handover-confirm-headeronly-submit"
+              disabled={saving || !penerimaHeader.trim()}
+              onClick={submitHeaderOnly}
+            >
+              {saving ? 'Menyimpan…' : '✓ Tandai Sudah Diserahkan (tanpa rincian)'}
+            </button>
           </div>
         )}
 
@@ -210,12 +443,40 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
             ))}
             <div style={{ fontSize: '11.5px', color: '#1f3a34' }} data-testid="handover-confirm-summary">
               <b>Ringkasan:</b> {totals.baris} baris · total diserahkan <b>{totals.total}</b>
+              {sisaInfo.ada ? <> · <b>{sisaInfo.total} unit belum diserahkan</b></> : null}
             </div>
+            {/* Peringatan SEBELUM simpan (run 202): dokumen ini dikunci saat
+                disimpan (RPC CAS `diserahkan_at`), jadi sisa hanya bisa dicatat
+                lewat dokumen Serah Terima BARU. Dulu hal ini baru ketahuan
+                setelah simpan — atau lebih buruk, admin mengisi qty palsu agar
+                bisa menyimpan. */}
+            {sisaInfo.ada && (
+              <div data-testid="handover-confirm-remainder" style={{ ...S.note, background: '#fdf8ea', border: '1px solid #f0dcb4', color: '#7a4a08' }}>
+                <b>{sisaInfo.list.length} baris belum diserahkan penuh ({sisaInfo.total} unit):</b>
+                <ul style={{ margin: '5px 0 0', paddingLeft: '18px' }}>
+                  {sisaInfo.list.map(s => (
+                    <li key={`${s.receiving_event_id}-${s.partial ? 'p' : 's'}`}>
+                      {s.item_name} — sisa {s.qty_sisa}{s.satuan ? ` ${s.satuan}` : ''}
+                      {s.partial ? ' (diserahkan sebagian)' : ' (dilewati)'}
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ marginTop: '5px' }}>
+                  Setelah disimpan, dokumen ini <b>terkunci</b>. Sisa di atas dicatat lewat
+                  <b> dokumen Serah Terima baru</b> untuk penerimaan yang sama — buat dari menu
+                  Serah Terima setelah ini. Kosongkan jumlah bila barangnya memang belum diterima
+                  (jangan diisi angka supaya bisa menyimpan).
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* LEGACY: penerima header tetap bisa diubah; rincian tidak diklaim. */}
-        {!ready && (
+        {/* LEGACY: penerima header tetap bisa diubah; rincian tidak diklaim.
+            HANYA saat probe benar-benar selesai (legacy) — bukan saat probe
+            masih berjalan (pending), karena di jendela itu tidak boleh ada
+            jalur tulis sama sekali. */}
+        {legacy && (
           <label style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
             Diterima oleh (nama)
             <input type="text" value={penerimaHeader} onChange={e => setPenerimaHeader(e.target.value)} data-testid="hc-header-penerima" />
@@ -232,10 +493,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
           <button type="button" className="outline" onClick={close}>Batal</button>
           <button
             type="submit"
-            disabled={saving || (ready && (!validation.ok || loading || !!loadError))}
+            disabled={saving || pending || (ready && (!validation.ok || loading || !!loadError))}
+            title={pending ? capabilityMessage(capability) : undefined}
             data-testid="handover-confirm-submit"
           >
-            {saving ? 'Menyimpan…' : '✓ Tandai Sudah Diserahkan'}
+            {pending ? 'Memeriksa kesiapan skema…' : (saving ? 'Menyimpan…' : '✓ Tandai Sudah Diserahkan')}
           </button>
         </div>
       </form>

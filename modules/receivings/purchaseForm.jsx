@@ -35,22 +35,88 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { rupiah } from '../../lib/constants'
 import { buildFormDraft, computeTotals, validatePurchaseForm } from './purchaseLogic'
+import { newAllocationRow, splitSummary, normalizeAllocations, validateSplit, suggestSplit, isSplitRow } from './allocationLogic'
 import { readAttachment, dataUrlByteSize, sizeLabel, ATTACHMENT_MAX_BYTES } from './attachments'
 import { savePurchase } from './purchaseSave'
+import { getPurchaseCapability, purchaseCapabilityMessage, PURCHASE_CAP } from './purchaseCapability'
+import { dbErrorText } from '../handovers/dbErrorText'
+
+// Kunci idempotensi per PERCOBAAN SIMPAN (bukan per klik).
+//
+// Kenapa harus di state dan bukan dibuat di dalam `savePurchaseWithClient`:
+// retry (jaringan putus / admin klik lagi) HARUS memakai kunci yang sama,
+// kalau tidak server melihatnya sebagai permintaan baru. Untuk nota tanpa
+// nomor vendor akibatnya nyata: nota kedua + baris kedua + dokumen Handover
+// kedua (defect R2 run 246). Kunci baru hanya dibuat setelah simpan BERHASIL
+// atau form dibuka untuk nota lain.
+function newClientRequestId() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  } catch (e) { /* jatuh ke fallback */ }
+  return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
 
 export default function PurchaseForm({
-  rows, vendorId, vendors = [], projects = [], receivings = [], receivingItems = [], close, onDone, say
+  rows, vendorId, vendors = [], projects = [], materials = [], receivings = [], receivingItems = [], close, onDone, say
 }) {
   const [form, setForm] = useState(() => buildFormDraft(rows, { vendorId }))
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [touched, setTouched] = useState(false)
   const [fileBusy, setFileBusy] = useState('')
+  const [cap, setCap] = useState(null)
   const busyRef = useRef(false)
+  // Kunci STABIL untuk seluruh umur form ini. Retry memakai nilai yang sama;
+  // hanya diganti setelah simpan sukses (atau saat form dibuka ulang).
+  const requestIdRef = useRef(newClientRequestId())
+
+  // Probe kemampuan simpan (typed/alokasi/atomik). Read-only, sekali saat
+  // form dibuka — dan diulang saat tab kembali fokus, karena migrasi bisa
+  // dijalankan saat aplikasi sedang dipakai (pola yang sama dengan
+  // receiptCapability/queue.jsx).
+  React.useEffect(() => {
+    let cancelled = false
+    async function probe(force) {
+      const res = await getPurchaseCapability({ force })
+      if (!cancelled) setCap(res)
+    }
+    probe(true)
+    const onFocus = () => probe(true)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus)
+      document.addEventListener('visibilitychange', onFocus)
+    }
+    return () => {
+      cancelled = true
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', onFocus)
+        document.removeEventListener('visibilitychange', onFocus)
+      }
+    }
+  }, [])
 
   const totals = useMemo(() => computeTotals(form), [form])
   const v = useMemo(() => validatePurchaseForm(form, { vendors }), [form, vendors])
-  const canSubmit = !saving && !fileBusy && v.valid
+  // PEMBAGIAN PROYEK hanya boleh disimpan bila DB benar-benar punya tempatnya.
+  // Kalau skema alokasi belum aktif, membiarkan admin menekan Simpan berarti
+  // pembagian itu HILANG tanpa jejak (fake persistence — defect acceptance-4
+  // run 246). Jadi tombol dimatikan dengan sebab terbaca, bukan gagal senyap.
+  const splitRows = useMemo(
+    () => (form.items || []).filter(it => splitSummary(it.allocations).count > 0),
+    [form]
+  )
+  const allocationReady = !!(cap && cap.state === PURCHASE_CAP.READY && cap.allocationPersisted)
+  const splitBlocked = splitRows.length > 0 && !allocationReady
+  // Material wajib untuk baris BELANJA LANGSUNG saat jalur atomik aktif:
+  // kontrak v1 menolak baris tanpa `material_id` (`material_unresolved`).
+  // Di jalur lama material tidak punya tempat, jadi tidak dipaksakan di sana
+  // (jangan menuntut isian yang tidak akan tersimpan).
+  const materialMissing = useMemo(
+    () => (form.items || []).filter(it => it.isDirect && !it.materialId),
+    [form]
+  )
+  const materialBlocked = allocationReady && materialMissing.length > 0
+  const canSubmit = !saving && !fileBusy && v.valid && !splitBlocked && !materialBlocked
   const adaTambahan = !!(String(form.biayaLain || '').trim() || String(form.diskon || '').trim())
 
   const setField = (k, val) => setForm(prev => ({ ...prev, [k]: val }))
@@ -60,6 +126,86 @@ export default function PurchaseForm({
     // punya prItemKey dan TETAP bisa diedit — tidak dibuang).
     items: prev.items.map((it, i) => ((it.prItemId || it.formKey || `i${i}`) === key ? { ...it, [k]: val } : it))
   }))
+
+  // ---- PEMBAGIAN SATU BARIS → BEBERAPA PROYEK (acceptance 4) --------------
+  // Semua handler di bawah hanya mengubah STATE FORM. Tidak ada tulisan DB
+  // sampai "Selesaikan Pembelian" ditekan (kontrak modul ini).
+  const rowKeyOf = (it, i) => it.prItemId || it.formKey || `i${i}`
+
+  function openSplit(rowKey) {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map((it, i) => {
+        if (rowKeyOf(it, i) !== rowKey) return it
+        const rows = Array.isArray(it.allocations) && it.allocations.length
+          ? it.allocations
+          // Dua porsi kosong: admin mengisi proyek + qty. Porsi pertama
+          // diisi proyek asal baris (bila ada) supaya tidak mengetik ulang.
+          : [newAllocationRow({ projectId: it.projectId || '' }), newAllocationRow()]
+        return { ...it, splitOpen: true, allocations: rows }
+      })
+    }))
+  }
+
+  function closeSplit(rowKey) {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map((it, i) => (rowKeyOf(it, i) === rowKey
+        // Kembali ke baris tunggal: alokasi dibuang, projectId asal dipakai.
+        ? { ...it, splitOpen: false, allocations: null }
+        : it))
+    }))
+  }
+
+  function setAlloc(rowKey, idx, field, val) {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map((it, i) => {
+        if (rowKeyOf(it, i) !== rowKey) return it
+        const rows = (it.allocations || []).map((a, j) => (j === idx ? { ...a, [field]: val } : a))
+        return { ...it, allocations: rows }
+      })
+    }))
+  }
+
+  function addAlloc(rowKey) {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map((it, i) => (rowKeyOf(it, i) === rowKey
+        ? { ...it, allocations: [...(it.allocations || []), newAllocationRow()] }
+        : it))
+    }))
+  }
+
+  function removeAlloc(rowKey, idx) {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map((it, i) => {
+        if (rowKeyOf(it, i) !== rowKey) return it
+        const rows = (it.allocations || []).filter((_, j) => j !== idx)
+        return { ...it, allocations: rows.length ? rows : [newAllocationRow()] }
+      })
+    }))
+  }
+
+  // Usulan pembagian (BUKAN keputusan): qty dibagi rata antar proyek yang
+  // sudah dipilih, sisa pembulatan di porsi terakhir supaya total PERSIS sama
+  // dengan qty beli (kalau tidak, DB menolak `allocation_not_exact`).
+  function suggestAlloc(rowKey) {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map((it, i) => {
+        if (rowKeyOf(it, i) !== rowKey) return it
+        const picked = (it.allocations || []).map(a => a.projectId).filter(Boolean)
+        const rows = suggestSplit(it.qty, picked)
+        if (rows.length < 2) return it
+        return {
+          ...it,
+          allocations: rows.map((r, j) => ({ ...(it.allocations?.[j] || newAllocationRow()), projectId: r.projectId, qty: String(r.qty) }))
+        }
+      })
+    }))
+  }
 
   async function pickFile(kind, file) {
     if (!file || fileBusy) return
@@ -84,16 +230,43 @@ export default function PurchaseForm({
       setErrorMsg(v.errors[0] || Object.values(v.itemErrors).flatMap(x => Object.values(x))[0] || 'Periksa kembali isian yang ditandai.')
       return
     }
+    if (splitBlocked) {
+      setErrorMsg('Pembagian proyek belum bisa disimpan: skema alokasi per baris belum aktif. Hapus pembagian (pakai satu proyek per baris) atau tunggu migrasi skema — pembagian tidak akan disimpan diam-diam.')
+      return
+    }
+    if (materialBlocked) {
+      setErrorMsg(`Pilih material untuk ${materialMissing.length} baris belanja langsung — tanpa identitas material, biaya tidak boleh disimpan.`)
+      return
+    }
     setErrorMsg('')
     busyRef.current = true
     setSaving(true)
     try {
-      const res = await savePurchase({ form, receivings, receivingItems, vendors })
+      const res = await savePurchase({
+        form,
+        receivings,
+        receivingItems,
+        vendors,
+        clientRequestId: requestIdRef.current,
+        capability: cap
+      })
       if (!res.ok) {
-        setErrorMsg(res.error || 'Gagal menyimpan nota pembelian.')
-        if (res.partial) say?.(res.error)
+        // `already` = retry dari percobaan yang SAMA. Itu bukan kegagalan
+        // yang perlu ditakuti admin — tapi juga bukan sukses baru. Jangan
+        // menutup form seolah-olah ada data baru; beri tahu apa adanya.
+        if (res.already) {
+          setErrorMsg(res.error || 'Nota ini sudah tersimpan sebelumnya — tidak ada data yang ditulis ulang.')
+          return
+        }
+        // D2 (review run 251): kode DB (`over_purchase_pr`, `bad_number`,
+        // `allocation_not_exact`, `forbidden`) diterjemahkan ke kalimat.
+        setErrorMsg(dbErrorText(res.error, { fallback: 'Gagal menyimpan nota pembelian.' }).text)
+        if (res.partial) say?.(dbErrorText(res.error, { fallback: 'Gagal menyimpan nota pembelian.' }).text)
         return
       }
+      // Simpan sukses: kunci ini sudah terpakai. Kunci baru untuk nota
+      // berikutnya supaya nota lain tidak dianggap retry nota ini.
+      requestIdRef.current = newClientRequestId()
       onDone?.(res)
     } catch (err) {
       setErrorMsg(`Terjadi kesalahan saat menyimpan: ${err.message}`)
@@ -149,6 +322,62 @@ export default function PurchaseForm({
           <h2>🧾 Proses Pembelian</h2>
           <button type="button" className="icon" onClick={close} aria-label="Tutup">×</button>
         </div>
+
+        {/* 0) KESIAPAN SIMPAN — jujur soal alokasi per proyek.
+            Bila skema alokasi belum aktif, admin HARUS tahu SEBELUM menekan
+            simpan: nota tetap tersimpan, tetapi pembagian proyek per barang
+            tidak punya tempat di database. Menyembunyikan ini berarti admin
+            mengira biaya sudah masuk ke proyek (defect acceptance-4 run 246). */}
+        {cap && cap.state !== PURCHASE_CAP.READY && (
+          <div
+            className="purchase-cap-banner"
+            data-testid="purchase-cap-banner"
+            data-cap-state={cap.state}
+            style={{
+              margin: '0 0 10px',
+              padding: '8px 10px',
+              borderRadius: 6,
+              fontSize: 11.5,
+              lineHeight: 1.45,
+              background: cap.state === PURCHASE_CAP.UNKNOWN ? '#f4f6f8' : '#fff8e1',
+              border: `1px solid ${cap.state === PURCHASE_CAP.UNKNOWN ? '#d8dee4' : '#f0c36d'}`,
+              color: '#5c4708'
+            }}
+          >
+            <b>{cap.state === PURCHASE_CAP.UNKNOWN ? '⏳ Memeriksa kesiapan…' : '⚠️ Alokasi proyek belum tersimpan'}</b>
+            <div style={{ marginTop: 3 }}>{purchaseCapabilityMessage(cap)}</div>
+          </div>
+        )}
+        {cap && cap.state === PURCHASE_CAP.READY && (
+          <div
+            className="purchase-cap-banner ok"
+            data-testid="purchase-cap-banner"
+            data-cap-state={cap.state}
+            style={{
+              margin: '0 0 10px', padding: '8px 10px', borderRadius: 6, fontSize: 11.5,
+              background: '#eef7ee', border: '1px solid #b7d9b7', color: '#1f4d1f'
+            }}
+          >
+            ✓ Penyimpanan atomik aktif — alokasi proyek, material, dan harga riil per barang ikut tersimpan.
+          </div>
+        )}
+        {splitBlocked && (
+          <div
+            className="purchase-split-blocked"
+            data-testid="purchase-split-blocked"
+            style={{
+              margin: '0 0 10px', padding: '8px 10px', borderRadius: 6, fontSize: 11.5,
+              background: '#fff4f4', border: '1px solid #e3b4b4', color: '#7a1f1f'
+            }}
+          >
+            <b>⛔ Pembagian proyek belum bisa disimpan</b>
+            <div style={{ marginTop: 3 }}>
+              {splitRows.length} baris sudah dibagi ke beberapa proyek, tetapi skema alokasi per baris BELUM aktif di database.
+              Tombol Simpan dimatikan supaya pembagian ini tidak hilang tanpa jejak. Pilih satu proyek per baris (batalkan pembagian),
+              atau tunggu migrasi skema lalu periksa ulang.
+            </div>
+          </div>
+        )}
 
         {/* 1) TOKO · NOTA · TANGGAL — identitas nota, satu baris */}
         <div className="purchase-form-grid">
@@ -232,7 +461,8 @@ export default function PurchaseForm({
                   const subtotal = qty > 0 && harga > 0 ? Math.round(qty * harga) : null
                   const err = (it.prItemId && v.itemErrors[it.prItemId]) || {}
                   return (
-                    <tr key={rowKey} data-testid={`form-item-${rowKey}`}>
+                    <React.Fragment key={rowKey}>
+                    <tr data-testid={`form-item-${rowKey}`}>
                       {/* class "cell-wrap" WAJIB di sini: aturan bersama
                           `th, td { white-space: nowrap !important }` di
                           styles/globals.css TIDAK bisa dilawan dengan inline
@@ -260,6 +490,43 @@ export default function PurchaseForm({
                         <div className="purchase-muted" style={{ fontSize: '10.5px' }}>
                           {it.isDirect ? 'Belanja langsung (tanpa request)' : `${it.prNumber}${it.projectName ? ` · ${it.projectName}` : ''}${it.qtyPr ? ` · PR: ${it.qtyPr} ${it.unit}` : ''}`}
                         </div>
+                        {/* IDENTITAS MATERIAL untuk belanja langsung (acceptance 4).
+                            Baris dari PR mewarisi material_id exact dari pr_items,
+                            jadi pemilih ini hanya muncul bila baris belum punya
+                            material — tanpa itu DB menolak `material_unresolved`
+                            dan admin tidak tahu harus apa. */}
+                        {it.isDirect && (
+                          <select
+                            value={it.materialId || ''}
+                            onChange={e => {
+                              const mat = (materials || []).find(m => String(m.id) === String(e.target.value))
+                              setForm(prev => ({
+                                ...prev,
+                                items: prev.items.map((x, i) => (rowKeyOf(x, i) === rowKey
+                                  ? {
+                                    ...x,
+                                    materialId: e.target.value || null,
+                                    // Satuan mengikuti master hanya bila admin belum mengisinya.
+                                    unit: x.unit || mat?.satuan || mat?.unit || ''
+                                  }
+                                  : x))
+                              }))
+                            }}
+                            data-testid={`material-${rowKey}`}
+                            aria-label={`Material untuk ${it.itemName || 'barang'}`}
+                            style={{ marginTop: 3, width: '100%', minWidth: 0, fontSize: 11 }}
+                          >
+                            <option value="">-- Pilih material --</option>
+                            {(materials || []).map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.kode ? `${m.kode} · ${m.name}` : m.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {it.isDirect && !it.materialId && touched && (
+                          <span className="purchase-field-error">Material wajib dipilih untuk belanja langsung.</span>
+                        )}
                       </td>
                       <td style={{ padding: '7px 6px' }}>
                         {/* Satuan menempel di bawah input qty (bukan kolom
@@ -278,7 +545,33 @@ export default function PurchaseForm({
                         <span className="purchase-muted" style={{ display: 'block', fontSize: '10.5px', marginTop: '2px' }}>
                           {it.unit || '—'}
                         </span>
-                        {it.isDirect && (
+                        {/* Tombol pembagian ADA DI SETIAP BARIS (bukan hanya
+                            belanja langsung): acceptance 4 menuntut satu baris
+                            bisa dibagi ke beberapa proyek, termasuk baris dari
+                            PR. Saat pembagian aktif, pilihan proyek tunggal
+                            disembunyikan karena kontrak DB = XOR. */}
+                        {!it.splitOpen && (
+                          <button
+                            type="button"
+                            className="purchase-link-btn"
+                            onClick={() => openSplit(rowKey)}
+                            data-testid={`split-open-${rowKey}`}
+                            title="Bagi qty baris ini ke beberapa proyek"
+                            style={{ fontSize: '10.5px', marginTop: 2, padding: 0 }}
+                          >
+                            ⇄ Bagi ke proyek
+                          </button>
+                        )}
+                        {it.splitOpen && (
+                          <span
+                            className="purchase-muted"
+                            data-testid={`split-active-${rowKey}`}
+                            style={{ display: 'block', fontSize: '10.5px', marginTop: 2, color: '#1f4d1f' }}
+                          >
+                            dibagi {splitSummary(it.allocations).count} proyek
+                          </span>
+                        )}
+                        {it.isDirect && !it.splitOpen && (
                           <select
                             value={it.projectId || ''}
                             onChange={e => setItem(rowKey, 'projectId', e.target.value)}
@@ -317,6 +610,96 @@ export default function PurchaseForm({
                         {subtotal !== null ? rupiah(subtotal) : <span className="purchase-muted">—</span>}
                       </td>
                     </tr>
+                    {/* ---- PEMBAGIAN SATU BARIS → BEBERAPA PROYEK ----------
+                        Acceptance 4: pembagian harus bisa DIISI admin, bukan
+                        hanya diterima payload-nya. Baris ini muncul hanya saat
+                        admin menekan "Bagi ke beberapa proyek", dan semua
+                        isiannya tetap di state form sampai Simpan ditekan. */}
+                    {it.splitOpen && (
+                      <tr data-testid={`split-panel-${rowKey}`}>
+                        <td colSpan={4} style={{ background: '#f7f9fb', padding: '8px 8px 10px' }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 5 }}>
+                            Bagi “{it.itemName || 'barang'}” ke beberapa proyek
+                            <span className="purchase-muted" style={{ fontWeight: 400 }}>
+                              {' '}— qty beli {it.qty || '0'} {it.unit || ''}
+                            </span>
+                          </div>
+                          {(it.allocations || []).map((a, ai) => (
+                            <div key={a.key || ai} style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 4 }}>
+                              <select
+                                value={a.projectId || ''}
+                                onChange={e => setAlloc(rowKey, ai, 'projectId', e.target.value)}
+                                data-testid={`split-proj-${rowKey}-${ai}`}
+                                aria-label={`Proyek porsi ${ai + 1}`}
+                                style={{ flex: '1 1 auto', minWidth: 0 }}
+                              >
+                                <option value="">-- Pilih proyek --</option>
+                                {projects.map(p => (
+                                  <option key={p.id} value={p.id}>{p.kode ? `[${p.kode}] ${p.name}` : p.name}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                inputMode="decimal"
+                                value={a.qty}
+                                onChange={e => setAlloc(rowKey, ai, 'qty', e.target.value)}
+                                data-testid={`split-qty-${rowKey}-${ai}`}
+                                aria-label={`Qty porsi ${ai + 1}`}
+                                style={{ width: 72, minWidth: 0 }}
+                              />
+                              <button
+                                type="button"
+                                className="icon"
+                                onClick={() => removeAlloc(rowKey, ai)}
+                                data-testid={`split-del-${rowKey}-${ai}`}
+                                aria-label={`Hapus porsi ${ai + 1}`}
+                                title="Hapus porsi"
+                              >×</button>
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
+                            <button type="button" className="outline" onClick={() => addAlloc(rowKey)} data-testid={`split-add-${rowKey}`}>
+                              + Porsi proyek
+                            </button>
+                            <button type="button" className="outline" onClick={() => suggestAlloc(rowKey)} data-testid={`split-suggest-${rowKey}`}>
+                              Isi otomatis (bagi rata)
+                            </button>
+                            <button type="button" className="outline" onClick={() => closeSplit(rowKey)} data-testid={`split-cancel-${rowKey}`}>
+                              Batalkan pembagian
+                            </button>
+                          </div>
+                          {(() => {
+                            const sm = splitSummary(it.allocations)
+                            const qtyNum = Number(String(it.qty).replace(/[^\d.]/g, '')) || 0
+                            const beda = Math.round((qtyNum - sm.total) * 1000) / 1000
+                            const ok = sm.distinct >= 2 && Math.abs(beda) <= 0.001
+                            return (
+                              <div
+                                data-testid={`split-summary-${rowKey}`}
+                                data-split-ok={ok ? 'yes' : 'no'}
+                                data-split-distinct={sm.distinct}
+                                style={{ marginTop: 6, fontSize: 11, color: ok ? '#1f4d1f' : '#8a5a00' }}
+                              >
+                                {sm.count} porsi · {sm.distinct} proyek berbeda · total dibagikan <b>{sm.total}</b> dari qty <b>{qtyNum}</b>
+                                {ok
+                                  ? ' — ✓ pas'
+                                  : sm.distinct < 2
+                                    ? ' — butuh minimal 2 proyek BERBEDA'
+                                    : beda > 0
+                                      ? ` — sisa ${beda} belum dibagikan`
+                                      : ` — kelebihan ${Math.abs(beda)}`}
+                              </div>
+                            )
+                          })()}
+                          {touched && err.split && (
+                            <div className="purchase-field-error" data-testid={`split-error-${rowKey}`}>{err.split}</div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   )
                 })}
               </tbody>

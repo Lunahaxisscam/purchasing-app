@@ -34,7 +34,10 @@ import LaborStockModule from '../modules/labor-stock/view'
 // atas. Import dipertahankan agar reversible.
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
-import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
+import { deleteDecision } from '../modules/handovers/deleteGuard'
+import { confirmUniqueHandover } from '../modules/handovers/duplicateGuardDb'
+import { createActiveHandover } from '../modules/handovers/createHandover'
+import { dbErrorText } from '../modules/handovers/dbErrorText'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE, isNavModuleDisabled } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
@@ -57,6 +60,7 @@ export default function App() {
     handovers: [],
     pr_items: [],
     receiving_items: [],
+    receiving_item_allocations: [],
     // t_62e41e91 — modul Actual Labor & Stok. Default null (BUKAN [])
     // supaya modul bisa membedakan "sumber belum dimuat" dari "tabel
     // kosong": modul menampilkan panel 'unavailable', bukan angka 0 yang
@@ -171,11 +175,29 @@ export default function App() {
       ['project_plans', 'project_plans']
     ]
     const result = { ...rows }
+    // REVIEW run 255 / D7: `const { data } = await …; items = data || []` menelan
+    // SETIAP kegagalan query (RLS/jaringan/timeout) menjadi array kosong tanpa
+    // satu kata pun di layar. Akibatnya layar bisa menyimpulkan hal yang salah
+    // tentang data yang sebenarnya ada — mis. dokumen Serah Terima yang SAH
+    // (punya `receiving_id`) terlihat seperti "tidak terhubung ke penerimaan"
+    // karena `receivings` gagal dimuat. Kegagalan sekarang DIKUMPULKAN dan
+    // dilaporkan sebagai notice; data yang berhasil tetap dipakai (tidak
+    // menggagalkan seluruh halaman).
+    //
+    // Pengecualian yang disengaja: `tukang_projects` & `project_plans` adalah
+    // sumber opsional (modul Labor/Stok menampilkan panel "belum tersedia" bila
+    // tabel/RLS tidak ada) — kegagalannya BUKAN kegagalan halaman.
+    const OPTIONAL_SOURCES = new Set(['tukang_projects', 'project_plans'])
+    const loadErrors = []
     // Approval OFF: state approval dikosongkan supaya tidak ada baris
     // approval_steps lama yang "hidup" di memori halaman (data DB tidak
     // disentuh; hanya cache tampilan).
     if (!approvalOn) result.approvals = []
-    const { data: allProj } = await supabase.from('projects').select('*')
+    // D7: dua query di bawah juga tidak boleh menelan error — `projects` dipakai
+    // untuk label proyek dan `purchase_requests` untuk relasi nota→PR; kegagalan
+    // diam-diam membuat layar menampilkan "—" seolah datanya memang kosong.
+    const { data: allProj, error: projErr } = await supabase.from('projects').select('*')
+    if (projErr) loadErrors.push({ table: 'projects', message: String(projErr.message || projErr.code || 'gagal dimuat') })
     const projList = (allProj || []).sort((a, b) => {
       const numA = parseInt(a.kode, 10)
       const numB = parseInt(b.kode, 10)
@@ -183,7 +205,8 @@ export default function App() {
       return (a.kode || '').localeCompare(b.kode || '')
     })
 
-    const { data: allPRs } = await supabase.from('purchase_requests').select('*').order('pr_number', { ascending: true })
+    const { data: allPRs, error: prErr } = await supabase.from('purchase_requests').select('*').order('pr_number', { ascending: true })
+    if (prErr) loadErrors.push({ table: 'purchase_requests', message: String(prErr.message || prErr.code || 'gagal dimuat') })
     const prList = allPRs || []
 
     await Promise.all(specs.map(async ([name, table]) => {
@@ -194,10 +217,18 @@ export default function App() {
         const spec = orderSpecFor(table)
         const base = supabase.from(table).select('*')
         // sort_order bisa NULL utk data lama (sebelum backfill) — taruh di akhir.
-        const { data } = spec
+        const { data, error } = spec
           ? await base.order(spec.column, { ascending: spec.ascending, nullsFirst: false })
           : await base
         items = data || []
+        // D7: jangan telan error. `data` null/undefined TANPA error juga
+        // dianggap tidak lengkap (bentuk respons tak terduga) supaya layar
+        // tidak pernah mengklaim "tidak ada data" atas dasar kegagalan.
+        if (error) {
+          loadErrors.push({ table, message: String(error.message || error.code || 'gagal dimuat') })
+        } else if (!Array.isArray(data)) {
+          loadErrors.push({ table, message: 'respons tidak berisi daftar baris' })
+        }
       }
 
       if (name === 'projects') {
@@ -224,6 +255,80 @@ export default function App() {
 
       result[name] = items
     }))
+
+    // D7: laporkan sumber yang GAGAL dimuat — jangan biarkan layar menyimpulkan
+    // "tidak ada data" dari kegagalan. Hanya sumber yang WAJIB (bukan
+    // `tukang_projects`/`project_plans` yang memang opsional dan punya panel
+    // "belum tersedia" sendiri) supaya notice tidak berisik tiap muat halaman.
+    const fatal = loadErrors.filter(e => !OPTIONAL_SOURCES.has(e.table))
+    if (fatal.length) {
+      const msg = `Gagal memuat ${fatal.map(e => e.table).join(', ')} — data sumber itu TIDAK lengkap di layar ini, jadi jangan simpulkan "tidak ada data" dari tampilan. Coba ↻ Perbarui.`
+      // Fungsional: `notice` dari closure bisa basi, dan pesan yang SAMA tidak
+      // boleh menumpuk tiap kali ↻ Perbarui ditekan.
+      setNotice(prev => (!prev ? msg : (prev.includes(msg) ? prev : `${prev} · ${msg}`)))
+    }
+
+    // ---------------------------------------------------------------
+    // RINCIAN BARANG SERAH TERIMA (t_7bc6246b, defect run 206)
+    // ---------------------------------------------------------------
+    // `handover_items` adalah sumber jumlah yang DISERAHKAN per barang.
+    // Sebelum ini tabel itu TIDAK PERNAH dibaca halaman, sehingga
+    // `display.rincianInfo()` selalu jatuh ke label "Rincian barang belum
+    // tersedia" — bahkan setelah migrasi dijalankan dan RPC
+    // `handover_confirm` menulis barisnya. Artinya fitur "rincian barang"
+    // mustahil terlihat, bukan sekadar belum aktif.
+    //
+    // Sifat pembacaan ini: BEST-EFFORT & TIDAK MEMBLOKIR halaman. Saat tabel
+    // belum ada (mode LEGACY, PGRST205) atau RLS menolak, halaman tetap
+    // memuat data lain dan label jujur tetap dipakai — bukan error, bukan
+    // angka karangan.
+    try {
+      const { data: hiRows, error: hiErr } = await supabase
+        .from('handover_items')
+        .select('id, handover_id, receiving_event_id, receiving_item_id, item_name, qty_diserahkan, satuan, penerima, catatan, created_at')
+      if (!hiErr && Array.isArray(hiRows)) {
+        const byHandover = new Map()
+        for (const row of hiRows) {
+          if (!row || !row.handover_id) continue
+          const list = byHandover.get(row.handover_id) || []
+          list.push(row)
+          byHandover.set(row.handover_id, list)
+        }
+        result.handovers = (result.handovers || []).map(h => {
+          const items = byHandover.get(h.id)
+          // Hanya ditempel bila ADA baris: `rincianInfo` memakai keberadaan
+          // `items` sebagai bukti rincian tersimpan, jadi array kosong akan
+          // salah dianggap "tersedia".
+          return items && items.length ? { ...h, items } : h
+        })
+      }
+    } catch (e) {
+      // Sengaja tidak menghentikan loadAll: rincian opsional, data inti wajib.
+    }
+
+    // ---------------------------------------------------------------
+    // ALOKASI PROYEK PER BARIS NOTA (t_7bc6246b, run 246)
+    // ---------------------------------------------------------------
+    // `receiving_item_allocations` menyimpan pembagian satu baris nota ke
+    // BEBERAPA proyek. Tanpa dibaca di sini, ProjectFinance melihat baris
+    // split sebagai "tanpa proyek" dan pembagian yang SUDAH tersimpan di DB
+    // tidak pernah terbaca (hanya terlihat di sesi yang menyimpannya).
+    //
+    // BEST-EFFORT seperti handover_items: tabel belum ada di mode LEGACY
+    // (PGRST205) atau RLS menolak → halaman tetap jalan dengan array kosong,
+    // dan `projectCostBreakdown` tetap jujur (baris split masuk unassigned,
+    // bukan ditebak ke satu proyek).
+    try {
+      const { data: allocRows, error: allocErr } = await supabase
+        .from('receiving_item_allocations')
+        .select('id, receiving_item_id, project_id, qty, amount')
+      if (!allocErr && Array.isArray(allocRows)) {
+        result.receiving_item_allocations = allocRows
+      }
+    } catch (e) {
+      // Sengaja tidak menghentikan loadAll.
+    }
+
     setRows(result)
   }
 
@@ -379,32 +484,50 @@ export default function App() {
 
     setActionBusy(true)
     try {
-      let handledByRpc = false
-      try {
-        const { data, error } = await supabase.rpc('send_receiving_to_tukang', { p_receiving_id: receiving.id, p_label: label })
-        if (!error && data && data.ok) {
-          handledByRpc = true
-          // Perbarui received_by pada handover bila sebelumnya terisi default
-          await supabase.from('handovers').update({ received_by: receivedBy }).eq('receiving_id', receiving.id).eq('received_by', 'Belum ditentukan')
-        }
-      } catch (rpcErr) {
-        // Fallback ke operasi client-side jika RPC tidak tersedia
-      }
-
-      if (!handledByRpc) {
-        const now = new Date().toISOString()
-        const { error: hoErr } = await supabase.from('handovers').insert({
+      // REVIEW run 251 / D3: panggilan RPC legacy `send_receiving_to_tukang`
+      // DIHAPUS. Fungsi itu tidak ada di paket operasional v1 (0 hasil grep di
+      // seluruh paket; X18 hanya menemukan `handover_confirm` dan
+      // `handover_create_atomic`), jadi panggilan pertama SELALU gagal:
+      // satu round-trip jaringan sia-sia setiap kali, dan — lebih berbahaya —
+      // bila kelak RPC dengan nama itu dibuat dengan kontrak berbeda, jalur ini
+      // akan MENDAHULUINYA dan melewati penjaga v1 (menulis `received_by` dan
+      // `receivings.alokasi` langsung, bukan lewat RPC).
+      //
+      // Satu-satunya pintu yang tersisa adalah `createActiveHandover()` di
+      // bawah — penjaga yang SAMA dengan form Tambah dan antrean pembelian
+      // (RPC `handover_create_atomic` saat skema v1 aktif, slot deterministik
+      // saat LEGACY).
+      const now = new Date().toISOString()
+      // REVIEW run 244 (BUG-W3): jalur ini dulu INSERT LANGSUNG tanpa penjaga —
+      // pintu ketiga yang membuat dokumen kedua untuk satu penerimaan. Sekarang
+      // lewat penjaga yang SAMA dengan form Tambah.
+      const queued = await createActiveHandover({
+        data: {
           receiving_id: receiving.id,
           project_id: receiving.project_id || null,
           received_by: receivedBy,
           handover_date: now.slice(0, 10),
           status: 'DRAFT',
           note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
-        })
-        if (hoErr) { setNotice(`Gagal membuat Serah Terima: ${hoErr.message}`); return }
+        }
+      })
+      // Dokumen aktif sudah ada (dibuat pintu lain) → antrean tetap ada,
+      // tidak ada yang perlu dibuat. Bukan kegagalan.
+      if (!queued.ok && !queued.existingId && !queued.raced) {
+        setNotice(`Gagal membuat Serah Terima: ${queued.reason}`)
+        return
+      }
 
-        const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
-        if (error) { setNotice(`Serah Terima dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
+      // `receivings.alokasi` adalah kolom HEADER legacy. Saat skema v1 aktif,
+      // trigger `ops_v1_core_guard` menolaknya untuk peran API (tulisan fisik
+      // harus lewat RPC), jadi kegagalan di sini TIDAK boleh menggagalkan
+      // pembuatan dokumen yang sudah sah — cukup dilaporkan apa adanya.
+      const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
+      if (error) {
+        const t = dbErrorText(error, { fallback: 'Tujuan barang tidak bisa dicatat di header nota.' })
+        setNotice(`Serah Terima sudah dibuat dan masuk antrean. Catatan tujuan di header nota tidak tersimpan: ${t.text}`)
+        loadAll()
+        return
       }
 
       setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk antrean Serah Terima — tandai "Sudah Diserahkan" setelah serah terima fisik.`)
@@ -422,14 +545,21 @@ export default function App() {
   // (bukti live A3: CONFIRMED lama tanpa diserahkan_at). Penulisan lewat
   // modules/handovers/confirm.js: idempoten (guard `diserahkan_at IS NULL`),
   // tidak bisa re-confirm, dan selalu menulis waktu penyerahan.
+  //
+  // REVIEW run 244 (BUG-W3 + butir 2a): jalur shell ini dulu memanggil
+  // `confirm.js` LANGSUNG — pintu konfirmasi keempat yang tidak memakai
+  // penjaga dokumen ganda dan tidak memverifikasi apa pun sesudah menulis.
+  // Sekarang lewat `confirmUniqueHandover()`: periksa DB sebelum, tulis, lalu
+  // periksa DB LAGI sesudah `diserahkan_at` tertulis.
   async function markHandoverDelivered(handover) {
     if (!supabase) return
     if (isHandoverDelivered(handover)) { setNotice('Serah terima ini sudah ditandai diserahkan.'); return }
     const ok = window.confirm('Tandai serah terima ini sebagai SUDAH DISERAHKAN?\nLakukan hanya setelah barang benar-benar diterima tukang/mandor di lokasi.')
     if (!ok) return
-    const res = await confirmHandoverDelivered({ handover })
+    const res = await confirmUniqueHandover({ handover })
     if (!res.ok) { setNotice(`Gagal menandai sudah diserahkan: ${res.error}`); return }
-    setNotice(res.already ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.' : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat).')
+    if (res.warning) setNotice(res.warning)
+    else setNotice(res.already ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.' : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat).')
     loadAll()
   }
 
@@ -709,6 +839,35 @@ export default function App() {
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
+    // ============================================================
+    // SAFETY BARRIER RIWAYAT FISIK (defect run 237 — t_7bc6246b)
+    // ============================================================
+    // Tombol 🗑️ ada di SETIAP baris Serah Terima tanpa syarat. Di PostgreSQL
+    // nyata (probe_run237_delete.mjs, 16/16) `delete from handovers` yang
+    // PERSIS dilakukan di bawah ini:
+    //   • menghapus `handover_items` lewat `on delete cascade` → bukti fisik
+    //     serah terima hilang permanen;
+    //   • TIDAK mengoreksi `receiving_items.qty_handed_over` → angka
+    //     "sudah diserahkan" (5) tidak lagi cocok dengan rincian (0);
+    //   • membuat `v_receipt_progress.belum_diserahkan` kembali penuh →
+    //     barang yang SUDAH diterima tampil "belum diserahkan";
+    //   • MEMBUKA kuota tukang → dokumen baru diterima RPC untuk barang yang
+    //     sama (penyerahan fisik ganda yang tidak terlihat di total);
+    //   • ditandai `qty_handed_over_mismatch` oleh checker integritas DB.
+    // Hapus NOTA (Pembelian) juga ditolak FK `restrict`, tetapi admin hanya
+    // melihat pesan mentah Postgres. Keduanya sekarang ditolak DI DEPAN dengan
+    // sebab yang bisa dibaca, sebelum optimistic update — jadi semua jalur
+    // hapus (ikon desktop, kartu mobile, pemanggilan programatik) tercakup.
+    // ============================================================
+    const del = deleteDecision(pageTarget, item, { handovers: rows.handovers || [] })
+    if (!del.ok) {
+      setNotice(del.reason)
+      return
+    }
+    // Status CONFIRMED/SELESAI tanpa bukti fisik = status basi (bukan bukti).
+    // Boleh dihapus, tetapi admin harus tahu yang hilang adalah status lama —
+    // bukan bukti penyerahan. Konfirmasi ini TIDAK menghalangi pekerjaan sah.
+    if (del.warn && !window.confirm(del.warn)) return
     // ============================================================
     // SAFETY BARRIER VENDOR (t_e626b674 — arahan DAT): konfirmasi
     // bertingkat SEBELUM konfirmasi generik. Vendor berrelasi dgn riwayat

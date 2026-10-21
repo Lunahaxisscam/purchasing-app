@@ -4,7 +4,11 @@
 // - Mengemulasi compare-and-swap pada handovers seperti server:
 //     update(...).eq('id',x).is('diserahkan_at', null).select()
 //   -> 1 baris dikembalikan bila diserahkan_at masih NULL, 0 baris bila tidak.
-// - insert handovers menghasilkan id unik.
+// - MENGEMULASI PRIMARY KEY `handovers.id`: INSERT dengan id yang SUDAH ADA
+//   ditolak 23505. Ini bukan bantuan untuk lulus: sejak run 245 penjaga
+//   dokumen ganda BERGANTUNG pada constraint itu (id slot deterministik), jadi
+//   mock yang selalu menerima INSERT akan membuat uji "dua penulis bersamaan"
+//   lolos secara palsu. Tanpa emulasi ini, harness berbohong.
 // ============================================================
 
 export const __state = {
@@ -21,7 +25,22 @@ export const __state = {
   replayHandover: false,   // RPC handover_confirm menjawab already=true
   rpcError: null,          // error RPC sekali pakai (mis. over_receipt)
   calls: [],              // {op, table, ...}
-  nextError: null
+  nextError: null,
+  // Waktu INSERT yang dipakai mock untuk `created_at` (default: sekarang).
+  // Dipakai probe balapan untuk memaksa urutan kanonik yang deterministik.
+  insertStamp: null,
+  // Hook sekali pakai yang dijalankan TEPAT sebelum INSERT (meniru sesi lain
+  // yang commit di antara SELECT penjaga dan INSERT kita).
+  beforeInsert: null,
+  // Sesi LAIN yang INSERT-nya BELUM COMMIT (meniru kunci index PostgreSQL).
+  // Baris di sini TIDAK terlihat oleh SELECT (belum commit), tetapi id-nya
+  // SUDAH memegang PRIMARY KEY — jadi INSERT kita dengan id yang sama harus
+  // DITOLAK 23505, persis seperti PostgreSQL sesudah sesi itu commit.
+  // `pendingRows[id]` = baris yang akan terlihat begitu sesi itu "commit".
+  pendingIds: [],
+  pendingRows: {},
+  // Bila diisi, `nextError` hanya berlaku untuk tabel ini.
+  nextErrorTable: null
 }
 
 export function __reset({ handovers = [], receivings = [], prItems = [], receivingItems = [], ledger = null } = {}) {
@@ -41,6 +60,11 @@ export function __reset({ handovers = [], receivings = [], prItems = [], receivi
   __state.rpcError = null
   __state.calls = []
   __state.nextError = null
+  __state.insertStamp = null
+  __state.beforeInsert = null
+  __state.pendingIds = []
+  __state.pendingRows = {}
+  __state.nextErrorTable = null
 }
 
 // Tabel pendukung untuk modul Handover (distribusi fisik).
@@ -97,17 +121,83 @@ function terminal(st, unwrap = false) {
 }
 
 function terminalRaw(st) {
-  if (__state.nextError) {
+  // `nextErrorTable` (opsional): error HANYA untuk tabel itu. Tanpa ini, probe
+  // yang memaksa "baca DB gagal" tidak bisa menargetkan query tertentu —
+  // capability probe (tabel ledger) akan memakan error-nya lebih dulu dan
+  // pemeriksaan yang ingin diuji justru berjalan sukses (uji palsu).
+  if (__state.nextError && (!__state.nextErrorTable || __state.nextErrorTable === st.table)) {
     const err = __state.nextError
     __state.nextError = null
+    __state.nextErrorTable = null
     return { data: null, error: err }
   }
   if (st.op === 'insert') {
     const size = __state.handovers.size + __state.receivings.size + __state.prItems.size + __state.receivingItems.size
-    const row = { id: `gen-${size}-${Math.random().toString(36).slice(2, 7)}`, ...st.data }
+    // Hook balapan: meniru sesi LAIN yang commit TEPAT sebelum INSERT ini.
+    // Dipakai probe run 242/243 untuk membuktikan penarikan diri (withdraw)
+    // bekerja — bukan untuk membuat uji "lulus" secara palsu.
+    if (typeof __state.beforeInsert === 'function') {
+      const hook = __state.beforeInsert
+      __state.beforeInsert = null
+      hook(st)
+    }
+    // `created_at` di database default now() — tanpa ini urutan kanonik
+    // dokumen (created_at → handover_date → id) tidak bisa diemulasi dan
+    // "dokumen yang lebih awal" menjadi tidak deterministik.
+    const stamp = { created_at: __state.insertStamp || new Date().toISOString() }
+    const row = { id: `gen-${size}-${Math.random().toString(36).slice(2, 7)}`, ...stamp, ...st.data }
     const store = storeOf(st.table)
+    // PRIMARY KEY emulation (handovers.id): INSERT dengan id yang sudah ada
+    // ditolak 23505 — sama seperti PostgreSQL. Penjaga slot run 245 bergantung
+    // pada perilaku ini.
+    if (st.table === 'handovers' && store && store.has(row.id)) {
+      return {
+        data: null,
+        error: {
+          code: '23505',
+          message: `duplicate key value violates unique constraint "handovers_pkey"`,
+          details: `Key (id)=(${row.id}) already exists.`,
+          hint: null
+        }
+      }
+    }
+    // Sesi lain yang belum commit: id-nya sudah memegang PRIMARY KEY walau
+    // barisnya belum terlihat oleh SELECT. Di PostgreSQL INSERT kita akan
+    // MENUNGGU sampai sesi itu commit, lalu ditolak 23505 — dan pada saat itu
+    // barisnya SUDAH terlihat. Itu persis yang dimodelkan di sini: id keluar
+    // dari `pendingIds`, barisnya masuk store, lalu INSERT kita ditolak.
+    // (Tanpa ini, uji "dua penulis bersamaan" hanya membuktikan id-nya sama,
+    // bukan bahwa database menolak yang kedua — atau malah menggantung.)
+    if (st.table === 'handovers' && (__state.pendingIds || []).includes(row.id)) {
+      const pend = __state.pendingRows && __state.pendingRows[row.id]
+      __state.pendingIds = __state.pendingIds.filter(x => x !== row.id)
+      if (pend && store) store.set(pend.id, { ...pend })
+      return {
+        data: null,
+        error: {
+          code: '23505',
+          message: `duplicate key value violates unique constraint "handovers_pkey"`,
+          details: `Key (id)=(${row.id}) already exists.`,
+          hint: null
+        }
+      }
+    }
     if (store) store.set(row.id, { ...row })
     return { data: [row], error: null }
+  }
+  if (st.op === 'delete') {
+    const store = storeOf(st.table)
+    if (!store) return { data: [], error: null }
+    const idF = st.filters.find(f => f.col === 'id')
+    const isF = st.filters.find(f => f.col === 'diserahkan_at' && f.isNull)
+    const row = idF ? store.get(idF.val) : null
+    if (!row) return { data: [], error: null }
+    // CAS: `.delete().eq('id',x).is('diserahkan_at', null)` hanya menghapus
+    // baris yang BELUM diserahkan — sama seperti perilaku yang dituntut
+    // `duplicateGuardDb.insertUniqueActiveHandover` saat menarik diri.
+    if (isF && row.diserahkan_at !== null && row.diserahkan_at !== undefined) return { data: [], error: null }
+    store.delete(row.id)
+    return { data: [{ ...row }], error: null }
   }
   if (st.op === 'update') {
     if (st.table === 'handovers') {
@@ -159,6 +249,11 @@ function terminalRaw(st) {
       else if (f.col === 'receiving_event_id' && f.vals) rows = rows.filter(r => f.vals.includes(r.receiving_event_id))
       else if (f.col === 'receiving_event_id' && f.val !== undefined) rows = rows.filter(r => r.receiving_event_id === f.val)
       else if (f.col === 'handover_id') rows = rows.filter(r => r.handover_id === f.val)
+      // t_7bc6246b run 199: pembeda REPLAY vs KOREKSI mencari event tersimpan
+      // lewat client_event_id. Tanpa filter ini mock mengembalikan SEMUA baris
+      // dan setiap submit dianggap "sudah ada" → hasil uji menyesatkan.
+      else if (f.col === 'client_event_id' && f.vals) rows = rows.filter(r => f.vals.includes(r.client_event_id))
+      else if (f.col === 'client_event_id' && f.val !== undefined) rows = rows.filter(r => r.client_event_id === f.val)
     }
     return { data: rows, error: null }
   }
@@ -201,9 +296,27 @@ function makeBuilder(table) {
   return api
 }
 
+// --- RUN 248: jawaban JUJUR untuk fungsi kontrak v1 yang BELUM ADA ----------
+// PostgREST nyata menjawab PGRST202 ("Could not find the function"), bukan
+// `data:null` tanpa error. Probe capability menyimpulkan LEGACY hanya dari
+// jawaban itu; `data:null` tanpa error = "tidak bisa dipastikan" (dan memang
+// harus ditahan). Tanpa emulasi ini, harness LEGACY menguji jalur yang tidak
+// pernah ada di database sungguhan.
+const __OPS_V1_FNS = new Set(['handover_create_atomic', 'purchase_save_atomic'])
+function __opsV1Missing(fn) {
+  return {
+    data: null,
+    error: {
+      code: 'PGRST202',
+      message: `Could not find the function public.${fn}(p_payload) in the schema cache`
+    }
+  }
+}
+
 export const supabase = {
   from: (table) => makeBuilder(table),
   rpc: async (fn, args) => {
+    if (__OPS_V1_FNS.has(fn)) return __opsV1Missing(fn)
     __state.calls.push({ op: 'rpc', fn, args })
     if (__state.rpcError) {
       const e = __state.rpcError
@@ -215,6 +328,26 @@ export const supabase = {
     // membaca `data.applied` / `data.already` / `data.inserted` diuji nyata.
     if (fn === 'receipt_apply_events') {
       const evs = args?.p_events || []
+      // Emulasi penolakan server yang NYATA (migrasi 02 milik t_03b41644):
+      // `retur_status PENDING/DISCARDED` wajib `retur_qty > 0`, kalau tidak
+      // RPC menjawab ok:false reason retur_without_qty. Mock yang selalu
+      // menjawab ok:true membuat harness hijau untuk alur yang di produksi
+      // berakhir dengan penolakan (defect run 199).
+      const badRetur = evs.find(e => {
+        const st = String(e?.retur_status || 'NONE').toUpperCase()
+        return st !== 'NONE' && !(Number(e?.retur_qty) > 0)
+      })
+      if (badRetur) {
+        return {
+          data: {
+            ok: false,
+            reason: 'retur_without_qty',
+            error: `retur_status ${String(badRetur.retur_status).toUpperCase()} wajib retur_qty > 0.`,
+            client_event_id: badRetur.client_event_id
+          },
+          error: null
+        }
+      }
       const applied = evs.length
       return {
         data: {

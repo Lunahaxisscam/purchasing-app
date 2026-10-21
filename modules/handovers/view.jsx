@@ -31,9 +31,89 @@ export { renderHandoverQueue as banner } from './queue'
 
 import React from 'react'
 import { format, parseHandoverNote, isHandoverDelivered } from '../../lib/constants'
-import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA, validatePrototypeRow, prototypeTotals } from './display'
+import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA } from './display'
 import { alokasiLabel, isProblemNoted } from './queue'
 import { openPhysicalModal } from './physicalModal'
+import { handoverDeleteGuard } from './deleteGuard'
+import { duplicateInfoFor } from './duplicateGuard'
+import { guardConfirmFresh } from './duplicateGuardDb'
+import { loadDeliverability } from '../receivings/receiptEventSave'
+import { getReceiptCapability, coreLedgerReady } from '../receivings/receiptCapability'
+
+// ============================================================
+// REVIEW run 251 / D1 — pintu konfirmasi per BARIS
+// ============================================================
+// Tombol ✓ (desktop) dan tombol ✓ (kartu mobile) sama-sama membuka modal
+// konfirmasi. Keduanya harus tahu apakah penerimaan ini PUNYA barang yang
+// ditujukan ke tukang: kalau tidak, modal hanya bisa menawarkan jalur yang
+// ditolak kontrak v1 (`empty_lines` / `physical_rpc_required`).
+//
+// PENTING — hanya berlaku saat LEDGER SIAP. Di mode LEGACY (tabel ledger
+// belum ada) konfirmasi header adalah satu-satunya jalur yang sah, jadi
+// pemeriksaan ini tidak boleh menutupnya. Capability dibaca SEGAR (force)
+// karena migrasi bisa dijalankan saat layar terbuka.
+//
+// Mengembalikan `{ ok:true }` bila boleh lanjut, atau `{ ok:false, reason }`
+// dengan kalimat yang bisa dibaca admin. Gagal baca capability = JANGAN
+// menebak: teruskan ke modal, yang punya gerbang fail-closed sendiri
+// (physicalHost tidak merender form saat probe gagal).
+async function confirmEntryGuard(handover) {
+  const dup = await guardConfirmFresh({ handover })
+  if (!dup.ok) return { ok: false, reason: dup.reason }
+  let cap = null
+  try {
+    cap = await getReceiptCapability({ force: true })
+  } catch (e) {
+    cap = null
+  }
+  // REVIEW run 253 / D4: dokumen TANPA penerimaan tidak punya jalur penutup di
+  // bawah v1 — trigger menolak SETIAP penulisan `diserahkan_at` dan RPC
+  // menjawab `handover_not_found`. Dulu cabang ini `return { ok: true }`
+  // SEBELUM capability dibaca, jadi tombol ✓ aktif lalu gagal. Sekarang
+  // capability dibaca dulu: LEGACY tetap boleh (satu-satunya jalur di sana),
+  // READY/unknown menolak dengan sebab yang bisa ditindaklanjuti.
+  if (!handover?.receiving_id) {
+    if (coreLedgerReady(cap)) {
+      // REVIEW run 255 / D6: teks ini DULU menawarkan "hubungkan dokumen ini ke
+      // penerimaan (perbaikan data oleh admin)" — tindakan yang DILARANG
+      // database: `ops_v1_core_guard` menolak setiap UPDATE `receiving_id`
+      // (`handover_source_immutable`), termasuk untuk `service_role` dan
+      // superuser. Hanya DBA dengan trigger dimatikan yang bisa. Jadi jangan
+      // menjanjikannya; sebut keadaan + jalan keluar yang benar-benar bisa
+      // dieksekusi (hapus dokumen tanpa bukti, lalu catat dari penerimaan benar).
+      return {
+        ok: false,
+        reason:
+          'Dokumen lama ini tidak terhubung ke penerimaan, jadi tidak ada rincian barang yang bisa dicatat — '
+          + 'dan sejak pencatatan per barang aktif, database MENOLAK menutup dokumen tanpa rincian. '
+          + 'Dokumen lama tanpa penerimaan TIDAK bisa diperbaiki dari aplikasi (kolom sumber dokumen dikunci database), '
+          + 'jadi hapus dokumen ini (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.'
+      }
+    }
+    return { ok: true }
+  }
+  if (!coreLedgerReady(cap)) return { ok: true } // LEGACY/unknown: modal yang memutuskan
+  const d = await loadDeliverability({ receivingId: handover.receiving_id })
+  if (!d.ok) {
+    return { ok: false, reason: 'Tidak bisa memeriksa rincian penerimaan — konfirmasi ditahan supaya tidak menandai dokumen yang salah. Coba lagi.' }
+  }
+  const info = d.deliverability
+  if (!info || !info.hasTukang) {
+    return {
+      ok: false,
+      reason:
+        'Penerimaan ini tidak punya barang yang ditujukan ke tukang (semua barang tercatat ke gudang/workshop), '
+        + 'jadi tidak ada yang bisa dikonfirmasi sebagai serah terima. Catat dulu tujuan barang di Terima Barang bila memang ada yang ke tukang.'
+    }
+  }
+  if (info.allDelivered) {
+    return {
+      ok: false,
+      reason: 'Seluruh alokasi ke tukang pada penerimaan ini sudah diserahkan lewat dokumen lain — tidak ada sisa untuk dikonfirmasi di dokumen ini.'
+    }
+  }
+  return { ok: true, info }
+}
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -229,10 +309,28 @@ export function renderCell(h, r, rawVal, ctx) {
 // ✓ (konfirmasi fisik), ✏️ edit, 🗑️ hapus.
 // Konfirmasi fisik menulis diserahkan_at lewat RPC handover_confirm per barang
 // (modal confirmForm) atau confirm.js (header) saat skema belum ada.
+//
+// DEFECT run 237 (hapus): tombol 🗑️ dulu aktif di SETIAP baris, termasuk
+// dokumen yang sudah punya bukti penyerahan. `delete from handovers` menghapus
+// `handover_items` lewat cascade (bukti fisik hilang permanen) tanpa
+// mengoreksi `receiving_items.qty_handed_over`, lalu membuka kuota tukang →
+// barang yang sama bisa diserahkan DUA kali. Sekarang tombolnya dinonaktifkan
+// dengan sebab terbaca; gerbang sebenarnya ada di pages/index.js
+// (deleteDecision) supaya kartu mobile & pemanggilan programatik ikut tertutup.
 export function rowActions(r, ctx) {
   const { title, page, setEditRow, onMarkHandoverDelivered, onDelete } = ctx
   const delivered = isHandoverDelivered(r)
   const rec = (ctx?.allReceivings || []).find(x => x && x.id === r.receiving_id) || null
+  const delGuard = handoverDeleteGuard(r)
+  // DEFECT run 239: tombol ✓ per baris adalah PINTU KEDUA ke konfirmasi fisik.
+  // Dua dokumen aktif untuk satu penerimaan bisa sama-sama lolos RPC (kunci
+  // per dokumen) → penyerahan ganda. Dokumen duplikat ditolak di sini juga,
+  // bukan hanya di antrean.
+  const dupInfo = duplicateInfoFor(r, ctx?.rows || [])
+  // REVIEW run 244 (L3): sisa dokumen ganda (saudaranya SUDAH dikonfirmasi)
+  // juga harus menutup tombol — dulu badge & tombol mati begitu dokumen
+  // pertama dikonfirmasi, sehingga dokumen kedua bisa dikonfirmasi bebas.
+  const dupBlocked = !delivered && (dupInfo.staleDuplicate || (dupInfo.duplicate && !dupInfo.isCanonical))
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
@@ -248,11 +346,41 @@ export function rowActions(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-${r.id}`}
-            onClick={() => onMarkHandoverDelivered(r)}
-            style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 7px', fontSize: '11px', cursor: 'pointer', fontWeight: 700, lineHeight: 1 }}
-            title="Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik)"
+            disabled={dupBlocked}
+            aria-disabled={dupBlocked}
+            onClick={async () => {
+              // DEFECT run 206: tombol ✓ dulu langsung memanggil
+              // `onMarkHandoverDelivered` (window.confirm + tulis header saja).
+              // Di mode READY itu MELEWATI konfirmasi per barang dan langsung
+              // mengunci dokumen (CAS `diserahkan_at`), sehingga rincian barang
+              // tidak akan pernah bisa dicatat untuk dokumen itu. Sekarang ✓
+              // membuka modal konfirmasi yang SAMA dengan antrean: per barang
+              // bila skema siap, dan otomatis jatuh ke konfirmasi header
+              // (perilaku lama) bila belum — jadi tidak ada jalur yang hilang.
+              //
+              // DEFECT run 239 + REVIEW run 242 (BUG-V1): dokumen DUPLIKAT tidak
+              // boleh membuka modal konfirmasi (dua dokumen aktif → penyerahan
+              // ganda). Pemeriksaan dibaca dari DB, BUKAN `ctx.rows` — halaman
+              // bisa memegang daftar basi dari admin lain. Gagal baca = tolak.
+              //
+              // REVIEW run 251 / D1: `confirmEntryGuard` juga memastikan
+              // penerimaan ini benar-benar punya barang untuk tukang.
+              const entry = await confirmEntryGuard(r)
+              if (!entry.ok) { ctx?.say?.(entry.reason); return }
+              openPhysicalModal({ kind: 'confirm', handover: r })
+            }}
+            style={{
+              background: dupBlocked ? '#9aa8a4' : '#16a34a',
+              color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 7px',
+              fontSize: '11px', cursor: dupBlocked ? 'not-allowed' : 'pointer', fontWeight: 700, lineHeight: 1
+            }}
+            title={dupBlocked
+              ? (dupInfo.staleDuplicate
+                ? 'Sisa dokumen ganda — dokumen lain untuk penerimaan ini SUDAH diserahkan. Hapus dokumen ini (belum punya bukti) lalu buat dokumen baru untuk sisa barang.'
+                : 'Dokumen duplikat — penerimaan ini punya dokumen Serah Terima lain yang belum diserahkan. Konfirmasi hanya dokumen paling awal.')
+              : 'Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik — rincian per barang bila tersedia)'}
           >
-            ✓
+            {dupBlocked ? '🔒' : '✓'}
           </button>
         )}
         {/* Terima Barang: satu-satunya pintu input kedatangan/kondisi/tujuan
@@ -280,10 +408,13 @@ export function rowActions(r, ctx) {
           type="button"
           className="btn-delete icon-btn"
           data-testid={`btn-hapus-${r.id}`}
+          disabled={!delGuard.ok}
+          aria-disabled={!delGuard.ok}
           onClick={() => onDelete(page, r)}
-          title={`Hapus ${title}`}
+          title={delGuard.ok ? `Hapus ${title}` : delGuard.reason}
+          style={delGuard.ok ? undefined : { opacity: 0.4, cursor: 'not-allowed' }}
         >
-          🗑️
+          {delGuard.ok ? '🗑️' : '🔒'}
         </button>
       </div>
     </td>
@@ -293,12 +424,11 @@ export function rowActions(r, ctx) {
 // --- Baris perluasan: detail dokumen serah terima (referensi asal, rincian) ---
 // Dirender shell lewat renderModuleRowExpand; hanya tampil bila baris dibuka.
 export function rowExpand(r, ctx) {
-  const { columns, expandedAcuan, allReceivings, allRequests, H } = ctx
+  const { columns, expandedAcuan, allReceivings, allRequests } = ctx
   if (!r?.id || expandedAcuan !== r.id) return null
   const refs = sourceRefs(r, { allReceivings, allRequests })
   const rinc = rincianInfo(r)
   const st = statusInfo(r)
-  const refItems = (r.receiving_id && H?.receivingItemsForReceiving) ? H.receivingItemsForReceiving(r.receiving_id) : []
   return (
     <tr className="acuan-expand-row">
       <td colSpan={columns.length + 1} style={{ background: '#fbfdfc', padding: '10px 14px' }}>
@@ -331,94 +461,22 @@ export function rowExpand(r, ctx) {
             <span>Status: <b>{st.label}</b>{st.delivered && st.diserahkanAt ? ` — ${new Date(st.diserahkanAt).toLocaleString('id-ID')}` : ''}</span>
             {st.legacyNote && <span style={{ color: '#a15309' }}>⚠️ {st.legacyNote}</span>}
           </div>
-          {refItems.length > 0 && <PrototypePanel handover={r} refItems={refItems} />}
+          {/* PANEL PROTOTYPE DIHAPUS (run 208).
+              Panel "🧪 rencana rincian penyerahan per item" adalah mockup dari
+              masa sebelum tabel `handover_items` ada: ia menerima qty+penerima,
+              menampilkan "Rencana tercatat (sesi ini)", tetapi NOL tulisan DB
+              dan hilang saat halaman dimuat ulang. Sekarang jalur NYATA sudah
+              ada (konfirmasi per barang → RPC handover_confirm), jadi panel itu
+              menjadi persistence palsu di layar yang sama — dua form untuk satu
+              pekerjaan, yang satu membuang datanya. Angka "Diterima" di panel
+              itu pun diambil dari `quantity_received` (QTY BELI), bukan qty
+              DATANG — semantik yang justru diperbaiki seluruh card ini.
+              Fungsi murninya (display.validatePrototypeRow/prototypeTotals)
+              TIDAK dihapus: masih diuji sebagai catatan desain, tetapi tidak
+              lagi dirender ke pengguna. */}
         </div>
       </td>
     </tr>
-  )
-}
-
-// ============================================================
-// PROTOTYPE — panel "rencana rincian penyerahan per item" (SESI SAJA).
-// ============================================================
-// Mendemokan alur yang diusulkan DAT: pilih barang dari penerimaan, isi
-// jumlah yang DISERAHKAN KALI INI (boleh parsial), pilih penerima (boleh
-// beberapa orang), lihat sisa yang belum diserahkan tanpa hitung ganda.
-// TIDAK PERNAH menulis DB / kolom note — entri hidup di memori komponen;
-// menunggu persetujuan tabel `handover_items` (docs/handover-gap-proposal.md).
-function PrototypePanel({ handover, refItems }) {
-  const [entries, setEntries] = React.useState([])
-  const [refItemId, setRefItemId] = React.useState('')
-  const [qty, setQty] = React.useState('')
-  const [penerima, setPenerima] = React.useState('')
-  const [error, setError] = React.useState('')
-  const totals = prototypeTotals(entries, refItems)
-
-  function tambah() {
-    const v = validatePrototypeRow({ refItemId, qty }, refItems, entries)
-    if (!v.ok) { setError(v.error); return }
-    setEntries(prev => [...prev, { refItemId, name: v.ref.item_name, unit: v.ref.unit || '', qty: v.qty, penerima: String(penerima || '').trim() }])
-    setError('')
-    setQty('')
-    setPenerima('')
-  }
-
-  return (
-    <div data-testid={`prototype-panel-${handover.id}`} style={{ background: '#fff8ec', border: '1px dashed #e0b96a', borderRadius: '8px', padding: '10px 12px' }}>
-      <div style={{ fontWeight: 700, color: '#8a6d1f' }}>🧪 Prototype: rencana rincian penyerahan per item (belum tersimpan)</div>
-      <div className="muted" style={{ fontSize: '11px', margin: '3px 0 7px', maxWidth: '720px' }}>
-        Contoh alur usulan — entri hanya hidup di sesi ini dan TIDAK ditulis ke database (menunggu persetujuan tabel <code>handover_items</code>).
-        Mendukung penyerahan sebagian, sisa belum diserahkan, dan beberapa penerima.
-      </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <label style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          Barang (dari penerimaan)
-          <select value={refItemId} onChange={e => setRefItemId(e.target.value)} data-testid={`proto-item-${handover.id}`} style={{ minWidth: '190px' }}>
-            <option value="">-- pilih barang --</option>
-            {refItems.map(it => (
-              <option key={it.id} value={it.id}>{it.item_name} ({Number(it.quantity_received || 0)}{it.unit ? ` ${it.unit}` : ''} diterima)</option>
-            ))}
-          </select>
-        </label>
-        <label style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          Jumlah diserahkan kini
-          <input type="number" min="0" step="any" value={qty} onChange={e => setQty(e.target.value)} data-testid={`proto-qty-${handover.id}`} style={{ width: '110px' }} />
-        </label>
-        <label style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          Penerima (nama)
-          <input type="text" value={penerima} onChange={e => setPenerima(e.target.value)} placeholder="mis. Pak Joko" data-testid={`proto-penerima-${handover.id}`} style={{ width: '150px' }} />
-        </label>
-        <button type="button" className="outline" onClick={tambah} data-testid={`proto-add-${handover.id}`} style={{ padding: '5px 10px', fontSize: '11px', fontWeight: 600 }}>＋ Catat (sesi)</button>
-      </div>
-      {error && <div style={{ color: '#c93b2b', fontSize: '11px', marginTop: '5px' }} data-testid={`proto-error-${handover.id}`}>{error}</div>}
-      {totals.length > 0 && (
-        <table className="acuan-table" style={{ marginTop: '8px', fontSize: '11px', width: 'auto' }}>
-          <thead>
-            <tr><th>Barang</th><th>Diterima</th><th>Tercatat (sesi)</th><th>Sisa belum diserahkan</th></tr>
-          </thead>
-          <tbody>
-            {totals.map(t => (
-              <tr key={t.refItemId}>
-                <td>{t.name}</td>
-                <td>{t.received}{t.unit ? ` ${t.unit}` : ''}</td>
-                <td>{t.used}{t.unit ? ` ${t.unit}` : ''}</td>
-                <td><b>{t.sisa}{t.unit ? ` ${t.unit}` : ''}</b></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {entries.length > 0 && (
-        <div style={{ marginTop: '6px', fontSize: '11px' }}>
-          <b>Rencana tercatat (sesi ini):</b>{' '}
-          {entries.map((e, i) => (
-            <span key={i} style={{ marginRight: '10px' }}>
-              {e.name} {e.qty}{e.unit ? ` ${e.unit}` : ''}{e.penerima ? ` → ${e.penerima}` : ''}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -427,6 +485,18 @@ export function mobileCard(r, ctx) {
   const { page, title, setEditRow, onMarkHandoverDelivered, onDelete, expandedAcuan, setExpandedAcuan, allReceivings, allRequests } = ctx
   const { foto, extra } = parseHandoverNote(r.note)
   const delivered = isHandoverDelivered(r)
+  // DEFECT run 237: tombol hapus di kartu mobile juga harus berhenti pada
+  // dokumen yang sudah punya bukti penyerahan (gerbang sebenarnya ada di
+  // pages/index.js → deleteDecision, ini lapis pertama yang terlihat admin).
+  const delGuard = handoverDeleteGuard(r)
+  // DEFECT run 239: kartu mobile adalah PINTU KETIGA ke konfirmasi fisik.
+  // Dua dokumen aktif untuk satu penerimaan bisa sama-sama lolos RPC (kunci
+  // per dokumen) → penyerahan ganda. Dokumen duplikat ditolak di sini juga.
+  const dupInfo = duplicateInfoFor(r, ctx?.rows || [])
+  // REVIEW run 244 (L3): sisa dokumen ganda (saudaranya SUDAH dikonfirmasi)
+  // juga harus menutup tombol — dulu badge & tombol mati begitu dokumen
+  // pertama dikonfirmasi, sehingga dokumen kedua bisa dikonfirmasi bebas.
+  const dupBlocked = !delivered && (dupInfo.staleDuplicate || (dupInfo.duplicate && !dupInfo.isCanonical))
   const st = statusInfo(r)
   const rinc = rincianInfo(r)
   const isOpen = !!r.id && expandedAcuan === r.id
@@ -518,10 +588,26 @@ export function mobileCard(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-mobile-${r.id}`}
-            onClick={() => onMarkHandoverDelivered(r)}
-            style={{ width: '100%', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: 700 }}
+            disabled={dupBlocked}
+            aria-disabled={dupBlocked}
+            onClick={async () => {
+              // REVIEW run 242 (BUG-V1): keputusan dari DB, bukan `ctx.rows`.
+              // REVIEW run 251 / D1: termasuk memastikan ada barang untuk tukang.
+              const entry = await confirmEntryGuard(r)
+              if (!entry.ok) { ctx?.say?.(entry.reason); return }
+              openPhysicalModal({ kind: 'confirm', handover: r })
+            }}
+            style={{
+              width: '100%', background: dupBlocked ? '#9aa8a4' : '#16a34a', color: '#fff',
+              border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: 700,
+              cursor: dupBlocked ? 'not-allowed' : 'pointer'
+            }}
           >
-            ✓ Tandai Sudah Diserahkan
+            {dupBlocked
+              ? (dupInfo.staleDuplicate
+                ? '🔒 Sisa dokumen ganda — hapus dokumen ini'
+                : '🔒 Dokumen duplikat — konfirmasi dokumen paling awal')
+              : '✓ Tandai Sudah Diserahkan'}
           </button>
         )}
         <button
@@ -532,8 +618,17 @@ export function mobileCard(r, ctx) {
         >
           ✏️ Edit
         </button>
-        <button type="button" className="btn-delete" onClick={() => onDelete(page, r)} style={{ width: '100%' }}>
-          Hapus {title}
+        <button
+          type="button"
+          className="btn-delete"
+          data-testid={`btn-hapus-mobile-${r.id}`}
+          disabled={!delGuard.ok}
+          aria-disabled={!delGuard.ok}
+          title={delGuard.ok ? undefined : delGuard.reason}
+          onClick={() => onDelete(page, r)}
+          style={{ width: '100%', ...(delGuard.ok ? {} : { opacity: 0.45, cursor: 'not-allowed' }) }}
+        >
+          {delGuard.ok ? `Hapus ${title}` : `🔒 Tidak bisa dihapus — sudah ada bukti serah terima`}
         </button>
       </div>
     </>

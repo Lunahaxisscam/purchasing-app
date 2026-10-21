@@ -55,7 +55,15 @@ console.log('\n=== H2. RINCIAN BARANG (label jujur, tanpa menebak) ===\n')
   check('H2a available=false utk data tanpa rincian', r.available === false)
   check('H2b label "Rincian barang belum tersedia"', 'Rincian barang belum tersedia', r.label)
   check('H2c TIDAK ada baris angka tebakan', r.rows.length === 0)
-  check('H2d notice menyebut skema belum aktif', true, /belum aktif/.test(r.notice))
+  // RUN 208: pesan lama "belum aktif di versi ini (menunggu persetujuan
+  // perbaikan skema)" TIDAK BENAR lagi — skema & UI per barang SUDAH ada.
+  // Assertion ini dulu mengunci pesan usang itu; sekarang mengunci yang benar:
+  // notice menjelaskan CARA mencatat (konfirmasi fisik) dan tidak menyuruh
+  // admin menunggu migrasi.
+  check('H2d notice menjelaskan cara mencatat rincian (konfirmasi fisik)',
+    true, /konfirmasi fisik/i.test(r.notice))
+  check('H2d2 notice TIDAK lagi menyuruh menunggu persetujuan skema',
+    true, !/menunggu persetujuan perbaikan skema|belum aktif di versi ini/i.test(r.notice))
 
   const hNoRec = { id: 'h3', receiving_id: null }
   check('H2e tanpa receiving_id -> label sama', 'Rincian barang belum tersedia', D.rincianInfo(hNoRec).label)

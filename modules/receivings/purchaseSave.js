@@ -56,6 +56,8 @@
 import { supabase } from '../../lib/supabaseClient'
 import { buildPurchaseNote, PURCHASED_STATUS, TAHAP_DIBELI, isPurchasedNota, itemPriceNoteOf } from '../../lib/purchaseNote'
 import { buildSavePlan } from './purchaseLogic'
+import { normalizeAllocations, validateSplit } from './allocationLogic'
+import { createActiveHandover } from '../handovers/createHandover'
 
 function isCheckViolation(error) {
   const code = String(error?.code || '')
@@ -68,7 +70,31 @@ function isCheckViolation(error) {
 // disalahartikan nomor toko, dan bisa dideteksi oleh laporan sebagai internal.
 // `prefix` bisa diganti pemanggil (konektor memakai BK- supaya asal-usulnya
 // jelas) tanpa membuat fungsi kedua.
-function internalRefStamp(prefix = 'PH', now = Date.now()) {
+//
+// RUN 246 — `stableKey` (client_request_id): bila diberikan, hasilnya
+// DETERMINISTIK untuk kunci itu. Ini yang membuat RETRY tidak mengarang nomor
+// baru (defect R2: retry nota tanpa nomor dulu membuat nota kedua).
+//
+// PENTING: saat `stableKey` diberikan, SELURUH stamp diturunkan dari kunci —
+// termasuk bagian "epoch". Kalau epoch tetap diambil dari jam sekarang, retry
+// satu menit kemudian menghasilkan nomor BERBEDA dan defect R2 kembali. Jam
+// hanya dipakai saat tidak ada kunci stabil.
+function fnv1a(str, seed) {
+  let h = seed >>> 0
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0
+  }
+  return h >>> 0
+}
+
+function internalRefStamp(prefix = 'PH', now = Date.now(), stableKey = null) {
+  const key = String(stableKey || '').trim()
+  if (key) {
+    const a = fnv1a(key, 0x811c9dc5).toString(36).toUpperCase().padStart(7, '0').slice(-7)
+    const b = fnv1a(`v2:${key}`, 0x01000193).toString(36).toUpperCase().padStart(4, '0').slice(-4)
+    return `${prefix}-${a}-${b}`
+  }
   const epoch = now.toString(36).toUpperCase().padStart(8, '0')
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase().padStart(4, 'X')
   return `${prefix}-${epoch}-${rand}`
@@ -118,10 +144,25 @@ export function validatePurchaseBoundary(nota) {
     const harga = Number(it?.harga)
     if (!isFinite(qty) || qty <= 0) return err(`Qty "${nama}" harus lebih dari 0.`, 'item_qty')
     if (!isFinite(harga) || harga <= 0) return err(`Harga satuan riil "${nama}" wajib diisi (> 0, diambil dari nota toko).`, 'item_price')
+    // PEMBAGIAN SATU BARIS → BEBERAPA PROYEK (acceptance 4).
+    // Boundary yang SAMA dipakai semua kanal (admin & konektor): aturan split
+    // ditegakkan di sini, bukan hanya di form. DB tetap penjaga terakhir.
+    const allocs = normalizeAllocations(it?.allocations)
+    if (allocs) {
+      const split = validateSplit({ qty, allocations: allocs })
+      if (!split.ok) return err(split.message, split.reason)
+    }
     clean.push({
       prItemId: it?.prItemId ? String(it.prItemId) : null,
       prId: it?.prId ? String(it.prId) : null,
-      projectId: it?.projectId ? String(it.projectId) : null,
+      // Kontrak DB: project_id XOR allocations. Baris split TIDAK membawa
+      // project_id (header proyek juga NULL untuk split/mixed).
+      projectId: allocs ? null : (it?.projectId ? String(it.projectId) : null),
+      // Identitas material + alokasi split dibawa apa adanya. Validasi
+      // kelengkapan material dilakukan SETELAH ini (butuh prItems untuk
+      // menurunkan material dari baris PR), bukan di sini.
+      materialId: it?.materialId ? String(it.materialId) : null,
+      allocations: allocs,
       itemName: nama,
       unit: String(it?.unit || '').trim() || null,
       qty: Math.round(qty * 1000) / 1000,
@@ -153,6 +194,15 @@ export function validatePurchaseBoundary(nota) {
 //   queueHandover     : admin true (barang masuk antrean serah terima);
 //                       konektor false — nota BUKAN penerimaan fisik.
 //   internalRefPrefix : prefix referensi internal nota tanpa nomor (PH/BK)
+//   clientRequestId   : kunci idempotensi STABIL per percobaan simpan.
+//                       WAJIB dikirim pemanggil (form menyimpannya di state
+//                       supaya retry memakai nilai yang sama). Bila kosong,
+//                       dibuat sekali di sini — itu hanya menolong satu
+//                       panggilan, TIDAK menolong retry dari UI. Karena itu
+//                       form selalu mengirimnya.
+//   capability        : hasil getPurchaseCapability(). Menentukan apakah
+//                       jalur ATOMIK boleh dipakai. Tidak di-probe ulang di
+//                       sini supaya satu simpan = satu keputusan.
 export async function savePurchaseWithClient({
   client,
   form,
@@ -167,9 +217,24 @@ export async function savePurchaseWithClient({
   projectIdOverride = null,
   prIdOverride = null,
   queueHandover = true,
-  internalRefPrefix = 'PH'
+  internalRefPrefix = 'PH',
+  clientRequestId = null,
+  capability = null
 } = {}) {
   if (!client) return { ok: false, error: 'Supabase tidak tersedia.' }
+
+  // --- 0a) GERBANG IZIN (kontrak v1) -------------------------------------
+  // RPC kontrak v1 menolak non-admin dengan `{ok:false,reason:'forbidden'}`
+  // dan TRIGGER menolak jalur multipart (`purchase_rpc_required`). Jadi bila
+  // probe membuktikan sesi ini `forbidden`, jangan mencoba jalur lama lalu
+  // menampilkan error SQL mentah — berhenti dengan pesan yang bisa dibaca.
+  if (capability && capability.forbidden) {
+    return {
+      ok: false,
+      reason: 'forbidden',
+      error: 'Hanya admin yang boleh menyimpan nota pembelian. Akun ini tidak punya hak menulis nota.'
+    }
+  }
 
   // --- 0a) Boundary reusable: validasi + normalisasi payload ---
   const inline = validatePurchaseBoundary(form)
@@ -192,21 +257,98 @@ export async function savePurchaseWithClient({
   if (!items.length) return { ok: false, error: 'Tidak ada barang dengan harga yang bisa disimpan.' }
 
   // --- 0b) Nota tanpa nomor vendor: referensi internal jelas dibedakan ---
+  // PENTING (run 246): referensi internal HARUS STABIL antar retry. Dulu
+  // `internalRefStamp()` dipanggil di sini SETIAP kali, sehingga submit ulang
+  // menghasilkan nomor berbeda → nota KEDUA + baris kedua + dokumen Handover
+  // kedua (probe_r246_retry R2a/R2b/R2c MERAH). Sekarang:
+  //   - `form.invoiceNo` yang sudah berisi PH-* dipakai apa adanya (form
+  //     menyimpannya di state setelah percobaan pertama), atau
+  //   - pemanggil memberi `internalRefId`/`clientRequestId` stabil.
+  // Kalau tidak ada sama sekali, dibuat sekali di sini — dan hasilnya
+  // DIKEMBALIKAN ke pemanggil (`internalRefId`) supaya percobaan berikutnya
+  // bisa memakai nilai yang sama.
   let invoiceNo = header.invoiceNo
   let isInternalRef = false
+  let internalRefId = null
   if (!invoiceNo) {
     isInternalRef = true
-    invoiceNo = internalRefStamp(internalRefPrefix)
+    internalRefId = String(clientRequestId || '').trim()
+      ? internalRefStamp(internalRefPrefix, undefined, clientRequestId)
+      : internalRefStamp(internalRefPrefix)
+    invoiceNo = internalRefId
+  }
+
+  // --- 0b2) Jalur ATOMIK (bila skema mendukung) ---
+  // Semua yang butuh konsistensi (header + baris typed + alokasi + antrean
+  // Handover) ditulis SATU transaksi oleh RPC. Tidak ada penulisan sebagian
+  // yang bisa membuat UI melaporkan "teralokasi" padahal tidak.
+  //
+  // Syarat: capability menyatakan READY. Kalau tidak, JANGAN coba-coba
+  // memanggil RPC yang belum ada (kebisingan + pesan menyesatkan); jalur
+  // lama dipakai dan hasilnya DIBERI LABEL JUJUR `allocationPersisted:false`.
+  const capState = capability?.state || null
+  const useAtomic = !!(capability && capability.allocationPersisted && capState === 'ready')
+
+  if (useAtomic) {
+    // Material per baris: baris PR MEWARISI material_id dari pr_items (exact,
+    // bukan tebakan nama). Ini dilakukan di sini — bukan di form — supaya
+    // semua kanal (admin & konektor) mendapat perlakuan yang sama.
+    const prItemById = new Map((prItems || []).filter(p => p && p.id).map(p => [String(p.id), p]))
+    const notaForAtomic = {
+      ...nota,
+      items: (nota.items || []).map(it => {
+        const prIt = it.prItemId ? prItemById.get(String(it.prItemId)) : null
+        return {
+          ...it,
+          materialId: it.materialId || prIt?.material_id || null
+        }
+      })
+    }
+    const atomic = await savePurchaseAtomic({
+      client,
+      nota: notaForAtomic,
+      header,
+      invoiceNo,
+      isInternalRef,
+      clientRequestId: clientRequestId || internalRefId || null,
+      queueHandover,
+      headerNoteSuffix,
+      lineNoteSuffixes,
+      projectIdOverride,
+      prIdOverride
+    })
+    if (atomic) return atomic
+    // `null` = RPC tidak bisa dipakai (mis. fungsi hilang di tengah jalan).
+    // Jatuh ke jalur lama DI BAWAH dengan label jujur — bukan gagal total,
+    // karena nota tetap harus tercatat (uang sudah keluar).
   }
 
   // --- 0c) Anti dobel: nota toko yang sama tidak boleh tercatat dua kali ---
+  // Untuk nota TANPA nomor vendor, `invoiceNo` sekarang DETERMINISTIK terhadap
+  // `clientRequestId` (lihat internalRefStamp), sehingga retry dengan kunci
+  // yang sama akan MENEMUKAN nota pertama di sini dan berhenti sebagai
+  // `duplicate_invoice` — bukan membuat nota kedua (defect R2 run 246).
   const dup = await findExistingNota({ client, vendorId: header.vendorId, invoiceNo })
   if (!dup.ok) return { ok: false, error: `Gagal memeriksa nota: ${dup.error}` }
   if (dup.existing) {
+    // Retry dari percobaan yang SAMA bukan kesalahan pengguna: laporkan
+    // sebagai `already` supaya UI tidak menyuruh admin "buka nota lain".
+    const sameRequest = !!(clientRequestId && isInternalRef)
     return {
       ok: false,
-      reason: 'duplicate_invoice',
-      error: `Nota ${invoiceNo} untuk toko ini sudah tercatat sebelumnya (Riwayat Pembelian). Buka nota itu alih-alih menyimpan ulang.`
+      already: sameRequest,
+      reason: sameRequest ? 'already_saved' : 'duplicate_invoice',
+      existingId: dup.existing.id || null,
+      // Referensi nota tetap dikembalikan supaya UI bisa menunjukkan notA
+      // mana yang sudah ada (dan supaya kestabilan referensi internal bisa
+      // dibuktikan, bukan diasumsikan).
+      invoiceNo,
+      isInternalRef,
+      internalRefId: isInternalRef ? invoiceNo : null,
+      clientRequestId: clientRequestId || internalRefId || null,
+      error: sameRequest
+        ? `Nota ini sudah tersimpan sebelumnya (${invoiceNo}). Tidak ada data yang ditulis ulang.`
+        : `Nota ${invoiceNo} untuk toko ini sudah tercatat sebelumnya (Riwayat Pembelian). Buka nota itu alih-alih menyimpan ulang.`
     }
   }
 
@@ -411,9 +553,20 @@ export async function savePurchaseWithClient({
   // Barang yang sudah dibeli harus muncul di modul Handover untuk distribusi
   // fisik. Skema handover masih HEADER-level (tabel `handover_items` belum
   // ada), jadi yang dibuat adalah SATU dokumen DRAFT per nota — isinya rincian
-  // barang diambil dari baris nota ini. Idempoten: bila nota ini sudah punya
-  // dokumen handover, tidak dibuat lagi. Kegagalan di langkah ini TIDAK
+  // barang diambil dari baris nota ini. Kegagalan di langkah ini TIDAK
   // membatalkan nota (uang sudah keluar) — dilaporkan apa adanya.
+  //
+  // REVIEW run 244 (BUG-W3): pintu ini dulu INSERT LANGSUNG tanpa penjaga,
+  // dan pre-check-nya `.select('id').eq('receiving_id', …)` TANPA filter
+  // `diserahkan_at`. Dua akibat nyata:
+  //   W3a  dokumen kedua bisa dibuat dari sini (tidak dijaga sama sekali);
+  //   W3b  setelah SEMUA dokumen dikonfirmasi, pre-check tetap menyimpulkan
+  //        "sudah ada dokumen" sehingga nota berikutnya tidak pernah
+  //        mendapat antrean serah terima bertahap.
+  // Sekarang pintu ini lewat penjaga yang SAMA dengan form Tambah
+  // (`insertUniqueActiveHandover`): baca DB (aktif saja), tolak bila ada
+  // dokumen aktif, dan id deterministik supaya dua penulis bersamaan tidak
+  // bisa sama-sama masuk.
   let handoverQueued = false
   let handoverError = ''
   if (!queueHandover) {
@@ -421,42 +574,47 @@ export async function savePurchaseWithClient({
     // serah terima. Dicatat eksplisit supaya UI/laporan tidak menjawab "gagal".
     handoverError = ''
   } else try {
-    const { data: existingHo, error: hoReadErr } = await client
-      .from('handovers')
-      .select('id')
-      .eq('receiving_id', receivingId)
-      .limit(1)
-    if (hoReadErr) {
-      handoverError = hoReadErr.message
-    } else if (existingHo && existingHo.length) {
-      handoverQueued = true
-    } else {
-      const { error: hoErr } = await client.from('handovers').insert({
+    const queued = await createActiveHandover({
+      client,
+      data: {
         receiving_id: receivingId,
         project_id: projectId,
         received_by: 'Belum ditentukan',
         handover_date: header.tanggal,
         status: 'DRAFT',
         note: null
-      })
-      if (hoErr) handoverError = hoErr.message
-      else handoverQueued = true
+      }
+    })
+    if (queued.ok) {
+      handoverQueued = true
+    } else if (queued.existingId || queued.raced) {
+      // Nota ini SUDAH punya dokumen aktif (dibuat pintu lain / admin lain) —
+      // antreannya ada, tidak ada yang perlu dibuat. Bukan kegagalan.
+      handoverQueued = true
+    } else {
+      handoverError = queued.reason || 'Gagal membuat antrean Serah Terima.'
     }
   } catch (err) {
     handoverError = err.message
   }
 
-  // --- 5) Readback alokasi per proyek (jujur dari payload yang benar-benar
-  //        ditulis; bukan tebak-tebakan dari estimasi) ---
-  const byProject = new Map()
-  for (const it of saved) {
-    const pid = it.projectId || projectId || null
-    const cur = byProject.get(pid) || { projectId: pid, items: 0, material: 0 }
-    cur.items += 1
-    cur.material += it.subtotal
-    byProject.set(pid, cur)
-  }
-  const alokasi = [...byProject.entries()].map(([pid, v]) => ({ projectId: pid, ...v }))
+  // --- 5) Readback — JUJUR tentang apa yang BENAR-BENAR tersimpan ---
+  // RUN 246 (defect acceptance-4): blok ini dulu menghitung ringkasan alokasi
+  // dari `saved` (state form), lalu mengembalikannya sebagai `alokasi`. UI
+  // membacanya sebagai "biaya sudah masuk ke proyek", padahal tabel
+  // `receiving_items` di jalur lama TIDAK punya kolom `project_id` — nol
+  // alokasi tersimpan. Probe membuktikannya: setelah reload, 100% material
+  // jatuh ke `unassignedMaterial` (1.250.000 dari nota lintas proyek 61+62).
+  //
+  // Sekarang: jalur lama TIDAK PERNAH mengklaim alokasi tersimpan.
+  // `allocationPersisted: false` dan `alokasi: []` — UI wajib memberi tahu
+  // admin bahwa pembagian proyek belum tercatat, bukan menampilkan angka
+  // yang tidak ada di database.
+  const alokasi = []
+  const unassignedHint = (() => {
+    const ids = new Set(saved.map(s => s.projectId).filter(Boolean))
+    return ids.size
+  })()
 
   const labelNota = isInternalRef ? `${invoiceNo} (ref. internal)` : invoiceNo
   return {
@@ -469,6 +627,16 @@ export async function savePurchaseWithClient({
     vendorName,
     invoiceNo,
     isInternalRef,
+    internalRefId: isInternalRef ? invoiceNo : null,
+    clientRequestId: clientRequestId || internalRefId || null,
+    atomic: false,
+    // Jalur lama: alokasi per baris TIDAK punya tempat di skema. Ini BUKAN
+    // kegagalan simpan — nota tetap tercatat. Tapi klaim alokasi HARAM.
+    allocationPersisted: false,
+    allocationWarning: unassignedHint > 0
+      ? `Pembagian ${unassignedHint} proyek pada nota ini BELUM tersimpan di database — skema alokasi per baris belum aktif. `
+        + 'Catat pembagiannya di luar aplikasi sampai migrasi dijalankan, dan jangan menganggap biaya sudah masuk ke proyek.'
+      : '',
     alokasi,
     items: saved.map(s => ({
       id: s.itemRowId || null,
@@ -495,6 +663,183 @@ export async function savePurchaseWithClient({
       + (handoverQueued ? ' Barang masuk antrean Serah Terima.' : '')
       + (statusFallback ? ' Penanda tahap disimpan di catatan nota (kolom status belum menerima nilai DIBELI).' : '')
       + (handoverError ? ` ⚠️ Antrean Serah Terima belum terbuat otomatis (${handoverError}) — tambahkan dokumen serah terima manual di modul Serah Terima.` : '')
+  }
+}
+
+// --------------------------------------------------------
+// JALUR ATOMIK — satu transaksi untuk header + baris typed + alokasi + antrean
+// --------------------------------------------------------
+// Dipakai HANYA bila `capability.allocationPersisted` (probe membuktikan
+// kolom typed, tabel alokasi, DAN RPC-nya ada). Kontrak RPC disepakati dengan
+// schema owner (t_2b8dcab3, OPERATIONAL_CONTRACT_v1):
+//
+//   purchase_save_atomic(p_payload jsonb) -> jsonb
+//   { client_request_id, vendor_id, invoice_no, purchased_date, note,
+//     extra_cost, discount, receipt_url?, payment_proof_url?,
+//     queue_handover?, items:[{ pr_item_id?, material_id, project_id?,
+//       item_name, unit, quantity_received, unit_price, note?,
+//       allocations?:[{project_id, qty}] }] }
+//
+// Return `null` bila RPC tidak bisa dipakai → pemanggil jatuh ke jalur lama
+// DENGAN label jujur (nota tetap tercatat; alokasi tidak diklaim).
+async function savePurchaseAtomic({
+  client, nota, header, invoiceNo, isInternalRef, clientRequestId,
+  queueHandover, headerNoteSuffix, lineNoteSuffixes, projectIdOverride, prIdOverride
+}) {
+  // Material per baris: baris PR mewarisi material_id dari pr_items (exact),
+  // baris langsung wajib sudah membawa materialId dari form. TIDAK ditebak
+  // dari nama — kalau tidak ada, serahkan null dan biarkan DB yang menolak
+  // (kontrak: material_id REQUIRED untuk write v1).
+  const items = (nota.items || []).map((it, idx) => {
+    const lineSuffix = String(lineNoteSuffixes[idx] || '').trim()
+    const allocs = Array.isArray(it.allocations) && it.allocations.length
+      ? it.allocations.map(a => ({ project_id: a.projectId, qty: a.qty }))
+      : null
+    return {
+      pr_item_id: it.prItemId || null,
+      material_id: it.materialId || null,
+      project_id: allocs ? null : (it.projectId || projectIdOverride || null),
+      item_name: it.itemName,
+      unit: it.unit || null,
+      quantity_received: it.qty,
+      unit_price: it.harga,
+      note: lineSuffix || null,
+      ...(allocs ? { allocations: allocs } : {})
+    }
+  })
+
+  const payload = {
+    client_request_id: clientRequestId,
+    vendor_id: header.vendorId,
+    invoice_no: invoiceNo,
+    purchased_date: header.tanggal,
+    note: [buildPurchaseNote({
+      material: header.material,
+      biayaLain: header.biayaLain,
+      diskon: header.diskon,
+      notaUrl: header.notaUrl,
+      buktiNota: header.buktiNota,
+      buktiTransfer: header.buktiTransfer,
+      catatan: header.catatan,
+      tahap: TAHAP_DIBELI
+    }), String(headerNoteSuffix || '').trim()].filter(Boolean).join(' ').trim() || null,
+    extra_cost: header.biayaLain,
+    discount: header.diskon,
+    ...(header.notaUrl ? { receipt_url: header.notaUrl } : {}),
+    queue_handover: !!queueHandover,
+    items
+  }
+
+  let res
+  try {
+    res = await client.rpc('purchase_save_atomic', { p_payload: payload })
+  } catch (err) {
+    // Jaringan/transport: JANGAN mengaku sukses dan JANGAN jatuh ke jalur lama
+    // (itu akan menulis dua kali). Pemanggil harus mencoba lagi dengan
+    // client_request_id yang SAMA — RPC idempoten.
+    return {
+      ok: false,
+      reason: 'rpc_unreachable',
+      error: `Gagal menghubungi penyimpanan atomik: ${err.message}. Coba lagi — permintaan ini tidak akan tercatat dua kali.`
+    }
+  }
+  const { data, error } = res || {}
+  if (error) {
+    const code = String(error.code || '')
+    const msg = String(error.message || '')
+    // Fungsi hilang di tengah jalan → bukan kesalahan pengguna. Kembalikan
+    // null supaya jalur lama dipakai dengan label jujur.
+    if (code === 'PGRST202' || /Could not find the function/i.test(msg)) return null
+    if (code === '42501') {
+      return { ok: false, reason: 'forbidden', error: 'Hanya admin yang boleh menyimpan nota pembelian.' }
+    }
+    return { ok: false, error: `Gagal menyimpan nota: ${msg}` }
+  }
+  if (!data || typeof data !== 'object') {
+    return { ok: false, error: 'Penyimpanan tidak mengembalikan hasil yang bisa dibaca. Periksa Riwayat Pembelian sebelum menyimpan ulang.' }
+  }
+  if (data.ok === false) {
+    const reason = String(data.reason || '')
+    const messages = {
+      duplicate_invoice: `Nota ${invoiceNo} untuk toko ini sudah tercatat sebelumnya (Riwayat Pembelian). Buka nota itu alih-alih menyimpan ulang.`,
+      idempotency_conflict: 'Permintaan ini memakai kunci yang sama dengan nota yang sudah tersimpan, tetapi isinya berbeda. Buka Riwayat Pembelian untuk memeriksa nota yang sudah ada.',
+      forbidden: 'Hanya admin yang boleh menyimpan nota pembelian.',
+      material_unresolved: 'Ada barang yang belum terhubung ke master material. Pilih materialnya dulu — biaya tidak boleh masuk tanpa identitas material.',
+      allocation_sum_mismatch: 'Jumlah pembagian qty antarproyek tidak sama dengan qty beli. Periksa kembali pembagiannya.',
+      allocation_needs_two_projects: 'Pembagian baris ke proyek butuh minimal dua proyek berbeda.',
+      item_qty: 'Ada qty barang yang tidak sah.',
+      item_price: 'Ada harga satuan yang tidak sah (harus lebih dari 0).'
+    }
+    return {
+      ok: false,
+      reason: reason || 'rejected',
+      error: messages[reason] || String(data.error || 'Penyimpanan menolak nota ini.')
+    }
+  }
+
+  // READBACK: pakai baris DB yang dikembalikan RPC, BUKAN echo payload.
+  const dbItems = Array.isArray(data.items) ? data.items : []
+  const dbAllocs = Array.isArray(data.allocations) ? data.allocations : []
+
+  // Ringkasan alokasi per proyek DIHITUNG DARI BARIS DB. Kalau RPC tidak
+  // mengembalikan alokasi, ringkasan kosong — bukan dikarang dari form.
+  const byProject = new Map()
+  for (const a of dbAllocs) {
+    const pid = a.project_id || null
+    const cur = byProject.get(pid) || { projectId: pid, items: 0, material: 0 }
+    cur.items += 1
+    cur.material += Number(a.amount || 0)
+    byProject.set(pid, cur)
+  }
+  for (const it of dbItems) {
+    if (!it.project_id || dbAllocs.length) continue
+    const pid = it.project_id
+    const cur = byProject.get(pid) || { projectId: pid, items: 0, material: 0 }
+    cur.items += 1
+    cur.material += Math.round(Number(it.quantity_received || 0) * Number(it.unit_price || 0))
+    byProject.set(pid, cur)
+  }
+
+  const vendorName = (header.vendorId && (data.vendor_name || '')) || ''
+  const labelNota = isInternalRef ? `${invoiceNo} (ref. internal)` : invoiceNo
+  const total = Number(data.total ?? header.total)
+
+  return {
+    ok: true,
+    already: !!data.already,
+    atomic: true,
+    receivingId: data.receiving_id || null,
+    handoverId: data.handover_id || null,
+    handoverQueued: !!data.handover_id,
+    handoverError: '',
+    vendorName,
+    invoiceNo,
+    isInternalRef,
+    internalRefId: isInternalRef ? invoiceNo : null,
+    clientRequestId,
+    // TANDA PALING PENTING: alokasi benar-benar tersimpan di DB.
+    allocationPersisted: true,
+    alokasi: [...byProject.values()],
+    items: dbItems.map(it => ({
+      id: it.id || null,
+      receiving_id: it.receiving_id || null,
+      pr_item_id: it.pr_item_id || null,
+      material_id: it.material_id || null,
+      item_name: it.item_name,
+      unit: it.unit || null,
+      quantity_received: Number(it.quantity_received || 0),
+      unit_price: it.unit_price === null || it.unit_price === undefined ? null : Number(it.unit_price),
+      projectId: it.project_id || null
+    })),
+    allocations: dbAllocs,
+    itemCount: dbItems.length,
+    material: Number(data.material ?? header.material),
+    biayaLain: Number(data.extra_cost ?? header.biayaLain),
+    diskon: Number(data.discount ?? header.diskon),
+    total,
+    message: data.already
+      ? `Nota ${labelNota} sudah tersimpan sebelumnya — tidak ada data yang ditulis ulang.`
+      : `Nota ${labelNota}${vendorName ? ` (${vendorName})` : ''} tersimpan: ${dbItems.length} barang, total ${new Intl.NumberFormat('id-ID').format(total)}. Alokasi proyek per barang ikut tersimpan.`
   }
 }
 

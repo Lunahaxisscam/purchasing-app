@@ -18,6 +18,67 @@
 import React from 'react'
 import { HANDOVER_FOTO_MAX_BYTES, dataUrlByteSize, validateHandoverFotoSize, parseHandoverNote } from '../../lib/constants'
 import { sourceRefs, rincianInfo, statusInfo } from './display'
+import { loadActiveReceivingIds } from './duplicateGuardDb'
+
+// ============================================================
+// REVIEW run 242 (BUG-V4) — pilihan yang PASTI gagal tidak ditawarkan
+// ============================================================
+// Form Tambah dulu menawarkan SEMUA penerimaan, termasuk yang sudah punya
+// dokumen Serah Terima aktif. Admin memilih → Simpan → baru ditolak `save.js`
+// (dan sebelum run 239, malah diterima sebagai dokumen kedua).
+//
+// Komponen kecil ini membaca DB sekali saat form dibuka, lalu MENANDAI
+// (dan menonaktifkan) pilihan yang pasti ditolak. Bila pemeriksaan gagal,
+// form TIDAK berpura-pura aman: pilihannya tetap aktif tetapi ada catatan
+// jujur bahwa pemeriksaan tidak bisa dilakukan — `save.js` tetap fail closed.
+//
+// `disabled` pada <option> bukan pengaman (pemanggilan programatik bisa
+// melewatinya) — pengamannya tetap di `save.js` → `insertUniqueActiveHandover`.
+function ReceivingOptions({ allReceivings }) {
+  const [activeIds, setActiveIds] = React.useState(null)   // null = belum diperiksa
+  const [probeError, setProbeError] = React.useState('')
+
+  React.useEffect(() => {
+    let cancelled = false
+    loadActiveReceivingIds()
+      .then(res => {
+        if (cancelled) return
+        if (!res.ok) { setProbeError(res.error || 'pemeriksaan gagal'); setActiveIds({}); return }
+        setActiveIds(res.ids || {})
+      })
+      .catch(err => {
+        if (cancelled) return
+        setProbeError(String(err?.message || err))
+        setActiveIds({})
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  return (
+    <>
+      {(allReceivings || []).map(r => {
+        const blocked = !!(activeIds && activeIds[String(r.id)])
+        const label = `${r.invoice_no || r.delivery_note || 'Penerimaan'} — ${r.project_name || ''}`
+        return (
+          <option
+            key={r.id}
+            value={r.id}
+            disabled={blocked}
+            data-testid={`handover-receiving-option-${r.id}`}
+            data-has-active={blocked ? '1' : '0'}
+          >
+            {blocked ? `🔒 ${label} — sudah ada Serah Terima aktif` : label}
+          </option>
+        )
+      })}
+      {probeError && (
+        <option value="" disabled data-testid="handover-receiving-probe-error">
+          ⚠ Daftar dokumen aktif tidak bisa diperiksa ({probeError}) — penyimpanan akan menolak bila ternyata sudah ada.
+        </option>
+      )}
+    </>
+  )
+}
 
 export function formBody(ctx) {
   const { form, setForm, field, isEdit, editRow, allReceivings, allRequestsFull = [] } = ctx
@@ -158,11 +219,7 @@ export function formBody(ctx) {
           required
         >
           <option value="">-- Pilih Penerimaan --</option>
-          {(allReceivings || []).map(r => (
-            <option key={r.id} value={r.id}>
-              {r.invoice_no || r.delivery_note || 'Penerimaan'} — {r.project_name || ''}
-            </option>
-          ))}
+          <ReceivingOptions allReceivings={allReceivings} />
         </select>
         <span style={{ fontSize: '11px', color: '#71817d', fontWeight: 500 }}>
           Serah Terima harus terhubung ke penerimaan asalnya — pilih penerimaan yang barangnya diserahkan ke tukang.

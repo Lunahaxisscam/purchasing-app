@@ -16,7 +16,7 @@
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
 import { buildHandoverNote, parseHandoverNote, dataUrlByteSize, HANDOVER_FOTO_MAX_BYTES } from '../../lib/constants'
-import { insertAndFinish } from '../shared/saveHelpers'
+import { createActiveHandover } from './createHandover'
 
 export async function save(ctx) {
   const { form, isEdit, editRow, say, close, refresh, setSaving } = ctx
@@ -71,6 +71,28 @@ export async function save(ctx) {
     return
   }
 
+  // ============================================================
+  // DEFECT run 239 + REVIEW run 242 (BUG-V2) + REVIEW run 244 (BUG-W1)
+  // DUA DOKUMEN AKTIF untuk satu penerimaan.
+  // ============================================================
+  // Run 239 memasang penjaga SELECT-lalu-INSERT. Review run 242 membuktikan
+  // di PostgreSQL nyata bahwa dua sesi bersamaan SAMA-SAMA lolos, lalu
+  // `handover_confirm` menerima KEDUANYA (kuncinya per DOKUMEN) → rincian
+  // 2× kuota dan `belum_diserahkan` negatif.
+  //
+  // Run 243 mencoba insert → verifikasi → tarik diri sendiri. Review run 244
+  // membuktikan itu TIDAK konvergen: penulis yang commit TERAKHIR melihat
+  // semuanya, dan bila ia justru yang paling awal (`created_at` terkecil) ia
+  // TIDAK menarik diri — penulis lain sudah selesai dan tidak pernah
+  // melihatnya. Dua dokumen aktif, keduanya `ok:true`.
+  //
+  // Run 245: `insertUniqueActiveHandover` memakai PRIMARY KEY `handovers.id`
+  // sebagai kunci slot — id diturunkan DETERMINISTIK dari
+  // (receiving_id, jumlah dokumen yang terlihat), jadi dua penulis bersamaan
+  // menghasilkan id yang SAMA dan database menolak yang kedua (23505).
+  // Baca DB tetap dilakukan lebih dulu (pesan ramah + fail closed), tetapi
+  // jaminannya berasal dari database, bukan dari pembacaan ulang.
+  // Detail + batas yang diakui: header duplicateGuardDb.js dan docs §9B.
   const data = {
     receiving_id: receivingId,
     project_id: form.project_id || null,
@@ -80,5 +102,15 @@ export async function save(ctx) {
     note
   }
 
-  await insertAndFinish(ctx, { table: 'handovers', data })
+  // TIGA pintu create memakai SATU pembungkus: bila RPC kontrak v1 terbukti
+  // ada, database yang menjamin satu dokumen aktif per penerimaan; bila belum
+  // ada (LEGACY), jalur slot lama dipakai. unknown/error = ditolak (fail closed).
+  const result = await createActiveHandover({ data, client: supabase })
+  setSaving(false)
+  if (!result.ok) {
+    say(result.reason)
+    return
+  }
+  say('Serah Terima berhasil ditambahkan.')
+  close(); refresh()
 }

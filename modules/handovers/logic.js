@@ -25,7 +25,12 @@ export const ACT_TUKANG = 'tukang'
 export const ACT_TERIMA = 'terima'
 
 export const ACTIONS = [
-  { key: ACT_GUDANG, label: 'Masuk Stok Gudang', icon: '📦', testid: 'act-gudang' },
+  // Label "Tandai Masuk Gudang" — BUKAN "Masuk Stok Gudang" (run 212 / BUG-R3):
+  // aksi ini hanya menulis `receivings.masuk_gudang` + status `pr_items`
+  // (DI_GUDANG). Ia TIDAK memanggil RPC `receive_to_warehouse`, satu-satunya
+  // penulis `materials.current_stock`, jadi stok material TIDAK bertambah.
+  // Label lama menjanjikan efek yang tidak terjadi.
+  { key: ACT_GUDANG, label: 'Tandai Masuk Gudang', icon: '📦', testid: 'act-gudang' },
   { key: ACT_TUKANG, label: 'Serah Terima ke Tukang', icon: '👷', testid: 'act-tukang' },
   { key: ACT_TERIMA, label: 'Tandai Diserahkan', icon: '✅', testid: 'act-terima' }
 ]
@@ -152,6 +157,12 @@ export function actionPlan(handover, summary, alokasi, receiving) {
     return { ...a, ok: gate.ok, reason: gate.reason }
   })
 }
+
+// ------------------------------------------------------------
+// 3b) Keterangan serah-terima dari ledger — lihat
+//     `deliverabilityOf` di modules/receivings/receiptEventLogic.js
+//     (fungsi murni, dipakai antrean & modal konfirmasi).
+// ------------------------------------------------------------
 
 // ------------------------------------------------------------
 // 4) LABEL RINGKAS untuk satu baris antrean

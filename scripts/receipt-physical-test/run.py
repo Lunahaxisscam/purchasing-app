@@ -46,7 +46,7 @@ import os, re, shutil, subprocess, sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
-SB = '/tmp/receipt-physical-verify'
+SB = os.environ.get('SB', '/tmp/receipt-physical-verify-t7bc')
 
 REL_FILES = ['components/ModuleView.js', 'components/CreateModal.js', 'components/Common.js',
              'lib/constants.js', 'lib/purchaseNote.js']
@@ -97,9 +97,112 @@ os.symlink(os.path.join(REPO, 'node_modules'), os.path.join(SB, 'node_modules'))
 open(os.path.join(SB, 'package.json'), 'w').write('{ "type": "module" }')
 shutil.copy(os.path.join(REPO, 'scripts', 'vendors-toolbar-test', 'compile_sandbox.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'receipt_physical_test.mjs'), SB)
+# run 206: probe adversarial (keadaan lapangan yang tidak diuji harness utama).
+# Dijalankan SESUDAH harness utama; exit-nya dilaporkan terpisah supaya tidak
+# menyamarkan hasil 153+ assertion di atas.
+shutil.copy(os.path.join(HERE, 'probe_run206_adversarial.mjs'), SB)
+# run 208: pengunci temuan "permukaan input per barang tanpa penyimpanan"
+# (panel prototype) + pesan usang "menunggu skema" di detail handover.
+shutil.copy(os.path.join(HERE, 'probe_run208_prototype.mjs'), SB)
+# run 215: pengunci perbaikan review run 212 (R1 capability null / R2 aksi
+# borongan di READY / R3 klaim stok). Dijalankan terakhir, exit terpisah.
+shutil.copy(os.path.join(HERE, 'probe_run215_review_fixes.mjs'), SB)
+# run 222: pengunci review run 219 (S1/S2/S3) — queue.jsx memakai model
+# keadaan yang SAMA dengan banner (5 keadaan), `partial` bukan LEGACY, dan
+# panel Bermasalah tidak menawarkan jalur tulis saat keadaan tidak diketahui.
+shutil.copy(os.path.join(HERE, 'probe_run222_queue_capability.mjs'), SB)
+# run 233: pengunci review run 231 (T1/T2/T3) — keadaan `ready_no_return`
+# (ledger inti siap, layer retur belum) harus punya nama sendiri, tidak boleh
+# menawarkan jalur retur yang buntu, dan TIDAK boleh menjanjikan retur.
+shutil.copy(os.path.join(HERE, 'probe_run233_return_layer_state.mjs'), SB)
+# run 234: pengunci review run 234 (BUG-U1) — capability adalah SNAPSHOT.
+# Migrasi dijalankan TANPA deploy saat aplikasi dipakai, jadi layar yang sudah
+# terbuka memegang LEGACY basi dan LEGACY satu-satunya keadaan yang menulis
+# jalur lama. Probe ini menuntut NOL tulisan di snapshot basi, penolakan pada
+# Konfirmasi form yang sudah terbuka, dan LEGACY yang SAH tetap bisa menulis.
+shutil.copy(os.path.join(HERE, 'probe_run234_stale_capability.mjs'), SB)
+# run 237: pengunci defect HAPUS — tombol 🗑️ ada di setiap baris tanpa syarat;
+# `delete from handovers` menghapus handover_items (cascade) dan membuka kuota
+# tukang. Probe ini menuntut tombol NONAKTIF + nol tulisan untuk dokumen
+# berbekti, dan KONTROL POSITIF bahwa DRAFT tanpa bukti tetap bisa dihapus.
+shutil.copy(os.path.join(HERE, 'probe_run237_delete_ui.mjs'), SB)
+# run 237: memastikan shell BENAR-BENAR memakai keputusan penjaga SEBELUM
+# menulis (optimistic update & .delete()), termasuk jalur non-tombol.
+shutil.copy(os.path.join(HERE, 'probe_run237_shell_wiring.mjs'), SB)
+# run 239: pengunci defect DUA DOKUMEN untuk SATU PENERIMAAN — penjaga
+# pembuatan (save.js), tombol konfirmasi (queue/view), dan choke point
+# physicalHost. Di PG nyata dua dokumen aktif membuat `handover_confirm`
+# menerima KEDUANYA (kunci per dokumen) → rincian 2× kuota, sisa negatif.
+shutil.copy(os.path.join(HERE, 'probe_run239_dup_ui.mjs'), SB)
+# run 243: pengunci review run 242 (V1/V2/V3/V4) — penjaga dokumen ganda
+# membaca DATABASE, bukan `ctx.rows`; create = insert → verifikasi → tarik
+# diri sendiri; form Tambah menandai pilihan yang pasti ditolak.
+shutil.copy(os.path.join(HERE, 'probe_run243_dupfresh.mjs'), SB)
+# run 245: pengunci review run 244 (BUG-W1 + BUG-W3). Menguji MEKANISME BARU
+# (id slot deterministik dari PRIMARY KEY) pada URUTAN APLIKASI yang dulu
+# menggagalkan mekanisme run 243, plus menyeragamkan ketiga pintu pembuatan
+# (save.js / purchaseSave.js / pages/index.js) dan sisa dokumen ganda (L3).
+shutil.copy(os.path.join(HERE, 'probe_run245_doors_race.mjs'), SB)
+# run 248: UI pembagian satu baris → beberapa proyek (acceptance 4). Gap yang
+# dinyatakan terbuka di run 246 ("belum ada UI untuk mengisi allocations").
+shutil.copy(os.path.join(HERE, 'probe_r248_split_ui.mjs'), SB)
+# Kontrak ditulis ulang supaya §7 bisa diperiksa probe 234 (tanpa ini probe
+# membaca path sandbox dan lolos secara hampa).
+shutil.copy(os.path.join(REPO, 'docs', 'receiving-events-contract.md'), SB)
+# Probe MILIK REVIEWER run 219 dijalankan APA ADANYA (tidak diubah satu baris
+# pun) — bukti bahwa temuan mereka benar-benar tertutup, bukan diakali.
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_final.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_positive.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_partial_RAW.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_problem_RAW.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
 rc = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB).returncode
 if rc:
     sys.exit(rc)
-sys.exit(subprocess.run(['node', 'receipt_physical_test.mjs'], cwd=SB).returncode)
+rc_main = subprocess.run(['node', 'receipt_physical_test.mjs'], cwd=SB).returncode
+print('\n=== PROBE ADVERSARIAL (run 206) ===')
+rc_probe = subprocess.run(['node', 'probe_run206_adversarial.mjs'], cwd=SB).returncode
+print('\n=== PROBE PERMUKAAN INPUT PALSU (run 208) ===')
+rc_probe2 = subprocess.run(['node', 'probe_run208_prototype.mjs'], cwd=SB).returncode
+print('\n=== PROBE PERBAIKAN REVIEW RUN 212 (run 215: R1/R2/R3) ===')
+rc_probe3 = subprocess.run(['node', 'probe_run215_review_fixes.mjs'], cwd=SB).returncode
+print('\n=== PROBE KUNCI REVIEW RUN 219 (run 222: S1/S2/S3) ===')
+rc_probe4 = subprocess.run(['node', 'probe_run222_queue_capability.mjs'], cwd=SB).returncode
+print('\n=== PROBE KUNCI REVIEW RUN 231 (run 233: T1/T2/T3 — ready_no_return) ===')
+rc_probe5 = subprocess.run(['node', 'probe_run233_return_layer_state.mjs'], cwd=SB).returncode
+print('\n=== PROBE KUNCI REVIEW RUN 234 (run 234: U1 — capability BASI) ===')
+rc_probe6 = subprocess.run(['node', 'probe_run234_stale_capability.mjs'], cwd=SB).returncode
+print('\n=== PROBE KUNCI DEFECT HAPUS (run 237: 🗑️ menghancurkan bukti fisik) ===')
+rc_probe7 = subprocess.run(['node', 'probe_run237_delete_ui.mjs'], cwd=SB).returncode
+print('\n=== PROBE SAMBUNGAN PENJAGA HAPUS KE SHELL (run 237: dipakai SEBELUM menulis) ===')
+# Probe ini membaca SUMBER (pages/index.js), jadi dijalankan dengan cwd = repo,
+# bukan sandbox kompilasi.
+rc_probe8 = subprocess.run(['node', os.path.join(SB, 'probe_run237_shell_wiring.mjs')], cwd=REPO).returncode
+print('\n=== PROBE DOKUMEN GANDA (run 239: dua dokumen aktif untuk satu penerimaan) ===')
+rc_probe9 = subprocess.run(['node', 'probe_run239_dup_ui.mjs'], cwd=SB).returncode
+print('\n=== PROBE PENJAGA DARI DATABASE (run 243: review run 242 V1–V4) ===')
+rc_probe10 = subprocess.run(['node', 'probe_run243_dupfresh.mjs'], cwd=SB).returncode
+print('\n=== PROBE KUNCI SLOT + PINTU SERAGAM (run 245: review run 244 W1/W3) ===')
+# Probe ini membaca SUMBER `pages/index.js` untuk G7, jadi dijalankan dengan
+# REPO menunjuk ke pohon repo (bukan sandbox kompilasi).
+env_probe11 = dict(os.environ, REPO=REPO)
+rc_probe11 = subprocess.run(['node', 'probe_run245_doors_race.mjs'], cwd=SB, env=env_probe11).returncode
+print('\n=== PROBE UI PEMBAGIAN 1 BARIS → BEBERAPA PROYEK (run 248: acceptance 4) ===')
+rc_probe12 = subprocess.run(['node', 'probe_r248_split_ui.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — DIJALANKAN APA ADANYA (final: K1/K2/K3) ===')
+rc_rev1 = subprocess.run(['node', 'probe_run219_reviewer_final.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — kontrol positif READY (J) ===')
+rc_rev2 = subprocess.run(['node', 'probe_run219_reviewer_positive.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — migrasi sebagian (I) — assertion DEFECT, harus TERBALIK ===')
+rc_rev3 = subprocess.run(['node', 'probe_run219_reviewer_partial_RAW.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — panel Bermasalah (H) — assertion DEFECT, harus TERBALIK ===')
+rc_rev4 = subprocess.run(['node', 'probe_run219_reviewer_problem_RAW.mjs'], cwd=SB).returncode
+# I & H sengaja mengandung assertion yang MENDAFTARKAN defect (mis. "banner
+# mengklaim belum aktif", "tombol borongan AKTIF"). Di pohon yang sudah
+# diperbaiki assertion itu WAJIB gagal. Jadi exit-nya TIDAK dihitung sebagai
+# kegagalan harness — hasilnya dibaca manusia di log (lihat run222/).
+if rc_rev3 == 0 or rc_rev4 == 0:
+    print('\nPERINGATAN: probe I/H milik reviewer LULUS — berarti defect run 219 masih ada!')
+    sys.exit(1)
+sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_probe7 or rc_probe8 or rc_probe9 or rc_probe10 or rc_probe11 or rc_probe12 or rc_rev1 or rc_rev2)

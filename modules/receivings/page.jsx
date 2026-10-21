@@ -772,6 +772,7 @@ export default function PurchasePage({ rows, refresh, say }) {
           vendorId={formRows.vendorId}
           vendors={vendors}
           projects={projects}
+          materials={materials}
           receivings={receivings}
           receivingItems={receivingItems}
           close={cancelPurchaseQueue}

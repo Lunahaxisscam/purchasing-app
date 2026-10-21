@@ -48,7 +48,25 @@ function makeChain(table) {
 export function __reset() { __ops.length = 0 }
 export const __opsView = () => __ops
 
+// --- RUN 248: jawaban JUJUR untuk fungsi kontrak v1 yang BELUM ADA ----------
+// PostgREST nyata menjawab PGRST202 ("Could not find the function"), bukan
+// `data:null` tanpa error. Probe capability menyimpulkan LEGACY hanya dari
+// jawaban itu; `data:null` tanpa error = "tidak bisa dipastikan" (dan memang
+// harus ditahan). Tanpa emulasi ini, harness LEGACY menguji jalur yang tidak
+// pernah ada di database sungguhan.
+const __OPS_V1_FNS = new Set(['handover_create_atomic', 'purchase_save_atomic'])
+function __opsV1Missing(fn) {
+  return {
+    data: null,
+    error: {
+      code: 'PGRST202',
+      message: `Could not find the function public.${fn}(p_payload) in the schema cache`
+    }
+  }
+}
+
 export const supabase = {
   from: (table) => makeChain(table),
-  rpc: async (fn) => { __ops.push({ op: 'rpc', fn }); return { data: 'PR-777', error: null } }
+  rpc: async (fn) => {
+    if (__OPS_V1_FNS.has(fn)) return __opsV1Missing(fn) __ops.push({ op: 'rpc', fn }); return { data: 'PR-777', error: null } }
 }

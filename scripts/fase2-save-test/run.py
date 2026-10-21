@@ -42,6 +42,27 @@ if os.path.isfile(f'{REPO}/modules/materials/acuan.js'):
 # multi-kategori vendor satu-sumber) — file pendamping ikut disalin.
 if os.path.isfile(f'{REPO}/modules/vendors/categories.js'):
     shutil.copy(f'{REPO}/modules/vendors/categories.js', f'{SB}/modules/vendors/categories.js')
+# run 239: modules/handovers/save.js mengimpor ./duplicateGuard (penjaga SATU
+# dokumen aktif per penerimaan) — file pendamping WAJIB ikut disalin, kalau
+# tidak harness ini gagal di IMPOR dan menyamarkan hasil suite yang sebenarnya.
+if os.path.isfile(f'{REPO}/modules/handovers/duplicateGuard.js'):
+    shutil.copy(f'{REPO}/modules/handovers/duplicateGuard.js', f'{SB}/modules/handovers/duplicateGuard.js')
+# run 243: save.js kini memakai `duplicateGuardDb` (penjaga yang membaca DB).
+# Tanpa file ini harness gagal di IMPOR dan menyamarkan hasil suite sebenarnya.
+if os.path.isfile(f'{REPO}/modules/handovers/duplicateGuardDb.js'):
+    shutil.copy(f'{REPO}/modules/handovers/duplicateGuardDb.js', f'{SB}/modules/handovers/duplicateGuardDb.js')
+# run 245: `duplicateGuardDb` mengimpor `./confirm` (satu pintu konfirmasi
+# dengan verifikasi sesudah tulis). Kedua file WAJIB ada, kalau tidak harness
+# ini gagal di IMPOR — bukan gagal di assertion.
+if os.path.isfile(f'{REPO}/modules/handovers/confirm.js'):
+    shutil.copy(f'{REPO}/modules/handovers/confirm.js', f'{SB}/modules/handovers/confirm.js')
+# run 248: save.js kini memanggil `createActiveHandover` (satu pembungkus untuk
+# tiga pintu create: RPC kontrak v1 bila ada, jalur slot bila LEGACY). Rantai
+# impornya `createHandover` -> `createCapability` + `duplicateGuardDb`. Tanpa
+# file-file ini harness gagal di IMPOR, bukan di assertion.
+for f in ['createHandover.js', 'createCapability.js']:
+    if os.path.isfile(f'{REPO}/modules/handovers/{f}'):
+        shutil.copy(f'{REPO}/modules/handovers/{f}', f'{SB}/modules/handovers/{f}')
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')

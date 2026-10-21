@@ -49,32 +49,13 @@ export function returStatusFromChoice(choice) {
   return RETUR_NONE
 }
 
-// Baris form dari baris nota + qty pesanan.
-// `orderedFor(item)` → number | null (null = beli langsung / qty tak diketahui)
-// prevCum WAJIB dari qty_arrived (DATANG), bukan quantity_received (BELI).
-export function buildRows(items, orderedFor) {
-  return (items || []).map(it => {
-    let ordered = null
-    if (orderedFor) {
-      const raw = orderedFor(it)
-      const n = Number(raw)
-      if (raw !== null && raw !== undefined && isFinite(n) && n > 0) ordered = n
-    }
-    const prevRaw = num(it.qty_arrived)
-    const prevCum = isFinite(prevRaw) && prevRaw > 0 ? prevRaw : 0
-    const bought = num(it.quantity_received)
-    return {
-      id: it.id,
-      prItemId: it.pr_item_id || null,
-      item_name: it.item_name || '—',
-      unit: it.unit || '',
-      bought: isFinite(bought) ? bought : 0,
-      ordered,
-      prevCum,
-      sisa: ordered === null ? null : Math.max(0, ordered - prevCum)
-    }
-  })
-}
+// ⚠️ DUPLIKAT yang sudah dihapus (defect run 199). Fungsi ini dulu menyalin
+// aturan `receiptLogic.buildRows` dan menjadi SALINAN KEDUA yang bisa
+// menyimpang: ia masih menghitung `sisa` dari qty pesanan PR (bukan qty BELI)
+// dan tidak menandai baris yang belum dibeli. Sekarang satu sumber aturan:
+// `receiptLogic.buildRows`. Ekspor dipertahankan supaya pemanggil lama tidak
+// pecah, tetapi TIDAK boleh menyalin logika lagi.
+export { buildRows } from './receiptLogic'
 
 // State awal satu item di form.
 export function emptyEntry() {
@@ -158,6 +139,12 @@ export function buildEventDrafts(rows, entries, { receivingId, createdBy = null 
     const tk = isFinite(tkRaw) ? tkRaw : 0
     const retur = returStatusFromChoice(e.retur)
     const baik = Math.max(0, datang - rusak)
+    // Tidak ada barang rusak → tidak ada yang bisa diretur/dibuang. Status
+    // retur dinormalkan ke NONE supaya event tidak pernah membawa
+    // `retur_status PENDING/DISCARDED` dengan `retur_qty 0` (ditolak RPC
+    // `retur_without_qty` — defect run 199). Pilihan dropdown tetap disimpan
+    // di UI; yang dinormalkan hanya nilai yang tidak bermakna.
+    const returEff = rusak > EPS ? retur : RETUR_NONE
     out.push({
       client_event_id: clientEventId(receivingId, row.id, row.prevCum, datang),
       receiving_item_id: row.id,
@@ -171,10 +158,17 @@ export function buildEventDrafts(rows, entries, { receivingId, createdBy = null 
       tujuan_ws: ws,
       tujuan_tukang: tk,
       penerima_tukang: tk > EPS ? String(e.penerima || '').trim() : null,
-      retur_status: retur,
-      retur_qty: retur === RETUR_NONE ? 0 : rusak,
-      discard_confirmed: retur === RETUR_DISCARDED ? !!e.konfirmasiBuang : false,
-      foto_ref: e.foto ? String(e.foto.nama || 'foto-lokal') : null,
+      retur_status: returEff,
+      retur_qty: returEff === RETUR_NONE ? 0 : rusak,
+      discard_confirmed: returEff === RETUR_DISCARDED ? !!e.konfirmasiBuang : false,
+      // ⚠️ JANGAN mengarang referensi foto (defect run 206). `foto_ref` di
+      // kontrak schema = path/ID arsip (Drive/Storage), BUKAN nama berkas di
+      // perangkat admin. Sebelum ini yang dikirim hanya `file.name`
+      // ("IMG_20261021_0912.jpg") — baris DB lalu tampak punya bukti foto
+      // padahal berkasnya tidak pernah diunggah ke mana pun. Unggah berkas
+      // belum aktif (lihat modules/receivings/attachments.js), jadi satu-
+      // satunya nilai jujur adalah null sampai ada referensi nyata.
+      foto_ref: e.foto && e.foto.ref ? String(e.foto.ref) : null,
       created_by: createdBy,
       _computed: { baik }
     })
@@ -200,6 +194,12 @@ export function validateEventDrafts(drafts, { sisaById = {} } = {}) {
     }
     if (d.retur_status === RETUR_DISCARDED && !d.discard_confirmed) {
       errors.push(`"${tag}": konfirmasi barang dibuang wajib dicentang.`)
+    }
+    // DEFECT run 199: RPC menolak `retur_status PENDING/DISCARDED` dengan
+    // `retur_qty <= 0` (reason `retur_without_qty`). Validasi ini mencerminkan
+    // aturan server supaya admin tidak menekan Simpan lalu pasti gagal.
+    if (d.retur_status !== RETUR_NONE && (!isFinite(num(d.retur_qty)) || num(d.retur_qty) <= EPS)) {
+      errors.push(`"${tag}": tidak ada jumlah rusak yang diisi, jadi tidak ada yang bisa diretur/dibuang.`)
     }
     if (d.retur_status !== RETUR_NONE && rq !== null && d.retur_qty !== rq) {
       errors.push(`"${tag}": qty retur harus sama dengan qty rusak.`)
@@ -238,37 +238,153 @@ export function eventTotals(events) {
   return [...byItem.values()]
 }
 
+// ------------------------------------------------------------
+// Keterangan SERAH-TERIMA dari ledger (defect run 251 / D1)
+// ------------------------------------------------------------
+// `actionPlan` (handovers/logic.js) menilai distribusi dari `pr_items.status`
+// — dimensi LEGACY. Di mode ledger per barang, satu-satunya kebenaran adalah
+// `receiving_events.tujuan_tukang` dikurangi `handover_items.qty_diserahkan`.
+//
+// Fungsi murni ini menjawab pertanyaan yang tidak bisa dijawab `actionPlan`:
+// apakah penerimaan ini punya barang yang PERNAH ditujukan ke tukang? Bila
+// tidak (mis. seluruh barang untuk stok gudang), dokumen Serah Terima tidak
+// punya satu baris pun yang bisa dikonfirmasi — kontrak v1 MENOLAK
+// `handover_confirm(id, [])` (`empty_lines`) dan menolak penulisan header
+// langsung (`physical_rpc_required`). Tanpa ini UI menawarkan tombol yang
+// pasti gagal (review run 251).
+//
+// `delivered` = { [receiving_event_id]: qty } LINTAS semua dokumen penerimaan
+// itu (bukan hanya dokumen ini), karena kuota RPC dihitung per event.
+export function deliverabilityOf(events = [], delivered = {}) {
+  let quota = 0
+  let done = 0
+  let tukangLines = 0
+  for (const ev of events || []) {
+    const q = num(ev?.tujuan_tukang)
+    if (q <= EPS) continue
+    tukangLines += 1
+    quota += q
+    done += num(delivered?.[ev.id])
+  }
+  const remaining = Math.max(0, quota - done)
+  return {
+    quota,                 // total alokasi ke tukang (semua event)
+    done,                  // sudah diserahkan (semua dokumen)
+    remaining,             // sisa yang masih bisa diserahkan
+    tukangLines,           // jumlah event yang punya alokasi tukang
+    hasTukang: quota > EPS, // ADA barang yang ditujukan ke tukang?
+    allDelivered: quota > EPS && remaining <= EPS
+  }
+}
+
 // Retur TANPA KETIK ULANG: baris retur diambil langsung dari event rusak yang
 // BELUM pernah diretur.
 //
-// ANTI DOUBLE-RETUR: event yang sudah punya status retur TIDAK boleh
-// ditawarkan lagi. `alreadyReturned` = { [receiving_event_id]: qty } dari
-// `return_lines`. Bila qty pengembalian tidak bisa dibaca, event berstatus
-// retur dianggap SUDAH diretur penuh (lebih aman tidak menawarkan).
-export function returLinesFromEvents(events, { alreadyReturned = {}, trustStatus = true } = {}) {
-  const out = []
+// ⚠️ SALDO RETUR = `retur_qty`, BUKAN `qty_rusak` (defect run 190).
+// Kontrak schema owner (DATA_DICTIONARY_v2 §B.4) menyebut `retur_qty` sebagai
+// "saldo yang boleh diretur", dan RPC `return_create` MENOLAK event dengan
+// `retur_qty <= 0` (reason `no_retur_balance`) walaupun `qty_rusak > 0`.
+// Menawarkan `qty_rusak` membuat admin menekan Simpan lalu ditolak server.
+//
+// `retur_qty` 0 berarti "belum ada komitmen retur" (pilihan default
+// 'Tentukan nanti' di form Terima Barang) — baris seperti itu TIDAK
+// ditawarkan, tetapi dikembalikan di `blocked` supaya UI bisa menjelaskan
+// apa yang harus dilakukan, bukan diam-diam menyembunyikan barang rusak.
+//
+// ANTI DOUBLE-RETUR: `alreadyReturned` = { [receiving_event_id]: qty } dari
+// `return_lines`. Bila riwayat retur tidak bisa dibaca, form MENOLAK membuka
+// (lihat returnForm.jsx) — bukan menganggap 0.
+export function returPlan(events, { alreadyReturned = {} } = {}) {
+  const lines = []
+  const blocked = []
   for (const ev of events || []) {
     const rusak = num(ev.qty_rusak) || 0
     if (rusak <= EPS) continue
-    const hasLedger = Object.prototype.hasOwnProperty.call(alreadyReturned, ev.id)
-    const status = ev.retur_status || RETUR_NONE
-    if (!hasLedger && trustStatus && status !== RETUR_NONE) continue
-    const used = hasLedger ? (num(alreadyReturned[ev.id]) || 0) : 0
-    const sisa = Math.max(0, rusak - used)
+    // `retur_qty` absen (bentuk data lama / hasil backfill) → pakai qty_rusak
+    // supaya data yang belum punya kolom itu tidak otomatis hilang. Nilai 0
+    // TIDAK di-fallback: 0 adalah pernyataan "belum ada saldo retur".
+    const punyaSaldo = ev.retur_qty !== undefined && ev.retur_qty !== null && ev.retur_qty !== ''
+    const saldo = punyaSaldo ? (num(ev.retur_qty) || 0) : rusak
+    const used = num(alreadyReturned[ev.id]) || 0
+    if (saldo <= EPS) {
+      blocked.push({
+        receiving_event_id: ev.id,
+        item_name: ev.item_name || '—',
+        satuan: ev.unit || '',
+        qty_rusak: rusak,
+        retur_status: ev.retur_status || RETUR_NONE,
+        reason: 'belum_ditandai_retur'
+      })
+      continue
+    }
+    const sisa = Math.max(0, saldo - used)
     if (sisa <= EPS) continue
-    out.push({
+    lines.push({
       receiving_event_id: ev.id,
       receiving_item_id: ev.receiving_item_id || null,
       pr_item_id: ev.pr_item_id || null,
       item_name: ev.item_name || '—',
       satuan: ev.unit || '',
       qty_rusak: rusak,
+      qty_saldo: saldo,
       qty_sudah_retur: used,
       qty: sisa,
-      retur_status: status
+      retur_status: ev.retur_status || RETUR_NONE,
+      discard_confirmed: !!ev.discard_confirmed,
+      // Tindakan yang MASUK AKAL untuk baris ini (defect run 195).
+      allowed_resolutions: allowedResolutionsFor(ev)
     })
   }
+  return { lines, blocked }
+}
+
+// Tindakan retur yang boleh dipilih untuk SATU event.
+//
+// Kenapa dibatasi di UI, bukan hanya di server:
+//   - `return_create` MENOLAK `DISCARD` bila event belum `discard_confirmed`
+//     (reason `discard_not_confirmed`). Menampilkan "Dibuang" untuk barang
+//     yang di form Terima Barang dipilih "Kembalikan ke supplier" membuat
+//     admin menekan Simpan lalu PASTI gagal — persis pola defect run 190.
+//   - Sebaliknya, barang yang sudah DIBUANG tidak mungkin dikembalikan ke
+//     supplier; menawarkan RETURN/REPLACE/REFUND untuk event DISCARDED
+//     menghasilkan kontradiksi (RPC bahkan mengubah statusnya jadi PENDING,
+//     seolah barang yang sudah dibuang kembali menunggu dikembalikan).
+// Batas ini harus sama dengan aturan RPC; kalau schema owner mengubah RPC,
+// ubah di sini juga (dikunci probe_retur_resolution.mjs).
+export function allowedResolutionsFor(ev) {
+  const status = String(ev?.retur_status || RETUR_NONE).toUpperCase()
+  // Barang yang sudah DIBUANG tidak mungkin dikembalikan/diganti/direfund.
+  // Status DISCARDED tanpa `discard_confirmed` adalah data tidak konsisten
+  // (RPC menolak DISCARD untuk itu) → TIDAK ada tindakan yang sah; UI
+  // melaporkannya, bukan menawarkan aksi yang pasti gagal.
+  if (status === RETUR_DISCARDED) return ev?.discard_confirmed ? ['DISCARD'] : []
+  // Selain itu RPC mengizinkan RETURN/REPLACE/REFUND; DISCARD hanya bila event
+  // memang sudah dikonfirmasi dibuang (`discard_confirmed`) — kalau tidak,
+  // RPC menolak `discard_not_confirmed`.
+  const out = ['RETURN', 'REPLACE', 'REFUND']
+  if (ev?.discard_confirmed) out.push('DISCARD')
   return out
+}
+
+// Irisan tindakan yang boleh dipakai untuk SEMUA baris terpilih.
+// Kosong = tidak ada satu tindakan pun yang sah untuk gabungan baris itu
+// (mis. satu barang dibuang + satu menunggu dikembalikan) → UI harus meminta
+// admin memisahkan prosesnya, bukan mengirim permintaan yang pasti ditolak.
+export function commonResolutions(lines) {
+  const list = Array.isArray(lines) ? lines.filter(Boolean) : []
+  if (!list.length) return []
+  let acc = null
+  for (const l of list) {
+    const allow = Array.isArray(l.allowed_resolutions) ? l.allowed_resolutions : allowedResolutionsFor(l)
+    acc = acc === null ? [...allow] : acc.filter(r => allow.includes(r))
+  }
+  return acc || []
+}
+
+
+// Pembungkus kompatibel: hanya baris yang bisa disimpan.
+export function returLinesFromEvents(events, { alreadyReturned = {} } = {}) {
+  return returPlan(events, { alreadyReturned }).lines
 }
 
 // Prefill Handover: alokasi tukang dari event penerimaan dikurangi yang SUDAH
@@ -296,17 +412,51 @@ export function handoverLinesFromEvents(events, delivered = {}) {
   return out
 }
 
-// Validasi konfirmasi fisik: setiap baris ≤ sisa alokasi, qty > 0, penerima wajib.
+// Validasi konfirmasi fisik per baris.
+//
+// ⚠️ BARIS BOLEH DILEWATI (run 202). Sebelumnya qty kosong/0 = ERROR untuk
+// SELURUH form, sehingga satu barang yang belum tiba memblokir pencatatan
+// barang lain yang SUDAH diterima tukang. Itu bukan sekadar tidak nyaman:
+// admin lalu menyerahkan semua baris "supaya bisa simpan", dan angka yang
+// tidak benar masuk ke bukti serah terima.
+//
+// Sekarang:
+//   - qty > 0  → baris DISERAHKAN (harus ≤ sisa alokasi, penerima wajib)
+//   - qty kosong/0 → baris DILEWATI, dilaporkan di `skipped` (bukan error)
+//   - minimal satu baris harus diserahkan
+//
+// Konsekuensi yang WAJIB dikatakan UI (bukan disembunyikan): RPC
+// `handover_confirm` mengunci SATU dokumen (`diserahkan_at`). Baris yang
+// dilewati / diserahkan sebagian TIDAK bisa ditambahkan ke dokumen yang sama
+// setelah tersimpan — sisanya dicatat lewat dokumen Serah Terima BARU untuk
+// penerimaan yang sama (skema mendukung: kuota dihitung per event lintas
+// dokumen, dibuktikan probe_handover_partial.mjs H3).
 export function validateHandoverLines(lines, prefill) {
   const ref = new Map((prefill || []).map(p => [p.receiving_event_id, p]))
   const errors = []
   const out = []
+  const skipped = []
   for (const l of lines || []) {
     const p = ref.get(l.receiving_event_id)
-    const q = num(l.qty_diserahkan)
     if (!p) { errors.push(`Baris "${l.item_name || l.receiving_event_id}" tidak berasal dari penerimaan ini.`); continue }
-    if (!isFinite(q) || q <= EPS) { errors.push(`"${p.item_name}": jumlah diserahkan harus > 0.`); continue }
     const sisa = Math.max(0, p.qty_alokasi - p.qty_sudah_diserahkan)
+    const raw = l.qty_diserahkan
+    const kosong = raw === '' || raw === null || raw === undefined
+    const q = num(raw)
+    if (!isFinite(q)) { errors.push(`"${p.item_name}": jumlah diserahkan harus angka.`); continue }
+    // Dilewati: tidak diisi atau diisi 0. Bukan error — dilaporkan sebagai sisa.
+    if (kosong || q <= EPS) {
+      if (sisa > EPS) {
+        skipped.push({
+          receiving_event_id: l.receiving_event_id,
+          receiving_item_id: p.receiving_item_id,
+          item_name: p.item_name,
+          satuan: p.satuan,
+          qty_sisa: sisa
+        })
+      }
+      continue
+    }
     if (q > sisa + EPS) { errors.push(`"${p.item_name}": melebihi sisa yang belum diserahkan (sisa ${sisa}${p.satuan ? ' ' + p.satuan : ''}).`); continue }
     const penerima = String(l.penerima || p.penerima || '').trim()
     if (!penerima) { errors.push(`"${p.item_name}": nama penerima wajib diisi.`); continue }
@@ -320,9 +470,24 @@ export function validateHandoverLines(lines, prefill) {
       penerima,
       catatan: String(l.catatan || '').trim() || null
     })
+    // Sebagian: sisa setelah baris ini juga harus dilaporkan supaya admin tahu
+    // bahwa dokumen ini akan ditutup dengan kekurangan.
+    if (sisa - q > EPS) {
+      skipped.push({
+        receiving_event_id: l.receiving_event_id,
+        receiving_item_id: p.receiving_item_id,
+        item_name: p.item_name,
+        satuan: p.satuan,
+        qty_sisa: sisa - q,
+        partial: true
+      })
+    }
   }
-  if (!out.length && !errors.length) errors.push('Tidak ada baris yang diserahkan — isi minimal satu jumlah.')
-  return { ok: errors.length === 0, errors, lines: out }
+  if (!out.length && !errors.length) {
+    errors.push('Tidak ada baris yang diserahkan — isi minimal satu jumlah pada barang yang benar-benar diterima.')
+  }
+  const remainder = skipped.reduce((s, x) => s + (Number(x.qty_sisa) || 0), 0)
+  return { ok: errors.length === 0, errors, lines: out, skipped, remainder }
 }
 
 // ------------------------------------------------------------------

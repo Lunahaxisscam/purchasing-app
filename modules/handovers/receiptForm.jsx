@@ -25,7 +25,8 @@ import {
 } from '../receivings/receiptLogic'
 import { buildEventDrafts } from '../receivings/receiptEventLogic'
 import { applyReceiptEvents } from '../receivings/receiptEventSave'
-import { capabilityMessage } from '../receivings/receiptCapability'
+import { capabilityMessage, capabilityState, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
+import { dbErrorText } from './dbErrorText'
 
 const num = (v) => {
   const n = Number(v)
@@ -44,7 +45,21 @@ const S = {
 }
 
 export default function ReceiptForm({ receiving, items = [], orderedFor, capability = null, say, refresh, close }) {
-  const ready = !!capability?.ready
+  // DEFECT run 231: `ready` = ledger INTI siap (datang/rusak/tujuan/rincian).
+  // Retur punya gerbang SENDIRI (`returReady`) karena tabelnya terpisah —
+  // dulu satu boolean `capability.ready` dipakai untuk keduanya sehingga form
+  // ini menjanjikan "retur tersimpan permanen" padahal `return_lines` belum ada.
+  const ready = coreLedgerReady(capability)
+  const returReady = returnLayerReady(capability)
+  // TIGA keadaan (run 212 / BUG-R1): `null`/probe gagal ≠ LEGACY. Form ini
+  // memang sudah memblokir tulisan saat belum READY, tetapi pesannya harus
+  // membedakan "masih diperiksa" dari "skema belum ada" — kalau tidak, admin
+  // diberi tahu hal yang salah tentang keadaan database.
+  const capState = capabilityState(capability)
+  // `partial` (run 219 / BUG-S2) = sebagian objek ledger sudah ADA. Form ini
+  // memang sudah memblokir tulisan saat `!ready`, tetapi warnanya/pesan tidak
+  // boleh menyamar sebagai LEGACY ("skema belum ada") — datanya ada.
+  const pending = capState === CAP_STATE.UNKNOWN || capState === CAP_STATE.ERROR || capState === CAP_STATE.PARTIAL
   const rows = useMemo(() => buildRows(items, orderedFor), [items, orderedFor])
   const [entries, setEntries] = useState(() => {
     const init = {}
@@ -95,7 +110,12 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
         drafts,
         sisaById: sisaByIdOf(rows)
       })
-      if (!res.ok) { setErrorMsg(res.error); return }
+      if (!res.ok) {
+        // D2 (review run 251): kode DB (`over_receipt`, `bad_retur`,
+        // `forbidden`, `physical_rpc_required`) diterjemahkan ke kalimat.
+        setErrorMsg(dbErrorText(res.error, { fallback: 'Penerimaan tidak bisa disimpan.' }).text)
+        return
+      }
       const extra = res.alreadyApplied > 0 ? ` (${res.alreadyApplied} sudah pernah tercatat, tidak digandakan)` : ''
       say?.(`Penerimaan tersimpan: ${res.applied} barang${extra}. Qty datang tersimpan terpisah dari qty beli.`)
       close?.()
@@ -121,15 +141,28 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
 
         <div
           data-testid="receipt-capability"
+          data-capability-state={capState}
           style={{
             ...S.note,
-            background: ready ? '#e6f4ea' : '#fef6e7',
-            border: `1px solid ${ready ? '#ceead6' : '#fcdfa6'}`,
-            color: ready ? '#137333' : '#7a4a08'
+            background: ready ? '#e6f4ea' : (pending ? '#eef3f1' : '#fef6e7'),
+            border: `1px solid ${ready ? '#ceead6' : (pending ? '#cbd8d4' : '#fcdfa6')}`,
+            color: ready ? '#137333' : (pending ? '#1f3a34' : '#7a4a08')
           }}
         >
           {ready
-            ? 'Penyimpanan per barang AKTIF: kedatangan, kondisi rusak, tujuan, dan retur tersimpan permanen.'
+            ? (returReady
+              ? 'Penyimpanan per barang AKTIF: kedatangan, kondisi rusak, tujuan, dan retur tersimpan permanen.'
+              // DEFECT run 231 / BUG-T2: klaim "retur tersimpan permanen" HANYA
+              // boleh muncul bila `return_lines` benar-benar terbaca. Di
+              // `ready_no_return` dimensi retur tersimpan sebagai keputusan
+              // (`retur_status`/`retur_qty` di `receiving_events`) tetapi BELUM
+              // bisa ditindaklanjuti dari aplikasi — dikatakan apa adanya.
+              // Kalimat "Penyimpanan per barang AKTIF" juga TIDAK dipakai di
+              // sini: ia menyiratkan SEMUA dimensi aktif, padahal retur belum.
+              : <>Kedatangan, kondisi rusak, dan tujuan <b>tersimpan permanen</b>.
+                  Keputusan retur juga ikut tercatat, <b>tetapi retur belum bisa ditindaklanjuti dari aplikasi</b> —{' '}
+                  {(capability?.missing || []).filter(Boolean).join('; ') || 'tabel retur belum siap'}.
+                  Barang rusak tetap tersimpan dan tidak hilang.</>)
             : capabilityMessage(capability)}
         </div>
 
@@ -150,11 +183,18 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
               <div style={S.lineHead}>
                 <b>{row.item_name}</b>
                 <span style={S.hint}>
-                  dibeli <b>{row.bought}</b>{row.unit ? ` ${row.unit}` : ''}
+                  dibeli <b>{row.boughtKnown ? row.bought : '—'}</b>{row.unit ? ` ${row.unit}` : ''}
                   {' · '}sudah datang <b>{row.prevCum}</b>
-                  {row.sisa !== null ? <> {' · '}sisa pesanan <b>{row.sisa}</b></> : null}
+                  {row.sisa !== null ? <> {' · '}sisa {row.boughtKnown ? 'yang bisa diterima' : 'pesanan'} <b>{row.sisa}</b></> : null}
                 </span>
               </div>
+
+              {row.notBought && (
+                <div style={{ ...S.warn, marginTop: '6px' }} data-testid={`rc-notbought-${row.id}`}>
+                  <b>Belum dibeli.</b> Baris ini dibuat otomatis saat PR disetujui dan qty belinya masih 0 —
+                  kedatangan tidak bisa dicatat sebelum barangnya benar-benar dibeli di modul Pembelian.
+                </div>
+              )}
 
               <div style={S.grid}>
                 <label style={S.field}>
@@ -213,7 +253,7 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
                     data-testid={`rc-retur-${row.id}`}
                     onChange={e => setField(row.id, 'retur', e.target.value)}
                   >
-                    <option value={RETUR_NANTI}>Tentukan nanti</option>
+                    <option value={RETUR_NANTI}>Tentukan nanti — barang TIDAK bisa diretur lewat aplikasi</option>
                     <option value={RETUR_SUPPLIER}>Kembalikan ke supplier</option>
                     <option value={RETUR_DIBUANG}>Dibuang</option>
                   </select>
@@ -232,6 +272,17 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
                 </label>
               </div>
 
+              {/* DEFECT run 206: berkas yang dipilih TIDAK diunggah ke mana pun
+                  (arsip Drive/Storage belum terintegrasi), tetapi UI diam saja —
+                  admin mengira bukti fotonya ikut tersimpan. Sekarang dikatakan
+                  apa adanya per baris, sebelum Simpan. */}
+              {entry.foto && (
+                <div style={S.warn} data-testid={`rc-foto-jujur-${row.id}`}>
+                  Foto <b>{entry.foto.nama}</b> belum bisa disimpan: unggah ke arsip bukti belum aktif, jadi
+                  berkas ini <b>tidak ikut tersimpan</b>. Data penerimaan tetap bisa disimpan tanpa foto.
+                </div>
+              )}
+
               {entry.retur === RETUR_DIBUANG && (
                 <label style={{ ...S.field, flexDirection: 'row', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                   <input
@@ -249,6 +300,28 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
                 {row.unit ? ` ${row.unit}` : ''}
                 {row.sisa !== null && datang > 0 ? ` · belum datang: ${Math.max(0, row.sisa - datang)}` : ''}
               </div>
+
+              {/* Barang rusak yang dibiarkan "Tentukan nanti" TIDAK punya saldo
+                  retur (retur_qty 0) → tidak bisa diretur sampai diputuskan.
+                  Dikatakan di sini, bukan baru ketahuan di modal retur. */}
+              {rusak > 0 && entry.retur === RETUR_NANTI && (
+                <div style={S.warn} data-testid={`rc-warn-nanti-${row.id}`}>
+                  {rusak} rusak dibiarkan <b>tanpa keputusan</b> — barang ini belum bisa diretur
+                  sampai Anda memilih "Kembalikan ke supplier" atau "Dibuang".
+                </div>
+              )}
+
+              {/* DEFECT run 231 / BUG-T2 (lanjutan): keputusan retur di baris
+                  ini TETAP disimpan (retur_status/retur_qty di event), tetapi
+                  selama `return_lines` belum terbaca keputusan itu belum bisa
+                  ditindaklanjuti. Dikatakan di sini — bukan setelah admin
+                  menekan Simpan lalu mengira returnya sudah jalan. */}
+              {rusak > 0 && entry.retur !== RETUR_NANTI && !returReady && (
+                <div style={S.warn} data-testid={`rc-warn-retur-belum-${row.id}`}>
+                  Keputusan retur <b>dicatat</b> dan tidak hilang, tetapi <b>belum bisa ditindaklanjuti</b> dari
+                  aplikasi sampai pencatatan retur aktif — jangan janjikan pengembalian ke supplier berdasarkan layar ini.
+                </div>
+              )}
 
               {Object.keys(errs).length > 0 && (
                 <div style={S.err} data-testid={`rc-err-${row.id}`}>{Object.values(errs)[0]}</div>
@@ -271,6 +344,7 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
           <button
             type="submit"
             disabled={saving || plan.length === 0}
+            title={pending ? capabilityMessage(capability) : undefined}
             data-testid="receipt-submit"
           >
             {saving ? 'Menyimpan…' : '📥 Simpan Penerimaan'}

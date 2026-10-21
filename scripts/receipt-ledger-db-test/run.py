@@ -24,7 +24,10 @@ import os, re, shutil, subprocess, sys, urllib.parse
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
-SB = '/tmp/receipt-ledger-app'
+# Sandbox path WAJIB bisa di-override: beberapa worker menjalankan harness ini
+# bersamaan di worktree berbeda, dan path /tmp tetap yang dipakai bersama akan
+# saling menimpa (sandbox berisi kode commit LAIN → hasil uji menyesatkan).
+SB = os.environ.get('SB', '/tmp/receipt-ledger-app-t7bc')
 DBNAME = 'receipt_ledger_t7bc'
 
 PGADMIN = os.environ.get('PGADMIN', 'postgresql://postgres@127.0.0.1:55434/postgres')
@@ -86,6 +89,17 @@ for root, dirs, files in os.walk(os.path.join(REPO, 'modules', 'receivings')):
         if f.endswith(('.js', '.jsx')):
             REL_FILES.append(os.path.relpath(os.path.join(root, f), REPO))
 
+# run 206: probe rincian serah terima memakai modul display handover VERBATIM
+# (rincianInfo/rincianCell) supaya yang diuji adalah kode yang dipakai UI,
+# bukan salinannya. display.js hanya bergantung pada lib/constants.
+REL_FILES.append('modules/handovers/display.js')
+# run 245: probe kunci slot memakai `slotHandoverId()` VERBATIM dari modul
+# produksi — id yang diuji harus berasal dari kode yang dipakai aplikasi.
+# duplicateGuard.js murni (tanpa DB/React); duplicateGuardDb.js ikut disalin
+# karena `purchaseSave.js` mengimpornya (rantai impor harus utuh).
+REL_FILES.append('modules/handovers/duplicateGuard.js')
+REL_FILES.append('modules/handovers/duplicateGuardDb.js')
+
 
 def sb_rel(rel):
     base, _ = os.path.splitext(rel)
@@ -139,4 +153,126 @@ if rc:
 print('\n=== 4. Uji RPC NYATA ===')
 env = dict(os.environ, PGURL=PGURL_DB)
 rc = run(['node', os.path.join(HERE, 'db_rpc_test.mjs')], cwd=REPO, env=env)
-sys.exit(rc)
+
+# ------------------------------------------- 5. matriks retur (rantai penuh)
+# db_rpc_test membuktikan RPC-nya benar. Skrip ini membuktikan HAL YANG
+# BERBEDA: setiap baris yang DITAWARKAN modal retur benar-benar DITERIMA RPC.
+# Ditemukan defect run 190 justru di sambungan ini (UI menawarkan qty_rusak,
+# RPC memakai retur_qty) — jadi keduanya harus dijalankan.
+print('\n=== 5. Matriks retur: pilihan form → modal → RPC ===')
+rc2 = run(['node', os.path.join(HERE, 'probe_retur_matrix.mjs')], cwd=REPO, env=env)
+
+# --------------------------------- 6. resolusi retur (status × tindakan)
+# Menutup defect run 195: modal menawarkan tindakan yang PASTI ditolak RPC
+# (DISCARD untuk event belum dikonfirmasi dibuang) dan tindakan yang
+# bertentangan dengan status barang (RETURN untuk barang yang sudah dibuang).
+print('\n=== 6. Resolusi retur: ditawarkan aplikasi vs diterima RPC ===')
+rc3 = run(['node', os.path.join(HERE, 'probe_retur_resolution.mjs')], cwd=REPO, env=env)
+
+# ------------------------------ 7. penjaga kedatangan (defect run 199)
+# Menutup tiga defect yang hanya terlihat saat form → payload → RPC diuji
+# sebagai satu rantai: retur tanpa qty rusak, kedatangan barang yang BELUM
+# DIBELI, dan DATANG melebihi BELI (termasuk baris beli langsung tanpa PR).
+print('\n=== 7. Penjaga kedatangan: rusak 0 / belum dibeli / datang > beli ===')
+rc4 = run(['node', os.path.join(HERE, 'probe_receipt_guards.mjs')], cwd=REPO, env=env)
+
+# ------------------- 8. jalan buntu retur "Tentukan nanti" (run 202)
+# Membuktikan kenapa panel modal retur TIDAK boleh menyuruh admin mengubah
+# catatan yang sudah tersimpan: client_event_id deterministik membuat pilihan
+# retur yang diubah menghasilkan replay (already_applied), bukan koreksi —
+# dan tidak ada RPC reversal di paket skema.
+print('\n=== 8. Jalan buntu retur "Tentukan nanti": koreksi tidak mungkin ===')
+rc5 = run(['node', os.path.join(HERE, 'probe_retur_deadend.mjs')], cwd=REPO, env=env)
+
+# ---------------- 9. serah terima sebagian / melewati baris (run 202)
+# Menguji rantai prefill → validasi → RPC: qty 2 dari 5 diterima lalu dokumen
+# TERKUNCI (sisa 3 tidak bisa ditambahkan), dan satu baris kosong dulu
+# memblokir SELURUH submit. Skema mendukung dokumen susulan (H3) — jadi
+# jalan keluarnya ada, dan UI harus mengatakannya.
+print('\n=== 9. Serah terima sebagian / baris dilewati ===')
+rc6 = run(['node', os.path.join(HERE, 'probe_handover_partial.mjs')], cwd=REPO, env=env)
+
+# --------- 10. role aplikasi: apakah READY benar-benar mungkin? (run 202)
+# Paket migrasi diuji sebagai `postgres`; aplikasi berjalan sebagai
+# `authenticated`. Skrip ini menemukan bahwa GRANT SELECT pada view
+# `v_receipt_progress` BELUM ada → capability probe gagal (permission denied,
+# bukan PGRST205) sehingga mode READY tidak akan pernah menyala. Bukan sesuatu
+# yang boleh ditambal dari kode aplikasi: grant = keputusan schema owner.
+print('\n=== 10. Role aplikasi (authenticated): grant yang dibutuhkan READY ===')
+rc7 = run(['node', os.path.join(HERE, 'probe_app_role.mjs')], cwd=REPO, env=env)
+
+# ---------- 11. rincian serah terima benar-benar TERLIHAT (run 206) ----------
+# `handover_confirm` menulis handover_items, tetapi halaman tidak pernah
+# membacanya → rincian mustahil tampil walau datanya ADA. Probe ini menulis
+# lewat RPC nyata, membaca dengan kolom yang dipakai loadAll, lalu menjalankan
+# display.rincianInfo/rincianCell VERBATIM pada baris hasilnya.
+print('\n=== 11. Rincian serah terima terlihat (handover_items terbaca halaman) ===')
+rc8 = run(['node', os.path.join(HERE, 'probe_handover_items_visible.mjs')], cwd=REPO, env=env)
+
+# ---------------- 12. qty PECAHAN (m3/kg) — run 210 ----------------
+# Run 184..208 semuanya menguji qty BULAT. Padahal keempat input form memakai
+# `step="any" inputMode="decimal"`, jadi admin memang boleh mengisi 3.5 m2
+# atau 12.75 kg. Tiga lapisan memakai toleransi BERBEDA: JS EPS=1e-9,
+# constraint/RPC `+0.001`, checker `> 0.001`. Probe ini membuktikan qty
+# pecahan sah tersimpan utuh, alokasi pecahan berlebih tetap ditolak, dan
+# retur pecahan mengikuti qty rusak pecahan.
+print('\n=== 12. Qty pecahan (m3/kg): simpan utuh, batas & retur tetap benar ===')
+rc9 = run(['node', os.path.join(HERE, 'probe_run210_fractional.mjs')], cwd=REPO, env=env)
+
+# ---------------- 13. jalur HAPUS (run 237) ----------------
+# LENSA yang belum pernah dipakai 13 run sebelumnya: tombol 🗑️ ada di setiap
+# baris tanpa syarat. `delete from handovers` (persis deleteItem di
+# pages/index.js) menghapus `handover_items` lewat ON DELETE CASCADE → bukti
+# fisik hilang permanen — tanpa mengoreksi `receiving_items.qty_handed_over`,
+# sehingga kuota tukang terbuka lagi dan barang yang sama bisa diserahkan DUA
+# kali. Checker integritas DB sendiri menandainya rusak.
+print('\n=== 13. Jalur HAPUS: bukti fisik hilang & kuota terbuka (run 237) ===')
+rc10 = run(['node', os.path.join(HERE, 'probe_run237_delete.mjs')], cwd=REPO, env=env)
+
+# ---------------- 14. cakupan FK hapus (run 237) ----------------
+# Menentukan kebenaran yang HARUS dipakai penjaga aplikasi: FK
+# `handovers.receiving_id` TIDAK cascade, jadi hapus nota yang masih dirujuk
+# serah terima APA PUN sudah ditolak database dengan pesan mentah 23503.
+# Penjaga aplikasi harus sama ketatnya — bukan lebih longgar.
+print('\n=== 14. Cakupan FK hapus: nota vs PR (run 237) ===')
+rc11 = run(['node', os.path.join(HERE, 'probe_run237_fk_scope.mjs')], cwd=REPO, env=env)
+
+# ---------------- 15. dua dokumen untuk satu penerimaan (run 239) ----------------
+# LENSA yang belum pernah dipakai 16 run sebelumnya: DUA DOKUMEN pada SATU
+# PENERIMAAN. `handover_confirm` mengunci `handover:<id>` (per DOKUMEN) dan
+# mengecek kuota SEBELUM baris `receiving_items` dikunci, sehingga dua dokumen
+# yang dikonfirmasi bersamaan SAMA-SAMA lolos: rincian 2× kuota, sisa negatif.
+# Penjaga aplikasi ada di modules/handovers/duplicateGuard.js; probe ini
+# mengunci BUKTI-nya di database supaya tidak ada yang menutupnya dengan asumsi.
+print('\n=== 15. Dua dokumen untuk satu penerimaan: penyerahan ganda (run 239) ===')
+rc12 = run(['node', os.path.join(HERE, 'probe_run239_dupdoc.mjs')], cwd=REPO, env=env)
+
+# ------------- 16. konvergensi penjaga create di PostgreSQL NYATA (run 243) ----
+# Review run 242 membuktikan penjaga SELECT-lalu-INSERT tidak menahan dua sesi
+# bersamaan (probe_run242_duprace). Probe ini menguji MEKANISME PENGGANTINYA
+# terhadap PG16 sungguhan: dua koneksi, commit nyata, verifikasi-sesudah-commit
+# + tarik diri.
+#
+# CATATAN run 245: probe ini DIPERTAHANKAN sebagai catatan sejarah, tetapi
+# klaim yang diukurnya sudah DICABUT oleh review run 244 (BUG-W1) — mekanisme
+# itu tidak konvergen pada urutan aplikasi. Penggantinya `probe_run245_slot_pg`.
+print('\n=== 16. Konvergensi penjaga create di PostgreSQL nyata (run 243, historis) ===')
+rc13 = run(['node', os.path.join(HERE, 'probe_run243_race_pg.mjs')], cwd=REPO, env=env)
+
+# ------------- 17. KUNCI SLOT (PRIMARY KEY) di PostgreSQL NYATA (run 245) -----
+# Review run 244 (BUG-W1/W2) menuntut: klaim konvergensi diperbaiki ATAU
+# mekanismenya diganti, plus alasan penolakan DDL dinyatakan sebagai soal
+# kepemilikan (bukan kemustahilan). Probe ini menguji mekanisme barunya dengan
+# dua koneksi nyata pada urutan yang DULU gagal, plus membuktikan partial unique
+# index bisa dibuat (lalu di-drop di cluster lokal).
+print('\n=== 17. Kunci slot PRIMARY KEY vs urutan verifikasi (run 245) ===')
+rc14 = run(['node', os.path.join(HERE, 'probe_run245_slot_pg.mjs')], cwd=REPO, env=env)
+
+# CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
+# bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
+# menyimpulkan "siap DDL" padahal READY mustahil menyala.
+if rc7 == 2:
+    print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
+    print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
+    sys.exit(2)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11 or rc12 or rc13 or rc14)
