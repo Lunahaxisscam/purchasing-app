@@ -607,12 +607,16 @@ console.log('\nB8b. Satu SKU dipecah dua proyek -> ALOKASI tidak menumpuk')
   check('B8b4 pr_item_id null (belanja langsung)', riRows.every(r => !r.pr_item_id))
   check('B8b5 qty benar per baris', riRows.map(r => r.quantity_received).sort().join(',') === '3,5', riRows.map(r => r.quantity_received).join(','))
   check('B8b6 harga tersimpan di note item', riRows.every(r => r.note === '[Harga: 120000]'), riRows.map(r => r.note).join(','))
-  // alokasi readback per proyek: p1 = 3×120k, p2 = 5×120k (TIDAK 8×120k masing2)
-  const alok = res.alokasi || []
-  const p1 = alok.find(a => a.projectId === 'p1')
-  const p2 = alok.find(a => a.projectId === 'p2')
-  check('B8b7 alokasi p1 = 1 barang, 360000', p1?.items === 1 && p1?.material === 360000, JSON.stringify(p1))
-  check('B8b8 alokasi p2 = 1 barang, 600000', p2?.items === 1 && p2?.material === 600000, JSON.stringify(p2))
+  // RUN 246 — KOREKSI ASSERTION (defect acceptance-4):
+  // Dulu dua assertion di sini menuntut `res.alokasi` berisi angka per proyek.
+  // Angka itu DIHITUNG DARI STATE FORM, bukan dari DB: tabel `receiving_items`
+  // di jalur lama tidak punya kolom `project_id`, jadi nol alokasi tersimpan
+  // sementara UI melaporkan "teralokasi". Setelah reload, seluruh biaya jatuh
+  // ke `unassigned` (dibuktikan probe_r246_alloc_persist L1–L4).
+  // Assertion sekarang mengunci PERILAKU JUJUR: jalur lama tidak mengklaim.
+  check('B8b7 jalur lama TIDAK mengklaim alokasi tersimpan', res.allocationPersisted === false, String(res.allocationPersisted))
+  check('B8b8 jalur lama tidak mengembalikan angka alokasi palsu', Array.isArray(res.alokasi) && res.alokasi.length === 0, JSON.stringify(res.alokasi))
+  check('B8b8b ada peringatan jujur untuk admin', typeof res.allocationWarning === 'string' && res.allocationWarning.length > 0, String(res.allocationWarning))
   check('B8b9 total header = 960000 (3+5 nota)', res.totals?.total === 960000, String(res.totals?.total))
   // readback riwayat: material nota terbaca
   const hist = L.buildHistoryRows({ receivings: mock.__rows('receivings'), receivingItems: riRows, vendors: VENDORS, projects: PROJECTS, requests: [] })

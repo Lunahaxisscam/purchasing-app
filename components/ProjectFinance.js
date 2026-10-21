@@ -128,6 +128,9 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
       laborRows: rows.tukang_projects || [],
       receivings: rows.receivings || [],
       receivingItems: rows.receiving_items || [],
+      // RUN 246: alokasi split per baris. Tanpa ini, baris yang dibagi ke
+      // beberapa proyek jatuh ke unassigned walau pembagiannya TERSIMPAN.
+      receivingItemAllocations: rows.receiving_item_allocations || [],
       vendors: rows.vendors || [],
       summaryRows: driveRows || []
     }),

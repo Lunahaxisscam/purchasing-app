@@ -50,6 +50,7 @@ export default function App() {
     handovers: [],
     pr_items: [],
     receiving_items: [],
+    receiving_item_allocations: [],
     // t_62e41e91 — modul Actual Labor & Stok. Default null (BUKAN [])
     // supaya modul bisa membedakan "sumber belum dimuat" dari "tabel
     // kosong": modul menampilkan panel 'unavailable', bukan angka 0 yang
@@ -254,6 +255,29 @@ export default function App() {
       }
     } catch (e) {
       // Sengaja tidak menghentikan loadAll: rincian opsional, data inti wajib.
+    }
+
+    // ---------------------------------------------------------------
+    // ALOKASI PROYEK PER BARIS NOTA (t_7bc6246b, run 246)
+    // ---------------------------------------------------------------
+    // `receiving_item_allocations` menyimpan pembagian satu baris nota ke
+    // BEBERAPA proyek. Tanpa dibaca di sini, ProjectFinance melihat baris
+    // split sebagai "tanpa proyek" dan pembagian yang SUDAH tersimpan di DB
+    // tidak pernah terbaca (hanya terlihat di sesi yang menyimpannya).
+    //
+    // BEST-EFFORT seperti handover_items: tabel belum ada di mode LEGACY
+    // (PGRST205) atau RLS menolak → halaman tetap jalan dengan array kosong,
+    // dan `projectCostBreakdown` tetap jujur (baris split masuk unassigned,
+    // bukan ditebak ke satu proyek).
+    try {
+      const { data: allocRows, error: allocErr } = await supabase
+        .from('receiving_item_allocations')
+        .select('id, receiving_item_id, project_id, qty, amount')
+      if (!allocErr && Array.isArray(allocRows)) {
+        result.receiving_item_allocations = allocRows
+      }
+    } catch (e) {
+      // Sengaja tidak menghentikan loadAll.
     }
 
     setRows(result)

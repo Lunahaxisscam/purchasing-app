@@ -173,6 +173,7 @@ export function buildReadyRows({
       qtySisa: sisa,
       estimasi: isFinite(est) && est > 0 ? est : null,
       materialId: it.material_id || null,
+      materialName: mat?.name || '',
       hargaAcuan: mat && isFinite(Number(mat.harga_acuan)) && Number(mat.harga_acuan) > 0 ? Number(mat.harga_acuan) : null,
       kategori: mat?.category || String(it.supplier_category || '').trim() || '',
       projectId,
@@ -349,6 +350,12 @@ export function buildFormDraft(rows, { vendorId = '', today = null } = {}) {
       harga: '',
       estimasi: r.estimasi,
       hargaAcuan: r.hargaAcuan,
+      // IDENTITAS MATERIAL (acceptance 4). Baris dari PR sudah membawanya
+      // (pr_items.material_id) — TIDAK ditebak dari nama. Baris belanja
+      // langsung wajib dipilih admin di form; tanpa itu DB menolak
+      // (`material_unresolved`) alih-alih menyimpan biaya tanpa identitas.
+      materialId: r.materialId || null,
+      materialName: r.materialName || '',
       projectName: r.projectName,
       prNumber: r.prNumber,
       // Jejak PR/proyek dibawa ke form: header nota baru harus tetap tahu PR &

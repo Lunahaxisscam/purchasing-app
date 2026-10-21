@@ -37,6 +37,22 @@ import { rupiah } from '../../lib/constants'
 import { buildFormDraft, computeTotals, validatePurchaseForm } from './purchaseLogic'
 import { readAttachment, dataUrlByteSize, sizeLabel, ATTACHMENT_MAX_BYTES } from './attachments'
 import { savePurchase } from './purchaseSave'
+import { getPurchaseCapability, purchaseCapabilityMessage, PURCHASE_CAP } from './purchaseCapability'
+
+// Kunci idempotensi per PERCOBAAN SIMPAN (bukan per klik).
+//
+// Kenapa harus di state dan bukan dibuat di dalam `savePurchaseWithClient`:
+// retry (jaringan putus / admin klik lagi) HARUS memakai kunci yang sama,
+// kalau tidak server melihatnya sebagai permintaan baru. Untuk nota tanpa
+// nomor vendor akibatnya nyata: nota kedua + baris kedua + dokumen Handover
+// kedua (defect R2 run 246). Kunci baru hanya dibuat setelah simpan BERHASIL
+// atau form dibuka untuk nota lain.
+function newClientRequestId() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  } catch (e) { /* jatuh ke fallback */ }
+  return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
 
 export default function PurchaseForm({
   rows, vendorId, vendors = [], projects = [], receivings = [], receivingItems = [], close, onDone, say
@@ -46,7 +62,36 @@ export default function PurchaseForm({
   const [errorMsg, setErrorMsg] = useState('')
   const [touched, setTouched] = useState(false)
   const [fileBusy, setFileBusy] = useState('')
+  const [cap, setCap] = useState(null)
   const busyRef = useRef(false)
+  // Kunci STABIL untuk seluruh umur form ini. Retry memakai nilai yang sama;
+  // hanya diganti setelah simpan sukses (atau saat form dibuka ulang).
+  const requestIdRef = useRef(newClientRequestId())
+
+  // Probe kemampuan simpan (typed/alokasi/atomik). Read-only, sekali saat
+  // form dibuka — dan diulang saat tab kembali fokus, karena migrasi bisa
+  // dijalankan saat aplikasi sedang dipakai (pola yang sama dengan
+  // receiptCapability/queue.jsx).
+  React.useEffect(() => {
+    let cancelled = false
+    async function probe(force) {
+      const res = await getPurchaseCapability({ force })
+      if (!cancelled) setCap(res)
+    }
+    probe(true)
+    const onFocus = () => probe(true)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus)
+      document.addEventListener('visibilitychange', onFocus)
+    }
+    return () => {
+      cancelled = true
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', onFocus)
+        document.removeEventListener('visibilitychange', onFocus)
+      }
+    }
+  }, [])
 
   const totals = useMemo(() => computeTotals(form), [form])
   const v = useMemo(() => validatePurchaseForm(form, { vendors }), [form, vendors])
@@ -88,12 +133,29 @@ export default function PurchaseForm({
     busyRef.current = true
     setSaving(true)
     try {
-      const res = await savePurchase({ form, receivings, receivingItems, vendors })
+      const res = await savePurchase({
+        form,
+        receivings,
+        receivingItems,
+        vendors,
+        clientRequestId: requestIdRef.current,
+        capability: cap
+      })
       if (!res.ok) {
+        // `already` = retry dari percobaan yang SAMA. Itu bukan kegagalan
+        // yang perlu ditakuti admin — tapi juga bukan sukses baru. Jangan
+        // menutup form seolah-olah ada data baru; beri tahu apa adanya.
+        if (res.already) {
+          setErrorMsg(res.error || 'Nota ini sudah tersimpan sebelumnya — tidak ada data yang ditulis ulang.')
+          return
+        }
         setErrorMsg(res.error || 'Gagal menyimpan nota pembelian.')
         if (res.partial) say?.(res.error)
         return
       }
+      // Simpan sukses: kunci ini sudah terpakai. Kunci baru untuk nota
+      // berikutnya supaya nota lain tidak dianggap retry nota ini.
+      requestIdRef.current = newClientRequestId()
       onDone?.(res)
     } catch (err) {
       setErrorMsg(`Terjadi kesalahan saat menyimpan: ${err.message}`)
@@ -149,6 +211,45 @@ export default function PurchaseForm({
           <h2>🧾 Proses Pembelian</h2>
           <button type="button" className="icon" onClick={close} aria-label="Tutup">×</button>
         </div>
+
+        {/* 0) KESIAPAN SIMPAN — jujur soal alokasi per proyek.
+            Bila skema alokasi belum aktif, admin HARUS tahu SEBELUM menekan
+            simpan: nota tetap tersimpan, tetapi pembagian proyek per barang
+            tidak punya tempat di database. Menyembunyikan ini berarti admin
+            mengira biaya sudah masuk ke proyek (defect acceptance-4 run 246). */}
+        {cap && cap.state !== PURCHASE_CAP.READY && (
+          <div
+            className="purchase-cap-banner"
+            data-testid="purchase-cap-banner"
+            data-cap-state={cap.state}
+            style={{
+              margin: '0 0 10px',
+              padding: '8px 10px',
+              borderRadius: 6,
+              fontSize: 11.5,
+              lineHeight: 1.45,
+              background: cap.state === PURCHASE_CAP.UNKNOWN ? '#f4f6f8' : '#fff8e1',
+              border: `1px solid ${cap.state === PURCHASE_CAP.UNKNOWN ? '#d8dee4' : '#f0c36d'}`,
+              color: '#5c4708'
+            }}
+          >
+            <b>{cap.state === PURCHASE_CAP.UNKNOWN ? '⏳ Memeriksa kesiapan…' : '⚠️ Alokasi proyek belum tersimpan'}</b>
+            <div style={{ marginTop: 3 }}>{purchaseCapabilityMessage(cap)}</div>
+          </div>
+        )}
+        {cap && cap.state === PURCHASE_CAP.READY && (
+          <div
+            className="purchase-cap-banner ok"
+            data-testid="purchase-cap-banner"
+            data-cap-state={cap.state}
+            style={{
+              margin: '0 0 10px', padding: '8px 10px', borderRadius: 6, fontSize: 11.5,
+              background: '#eef7ee', border: '1px solid #b7d9b7', color: '#1f4d1f'
+            }}
+          >
+            ✓ Penyimpanan atomik aktif — alokasi proyek, material, dan harga riil per barang ikut tersimpan.
+          </div>
+        )}
 
         {/* 1) TOKO · NOTA · TANGGAL — identitas nota, satu baris */}
         <div className="purchase-form-grid">
