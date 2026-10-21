@@ -39,6 +39,7 @@ import { newAllocationRow, splitSummary, normalizeAllocations, validateSplit, su
 import { readAttachment, dataUrlByteSize, sizeLabel, ATTACHMENT_MAX_BYTES } from './attachments'
 import { savePurchase } from './purchaseSave'
 import { getPurchaseCapability, purchaseCapabilityMessage, PURCHASE_CAP } from './purchaseCapability'
+import { dbErrorText } from '../handovers/dbErrorText'
 
 // Kunci idempotensi per PERCOBAAN SIMPAN (bukan per klik).
 //
@@ -257,8 +258,10 @@ export default function PurchaseForm({
           setErrorMsg(res.error || 'Nota ini sudah tersimpan sebelumnya — tidak ada data yang ditulis ulang.')
           return
         }
-        setErrorMsg(res.error || 'Gagal menyimpan nota pembelian.')
-        if (res.partial) say?.(res.error)
+        // D2 (review run 251): kode DB (`over_purchase_pr`, `bad_number`,
+        // `allocation_not_exact`, `forbidden`) diterjemahkan ke kalimat.
+        setErrorMsg(dbErrorText(res.error, { fallback: 'Gagal menyimpan nota pembelian.' }).text)
+        if (res.partial) say?.(dbErrorText(res.error, { fallback: 'Gagal menyimpan nota pembelian.' }).text)
         return
       }
       // Simpan sukses: kunci ini sudah terpakai. Kunci baru untuk nota

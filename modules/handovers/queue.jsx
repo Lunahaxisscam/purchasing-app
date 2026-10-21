@@ -672,7 +672,9 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
       refresh()
       onDone && onDone()
     } else {
-      say(res.message)
+      // D2 (review run 251): jalur header INLINE juga bisa ditolak DB
+      // (`physical_rpc_required` bila migrasi berjalan di tengah). Terjemahkan.
+      say(dbErrorText(res.message, { fallback: 'Serah terima tidak bisa ditandai diserahkan.' }).text)
     }
   }
 

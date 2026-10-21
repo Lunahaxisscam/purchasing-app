@@ -25,6 +25,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { returPlan, commonResolutions } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadReturnedByEvent, createReturnCase } from '../receivings/receiptEventSave'
 import { capabilityMessage, capabilityState, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
+import { dbErrorText } from './dbErrorText'
 
 const RESOLUTIONS = [
   { id: 'RETURN', label: 'Kembalikan ke supplier' },
@@ -169,7 +170,12 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
     setSaving(true)
     try {
       const res = await createReturnCase({ receiving, lines: chosen, resolution: effectiveResolution, reason })
-      if (!res.ok) { setErrorMsg(res.error); return }
+      if (!res.ok) {
+        // D2 (review run 251): `no_retur_balance`, `discard_not_confirmed`,
+        // `over_return`, `forbidden` → kalimat yang bisa ditindaklanjuti.
+        setErrorMsg(dbErrorText(res.error, { fallback: 'Retur tidak bisa disimpan.' }).text)
+        return
+      }
       say?.(`Retur tercatat: ${chosen.length} baris · total ${totalQty}. Status: ${RESOLUTIONS.find(r => r.id === effectiveResolution)?.label || effectiveResolution}.`)
       close?.()
       refresh?.()

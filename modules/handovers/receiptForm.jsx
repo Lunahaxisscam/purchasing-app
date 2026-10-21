@@ -26,6 +26,7 @@ import {
 import { buildEventDrafts } from '../receivings/receiptEventLogic'
 import { applyReceiptEvents } from '../receivings/receiptEventSave'
 import { capabilityMessage, capabilityState, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
+import { dbErrorText } from './dbErrorText'
 
 const num = (v) => {
   const n = Number(v)
@@ -109,7 +110,12 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
         drafts,
         sisaById: sisaByIdOf(rows)
       })
-      if (!res.ok) { setErrorMsg(res.error); return }
+      if (!res.ok) {
+        // D2 (review run 251): kode DB (`over_receipt`, `bad_retur`,
+        // `forbidden`, `physical_rpc_required`) diterjemahkan ke kalimat.
+        setErrorMsg(dbErrorText(res.error, { fallback: 'Penerimaan tidak bisa disimpan.' }).text)
+        return
+      }
       const extra = res.alreadyApplied > 0 ? ` (${res.alreadyApplied} sudah pernah tercatat, tidak digandakan)` : ''
       say?.(`Penerimaan tersimpan: ${res.applied} barang${extra}. Qty datang tersimpan terpisah dari qty beli.`)
       close?.()
