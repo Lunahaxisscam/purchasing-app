@@ -35,7 +35,7 @@
 // styles/globals.css (file itu bukan milik modul ini).
 // ============================================================
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   ACTIONS,
   ACT_GUDANG,
@@ -53,6 +53,8 @@ import { PhysicalModalHost } from './physicalHost'
 import { capabilityState, getReceiptCapability, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
 import { duplicateInfoFor } from './duplicateGuard'
 import { guardConfirmFresh } from './duplicateGuardDb'
+import { loadDeliverability } from '../receivings/receiptEventSave'
+import { dbErrorText } from './dbErrorText'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
@@ -136,6 +138,63 @@ export function isProblemNoted(receiving) {
 // form fisik. Teks ini juga dipakai assertion test (lihat
 // scripts/handover-compact-test/queue_ui_test.mjs A11l/A11m).
 export const RECON_NOTE = 'Catat masalahnya di kolom Catatan handover ini, lalu eskalasi ke admin untuk rekonsiliasi manual dengan supplier (nota koreksi/kredit).'
+
+// ------------------------------------------------------------
+// REVIEW run 251 / D1 — dokumen tanpa barang untuk tukang
+// ------------------------------------------------------------
+// Pembelian SELALU membuat antrean Serah Terima (`queueHandover` default
+// true), sedangkan tujuan barang baru diputuskan di Terima Barang. Jadi
+// dokumen bisa sah-sah saja tidak punya satu baris pun untuk tukang (mis.
+// seluruh barang untuk stok gudang, atau semua barang datang rusak).
+//
+// Kontrak v1 MENOLAK kedua jalur penutup untuk keadaan itu:
+//   `handover_confirm(id, [])` → empty_lines
+//   tulis `diserahkan_at` langsung → physical_rpc_required
+// Sebelum perbaikan ini antrean tetap menampilkan tombol aktif, modal terbuka,
+// dan admin melihat teks SQL mentah — dokumen menetap "Belum Diserahkan"
+// selamanya dan memblokir dokumen berikutnya (`ops_one_active_handover`).
+//
+// Yang TIDAK boleh dilakukan: menandai dokumen selesai tanpa bukti (itu
+// kebohongan) atau menghapusnya diam-diam. Yang dilakukan: berhenti
+// menawarkan tombol yang pasti gagal, jelaskan sebabnya, dan tawarkan SATU
+// jalan keluar yang jujur — hapus dokumen (belum punya bukti apa pun) lewat
+// penjaga hapus yang sudah ada.
+export const NO_TUKANG_REASON =
+  'Penerimaan ini tidak punya barang yang ditujukan ke tukang — semua barang tercatat ke gudang/workshop. '
+  + 'Dokumen Serah Terima karena itu tidak punya satu baris pun untuk dikonfirmasi, dan database MENOLAK menutupnya tanpa rincian. '
+  + 'Bila barang memang ada yang ke tukang, catat dulu tujuannya di Terima Barang. Bila tidak ada, hapus dokumen ini (belum punya bukti) supaya antrean bersih.'
+
+export const ALL_DELIVERED_REASON =
+  'Seluruh alokasi ke tukang pada penerimaan ini SUDAH diserahkan lewat dokumen lain. '
+  + 'Tidak ada sisa yang bisa dikonfirmasi di dokumen ini, dan database menolak menutupnya tanpa rincian. '
+  + 'Hapus dokumen ini (belum punya bukti) — penyerahan yang sudah tercatat tidak terpengaruh.'
+
+export const DELIVER_CHECK_FAILED_REASON =
+  'Tidak bisa memeriksa apakah penerimaan ini punya barang untuk tukang. Konfirmasi ditahan supaya tidak menandai dokumen yang salah — coba periksa ulang.'
+
+export const DELIVER_CHECKING_REASON =
+  'Memeriksa rincian penerimaan dulu — tombol konfirmasi aktif setelah pemeriksaan selesai. Tidak ada data yang ditulis sekarang.'
+
+// ------------------------------------------------------------
+// Gerbang TULIS untuk tombol penutup (dipakai tombol DAN jalur `run()`)
+// ------------------------------------------------------------
+// Fungsi murni supaya bisa diuji tanpa DOM: tombol `disabled` mencegah klik
+// di React, jadi lapisan pertahanan kedua (klik programatik / test lama /
+// pemanggilan langsung) TIDAK bisa diuji lewat klik. Diekspor agar probe bisa
+// memanggilnya dengan data nyata.
+//
+// `deliver` = hasil `loadDeliverability()` atau `null` bila belum/tidak dibaca.
+// Mengembalikan `{ blocked, checked, info }`; `blocked === ''` = boleh menulis.
+export function finishGate(ledgerReady, deliver, { hasReceiving = true } = {}) {
+  if (!ledgerReady) return { checked: true, blocked: '', info: null }
+  if (!hasReceiving) return { checked: true, blocked: '', info: null }
+  if (deliver === null || deliver === undefined) return { checked: false, blocked: DELIVER_CHECKING_REASON, info: null }
+  if (!deliver.ok) return { checked: true, blocked: DELIVER_CHECK_FAILED_REASON, info: null }
+  const info = deliver.deliverability
+  if (!info || !info.hasTukang) return { checked: true, blocked: NO_TUKANG_REASON, info }
+  if (info.allDelivered) return { checked: true, blocked: ALL_DELIVERED_REASON, info }
+  return { checked: true, blocked: '', info }
+}
 
 // `ledgerState` = keadaan capability (lihat capabilityState di
 // receivings/receiptCapability): 'ready' | 'ready_no_return' | 'legacy' |
@@ -353,6 +412,40 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   // yang sudah terlanjur ada ikut terlihat walau salah satunya sudah diserahkan.
   const dupInfo = duplicateInfoFor(handover, ctx.rows || [])
 
+  // ============================================================
+  // REVIEW run 251 / D1 — penerimaan tanpa alokasi ke tukang
+  // ============================================================
+  // Di mode ledger per barang, `actionPlan` tidak bisa menjawab apakah ada
+  // barang yang benar-benar ditujukan ke tukang (ia membaca `pr_items.status`
+  // — dimensi LEGACY). Tanpa jawaban itu, tombol penutup ditawarkan untuk
+  // dokumen yang PASTI ditolak DB (empty_lines / physical_rpc_required).
+  //
+  // Dibaca dari DB (bukan ctx.rows) dan hanya saat ledger siap: di LEGACY
+  // tabelnya tidak ada dan jalur header lama tetap satu-satunya yang sah.
+  // `null` = belum diperiksa; selama itu tombol penutup DITAHAN (fail closed)
+  // supaya tidak ada klik yang berakhir dengan pesan SQL mentah.
+  const [deliver, setDeliver] = useState(null)
+  const [deliverSeq, setDeliverSeq] = useState(0)
+  // Sinyal perubahan data penerimaan: qty datang/serah pada baris item.
+  // Tanpa ini, setelah admin menyimpan Terima Barang dokumen yang tadinya
+  // "tidak ada barang untuk tukang" tetap dinilai begitu sampai halaman
+  // di-reload penuh — padahal `ctx.refresh()` sudah mengambil data baru.
+  const itemsSig = (items || []).map(i => `${i.id}:${i.qty_arrived || 0}:${i.qty_handed_over || 0}`).join('|')
+  const deliverKey = ledgerReady && receiving?.id ? `${handover.id}:${receiving.id}` : ''
+  useEffect(() => {
+    let cancelled = false
+    if (!deliverKey) { setDeliver(null); return undefined }
+    setDeliver(null)
+    loadDeliverability({ receivingId: receiving.id })
+      .then(res => { if (!cancelled) setDeliver(res || { ok: false, error: 'pemeriksaan tidak mengembalikan hasil' }) })
+      .catch(err => { if (!cancelled) setDeliver({ ok: false, error: String(err?.message || err) }) })
+    return () => { cancelled = true }
+  }, [deliverKey, receiving?.id, deliverSeq, itemsSig])
+
+  // Ringkas keadaan untuk tombol penutup. `blocked` = alasan yang bisa dibaca
+  // admin; `''` = boleh membuka konfirmasi per barang.
+  const deliverState = finishGate(ledgerReady, deliver, { hasReceiving: !!deliverKey })
+
   // Lapisan tampilan DI ATAS actionPlan (logic.js tidak diubah):
   //  a) nota yang sudah bermasalah tidak ditawari distribusi — sejalan dengan
   //     penjaga DB yang sudah ada (RPC `receive_to_warehouse` menolak nota
@@ -405,11 +498,11 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
         }
       }
       if (ledgerReady) {
-        // Tidak disaring lagi di sini: modal konfirmasi sudah punya jalur yang
-        // benar untuk SEMUA keadaan — baris prefill bila ada alokasi tukang,
-        // panel "tidak ada alokasi" + konfirmasi header-only bila tidak ada,
-        // dan penolakan jelas bila rincian gagal dimuat. Menyaring lagi di sini
-        // hanya menutup jalan keluar yang sudah diperbaiki di run 190.
+        // REVIEW run 251 / D1: bila penerimaan ini TIDAK punya barang untuk
+        // tukang (atau semuanya sudah diserahkan lewat dokumen lain), modal
+        // hanya akan menawarkan jalur yang ditolak DB. Tombolnya ditutup
+        // dengan sebab yang bisa dibaca — bukan dibiarkan "aktif lalu gagal".
+        if (deliverState.blocked) return { ...a, ok: false, reason: deliverState.blocked }
         return { ...a, ok: true, reason: 'Buka konfirmasi per barang — jumlah fisik diverifikasi di sana.' }
       }
       // DEFECT run 219 / BUG-S1: satu-satunya jalur yang tersisa di non-READY
@@ -495,6 +588,10 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
       // Ledger per barang AKTIF → konfirmasi per item (prefill dari penerimaan,
       // bukan mengetik ulang). LEGACY → form header lama di bawah.
       if (ledgerReady) {
+        // Pertahanan kedua (run 251 / D1): tombolnya sudah ditutup, tetapi klik
+        // programatik / test lama tidak boleh melewatinya. Alasan yang sama
+        // ditampilkan — tidak ada modal yang dibuka untuk pekerjaan yang tidak ada.
+        if (deliverState.blocked) { say(deliverState.blocked); return }
         openPhysicalModal({ kind: 'confirm', handover })
         return
       }
@@ -529,7 +626,10 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
     setBusy(true)
     const res = await runHandoverAction(action, handover.id)
     setBusy(false)
-    say(res.message)
+    // D2 (review run 251): jalur LEGACY ini menulis kolom mentah; saat skema
+    // v1 aktif trigger menjawab kode (`physical_rpc_required`). Kode itu
+    // diterjemahkan, bukan ditampilkan sebagai teks SQL.
+    say(res.ok ? res.message : dbErrorText(res.message, { fallback: 'Aksi distribusi tidak bisa disimpan.' }).text)
     if (res.ok) {
       refresh()
       onDone && onDone()
@@ -778,6 +878,44 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
           >
             <span aria-hidden="true">{finish.icon}</span> {finish.label}
           </button>
+        ) : null}
+        {/* REVIEW run 251 / D1: alasan tertulis, bukan hanya tooltip. Tombol
+            yang mati tanpa penjelasan membuat admin mengira aplikasi rusak —
+            dan di kasus ini penyebabnya justru keputusan operasional yang sah
+            (tidak ada barang untuk tukang). */}
+        {finish && !finish.ok && finish.reason ? (
+          <div
+            data-testid={`queue-finish-reason-${handover.id}`}
+            style={{ ...S.panelText, marginTop: 6, color: '#e8c98a' }}
+          >
+            {finish.reason}
+            {/* Jalan keluar tanpa reload: admin mencatat tujuan barang di
+                Terima Barang, lalu memeriksa ulang di sini. Tanpa tombol ini
+                satu-satunya cara adalah memuat ulang halaman penuh. */}
+            {ledgerReady ? (
+              <div style={{ marginTop: 6 }}>
+                <button
+                  type="button"
+                  data-testid={`queue-finish-recheck-${handover.id}`}
+                  onClick={() => setDeliverSeq(n => n + 1)}
+                  style={S.subtleBtn}
+                  title="Periksa ulang rincian penerimaan (mis. setelah mencatat tujuan barang di Terima Barang)"
+                >
+                  🔄 Periksa ulang rincian penerimaan
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {/* Sisa yang masih bisa diserahkan — angka dari ledger, bukan tebakan. */}
+        {ledgerReady && deliverState.info && deliverState.info.hasTukang ? (
+          <div
+            data-testid={`queue-deliver-progress-${handover.id}`}
+            style={{ ...S.panelText, marginTop: 6, opacity: 0.85 }}
+          >
+            Alokasi ke tukang: <b>{deliverState.info.quota}</b> unit · sudah diserahkan{' '}
+            <b>{deliverState.info.done}</b> · sisa <b>{deliverState.info.remaining}</b>
+          </div>
         ) : null}
         {showTerima && (
           <div data-testid={`queue-terima-form-${handover.id}`} style={{ marginTop: 8 }}>

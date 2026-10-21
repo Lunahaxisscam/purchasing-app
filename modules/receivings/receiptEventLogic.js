@@ -238,6 +238,45 @@ export function eventTotals(events) {
   return [...byItem.values()]
 }
 
+// ------------------------------------------------------------
+// Keterangan SERAH-TERIMA dari ledger (defect run 251 / D1)
+// ------------------------------------------------------------
+// `actionPlan` (handovers/logic.js) menilai distribusi dari `pr_items.status`
+// — dimensi LEGACY. Di mode ledger per barang, satu-satunya kebenaran adalah
+// `receiving_events.tujuan_tukang` dikurangi `handover_items.qty_diserahkan`.
+//
+// Fungsi murni ini menjawab pertanyaan yang tidak bisa dijawab `actionPlan`:
+// apakah penerimaan ini punya barang yang PERNAH ditujukan ke tukang? Bila
+// tidak (mis. seluruh barang untuk stok gudang), dokumen Serah Terima tidak
+// punya satu baris pun yang bisa dikonfirmasi — kontrak v1 MENOLAK
+// `handover_confirm(id, [])` (`empty_lines`) dan menolak penulisan header
+// langsung (`physical_rpc_required`). Tanpa ini UI menawarkan tombol yang
+// pasti gagal (review run 251).
+//
+// `delivered` = { [receiving_event_id]: qty } LINTAS semua dokumen penerimaan
+// itu (bukan hanya dokumen ini), karena kuota RPC dihitung per event.
+export function deliverabilityOf(events = [], delivered = {}) {
+  let quota = 0
+  let done = 0
+  let tukangLines = 0
+  for (const ev of events || []) {
+    const q = num(ev?.tujuan_tukang)
+    if (q <= EPS) continue
+    tukangLines += 1
+    quota += q
+    done += num(delivered?.[ev.id])
+  }
+  const remaining = Math.max(0, quota - done)
+  return {
+    quota,                 // total alokasi ke tukang (semua event)
+    done,                  // sudah diserahkan (semua dokumen)
+    remaining,             // sisa yang masih bisa diserahkan
+    tukangLines,           // jumlah event yang punya alokasi tukang
+    hasTukang: quota > EPS, // ADA barang yang ditujukan ke tukang?
+    allDelivered: quota > EPS && remaining <= EPS
+  }
+}
+
 // Retur TANPA KETIK ULANG: baris retur diambil langsung dari event rusak yang
 // BELUM pernah diretur.
 //

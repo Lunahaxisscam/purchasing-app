@@ -115,7 +115,11 @@ console.log('\n=== A. ANTREAN READY: tombol penutup & konfirmasi per barang ===\
     say: noop, refresh: noop, onReceivingStatusChange: noop
   }
   const { document: doc } = mount(Q.renderHandoverQueue(ctx))
-  await tick(); await tick(); await tick()
+  // REVIEW run 251 / D1: tombol penutup sekarang menunggu pembacaan rincian
+  // penerimaan (2 query berurutan: event + qty yang sudah diserahkan) sebelum
+  // menyatakan boleh/tidak. Assertion di bawah menguji KESIAPAN tombol, bukan
+  // kecepatan probe — jadi tunggu sampai pemeriksaan selesai (bukan 3 tick).
+  for (let i = 0; i < 14; i++) await tick()
   const btn = tid(doc, 'queue-act-terima-h1')
   check('A1 READY: tombol penutup AKTIF walau pr_items belum DI_TUKANG',
     !!btn && btn.disabled === false,

@@ -37,6 +37,58 @@ import { openPhysicalModal } from './physicalModal'
 import { handoverDeleteGuard } from './deleteGuard'
 import { duplicateInfoFor } from './duplicateGuard'
 import { guardConfirmFresh } from './duplicateGuardDb'
+import { loadDeliverability } from '../receivings/receiptEventSave'
+import { getReceiptCapability, coreLedgerReady } from '../receivings/receiptCapability'
+
+// ============================================================
+// REVIEW run 251 / D1 — pintu konfirmasi per BARIS
+// ============================================================
+// Tombol ✓ (desktop) dan tombol ✓ (kartu mobile) sama-sama membuka modal
+// konfirmasi. Keduanya harus tahu apakah penerimaan ini PUNYA barang yang
+// ditujukan ke tukang: kalau tidak, modal hanya bisa menawarkan jalur yang
+// ditolak kontrak v1 (`empty_lines` / `physical_rpc_required`).
+//
+// PENTING — hanya berlaku saat LEDGER SIAP. Di mode LEGACY (tabel ledger
+// belum ada) konfirmasi header adalah satu-satunya jalur yang sah, jadi
+// pemeriksaan ini tidak boleh menutupnya. Capability dibaca SEGAR (force)
+// karena migrasi bisa dijalankan saat layar terbuka.
+//
+// Mengembalikan `{ ok:true }` bila boleh lanjut, atau `{ ok:false, reason }`
+// dengan kalimat yang bisa dibaca admin. Gagal baca capability = JANGAN
+// menebak: teruskan ke modal, yang punya gerbang fail-closed sendiri
+// (physicalHost tidak merender form saat probe gagal).
+async function confirmEntryGuard(handover) {
+  const dup = await guardConfirmFresh({ handover })
+  if (!dup.ok) return { ok: false, reason: dup.reason }
+  if (!handover?.receiving_id) return { ok: true }
+  let cap = null
+  try {
+    cap = await getReceiptCapability({ force: true })
+  } catch (e) {
+    cap = null
+  }
+  if (!coreLedgerReady(cap)) return { ok: true } // LEGACY/unknown: modal yang memutuskan
+  const d = await loadDeliverability({ receivingId: handover.receiving_id })
+  if (!d.ok) {
+    return { ok: false, reason: 'Tidak bisa memeriksa rincian penerimaan — konfirmasi ditahan supaya tidak menandai dokumen yang salah. Coba lagi.' }
+  }
+  const info = d.deliverability
+  if (!info || !info.hasTukang) {
+    return {
+      ok: false,
+      reason:
+        'Penerimaan ini tidak punya barang yang ditujukan ke tukang (semua barang tercatat ke gudang/workshop), '
+        + 'jadi tidak ada yang bisa dikonfirmasi sebagai serah terima. Catat dulu tujuan barang di Terima Barang bila memang ada yang ke tukang.'
+    }
+  }
+  if (info.allDelivered) {
+    return {
+      ok: false,
+      reason: 'Seluruh alokasi ke tukang pada penerimaan ini sudah diserahkan lewat dokumen lain — tidak ada sisa untuk dikonfirmasi di dokumen ini.'
+    }
+  }
+  return { ok: true, info }
+}
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -285,8 +337,11 @@ export function rowActions(r, ctx) {
               // boleh membuka modal konfirmasi (dua dokumen aktif → penyerahan
               // ganda). Pemeriksaan dibaca dari DB, BUKAN `ctx.rows` — halaman
               // bisa memegang daftar basi dari admin lain. Gagal baca = tolak.
-              const dup = await guardConfirmFresh({ handover: r })
-              if (!dup.ok) { ctx?.say?.(dup.reason); return }
+              //
+              // REVIEW run 251 / D1: `confirmEntryGuard` juga memastikan
+              // penerimaan ini benar-benar punya barang untuk tukang.
+              const entry = await confirmEntryGuard(r)
+              if (!entry.ok) { ctx?.say?.(entry.reason); return }
               openPhysicalModal({ kind: 'confirm', handover: r })
             }}
             style={{
@@ -512,8 +567,9 @@ export function mobileCard(r, ctx) {
             aria-disabled={dupBlocked}
             onClick={async () => {
               // REVIEW run 242 (BUG-V1): keputusan dari DB, bukan `ctx.rows`.
-              const dup = await guardConfirmFresh({ handover: r })
-              if (!dup.ok) { ctx?.say?.(dup.reason); return }
+              // REVIEW run 251 / D1: termasuk memastikan ada barang untuk tukang.
+              const entry = await confirmEntryGuard(r)
+              if (!entry.ok) { ctx?.say?.(entry.reason); return }
               openPhysicalModal({ kind: 'confirm', handover: r })
             }}
             style={{

@@ -408,7 +408,14 @@ console.log('\nC5. READY tanpa baris alokasi → tetap BISA dikonfirmasi (defect
   check('C5h pesan jujur: rincian TIDAK ditulis', says1.some(m => /Rincian per barang tidak ditulis/i.test(m)), JSON.stringify(says1))
 }
 
-// C5i-C5j: handover dengan receiving, tapi tak ada event bertujuan_tukang.
+// C5i-C5k: handover dengan receiving, tapi TIDAK ADA barang bertujuan tukang.
+// REVIEW run 251 / D1: dulu di sini tombol "tanpa rincian" DIRENDER dan
+// dinamai "bukan jalan buntu" — padahal kontrak v1 MENOLAK penulisan
+// `diserahkan_at` tanpa rincian (`physical_rpc_required`), sehingga tombol itu
+// PASTI gagal dan dokumen menetap terbuka selamanya. Assertion lama menguji
+// KEBERADAAN tombol, bukan HASILNYA — persis kelas defect yang dilaporkan.
+// Sekarang: tombol itu TIDAK ditawarkan untuk dokumen ber-penerimaan, dan
+// sebabnya dijelaskan.
 {
   const ConfirmForm = (await importDist('modules/handovers/confirmForm.mjs')).default
   mock.__reset({
@@ -423,8 +430,13 @@ console.log('\nC5. READY tanpa baris alokasi → tetap BISA dikonfirmasi (defect
     })
   )
   await tick(); await tick(); await tick()
-  check('C5i panel "tidak ada alokasi tukang" tampil', /Tidak ada barang berstatus/i.test(tid(doc, 'handover-confirm-empty')?.textContent || ''))
-  check('C5j jalur keluar header-only tersedia (bukan jalan buntu)', !!tid(doc, 'handover-confirm-headeronly'))
+  check('C5i panel "tidak ada barang ke tukang" tampil', /Tidak ada barang yang/i.test(tid(doc, 'handover-confirm-empty')?.textContent || ''),
+    tid(doc, 'handover-confirm-empty')?.textContent)
+  check('C5j jalur tulis header TIDAK ditawarkan (pasti ditolak DB v1)', !tid(doc, 'handover-confirm-headeronly'))
+  check('C5k sebabnya menyebut database menolak & jalan keluarnya (hapus dokumen / catat tujuan)',
+    /menolak/i.test(tid(doc, 'handover-confirm-empty')?.textContent || '')
+    && /Terima Barang/i.test(tid(doc, 'handover-confirm-empty')?.textContent || ''),
+    tid(doc, 'handover-confirm-empty')?.textContent)
 }
 
 // ============================================================

@@ -29,6 +29,7 @@ import PurchasePage from '../modules/receivings/page'
 import { deleteDecision } from '../modules/handovers/deleteGuard'
 import { confirmUniqueHandover } from '../modules/handovers/duplicateGuardDb'
 import { createActiveHandover } from '../modules/handovers/createHandover'
+import { dbErrorText } from '../modules/handovers/dbErrorText'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
@@ -436,42 +437,50 @@ export default function App() {
 
     setActionBusy(true)
     try {
-      let handledByRpc = false
-      try {
-        const { data, error } = await supabase.rpc('send_receiving_to_tukang', { p_receiving_id: receiving.id, p_label: label })
-        if (!error && data && data.ok) {
-          handledByRpc = true
-          // Perbarui received_by pada handover bila sebelumnya terisi default
-          await supabase.from('handovers').update({ received_by: receivedBy }).eq('receiving_id', receiving.id).eq('received_by', 'Belum ditentukan')
+      // REVIEW run 251 / D3: panggilan RPC legacy `send_receiving_to_tukang`
+      // DIHAPUS. Fungsi itu tidak ada di paket operasional v1 (0 hasil grep di
+      // seluruh paket; X18 hanya menemukan `handover_confirm` dan
+      // `handover_create_atomic`), jadi panggilan pertama SELALU gagal:
+      // satu round-trip jaringan sia-sia setiap kali, dan — lebih berbahaya —
+      // bila kelak RPC dengan nama itu dibuat dengan kontrak berbeda, jalur ini
+      // akan MENDAHULUINYA dan melewati penjaga v1 (menulis `received_by` dan
+      // `receivings.alokasi` langsung, bukan lewat RPC).
+      //
+      // Satu-satunya pintu yang tersisa adalah `createActiveHandover()` di
+      // bawah — penjaga yang SAMA dengan form Tambah dan antrean pembelian
+      // (RPC `handover_create_atomic` saat skema v1 aktif, slot deterministik
+      // saat LEGACY).
+      const now = new Date().toISOString()
+      // REVIEW run 244 (BUG-W3): jalur ini dulu INSERT LANGSUNG tanpa penjaga —
+      // pintu ketiga yang membuat dokumen kedua untuk satu penerimaan. Sekarang
+      // lewat penjaga yang SAMA dengan form Tambah.
+      const queued = await createActiveHandover({
+        data: {
+          receiving_id: receiving.id,
+          project_id: receiving.project_id || null,
+          received_by: receivedBy,
+          handover_date: now.slice(0, 10),
+          status: 'DRAFT',
+          note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
         }
-      } catch (rpcErr) {
-        // Fallback ke operasi client-side jika RPC tidak tersedia
+      })
+      // Dokumen aktif sudah ada (dibuat pintu lain) → antrean tetap ada,
+      // tidak ada yang perlu dibuat. Bukan kegagalan.
+      if (!queued.ok && !queued.existingId && !queued.raced) {
+        setNotice(`Gagal membuat Serah Terima: ${queued.reason}`)
+        return
       }
 
-      if (!handledByRpc) {
-        const now = new Date().toISOString()
-        // REVIEW run 244 (BUG-W3): jalur fallback ini dulu INSERT LANGSUNG
-        // tanpa penjaga — pintu ketiga yang membuat dokumen kedua untuk satu
-        // penerimaan. Sekarang lewat penjaga yang SAMA dengan form Tambah.
-        const queued = await createActiveHandover({
-          data: {
-            receiving_id: receiving.id,
-            project_id: receiving.project_id || null,
-            received_by: receivedBy,
-            handover_date: now.slice(0, 10),
-            status: 'DRAFT',
-            note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
-          }
-        })
-        // Dokumen aktif sudah ada (dibuat pintu lain) → antrean tetap ada,
-        // tidak ada yang perlu dibuat. Bukan kegagalan.
-        if (!queued.ok && !queued.existingId && !queued.raced) {
-          setNotice(`Gagal membuat Serah Terima: ${queued.reason}`)
-          return
-        }
-
-        const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
-        if (error) { setNotice(`Serah Terima dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
+      // `receivings.alokasi` adalah kolom HEADER legacy. Saat skema v1 aktif,
+      // trigger `ops_v1_core_guard` menolaknya untuk peran API (tulisan fisik
+      // harus lewat RPC), jadi kegagalan di sini TIDAK boleh menggagalkan
+      // pembuatan dokumen yang sudah sah — cukup dilaporkan apa adanya.
+      const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
+      if (error) {
+        const t = dbErrorText(error, { fallback: 'Tujuan barang tidak bisa dicatat di header nota.' })
+        setNotice(`Serah Terima sudah dibuat dan masuk antrean. Catatan tujuan di header nota tidak tersimpan: ${t.text}`)
+        loadAll()
+        return
       }
 
       setNotice(`Barang "${label}" dikirim ke tukang (${receivedBy}) dan masuk antrean Serah Terima — tandai "Sudah Diserahkan" setelah serah terima fisik.`)

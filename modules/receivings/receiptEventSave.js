@@ -13,7 +13,7 @@
 // memakai ON CONFLICT DO NOTHING → submit ganda / retry / dua user aman.
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
-import { validateEventDrafts } from './receiptEventLogic'
+import { validateEventDrafts, deliverabilityOf } from './receiptEventLogic'
 
 // Bandingkan payload dengan event yang SUDAH tersimpan (berdasarkan
 // client_event_id). Dipakai untuk membedakan REPLAY (isian identik → aman,
@@ -258,6 +258,32 @@ export async function loadDeliveredByEvent({ eventIds = [] } = {}) {
   } catch (err) {
     return { ok: false, error: err.message, delivered: {} }
   }
+}
+
+// ------------------------------------------------------------
+// Keterangan SERAH-TERIMA satu penerimaan (defect run 251 / D1)
+// ------------------------------------------------------------
+// Menggabungkan dua bacaan yang sudah ada (event penerimaan + qty yang sudah
+// diserahkan LINTAS dokumen) menjadi satu jawaban: apakah penerimaan ini
+// punya barang yang PERNAH ditujukan ke tukang, dan berapa sisa yang masih
+// bisa diserahkan.
+//
+// Dipakai antrean & modal konfirmasi supaya tombol "Tandai Diserahkan" tidak
+// ditawarkan untuk penerimaan yang seluruh barangnya ke gudang/workshop —
+// kontrak v1 MENOLAK konfirmasi tanpa baris (`empty_lines`) dan menolak
+// penulisan header langsung (`physical_rpc_required`), jadi tombol itu pasti
+// gagal. Gagal baca = `ok:false` (fail closed: UI tidak menebak).
+export async function loadDeliverability({ receivingId } = {}) {
+  if (!receivingId) return { ok: false, error: 'Penerimaan tidak dikenal.', deliverability: null }
+  const ev = await loadReceivingEvents({ receivingId })
+  if (!ev.ok) return { ok: false, error: ev.error, deliverability: null }
+  const ids = (ev.events || []).map(e => e.id).filter(Boolean)
+  // `loadDeliveredByEvent` butuh id event, jadi memang berurutan — tetapi
+  // hasilnya dipakai bersama oleh antrean & modal. Satu permintaan per layar,
+  // bukan per render.
+  const del = await loadDeliveredByEvent({ eventIds: ids })
+  if (!del.ok) return { ok: false, error: del.error, deliverability: null }
+  return { ok: true, error: null, deliverability: deliverabilityOf(ev.events || [], del.delivered || {}) }
 }
 
 // Total qty yang SUDAH diretur per event penerimaan (dari `return_lines`).

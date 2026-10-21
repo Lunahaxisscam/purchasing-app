@@ -159,6 +159,12 @@ export function actionPlan(handover, summary, alokasi, receiving) {
 }
 
 // ------------------------------------------------------------
+// 3b) Keterangan serah-terima dari ledger — lihat
+//     `deliverabilityOf` di modules/receivings/receiptEventLogic.js
+//     (fungsi murni, dipakai antrean & modal konfirmasi).
+// ------------------------------------------------------------
+
+// ------------------------------------------------------------
 // 4) LABEL RINGKAS untuk satu baris antrean
 // ------------------------------------------------------------
 export function distributionLabel(summary) {
