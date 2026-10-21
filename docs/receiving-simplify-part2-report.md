@@ -382,13 +382,70 @@ jadi tidak ada frame yang mengklaim "tidak ada baris" sebelum pemuatan selesai.
 
 ---
 
+### 5.5 Temuan review run 231 — keadaan "ledger inti siap, layer retur BELUM" (T1/T2/T3)
+
+Review independen run 231 memblok dengan **satu akar**: keadaan
+`ready = true` tetapi `returnReady = false` **tidak punya nama**. Ia nyata, bukan
+karangan — paket schema owner terdiri dari file migrasi terpisah, jadi
+`01,02,04` bisa jalan tanpa `03_return_layer`; atau `03` sudah jalan tetapi
+`SELECT` pada `return_lines` ditolak GRANT/RLS `42501` (kelas blocker yang sama
+dengan `GRANT SELECT v_receipt_progress`).
+
+Dulu `capabilityState()` menjawab `'ready'` dan `capabilityMessage()` **kosong**,
+sehingga tiga layar berbohong sekaligus:
+
+| # | Defect | Akar | Perbaikan |
+|---|---|---|---|
+| **T1** | Panel Bermasalah menawarkan "↩ Buka Form Retur (per barang)"; diklik → ReturnForm berkata **"Tidak ada barang rusak yang tercatat"** + "menunggu migrasi skema" untuk penerimaan yang **punya rusak 2** | `problemPlan(..., capState)` memakai `capState === 'ready'`, sementara ReturnForm memakai `returnReady` | Keadaan `ready_no_return`: `problemPlan` **menolak** dengan sebab benar (tanpa jalur status header juga), dan menawarkan jalan **READ-ONLY** ("👁 Lihat barang rusak yang tercatat") yang menampilkan baris rusak **tanpa checkbox, tanpa tombol simpan, nol tulisan** |
+| **T2** | `receiptForm` mengklaim "kedatangan, kondisi rusak, tujuan, dan **retur tersimpan permanen**" | Satu boolean `capability.ready` dipakai untuk dua dimensi yang tabelnya terpisah | Klaim "retur tersimpan permanen" **hanya** bila `returnLayerReady()`; di `ready_no_return` dikatakan retur **belum bisa ditindaklanjuti** (keputusan tetap tercatat) + peringatan per baris |
+| **T3** | Probe `return_lines` gagal (`42501`) **senyap** — `probeFailed:false, ready:true, returnReady:false`, pesan kosong | `const probeFailed = !coreReady && indeterminate` — kegagalan objek apa pun tidak terlihat begitu ledger inti siap | `probeFailed = indeterminate` (objek **apa pun**), tambah `returnProbeFailed` supaya sebabnya dibedakan: **"tabel belum ada"** vs **"ADA tetapi tidak bisa dibaca (GRANT/RLS)"** |
+
+**Perbaikan struktural (bukan tambal per layar).** `receiptCapability` sekarang
+mengekspor dua predikat yang dipakai SEMUA layar, sehingga tidak ada lagi satu
+boolean untuk dua dimensi:
+
+```js
+coreLedgerReady(cap)  // penerimaan + serah terima per barang boleh ditulis
+returnLayerReady(cap) // retur boleh ditawarkan (riwayat retur terbaca)
+```
+
+`capabilityState()` mengembalikan **enam** keadaan:
+`unknown · error · partial · legacy · ready_no_return · ready`.
+
+**Yang TIDAK boleh ikut mati (dan tidak mati).** Di `ready_no_return` hanya retur
+yang ditutup. Penerimaan (`receiptForm`), konfirmasi serah terima per barang
+(`confirmForm`, termasuk prefill alokasi tukang), dan aksi borongan tetap
+berperilaku benar — aksi borongan justru tetap **nonaktif** karena tujuan per
+barang sudah tercatat.
+
+**Bukti RED → GREEN.** Probe baru
+`scripts/receipt-physical-test/probe_run233_return_layer_state.mjs` (54 cek),
+dijalankan pada **dua** pohon:
+
+| Pohon | Hasil |
+|---|---|
+| `513ec75` (kandidat sebelum fix, worktree terpisah `/tmp/wt-red-231b`) | **25 PASS / 29 FAIL** |
+| sesudah fix (`d6851dd`) | **54 PASS / 0 FAIL** |
+
+Probe ini juga menguji permukaan yang **tidak** diuji reviewer: apakah jalur
+read-only benar-benar **bisa dicapai** dari antrean (4a/4b), apakah di keadaan
+itu penulisan benar-benar **NOL** (4k/4l: nol RPC, nol insert/update), dan apakah
+`ready` sejati **tidak** berubah (7a–7c).
+
+**Probe milik reviewer run 231 dijalankan apa adanya** (tidak diubah satu baris):
+`probe_run231_return_layer` 8P/0F, `probe_run231_queue` 3P/0F,
+`probe_run231_grant` 5P/0F, `probe_run231_claim` 3P/0F — semuanya dari
+1P/7F · 1P/3F · 1P/4F · 1P/2F pada `513ec75`.
+
+---
+
 ## 6. Runtime
 
 | Kegiatan | Perkiraan |
 |---|---|
 | `next build` | ~60–90 s |
 | `receipt-ledger-db-test` (initdb + 5 migrasi + 47 + 14 + 18 + 15 + 20 + 11 cek) | ~70 s |
-| `receipt-physical-test` (167 assertion + 16 probe adversarial) | ~25 s |
+| `receipt-physical-test` (167 assertion + 16 + 15 + 41 + 100 + 54 cek probe) | ~40 s |
 | handover-flow + compact + purchase-flow | ~90 s total |
 | probe live read-only | < 5 s |
 

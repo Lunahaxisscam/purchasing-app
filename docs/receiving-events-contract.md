@@ -106,6 +106,35 @@ Ditentukan **hanya** oleh `getReceiptCapability()` (probe SELECT limit 1, TTL 60
 | `returnReady` | `ready` ∧ `return_lines` terbaca | tombol/modal Retur aktif |
 | keduanya false | — | submit diblok dengan pesan gap, **nol tulisan**; konfirmasi jatuh ke header (`confirm.js`); banner menyebut alasan |
 
+### 4.1 Enam keadaan, bukan dua (run 231)
+
+`ready` dan `returnReady` **tidak boleh** dipakai langsung oleh layar. Keduanya
+mengukur objek yang **terpisah** (layer retur adalah file migrasi sendiri), jadi
+satu boolean tidak cukup. `capabilityState(cap)` mengembalikan:
+
+| State | Syarat | Yang boleh terjadi |
+|---|---|---|
+| `unknown` | probe belum selesai (`cap === null`) | **NOL tulisan**; tombol tulis nonaktif |
+| `error` | probe gagal non-konklusif (RLS/jaringan `42501` dst.) | **NOL tulisan**; sebabnya ditampilkan |
+| `partial` | sebagian objek ledger terbaca, `ready=false` | **NOL tulisan**; jangan sebut "belum aktif" |
+| `legacy` | tidak satu pun objek ledger terbaca | jalur lama (header) — satu-satunya yang tersisa |
+| `ready_no_return` | `ready=true` **∧** `returnReady=false` | penerimaan + serah terima per barang **BOLEH**; **retur DITUTUP** dengan sebab benar |
+| `ready` | `ready=true` ∧ `returnReady=true` | semua dimensi |
+
+Dua predikat dipakai semua layar:
+
+```js
+coreLedgerReady(cap)  // true di 'ready' dan 'ready_no_return'
+returnLayerReady(cap) // true HANYA di 'ready'
+```
+
+**`ready_no_return` itu nyata**, dua jalan masuk: (a) `01,02,04` dijalankan
+sebelum `03_return_layer.sql`; (b) `03` sudah jalan tetapi `SELECT return_lines`
+ditolak GRANT/RLS `42501` — kelas blocker yang sama dengan
+`GRANT SELECT v_receipt_progress`. Di keadaan itu `cap.returnProbeFailed`
+membedakan "tabel belum ada" dari "ADA tetapi tidak bisa dibaca", supaya admin
+tidak disuruh menunggu migrasi untuk masalah hak akses.
+
 **Status live per 21 Okt 2026 (probe read-only, anon key):**
 
 ```
