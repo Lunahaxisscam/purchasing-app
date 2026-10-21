@@ -173,8 +173,9 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
         ? 'Dokumen ini terhubung ke penerimaan, jadi penutupan tanpa rincian DITOLAK database. '
           + 'Catat dulu barang yang benar-benar diserahkan lewat konfirmasi per barang.'
         : 'Dokumen ini tidak terhubung ke penerimaan, jadi tidak ada rincian yang bisa dicatat — '
-          + 'dan database MENOLAK menutup dokumen tanpa rincian. Hubungkan dokumen ini ke penerimaan '
-          + 'atau hapus dokumen ini (belum punya bukti).')
+          + 'dan database MENOLAK menutup dokumen tanpa rincian. Dokumen lama tanpa penerimaan TIDAK bisa '
+          + 'diperbaiki dari aplikasi (kolom sumber dokumen dikunci database), jadi hapus dokumen ini '
+          + '(belum punya bukti) lalu catat serah terima dari penerimaan yang benar.')
       return
     }
     const nama = String(penerimaHeader || '').trim()
@@ -323,8 +324,9 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
                 Dokumen ini <b>tidak terhubung ke penerimaan</b>, jadi tidak ada satu baris pun barang yang
                 bisa dicatat sebagai diserahkan. Sejak pencatatan per barang aktif, <b>database menolak
                 menutup dokumen tanpa rincian</b> — termasuk dokumen lama seperti ini.
-                {' '}Hubungkan dokumen ini ke penerimaan (perbaikan data oleh admin) bila barangnya memang ada,
-                atau <b>hapus dokumen ini</b> (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.
+                {' '}Dokumen lama tanpa penerimaan <b>tidak bisa diperbaiki dari aplikasi</b> (kolom sumber
+                dokumen dikunci database, bukan sekadar tombolnya belum ada), jadi <b>hapus dokumen ini</b>
+                (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.
               </>
             ) : deliverability && !deliverability.hasTukang ? (
               // REVIEW run 251 / D1: tidak ada satu pun barang yang PERNAH

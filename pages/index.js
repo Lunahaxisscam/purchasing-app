@@ -167,11 +167,29 @@ export default function App() {
       ['project_plans', 'project_plans']
     ]
     const result = { ...rows }
+    // REVIEW run 255 / D7: `const { data } = await …; items = data || []` menelan
+    // SETIAP kegagalan query (RLS/jaringan/timeout) menjadi array kosong tanpa
+    // satu kata pun di layar. Akibatnya layar bisa menyimpulkan hal yang salah
+    // tentang data yang sebenarnya ada — mis. dokumen Serah Terima yang SAH
+    // (punya `receiving_id`) terlihat seperti "tidak terhubung ke penerimaan"
+    // karena `receivings` gagal dimuat. Kegagalan sekarang DIKUMPULKAN dan
+    // dilaporkan sebagai notice; data yang berhasil tetap dipakai (tidak
+    // menggagalkan seluruh halaman).
+    //
+    // Pengecualian yang disengaja: `tukang_projects` & `project_plans` adalah
+    // sumber opsional (modul Labor/Stok menampilkan panel "belum tersedia" bila
+    // tabel/RLS tidak ada) — kegagalannya BUKAN kegagalan halaman.
+    const OPTIONAL_SOURCES = new Set(['tukang_projects', 'project_plans'])
+    const loadErrors = []
     // Approval OFF: state approval dikosongkan supaya tidak ada baris
     // approval_steps lama yang "hidup" di memori halaman (data DB tidak
     // disentuh; hanya cache tampilan).
     if (!approvalOn) result.approvals = []
-    const { data: allProj } = await supabase.from('projects').select('*')
+    // D7: dua query di bawah juga tidak boleh menelan error — `projects` dipakai
+    // untuk label proyek dan `purchase_requests` untuk relasi nota→PR; kegagalan
+    // diam-diam membuat layar menampilkan "—" seolah datanya memang kosong.
+    const { data: allProj, error: projErr } = await supabase.from('projects').select('*')
+    if (projErr) loadErrors.push({ table: 'projects', message: String(projErr.message || projErr.code || 'gagal dimuat') })
     const projList = (allProj || []).sort((a, b) => {
       const numA = parseInt(a.kode, 10)
       const numB = parseInt(b.kode, 10)
@@ -179,7 +197,8 @@ export default function App() {
       return (a.kode || '').localeCompare(b.kode || '')
     })
 
-    const { data: allPRs } = await supabase.from('purchase_requests').select('*').order('pr_number', { ascending: true })
+    const { data: allPRs, error: prErr } = await supabase.from('purchase_requests').select('*').order('pr_number', { ascending: true })
+    if (prErr) loadErrors.push({ table: 'purchase_requests', message: String(prErr.message || prErr.code || 'gagal dimuat') })
     const prList = allPRs || []
 
     await Promise.all(specs.map(async ([name, table]) => {
@@ -190,10 +209,18 @@ export default function App() {
         const spec = orderSpecFor(table)
         const base = supabase.from(table).select('*')
         // sort_order bisa NULL utk data lama (sebelum backfill) — taruh di akhir.
-        const { data } = spec
+        const { data, error } = spec
           ? await base.order(spec.column, { ascending: spec.ascending, nullsFirst: false })
           : await base
         items = data || []
+        // D7: jangan telan error. `data` null/undefined TANPA error juga
+        // dianggap tidak lengkap (bentuk respons tak terduga) supaya layar
+        // tidak pernah mengklaim "tidak ada data" atas dasar kegagalan.
+        if (error) {
+          loadErrors.push({ table, message: String(error.message || error.code || 'gagal dimuat') })
+        } else if (!Array.isArray(data)) {
+          loadErrors.push({ table, message: 'respons tidak berisi daftar baris' })
+        }
       }
 
       if (name === 'projects') {
@@ -220,6 +247,18 @@ export default function App() {
 
       result[name] = items
     }))
+
+    // D7: laporkan sumber yang GAGAL dimuat — jangan biarkan layar menyimpulkan
+    // "tidak ada data" dari kegagalan. Hanya sumber yang WAJIB (bukan
+    // `tukang_projects`/`project_plans` yang memang opsional dan punya panel
+    // "belum tersedia" sendiri) supaya notice tidak berisik tiap muat halaman.
+    const fatal = loadErrors.filter(e => !OPTIONAL_SOURCES.has(e.table))
+    if (fatal.length) {
+      const msg = `Gagal memuat ${fatal.map(e => e.table).join(', ')} — data sumber itu TIDAK lengkap di layar ini, jadi jangan simpulkan "tidak ada data" dari tampilan. Coba ↻ Perbarui.`
+      // Fungsional: `notice` dari closure bisa basi, dan pesan yang SAMA tidak
+      // boleh menumpuk tiap kali ↻ Perbarui ditekan.
+      setNotice(prev => (!prev ? msg : (prev.includes(msg) ? prev : `${prev} · ${msg}`)))
+    }
 
     // ---------------------------------------------------------------
     // RINCIAN BARANG SERAH TERIMA (t_7bc6246b, defect run 206)

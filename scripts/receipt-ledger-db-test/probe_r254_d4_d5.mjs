@@ -126,8 +126,9 @@ head('D4-B. GERBANG TULIS (fungsi produksi `finishGate`)')
 const gOrphan = Q.finishGate(true, null, { hasReceiving: false })
 ck('B1 gerbang MENOLAK dokumen tanpa penerimaan saat ledger siap (dulu: blocked:\'\')',
   gOrphan.blocked === Q.ORPHAN_NO_RECEIVING_REASON && gOrphan.blocked.length > 80, gOrphan.blocked.slice(0, 120))
-ck('B2 alasan menyebut dua jalan keluar jujur (hubungkan / hapus)',
-  /hubungkan/i.test(gOrphan.blocked) && /hapus/i.test(gOrphan.blocked), gOrphan.blocked.slice(0, 200))
+ck('B2 alasan menyebut jalan keluar yang BENAR-BENAR bisa dieksekusi (hapus) dan TIDAK menjanjikan "hubungkan ke penerimaan"',
+  /hapus/i.test(gOrphan.blocked) && !/hubungkan/i.test(gOrphan.blocked)
+  && /tidak bisa diperbaiki dari aplikasi/i.test(gOrphan.blocked), gOrphan.blocked.slice(0, 260))
 ck('B3 alasan TIDAK menyuruh "catat lewat form yang tersedia" (admin sudah di form itu)',
   !/catat lewat form yang tersedia/i.test(gOrphan.blocked))
 const gLegacy = Q.finishGate(false, null, { hasReceiving: false })
@@ -191,8 +192,10 @@ ck('D1 tombol "tanpa rincian" TIDAK dirender untuk dokumen tanpa penerimaan', !t
 ck('D2 input nama penerima header juga TIDAK dirender', !tid(doc, 'hc-header-penerima'))
 const panel = tid(doc, 'handover-confirm-empty')
 ck('D3 panel menjelaskan dokumen tidak terhubung ke penerimaan', /tidak terhubung ke penerimaan/i.test(txt(panel)), txt(panel).slice(0, 200))
-ck('D4 panel menyebut database menolak & dua jalan keluar', /menolak/i.test(txt(panel)) && /hapus/i.test(txt(panel)) && /hubungkan/i.test(txt(panel)),
-  txt(panel).slice(0, 300))
+ck('D4 panel menyebut database menolak & jalan keluar yang sah (hapus), tanpa janji "hubungkan"',
+  /menolak/i.test(txt(panel)) && /hapus/i.test(txt(panel)) && !/hubungkan/i.test(txt(panel))
+  && /tidak bisa diperbaiki dari aplikasi/i.test(txt(panel)),
+  txt(panel).slice(0, 360))
 ck('D5 tombol submit utama NONAKTIF (tidak ada baris sah)', tid(doc, 'handover-confirm-submit')?.disabled === true)
 click(tid(doc, 'handover-confirm-submit'))
 await settle(20)

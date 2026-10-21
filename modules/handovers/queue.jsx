@@ -179,16 +179,28 @@ export const DELIVER_CHECKING_REASON =
 // Perbaikan run 252 mengecualikannya sebagai "masih sah memakai jalur header",
 // dan premis itu SALAH di bawah kontrak v1: trigger `ops_v1_core_guard`
 // menolak SETIAP penulisan `diserahkan_at` oleh `authenticated` — tanpa
-// melihat ada/tidaknya `receiving_id` (`physical_rpc_required`, 42501) —
-// dan `handover_confirm` menjawab `handover_not_found` karena
-// `receiving_id` null. Jadi TIDAK ADA jalur penutup yang tersisa untuk
-// dokumen seperti ini begitu skema per barang aktif. Menawarkan tombolnya
-// berarti "tombol aktif lalu gagal" — kelas defect yang D1 dimaksudkan tutup.
+// melihat ada/tidaknya `receiving_id` (`physical_rpc_required`, 42501) — dan
+// `handover_confirm` menjawab `handover_not_found` karena `receiving_id` null.
+// Jadi TIDAK ADA jalur penutup yang tersisa untuk dokumen seperti ini begitu
+// skema per barang aktif. Menawarkan tombolnya berarti "tombol aktif lalu
+// gagal" — kelas defect yang D1 dimaksudkan tutup.
+//
+// REVIEW run 255 / D6: teks pertama versi ini menawarkan "hubungkan dokumen
+// ini ke penerimaan (perbaikan data oleh admin)". Itu JUSTRU mustahil:
+// `ops_v1_core_guard` menolak setiap UPDATE `receiving_id`
+// (`handover_source_immutable`) — bukan hanya untuk `authenticated`, juga
+// untuk `service_role` dan SUPERUSER. Satu-satunya cara adalah mematikan
+// trigger (`session_replication_role=replica`) = operasi DBA, bukan
+// "perbaikan data oleh admin". Jadi teks di bawah TIDAK menjanjikan tindakan
+// yang tidak punya bentuk sah; ia menyebut keadaan apa adanya + satu-satunya
+// jalan keluar yang benar-benar bisa dieksekusi dari aplikasi (hapus dokumen
+// tanpa bukti, lalu catat dari penerimaan yang benar).
 export const ORPHAN_NO_RECEIVING_REASON =
   'Dokumen lama ini TIDAK terhubung ke penerimaan, jadi tidak punya rincian barang yang bisa dicatat. '
   + 'Sejak pencatatan per barang aktif, database MENOLAK menutup dokumen tanpa rincian — baik lewat tombol ini maupun lewat konfirmasi tanpa rincian. '
-  + 'Hubungkan dokumen ini ke penerimaan (perbaikan data oleh admin) bila barangnya memang ada, '
-  + 'atau hapus dokumen ini (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.'
+  + 'Dokumen lama tanpa penerimaan TIDAK bisa diperbaiki dari aplikasi: kolom sumber dokumen dikunci database (tidak bisa diubah admin maupun lewat SQL biasa). '
+  + 'Hapus dokumen ini (belum punya bukti) lalu catat serah terima dari penerimaan yang benar; '
+  + 'bila barangnya memang harus tercatat pada dokumen lama ini, hubungi admin database untuk koreksi langsung.'
 
 // ------------------------------------------------------------
 // Gerbang TULIS untuk tombol penutup (dipakai tombol DAN jalur `run()`)
@@ -237,11 +249,19 @@ export function finishGate(ledgerReady, deliver, { hasReceiving = true } = {}) {
 // Kompatibilitas: `true` = ready (pemanggil lama), `'legacy'` (default) =
 // perilaku lama. `false`/`null`/`undefined` sengaja TIDAK dianggap legacy —
 // itu bunyi "belum diketahui" dan harus berhenti, bukan menulis.
-export function problemPlan(receiving, itemCount = 0, hasHandler = true, ledgerState = 'legacy', detail = null) {
+export function problemPlan(receiving, itemCount = 0, hasHandler = true, ledgerState = 'legacy', detail = null, opts = {}) {
   const st = ledgerState === true ? 'ready'
     : (typeof ledgerState === 'string' && ledgerState ? ledgerState : 'unknown')
   if (!receiving) {
-    return { ok: false, reason: `Dokumen ini belum terhubung ke nota pembelian, jadi tidak ada barang yang bisa diretur. ${RECON_NOTE}` }
+    // REVIEW run 255 / D7: `receiving` di sini = baris nota hasil join memori
+    // halaman. Dokumen yang PUNYA `receiving_id` tetapi barisnya belum termuat
+    // BUKAN dokumen tanpa nota — jangan salah diagnosis (kelas defect D7).
+    return {
+      ok: false,
+      reason: opts && opts.hasReceiving
+        ? `Baris nota pembelian dokumen ini belum termuat di layar, jadi retur per barang belum bisa dibuka. ${RECON_NOTE}`
+        : `Dokumen ini belum terhubung ke nota pembelian, jadi tidak ada barang yang bisa diretur. ${RECON_NOTE}`
+    }
   }
   if (isProblemNoted(receiving)) {
     return { ok: false, reason: 'Nota ini sudah ditandai bermasalah (Retur/Refund) — tidak bisa ditandai dua kali.' }
@@ -386,6 +406,23 @@ export function staleWriteMessage(state, cap) {
 function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   const { refresh, H, say } = ctx
   const { handover, receiving } = entry
+  // REVIEW run 255 / D7: sumber kebenaran "dokumen ini punya penerimaan" adalah
+  // `handover.receiving_id` — kolom yang SAMA yang dibaca `view.jsx`
+  // (`confirmEntryGuard`) dan RPC `handover_confirm`. Sebelumnya dipakai
+  // `receiving?.id`, yaitu baris hasil join dengan `ctx.allReceivings` (memori
+  // halaman). `loadAll` di pages/index.js dulu menulis `items = data || []`
+  // tanpa melaporkan error, jadi satu kegagalan query `receivings`
+  // (RLS/jaringan/timeout) membuat dokumen SAH ber-`receiving_id` dilabeli
+  // "TIDAK terhubung ke penerimaan" + disarankan DIHAPUS — diagnosis palsu
+  // pada dokumen yang justru siap dikonfirmasi.
+  //
+  // Sekarang: keberadaan penerimaan dari DOKUMEN; baris penerimaan (kalau
+  // termuat di memori) hanya dipakai untuk tampilan nota/tujuan. Bila barisnya
+  // tidak termuat, `loadDeliverability` tetap membaca DB lewat `receiving_id`
+  // yang sama — persis seperti modal konfirmasi yang sudah terbukti bisa
+  // memuat baris nyata untuk dokumen itu.
+  const hasReceiving = !!(handover && handover.receiving_id)
+  const receivingId = hasReceiving ? handover.receiving_id : null
   const [busy, setBusy] = useState(false)
   const [showTerima, setShowTerima] = useState(false)
   const [receivedBy, setReceivedBy] = useState('')
@@ -416,7 +453,7 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   // LEGACY = satu-satunya keadaan yang boleh memakai jalur tulis lama (status
   // header / aksi borongan). `unknown`, `error`, dan `partial` TIDAK boleh.
   const legacyWritable = capState === 'legacy'
-  const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function', capState, cap)
+  const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function', capState, cap, { hasReceiving })
 
   // ============================================================
   // DEFECT run 239 — DUA DOKUMEN AKTIF untuk SATU PENERIMAAN
@@ -449,20 +486,20 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   // "tidak ada barang untuk tukang" tetap dinilai begitu sampai halaman
   // di-reload penuh — padahal `ctx.refresh()` sudah mengambil data baru.
   const itemsSig = (items || []).map(i => `${i.id}:${i.qty_arrived || 0}:${i.qty_handed_over || 0}`).join('|')
-  const deliverKey = ledgerReady && receiving?.id ? `${handover.id}:${receiving.id}` : ''
+  const deliverKey = ledgerReady && receivingId ? `${handover.id}:${receivingId}` : ''
   useEffect(() => {
     let cancelled = false
     if (!deliverKey) { setDeliver(null); return undefined }
     setDeliver(null)
-    loadDeliverability({ receivingId: receiving.id })
+    loadDeliverability({ receivingId })
       .then(res => { if (!cancelled) setDeliver(res || { ok: false, error: 'pemeriksaan tidak mengembalikan hasil' }) })
       .catch(err => { if (!cancelled) setDeliver({ ok: false, error: String(err?.message || err) }) })
     return () => { cancelled = true }
-  }, [deliverKey, receiving?.id, deliverSeq, itemsSig])
+  }, [deliverKey, receivingId, deliverSeq, itemsSig])
 
   // Ringkas keadaan untuk tombol penutup. `blocked` = alasan yang bisa dibaca
   // admin; `''` = boleh membuka konfirmasi per barang.
-  const deliverState = finishGate(ledgerReady, deliver, { hasReceiving: !!deliverKey })
+  const deliverState = finishGate(ledgerReady, deliver, { hasReceiving })
 
   // Lapisan tampilan DI ATAS actionPlan (logic.js tidak diubah):
   //  a) nota yang sudah bermasalah tidak ditawari distribusi — sejalan dengan
@@ -546,7 +583,19 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
       return { ...a, ok: false, reason: 'Nota sudah ditandai bermasalah (Retur/Refund) — barang tidak didistribusikan.' }
     }
     if (!receiving) {
-      return { ...a, ok: false, reason: 'Belum terhubung ke nota pembelian — tidak ada barang yang bisa didistribusikan. Rekonsiliasi manual: catat di Catatan handover lalu eskalasi ke admin.' }
+      // REVIEW run 255 / D7: bedakan "dokumen memang tanpa penerimaan" dari
+      // "baris penerimaan belum termuat di memori halaman". Untuk dokumen yang
+      // PUNYA `receiving_id`, aksi borongan tetap ditahan (tidak boleh menulis
+      // ke nota yang tidak terlihat), tetapi alasannya tidak boleh menyatakan
+      // dokumen tidak terhubung — itu diagnosis palsu yang sama kelasnya
+      // dengan defect D7 di tombol penutup.
+      return {
+        ...a,
+        ok: false,
+        reason: hasReceiving
+          ? 'Baris nota pembelian dokumen ini belum termuat di layar, jadi aksi borongan ditahan supaya tidak menulis ke nota yang salah. Muat ulang data (↻ Perbarui) lalu ulangi.'
+          : 'Belum terhubung ke nota pembelian — tidak ada barang yang bisa didistribusikan. Rekonsiliasi manual: catat di Catatan handover lalu eskalasi ke admin.'
+      }
     }
     return a
   })

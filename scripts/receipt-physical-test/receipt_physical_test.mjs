@@ -401,11 +401,12 @@ console.log('\nC5. READY tanpa baris alokasi → tetap BISA dikonfirmasi (defect
   const orphanPanel = tid(doc, 'handover-confirm-empty')
   check('C5b2 panel menjelaskan dokumen TIDAK terhubung ke penerimaan', /tidak terhubung ke penerimaan/i.test(orphanPanel?.textContent || ''),
     (orphanPanel?.textContent || '').slice(0, 200))
-  check('C5c panel menyebut database menolak & dua jalan keluar jujur (hubungkan / hapus)',
+  check('C5c panel menyebut database menolak & jalan keluar yang SAH (hapus), tanpa janji "hubungkan"',
     /menolak/i.test(orphanPanel?.textContent || '')
-    && /hubungkan/i.test(orphanPanel?.textContent || '')
-    && /hapus/i.test(orphanPanel?.textContent || ''),
-    (orphanPanel?.textContent || '').slice(0, 300))
+    && /hapus/i.test(orphanPanel?.textContent || '')
+    && !/hubungkan/i.test(orphanPanel?.textContent || '')
+    && /tidak bisa diperbaiki dari aplikasi/i.test(orphanPanel?.textContent || ''),
+    (orphanPanel?.textContent || '').slice(0, 360))
   // Tombol submit utama juga harus mati: tidak ada baris sah untuk dikirim.
   check('C5d tombol submit utama NONAKTIF (tidak ada baris sah)', tid(doc, 'handover-confirm-submit')?.disabled === true)
   // Kalaupun dipaksa (klik programatik), TIDAK boleh ada tulisan sama sekali.

@@ -74,13 +74,20 @@ async function confirmEntryGuard(handover) {
   // READY/unknown menolak dengan sebab yang bisa ditindaklanjuti.
   if (!handover?.receiving_id) {
     if (coreLedgerReady(cap)) {
+      // REVIEW run 255 / D6: teks ini DULU menawarkan "hubungkan dokumen ini ke
+      // penerimaan (perbaikan data oleh admin)" — tindakan yang DILARANG
+      // database: `ops_v1_core_guard` menolak setiap UPDATE `receiving_id`
+      // (`handover_source_immutable`), termasuk untuk `service_role` dan
+      // superuser. Hanya DBA dengan trigger dimatikan yang bisa. Jadi jangan
+      // menjanjikannya; sebut keadaan + jalan keluar yang benar-benar bisa
+      // dieksekusi (hapus dokumen tanpa bukti, lalu catat dari penerimaan benar).
       return {
         ok: false,
         reason:
           'Dokumen lama ini tidak terhubung ke penerimaan, jadi tidak ada rincian barang yang bisa dicatat — '
           + 'dan sejak pencatatan per barang aktif, database MENOLAK menutup dokumen tanpa rincian. '
-          + 'Hubungkan dokumen ini ke penerimaan (perbaikan data oleh admin) atau hapus dokumen ini (belum punya bukti) '
-          + 'lalu catat serah terima dari penerimaan yang benar.'
+          + 'Dokumen lama tanpa penerimaan TIDAK bisa diperbaiki dari aplikasi (kolom sumber dokumen dikunci database), '
+          + 'jadi hapus dokumen ini (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.'
       }
     }
     return { ok: true }
