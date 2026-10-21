@@ -434,6 +434,61 @@ console.log('\n=== 9. capabilityState(): 5 keadaan, bukan 2 ===\n')
   check('9h probeFailed menang atas events (error, bukan partial)', CAP.capabilityState({ ready: false, probeFailed: true, events: true }) === 'error')
 }
 
+// ============================================================
+console.log('\n=== 10. TOMBOL BARIS (view.jsx) tidak punya jalur tulis sendiri ===\n')
+// ============================================================
+// Pertanyaan reviewer yang wajar: queue.jsx sudah dijaga, tapi tombol ✓ dan 📥
+// di DAFTAR handover (view.jsx) juga membuka modal fisik. Apakah tombol itu
+// bisa menulis tanpa lewat gerbang? Diperiksa di sini, bukan diasumsikan.
+{
+  // view.jsx mengekspor `rowActions(r, ctx)` — dipanggil langsung, tanpa
+  // ModuleView (yang menarik modul lain di luar cakupan sandbox ini).
+  const V = await importDist('modules/handovers/view.mjs')
+  const PM = await importDist('modules/handovers/physicalModal.mjs')
+  mock.__reset({ receivings: [{ ...REC }], prItems: FRESH_PR().map(p => ({ ...p })), receivingItems: RI, handovers: [{ ...HO }], ledger: LEDGER })
+  CAP.resetReceiptCapability()
+  PM.resetPhysicalModal()
+  const writes = []
+  const ctx = {
+    title: 'Serah Terima', page: 'handovers', setEditRow: () => {},
+    onDelete: () => {},
+    // Handler tulis LAMA di shell — kalau ada yang memanggilnya, kita lihat.
+    onMarkHandoverDelivered: () => writes.push('onMarkHandoverDelivered'),
+    onMoveToWarehouse: () => writes.push('onMoveToWarehouse'),
+    onSendToTukang: () => writes.push('onSendToTukang'),
+    onReceivingStatusChange: () => writes.push('onReceivingStatusChange'),
+    allReceivings: [{ ...REC }], allRequests: [{ id: 'pr1', pr_number: 'PR-1', title: 'x', project_id: 'p1' }],
+    allReceivingItems: RI
+  }
+  const doc = mount(V.rowActions({ ...HO }, ctx))
+  for (let i = 0; i < 6; i++) await tick()
+  const deliver = tid(doc, 'btn-deliver-h1')
+  check('10a tombol ✓ ada di baris daftar', !!deliver)
+  if (deliver) click(deliver)
+  await tick()
+  const target = PM.__peekForTest()
+  check('10b ✓ membuka MODAL konfirmasi (bukan menulis langsung)', target?.kind === 'confirm' && target?.handover?.id === 'h1', S(target && { kind: target.kind, id: target.handover?.id }))
+  check('10c ✓ TIDAK memanggil handler tulis lama shell', writes.length === 0, S(writes))
+  check('10d nol tulisan DB dari klik ✓', mock.__callsOf('update').length === 0 && mock.__callsOf('insert').length === 0, S(mock.__callsOf('update').map(c => c.table)))
+  check('10e dokumen tidak terkunci oleh klik ✓', !mock.__state.handovers.get('h1')?.diserahkan_at)
+  // 📥 Terima Barang juga harus membuka form, bukan menulis.
+  PM.resetPhysicalModal()
+  const terima = tid(doc, 'btn-terima-h1')
+  check('10f tombol 📥 ada di baris daftar', !!terima)
+  if (terima) click(terima)
+  await tick()
+  const t2 = PM.__peekForTest()
+  check('10g 📥 membuka form Terima Barang (bukan menulis)', t2?.kind === 'receipt' && t2?.receiving?.id === 'rec1', S(t2 && { kind: t2.kind, id: t2.receiving?.id }))
+  check('10h nol tulisan DB dari 📥', mock.__callsOf('insert').length === 0 && mock.__callsOf('update').length === 0, `ins=${mock.__callsOf('insert').length} upd=${mock.__callsOf('update').length}`)
+  // Jalur tulis yang ADA di modul handovers, dan siapa yang boleh memanggilnya.
+  const A = await importDist('modules/handovers/actions.mjs')
+  check('10i actions.js tetap satu-satunya penulis aksi gudang/tukang', typeof A.runHandoverAction === 'function')
+  // `view.jsx` TIDAK mengimpor actions.js / confirm.js sama sekali (dibaca dari
+  // sumber .mjs hasil salin verbatim di sandbox — bukan file .jsx asli).
+  const vSrc = (await import('node:fs')).readFileSync(path.join(SB, 'modules/handovers/view.mjs'), 'utf8')
+  check('10j view.jsx tidak mengimpor penulis DB mana pun', !/from '\.\/(actions|confirm|save)/.test(vSrc))
+}
+
 console.log(`\n=== HASIL PROBE RUN 222 (kunci review run 219): ${pass} PASS / ${fail} FAIL ===`)
 if (fail) console.log('GAGAL: ' + failures.join(' | '))
 process.exit(fail ? 1 : 0)
