@@ -45,7 +45,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
   const capState = capabilityState(capability)
   const ready = capState === 'ready'
   const legacy = capState === 'legacy'
-  const pending = capState === 'unknown' || capState === 'error'
+  // `partial` (run 219 / BUG-S2) = sebagian objek ledger SUDAH ADA. Form ini
+  // TIDAK boleh jatuh ke jalur LEGACY di keadaan itu: jalur LEGACY menulis
+  // header dan mengunci dokumen tanpa rincian, padahal rincian per barang
+  // sudah tercatat. Perlakukan seperti pending: tidak menulis, pesan jujur.
+  const pending = capState === 'unknown' || capState === 'error' || capState === 'partial'
   // `loadedFor` = kunci pemuatan yang SUDAH selesai (berhasil atau gagal).
   // Dulu `loading` diinisialisasi `useState(ready)`; saat capability berubah
   // null→ready (jendela probe) `loading` tetap false selama satu render,
@@ -227,7 +231,9 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
           <div data-testid="handover-confirm-waiting" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
             {capState === 'unknown'
               ? 'Memeriksa kesiapan skema… tombol simpan akan aktif setelah pemeriksaan selesai. Tidak ada data yang ditulis sekarang.'
-              : 'Pemeriksaan skema gagal — tutup lalu buka lagi form ini. Tidak ada data yang ditulis.'}
+              : capState === 'partial'
+                ? 'Migrasi skema belum lengkap — simpan dikunci supaya dokumen tidak terkunci tanpa rincian. Tidak ada data yang ditulis.'
+                : 'Pemeriksaan skema gagal — tutup lalu buka lagi form ini. Tidak ada data yang ditulis.'}
           </div>
         )}
 

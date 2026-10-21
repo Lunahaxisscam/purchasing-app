@@ -50,7 +50,10 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
   // "skema belum ada". Pesan & tampilan dibedakan supaya admin tidak diberi
   // tahu hal yang salah tentang database.
   const capState = capabilityState(capability)
-  const pending = capState === 'unknown' || capState === 'error'
+  // `partial` (run 219 / BUG-S2) = sebagian objek ledger sudah ADA. Retur
+  // memang sudah diblokir saat `!ready`, tetapi pesan/warna tidak boleh
+  // menyamar sebagai LEGACY — riwayat retur bisa saja sudah berisi.
+  const pending = capState === 'unknown' || capState === 'error' || capState === 'partial'
   const [loading, setLoading] = useState(ready)
   const [loadError, setLoadError] = useState('')
   const [rows, setRows] = useState([])

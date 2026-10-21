@@ -32,7 +32,27 @@ function check(name, cond, extra = '') {
   if (cond) { pass++; console.log(`  ✓ ${name}`) }
   else { fail++; failures.push(name); console.log(`  ✗ ${name}  ${extra}`) }
 }
-const tick = () => new Promise(r => setTimeout(r, 0))
+// `tick` = majukan satu putaran event loop, DAN bila probe capability masih
+// berjalan, tunggu sampai selesai (maks 40 putaran).
+//
+// Kenapa: DEFECT run 219 / BUG-S1. Sebelum perbaikan, tombol borongan AKTIF
+// selama jendela probe (`cap === null`) — jadi test lama yang hanya menunggu
+// SATU putaran melihat tombol "aktif" dan LULUS justru karena defect-nya ada.
+// Sesudah perbaikan tombol sengaja nonaktif sampai probe selesai; test yang
+// menilai tombol harus menunggu keadaan final. Kalau tidak, ia akan gagal
+// karena membaca frame 'unknown' — bukan karena perilaku produk salah.
+// Test yang MEMANG ingin memeriksa jendela probe memakai `tick(0)` (lihat
+// probe_run222_queue_capability.mjs, yang memakai tick() polos tanpa settle).
+const rawTick = () => new Promise(r => setTimeout(r, 0))
+const tick = async (max = 40) => {
+  await rawTick()
+  if (max <= 0) return
+  for (let i = 0; i < max; i++) {
+    const st = document.querySelector('[data-testid="handover-capability"]')?.getAttribute('data-capability-state')
+    if (st !== 'unknown') return
+    await rawTick()
+  }
+}
 const click = (el) => { if (!el) throw new Error('elemen tidak ada'); flushSync(() => el.dispatchEvent(new window.Event('click', { bubbles: true }))) }
 const tid = (doc, t) => doc.querySelector(`[data-testid="${t}"]`)
 const noop = () => {}

@@ -107,6 +107,16 @@ shutil.copy(os.path.join(HERE, 'probe_run208_prototype.mjs'), SB)
 # run 215: pengunci perbaikan review run 212 (R1 capability null / R2 aksi
 # borongan di READY / R3 klaim stok). Dijalankan terakhir, exit terpisah.
 shutil.copy(os.path.join(HERE, 'probe_run215_review_fixes.mjs'), SB)
+# run 222: pengunci review run 219 (S1/S2/S3) — queue.jsx memakai model
+# keadaan yang SAMA dengan banner (5 keadaan), `partial` bukan LEGACY, dan
+# panel Bermasalah tidak menawarkan jalur tulis saat keadaan tidak diketahui.
+shutil.copy(os.path.join(HERE, 'probe_run222_queue_capability.mjs'), SB)
+# Probe MILIK REVIEWER run 219 dijalankan APA ADANYA (tidak diubah satu baris
+# pun) — bukti bahwa temuan mereka benar-benar tertutup, bukan diakali.
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_final.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_positive.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_partial_RAW.mjs'), SB)
+shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_problem_RAW.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
 rc = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB).returncode
@@ -119,4 +129,21 @@ print('\n=== PROBE PERMUKAAN INPUT PALSU (run 208) ===')
 rc_probe2 = subprocess.run(['node', 'probe_run208_prototype.mjs'], cwd=SB).returncode
 print('\n=== PROBE PERBAIKAN REVIEW RUN 212 (run 215: R1/R2/R3) ===')
 rc_probe3 = subprocess.run(['node', 'probe_run215_review_fixes.mjs'], cwd=SB).returncode
-sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3)
+print('\n=== PROBE KUNCI REVIEW RUN 219 (run 222: S1/S2/S3) ===')
+rc_probe4 = subprocess.run(['node', 'probe_run222_queue_capability.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — DIJALANKAN APA ADANYA (final: K1/K2/K3) ===')
+rc_rev1 = subprocess.run(['node', 'probe_run219_reviewer_final.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — kontrol positif READY (J) ===')
+rc_rev2 = subprocess.run(['node', 'probe_run219_reviewer_positive.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — migrasi sebagian (I) — assertion DEFECT, harus TERBALIK ===')
+rc_rev3 = subprocess.run(['node', 'probe_run219_reviewer_partial_RAW.mjs'], cwd=SB).returncode
+print('\n=== PROBE MILIK REVIEWER RUN 219 — panel Bermasalah (H) — assertion DEFECT, harus TERBALIK ===')
+rc_rev4 = subprocess.run(['node', 'probe_run219_reviewer_problem_RAW.mjs'], cwd=SB).returncode
+# I & H sengaja mengandung assertion yang MENDAFTARKAN defect (mis. "banner
+# mengklaim belum aktif", "tombol borongan AKTIF"). Di pohon yang sudah
+# diperbaiki assertion itu WAJIB gagal. Jadi exit-nya TIDAK dihitung sebagai
+# kegagalan harness — hasilnya dibaca manusia di log (lihat run222/).
+if rc_rev3 == 0 or rc_rev4 == 0:
+    print('\nPERINGATAN: probe I/H milik reviewer LULUS — berarti defect run 219 masih ada!')
+    sys.exit(1)
+sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_rev1 or rc_rev2)

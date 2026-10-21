@@ -50,7 +50,7 @@ import { runHandoverAction } from './actions'
 import { RINCIAN_BELUM_TERSEDIA } from './display'
 import { openPhysicalModal } from './physicalModal'
 import { PhysicalModalHost } from './physicalHost'
-import { getReceiptCapability } from '../receivings/receiptCapability'
+import { capabilityState, getReceiptCapability } from '../receivings/receiptCapability'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
@@ -135,11 +135,24 @@ export function isProblemNoted(receiving) {
 // scripts/handover-compact-test/queue_ui_test.mjs A11l/A11m).
 export const RECON_NOTE = 'Catat masalahnya di kolom Catatan handover ini, lalu eskalasi ke admin untuk rekonsiliasi manual dengan supplier (nota koreksi/kredit).'
 
-// `ledgerReady` = tabel ledger per barang (receiving_events/handover_items/
-// return_lines) sudah ADA. Saat true, retur per barang TIDAK lagi diblokir
-// oleh keterbatasan skema — modal retur mengambil baris dari event rusak.
-// Saat false, perilaku lama dipertahankan apa adanya (alasan jujur, nol tulis).
-export function problemPlan(receiving, itemCount = 0, hasHandler = true, ledgerReady = false) {
+// `ledgerState` = keadaan capability (lihat capabilityState di
+// receivings/receiptCapability): 'ready' | 'legacy' | 'unknown' | 'error' |
+// 'partial'. Saat 'ready', retur per barang TIDAK lagi diblokir oleh
+// keterbatasan skema — modal retur mengambil baris dari event rusak.
+//
+// DEFECT run 219 / BUG-S3: parameter ini dulu bernama `ledgerReady` dan diisi
+// `!!cap?.returnReady` dari queue. Boolean dua keadaan itu membuat jendela
+// probe (`null`), probe GAGAL, dan migrasi SEBAGIAN semuanya jatuh ke jalur
+// LEGACY — yaitu MENULIS `receivings.status` — padahal di keadaan itu retur
+// per baris sudah ada di `return_cases`/`return_lines`. Sekarang keadaan tidak
+// diketahui TIDAK PERNAH menawarkan jalur tulis: ia ditolak dengan alasan.
+//
+// Kompatibilitas: `true` = ready (pemanggil lama), `'legacy'` (default) =
+// perilaku lama. `false`/`null`/`undefined` sengaja TIDAK dianggap legacy —
+// itu bunyi "belum diketahui" dan harus berhenti, bukan menulis.
+export function problemPlan(receiving, itemCount = 0, hasHandler = true, ledgerState = 'legacy') {
+  const st = ledgerState === true ? 'ready'
+    : (typeof ledgerState === 'string' && ledgerState ? ledgerState : 'unknown')
   if (!receiving) {
     return { ok: false, reason: `Dokumen ini belum terhubung ke nota pembelian, jadi tidak ada barang yang bisa diretur. ${RECON_NOTE}` }
   }
@@ -148,8 +161,18 @@ export function problemPlan(receiving, itemCount = 0, hasHandler = true, ledgerR
   }
   // Ledger per barang aktif → retur dicatat per barang lewat modal (bukan
   // status header), jadi batas "satu item per nota" tidak berlaku lagi.
-  if (ledgerReady) {
+  if (st === 'ready') {
     return { ok: true, reason: '', perLine: true }
+  }
+  // Keadaan yang TIDAK BOLEH menulis: probe belum selesai, probe gagal, atau
+  // migrasi sebagian (data per barang sudah ada, read-model belum siap).
+  if (st === 'unknown' || st === 'error' || st === 'partial') {
+    return {
+      ok: false,
+      reason: st === 'partial'
+        ? `Pencatatan retur per barang sudah ADA di database, tetapi pemeriksaan skema belum lengkap — jadi jalur status nota dimatikan supaya riwayat retur tidak tertimpa. ${RECON_NOTE}`
+        : `Kesiapan skema belum bisa dipastikan — pencatatan status nota dimatikan sementara supaya tidak menimpa riwayat retur per barang. ${RECON_NOTE}`
+    }
   }
   if (!hasHandler) {
     return { ok: false, reason: 'Aksi bermasalah tidak tersedia di tampilan ini (pencatatan status nota hanya dari halaman utama).' }
@@ -170,6 +193,52 @@ export const PROBLEM_OPTIONS = [
   { key: 'RETUR', label: '↩ Retur ke Supplier' },
   { key: 'REFUND', label: '💸 Refund' }
 ]
+
+// ------------------------------------------------------------
+// SATU gerbang tulis untuk SEMUA aksi kartu antrean
+// ------------------------------------------------------------
+// DEFECT run 219 / BUG-S1: dulu tombol digerbangi di `gated` (map) dan
+// `run()` punya salinan aturan sendiri. Dua salinan itu bisa menyimpang, dan
+// memang menyimpang: banner memakai tiga keadaan sementara tombol memakai
+// `!!cap?.ready` dua keadaan. Sekarang aturannya SATU fungsi murni — dipakai
+// untuk menonaktifkan tombol DAN untuk menolak di jalur tulis (pertahanan
+// kedua bila ada klik programatik / test lama).
+//
+// Mengembalikan '' bila aksi boleh menulis, atau alasan yang bisa dibaca.
+//
+//   action \\ state | ready | legacy | unknown | error | partial
+//   ACT_GUDANG/TUKANG | TOLAK | BOLEH  | TOLAK   | TOLAK | TOLAK
+//   ACT_TERIMA        | BOLEH | BOLEH  | TOLAK   | TOLAK | TOLAK
+//
+// ACT_TERIMA BOLEH di ready (modal per barang) dan legacy (form header lama,
+// satu-satunya jalur). Di unknown/error/partial keduanya berbahaya: modal
+// confirmForm sudah menolak sendiri, dan form header MENULIS tanpa rincian
+// lalu mengunci dokumen permanen (CAS `diserahkan_at IS NULL`).
+export function writeBlockReason(actionKey, capState) {
+  const st = capState === true ? 'ready'
+    : (typeof capState === 'string' && capState ? capState : 'unknown')
+  const partial = st === 'partial'
+  const unknownish = st === 'unknown' || st === 'error' || partial
+  if (actionKey === ACT_TERIMA) {
+    if (st === 'ready' || st === 'legacy') return ''
+    return partial
+      ? 'Rincian serah terima per barang sudah ADA di database, tetapi pemeriksaan skema belum lengkap — konfirmasi dikunci supaya dokumen tidak terkunci tanpa rincian. Minta admin menyelesaikan migrasi.'
+      : 'Kesiapan skema masih diperiksa / pemeriksaan gagal — konfirmasi dikunci supaya dokumen tidak terkunci tanpa rincian. Coba lagi sebentar lagi.'
+  }
+  if (actionKey === ACT_GUDANG || actionKey === ACT_TUKANG) {
+    if (st === 'legacy') return ''
+    if (st === 'ready') {
+      return actionKey === ACT_GUDANG
+        ? 'Tujuan barang sudah dicatat PER BARANG di Terima Barang (Workshop/Tukang). Aksi borongan ini akan menimpa tujuan per barang, jadi tidak dipakai saat pencatatan per barang aktif.'
+        : 'Tujuan ke tukang dicatat PER BARANG di Terima Barang, lalu bukti fisiknya lewat konfirmasi per barang. Aksi borongan ini akan menimpa tujuan per barang, jadi tidak dipakai saat pencatatan per barang aktif.'
+    }
+    return partial
+      ? 'Tujuan per barang sudah ADA di database (migrasi belum lengkap). Aksi borongan akan menimpanya — minta admin menyelesaikan migrasi lalu pakai Terima Barang.'
+      : 'Kesiapan skema masih diperiksa / pemeriksaan gagal — aksi borongan dikunci supaya tujuan per barang tidak tertimpa. Coba lagi sebentar lagi.'
+  }
+  // Aksi lain (mis. panel Bermasalah) punya gerbangnya sendiri.
+  return unknownish ? '' : ''
+}
 
 // ------------------------------------------------------------
 // KARTU AKSI per baris
@@ -203,9 +272,15 @@ function ActionCard({ entry, ctx, onDone, cap }) {
   const plan = actionPlan(handover, summary, receiving?.alokasi, receiving)
   const dest = alokasiLabel(receiving?.alokasi)
   const problemNoted = isProblemNoted(receiving)
-  const ledgerReady = !!cap?.ready
-  const returnReady = !!cap?.returnReady
-  const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function', returnReady)
+  // DEFECT run 219 / BUG-S1: satu model keadaan, dipakai SEMUA jalur di kartu
+  // ini (dulu `ledgerReady = !!cap?.ready` dan banner memakai tiga keadaan →
+  // banner bilang "memeriksa"/"GAGAL" sementara tombol di bawahnya MENULIS).
+  const capState = capabilityState(cap)
+  const ledgerReady = capState === 'ready'
+  // LEGACY = satu-satunya keadaan yang boleh memakai jalur tulis lama (status
+  // header / aksi borongan). `unknown`, `error`, dan `partial` TIDAK boleh.
+  const legacyWritable = capState === 'legacy'
+  const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function', capState)
 
   // Lapisan tampilan DI ATAS actionPlan (logic.js tidak diubah):
   //  a) nota yang sudah bermasalah tidak ditawari distribusi — sejalan dengan
@@ -228,33 +303,35 @@ function ActionCard({ entry, ctx, onDone, cap }) {
     // divalidasi RPC `handover_confirm`; modalnya sendiri yang memutuskan
     // (termasuk menolak bila tidak ada baris). Jadi gerbangnya diserahkan ke
     // modal — bukan ditebak dari status nota.
-    if (a.key === ACT_TERIMA && ledgerReady) {
+    if (a.key === ACT_TERIMA) {
       if (handover?.diserahkan_at) return a
-      // Tidak disaring lagi di sini: modal konfirmasi sudah punya jalur yang
-      // benar untuk SEMUA keadaan — baris prefill bila ada alokasi tukang,
-      // panel "tidak ada alokasi" + konfirmasi header-only bila tidak ada,
-      // dan penolakan jelas bila rincian gagal dimuat. Menyaring lagi di sini
-      // hanya menutup jalan keluar yang sudah diperbaiki di run 190.
-      return { ...a, ok: true, reason: 'Buka konfirmasi per barang — jumlah fisik diverifikasi di sana.' }
+      if (ledgerReady) {
+        // Tidak disaring lagi di sini: modal konfirmasi sudah punya jalur yang
+        // benar untuk SEMUA keadaan — baris prefill bila ada alokasi tukang,
+        // panel "tidak ada alokasi" + konfirmasi header-only bila tidak ada,
+        // dan penolakan jelas bila rincian gagal dimuat. Menyaring lagi di sini
+        // hanya menutup jalan keluar yang sudah diperbaiki di run 190.
+        return { ...a, ok: true, reason: 'Buka konfirmasi per barang — jumlah fisik diverifikasi di sana.' }
+      }
+      // DEFECT run 219 / BUG-S1: satu-satunya jalur yang tersisa di non-READY
+      // adalah form header INLINE yang MENULIS `diserahkan_at` + status
+      // CONFIRMED tanpa rincian, dan dokumen terkunci permanen (CAS). Itu hanya
+      // sah bila skema memang BELUM ADA (legacy).
+      const block = writeBlockReason(a.key, capState)
+      if (block) return { ...a, ok: false, reason: block }
+      return a
     }
     if (a.key !== ACT_GUDANG && a.key !== ACT_TUKANG) return a
-    // ---- DEFECT run 212 / BUG-R2: aksi BORONGAN di mode READY -------------
+    // ---- DEFECT run 212 / BUG-R2 + run 219 / BUG-S1: aksi BORONGAN --------
     // `actions.js` menulis `pr_items.status` untuk SEMUA baris nota sekaligus.
     // Di mode READY tujuan barang dicatat PER BARANG di ledger
     // (`receiving_events.tujuan_ws` / `tujuan_tukang`), jadi satu klik borongan
     // MENIMPA keputusan per barang (mis. Cat Duco tujuan Tukang ikut jadi
-    // DI_GUDANG). Karena itu di READY aksi ini dinonaktifkan dengan alasan
-    // terbaca — jalur yang benar adalah form Terima Barang (tujuan per barang)
-    // + konfirmasi fisik. Di LEGACY tombol ini TETAP (satu-satunya jalur).
-    if (ledgerReady) {
-      return {
-        ...a,
-        ok: false,
-        reason: a.key === ACT_GUDANG
-          ? 'Tujuan barang sudah dicatat PER BARANG di Terima Barang (Workshop/Tukang). Aksi borongan ini akan menimpa tujuan per barang, jadi tidak dipakai saat pencatatan per barang aktif.'
-          : 'Tujuan ke tukang dicatat PER BARANG di Terima Barang, lalu bukti fisiknya lewat konfirmasi per barang. Aksi borongan ini akan menimpa tujuan per barang, jadi tidak dipakai saat pencatatan per barang aktif.'
-      }
-    }
+    // DI_GUDANG). Di `unknown`/`error`/`partial` hal yang sama bisa terjadi
+    // karena `receiving_events` mungkin SUDAH berisi. Hanya LEGACY yang boleh
+    // memakai tombol ini (satu-satunya jalur di sana).
+    const block = writeBlockReason(a.key, capState)
+    if (block) return { ...a, ok: false, reason: block }
     if (problemNoted) {
       return { ...a, ok: false, reason: 'Nota sudah ditandai bermasalah (Retur/Refund) — barang tidak didistribusikan.' }
     }
@@ -279,15 +356,22 @@ function ActionCard({ entry, ctx, onDone, cap }) {
         openPhysicalModal({ kind: 'confirm', handover })
         return
       }
+      // Pertahanan kedua (run 219 / BUG-S1): SATU gerbang yang sama dengan
+      // tombol. Jalur tulis header menolak sendiri di luar LEGACY, supaya tidak
+      // ada klik programatik/test lama yang mengunci dokumen tanpa rincian di
+      // jendela probe atau saat migrasi belum lengkap.
+      const block = writeBlockReason(ACT_TERIMA, capState)
+      if (block) { say(block); return }
       setShowTerima(true)
       return
     }
-    // Pertahanan kedua (run 212 / BUG-R2): tombolnya sudah nonaktif di mode
-    // READY, tetapi jalur tulis ini juga menolak sendiri — supaya tidak ada
-    // jalan (mis. klik programatik / test lama) yang menimpa tujuan per barang.
-    if (ledgerReady && (action === ACT_GUDANG || action === ACT_TUKANG)) {
-      say('Aksi borongan tidak dipakai saat pencatatan per barang aktif — catat tujuan barang di Terima Barang, lalu konfirmasi fisik per barang.')
-      return
+    // Pertahanan kedua (run 212 / BUG-R2 + run 219 / BUG-S1): tombolnya sudah
+    // nonaktif di READY dan di keadaan yang tidak diketahui, tetapi jalur tulis
+    // ini juga menolak sendiri — supaya tidak ada jalan (mis. klik programatik
+    // / test lama) yang menimpa tujuan per barang.
+    if (action === ACT_GUDANG || action === ACT_TUKANG) {
+      const block = writeBlockReason(action, capState)
+      if (block) { say(block); return }
     }
     setBusy(true)
     const res = await runHandoverAction(action, handover.id)
@@ -344,13 +428,18 @@ function ActionCard({ entry, ctx, onDone, cap }) {
             {handover.received_by || 'Serah Terima'}
           </strong>
           <span style={S.sub} data-testid={`queue-summary-${handover.id}`}>
-            {ledgerReady
+            {!legacyWritable
               // DEFECT run 212 / BUG-R2 (lanjutan): di READY, `pr_items.status`
               // TIDAK lagi ditulis oleh aksi mana pun (tujuan barang dicatat di
               // `receiving_events`), jadi angka "x dari y barang didistribusikan"
               // akan SELALU 0 dan menyesatkan. Jangan menampilkan angka dari
               // dimensi yang sudah tidak dipakai — katakan di mana kebenarannya.
-              ? 'Distribusi dicatat per barang — lihat Terima Barang (tujuan) & konfirmasi fisik'
+              // Run 219: sama untuk `unknown`/`error`/`partial`, karena di
+              // keadaan itu aksi borongan juga dikunci (tidak ada yang menulis
+              // `pr_items.status`), jadi angkanya tetap 0 dan menyesatkan.
+              ? (ledgerReady
+                ? 'Distribusi dicatat per barang — lihat Terima Barang (tujuan) & konfirmasi fisik'
+                : 'Distribusi tidak dicatat dari layar ini sampai kesiapan skema terverifikasi — lihat Terima Barang')
               : distributionLabel(summary)}
           </span>
         </div>
@@ -554,6 +643,15 @@ function ActionCard({ entry, ctx, onDone, cap }) {
                   diserahkan per barang dicatat lewat <b>konfirmasi fisik per barang</b> (aksi
                   &quot;Tandai Diserahkan&quot;) dan tampil di kolom 📦 Barang setelah tersimpan.
                 </span>
+              ) : capState === 'partial' ? (
+                // Run 219 / BUG-S2: jangan bilang "belum tercatat" saat tabel
+                // ledger SUDAH ada dan berisi. Itu membuat admin mengira datanya
+                // hilang, lalu memakai aksi borongan yang menimpanya.
+                <span style={S.detailLine} data-testid={`queue-items-perline-partial-${handover.id}`} >
+                  Angka di atas adalah <b>qty beli</b>. Catatan per barang (tujuan/rusak/serah terima)
+                  sudah ada di database, tetapi pemeriksaan skema belum lengkap — rinciannya belum
+                  bisa ditampilkan dari layar ini sampai migrasi diselesaikan admin.
+                </span>
               ) : (
                 <span style={{ ...S.detailLine, opacity: 0.7 }}>
                   Jumlah serah terima per item belum tercatat terpisah — konfirmasi fisik tetap per dokumen.
@@ -598,6 +696,10 @@ function HandoverQueueBanner({ ctx }) {
   }, [])
 
   if (!Array.isArray(rows)) return null
+  // Run 219 / BUG-S1: SATU turunan keadaan, dipakai banner DAN setiap kartu.
+  // Sebelumnya banner memakai tiga keadaan sendiri sementara kartu memakai
+  // `!!cap?.ready` — banner bisa bilang "GAGAL" sementara tombol menulis.
+  const capState = capabilityState(cap)
   const recById = new Map((allReceivings || []).map(r => [r.id, r]))
   const entries = buildDistributionQueue(rows).map(ho => ({
     handover: ho,
@@ -620,16 +722,22 @@ function HandoverQueueBanner({ ctx }) {
       {!cap?.ready && (
         <div
           data-testid="handover-capability"
-          data-capability-state={cap === null ? 'unknown' : (cap?.probeFailed ? 'error' : 'legacy')}
+          data-capability-state={capState}
           style={{ ...S.panel, marginBottom: 10, fontSize: '11.5px', lineHeight: 1.45, color: '#e8c98a' }}
         >
-          {cap === null
+          {capState === 'unknown'
             ? 'Memeriksa kesiapan penyimpanan per barang… antrean tetap bisa dipakai untuk distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.'
-            : cap?.probeFailed
+            : capState === 'error'
               ? <>Pemeriksaan kesiapan skema <b>GAGAL</b> — {(cap?.missing || []).filter(Boolean).join('; ') || 'tidak diketahui'}. Tidak ada data per barang yang ditulis; jangan anggap fitur ini aktif.</>
-              : <>Penyimpanan per barang (kedatangan/rusak/tujuan/retur) belum aktif —{' '}
-                  {(cap?.missing || []).filter(Boolean).join('; ') || 'skema belum tersedia'}. Antrean tetap bisa dipakai untuk
-                  distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.</>}
+              : capState === 'partial'
+                // Run 219 / BUG-S2: jangan pernah menyebut "belum aktif" saat
+                // tabel ledger SUDAH ADA dan berisi data per barang.
+                ? <>Migrasi skema <b>BELUM LENGKAP</b> — {(cap?.missing || []).filter(Boolean).join('; ') || 'objek lain belum siap'}.
+                    Catatan per barang yang sudah ada <b>tidak</b> ditampilkan dan <b>tidak</b> ditulis dari layar ini;
+                    aksi borongan dimatikan supaya tidak menimpa tujuan per barang. Minta admin menyelesaikan migrasi.</>
+                : <>Penyimpanan per barang (kedatangan/rusak/tujuan/retur) belum aktif —{' '}
+                    {(cap?.missing || []).filter(Boolean).join('; ') || 'skema belum tersedia'}. Antrean tetap bisa dipakai untuk
+                    distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.</>}
         </div>
       )}
       {entries.map(entry => (

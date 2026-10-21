@@ -50,7 +50,10 @@ export default function ReceiptForm({ receiving, items = [], orderedFor, capabil
   // membedakan "masih diperiksa" dari "skema belum ada" — kalau tidak, admin
   // diberi tahu hal yang salah tentang keadaan database.
   const capState = capabilityState(capability)
-  const pending = capState === 'unknown' || capState === 'error'
+  // `partial` (run 219 / BUG-S2) = sebagian objek ledger sudah ADA. Form ini
+  // memang sudah memblokir tulisan saat `!ready`, tetapi warnanya/pesan tidak
+  // boleh menyamar sebagai LEGACY ("skema belum ada") — datanya ada.
+  const pending = capState === 'unknown' || capState === 'error' || capState === 'partial'
   const rows = useMemo(() => buildRows(items, orderedFor), [items, orderedFor])
   const [entries, setEntries] = useState(() => {
     const init = {}

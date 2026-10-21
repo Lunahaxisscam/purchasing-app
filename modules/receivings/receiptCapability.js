@@ -134,7 +134,7 @@ export function resetReceiptCapability() {
 }
 
 // ------------------------------------------------------------
-// TIGA KEADAAN capability — bukan dua (defect run 212 / BUG-R1)
+// EMPAT KEADAAN capability — bukan dua (defect run 212 / BUG-R1 + run 219)
 // ------------------------------------------------------------
 // `null` = probe BELUM SELESAI (frame pertama setiap modal dibuka). Dulu
 // keadaan ini diperlakukan sama dengan LEGACY (`ready:false`), dan karena
@@ -146,12 +146,24 @@ export function resetReceiptCapability() {
 //   unknown  → JANGAN menulis apa pun; tombol tulis DISABLED + label
 //              "memeriksa kesiapan skema…"
 //   error    → probe gagal (jaringan/RLS): juga JANGAN menulis; minta ulangi
-//   legacy   → probe selesai & skema belum ada: perilaku lama (header saja)
+//   partial  → SEBAGIAN objek ledger SUDAH ADA (data per barang sudah tercatat)
+//              tetapi read-model/objek lain belum siap. Ini BUKAN LEGACY:
+//              memperlakukannya sebagai LEGACY berarti UI memberi tahu admin
+//              "fitur belum aktif" padahal datanya ada, lalu aksi borongan
+//              menimpa tujuan per barang dan tombol penutup mengunci dokumen
+//              tanpa rincian (defect run 219 / BUG-S2). Diperlakukan seperti
+//              error: tidak menulis, tombol borongan mati, pesan jujur.
+//   legacy   → probe selesai & TIDAK ADA satu pun objek ledger: perilaku lama
+//              (header saja) — satu-satunya jalur yang tersisa
 //   ready    → ledger aktif: rincian per barang
 export function capabilityState(cap) {
   if (cap === null || cap === undefined) return 'unknown'
   if (cap.probeFailed) return 'error'
   if (cap.ready) return 'ready'
+  // `partial` HANYA bila ada objek ledger yang benar-benar terbaca. Capability
+  // lama/uji yang tidak membawa field ini (undefined) tetap dianggap LEGACY.
+  const anyLedgerObject = !!(cap.events || cap.handoverItems || cap.returnLines || cap.progress)
+  if (anyLedgerObject) return 'partial'
   return 'legacy'
 }
 
@@ -165,6 +177,15 @@ export function capabilityMessage(cap) {
   if (st === 'error') {
     const why = (cap?.missing || []).filter(Boolean).join('; ') || 'tidak diketahui'
     return `Pemeriksaan kesiapan skema GAGAL (${why}). Tidak ada data yang ditulis — tutup lalu buka lagi form ini.`
+  }
+  if (st === 'partial') {
+    const why = (cap?.missing || []).filter(Boolean).join('; ') || 'objek lain belum siap'
+    const ada = [
+      cap?.events ? 'catatan penerimaan per barang' : null,
+      cap?.handoverItems ? 'rincian serah terima per barang' : null,
+      cap?.returnLines ? 'riwayat retur' : null
+    ].filter(Boolean).join(', ')
+    return `Migrasi skema BELUM LENGKAP: ${ada || 'sebagian objek ledger'} SUDAH ADA dan berisi data, tetapi ${why}. Tidak ada data yang ditulis dari layar ini — jangan pakai aksi borongan (bisa menimpa tujuan per barang). Minta admin menyelesaikan migrasi.`
   }
   const list = (cap?.missing || []).filter(Boolean).join('; ')
   return `Penyimpanan per barang (kondisi/tujuan/retur/rincian serah terima) belum aktif: ${list || 'skema belum tersedia'}. Tidak ada data yang ditulis.`
