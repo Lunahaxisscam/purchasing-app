@@ -204,8 +204,18 @@ ck('U2e gerbang tulis MENOLAK saat pembacaan gagal (tidak menebak)',
   gateFailed.blocked === Q.DELIVER_CHECK_FAILED_REASON, gateFailed.blocked.slice(0, 100))
 const gateLegacy = Q.finishGate(false, null, { hasReceiving: true })
 ck('U2f gerbang LEGACY tetap terbuka (jalur header lama satu-satunya)', gateLegacy.blocked === '')
+// REVIEW run 253 / D4 — assertion ini DULU berbunyi "dokumen TANPA penerimaan
+// tetap boleh (data lama, tidak ada ledger)" dan mengunci premis yang SALAH:
+// di bawah v1 trigger menolak SETIAP penulisan `diserahkan_at` oleh
+// `authenticated` (tanpa melihat `receiving_id`) dan `handover_confirm`
+// menjawab `handover_not_found`. Diuji di DB nyata oleh
+// `probe_r254_d4_d5.mjs` blok A. Jadi gerbangnya sekarang MENOLAK.
 const gateOrphan = Q.finishGate(true, null, { hasReceiving: false })
-ck('U2g dokumen TANPA penerimaan tetap boleh (data lama, tidak ada ledger)', gateOrphan.blocked === '')
+ck('U2g dokumen TANPA penerimaan DITOLAK saat ledger siap (dulu: diloloskan lalu gagal di DB)',
+  gateOrphan.blocked === Q.ORPHAN_NO_RECEIVING_REASON, gateOrphan.blocked.slice(0, 120))
+const gateOrphanLegacy = Q.finishGate(false, null, { hasReceiving: false })
+ck('U2h dokumen TANPA penerimaan tetap boleh di LEGACY (jalur header satu-satunya)',
+  gateOrphanLegacy.blocked === '', gateOrphanLegacy.blocked.slice(0, 80))
 
 // ============================================================
 head('U3. Modal konfirmasi — jalur tulis header TIDAK ditawarkan')

@@ -175,6 +175,21 @@ export const DELIVER_CHECK_FAILED_REASON =
 export const DELIVER_CHECKING_REASON =
   'Memeriksa rincian penerimaan dulu — tombol konfirmasi aktif setelah pemeriksaan selesai. Tidak ada data yang ditulis sekarang.'
 
+// REVIEW run 253 / D4: dokumen TANPA `receiving_id` (data lama / impor).
+// Perbaikan run 252 mengecualikannya sebagai "masih sah memakai jalur header",
+// dan premis itu SALAH di bawah kontrak v1: trigger `ops_v1_core_guard`
+// menolak SETIAP penulisan `diserahkan_at` oleh `authenticated` — tanpa
+// melihat ada/tidaknya `receiving_id` (`physical_rpc_required`, 42501) —
+// dan `handover_confirm` menjawab `handover_not_found` karena
+// `receiving_id` null. Jadi TIDAK ADA jalur penutup yang tersisa untuk
+// dokumen seperti ini begitu skema per barang aktif. Menawarkan tombolnya
+// berarti "tombol aktif lalu gagal" — kelas defect yang D1 dimaksudkan tutup.
+export const ORPHAN_NO_RECEIVING_REASON =
+  'Dokumen lama ini TIDAK terhubung ke penerimaan, jadi tidak punya rincian barang yang bisa dicatat. '
+  + 'Sejak pencatatan per barang aktif, database MENOLAK menutup dokumen tanpa rincian — baik lewat tombol ini maupun lewat konfirmasi tanpa rincian. '
+  + 'Hubungkan dokumen ini ke penerimaan (perbaikan data oleh admin) bila barangnya memang ada, '
+  + 'atau hapus dokumen ini (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.'
+
 // ------------------------------------------------------------
 // Gerbang TULIS untuk tombol penutup (dipakai tombol DAN jalur `run()`)
 // ------------------------------------------------------------
@@ -187,7 +202,10 @@ export const DELIVER_CHECKING_REASON =
 // Mengembalikan `{ blocked, checked, info }`; `blocked === ''` = boleh menulis.
 export function finishGate(ledgerReady, deliver, { hasReceiving = true } = {}) {
   if (!ledgerReady) return { checked: true, blocked: '', info: null }
-  if (!hasReceiving) return { checked: true, blocked: '', info: null }
+  // REVIEW run 253 / D4: di bawah v1 dokumen tanpa penerimaan TIDAK punya jalur
+  // penutup sama sekali (lihat ORPHAN_NO_RECEIVING_REASON). Dulu baris ini
+  // mengembalikan `blocked:''` — tombolnya aktif, lalu pasti ditolak DB.
+  if (!hasReceiving) return { checked: true, blocked: ORPHAN_NO_RECEIVING_REASON, info: null }
   if (deliver === null || deliver === undefined) return { checked: false, blocked: DELIVER_CHECKING_REASON, info: null }
   if (!deliver.ok) return { checked: true, blocked: DELIVER_CHECK_FAILED_REASON, info: null }
   const info = deliver.deliverability
@@ -893,8 +911,12 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
             {finish.reason}
             {/* Jalan keluar tanpa reload: admin mencatat tujuan barang di
                 Terima Barang, lalu memeriksa ulang di sini. Tanpa tombol ini
-                satu-satunya cara adalah memuat ulang halaman penuh. */}
-            {ledgerReady ? (
+                satu-satunya cara adalah memuat ulang halaman penuh.
+                REVIEW run 253 / D4: TIDAK ditawarkan untuk dokumen tanpa
+                penerimaan — di sana tidak ada ledger yang bisa dibaca ulang,
+                jadi tombolnya hanya akan menekan tanpa mengubah apa pun
+                (kelas defect "tombol aktif lalu tidak berefek"). */}
+            {ledgerReady && deliverKey ? (
               <div style={{ marginTop: 6 }}>
                 <button
                   type="button"

@@ -54,6 +54,67 @@ const TEXT = {
   idempotency_conflict: 'Permintaan ini bentrok dengan data yang sudah tersimpan (isian berbeda untuk kunci yang sama).',
   receiving_not_found: 'Penerimaan tidak ditemukan.',
   item_not_found: 'Barang tidak ditemukan pada penerimaan ini.',
+
+  // ----------------------------------------------------------
+  // REVIEW run 253 / D5: kode di bawah ini NYATA bisa muncul dari tiga RPC
+  // yang dipakai form (receipt_apply_events, return_create,
+  // purchase_save_atomic) tetapi dulu tidak punya kalimat — admin membaca
+  // "… (kode: over_return)" tanpa tahu harus berbuat apa. `over_return`
+  // adalah penolakan retur PALING UMUM, jadi ketiadaannya paling merugikan.
+  // Setiap kalimat menyebut APA yang salah DAN langkah berikutnya.
+  // ----------------------------------------------------------
+  // --- penerimaan (receipt_apply_events) ---
+  empty_events: 'Tidak ada baris penerimaan yang dikirim — isi minimal satu barang lalu simpan lagi.',
+  duplicate_client_event_id:
+    'Ada dua baris dengan kunci kiriman yang sama dalam satu penyimpanan. Muat ulang form lalu isi ulang sekali saja.',
+  missing_client_event_id:
+    'Baris penerimaan tidak membawa kunci kiriman, jadi tidak bisa dicek anti-gandanya. Muat ulang halaman lalu isi ulang form.',
+  backfill_not_authorized:
+    'Baris ini ditandai sebagai data isian lama (backfill) — hanya admin yang boleh memasukkannya lewat jalur resmi.',
+  duplicate_event_line:
+    'Barang yang sama dikirim dua kali dalam satu konfirmasi. Gabungkan menjadi satu baris.',
+  // --- retur (return_create) ---
+  over_return:
+    'Jumlah retur melebihi sisa barang rusak yang belum diretur pada baris itu. Kurangi jumlahnya, atau periksa riwayat retur barang tersebut.',
+  event_not_found:
+    'Baris penerimaan yang dirujuk tidak ditemukan (mungkin sudah berubah). Tutup lalu buka lagi form retur.',
+  already_discarded:
+    'Barang ini sudah tercatat DIBUANG, jadi tidak bisa diubah menjadi retur/penggantian. Pilih tindakan "Dibuang", atau catat lewat dokumen baru.',
+  bad_resolution:
+    'Tindakan barang rusak tidak dikenali. Pilih salah satu: kembalikan ke supplier, ganti, refund, atau dibuang.',
+  // --- pembelian (purchase_save_atomic) ---
+  request_key_required:
+    'Kunci permintaan (request key) tidak sah. Muat ulang form Pembelian lalu simpan ulang.',
+  vendor_not_found: 'Vendor/toko tidak ditemukan. Pilih vendor dari daftar, bukan mengetik nama.',
+  invoice_required: 'Nomor nota wajib diisi.',
+  bad_date: 'Tanggal nota tidak sah — gunakan format TTTT-BB-HH (contoh 2026-10-21).',
+  items_required: 'Nota harus punya minimal satu baris barang (dan maksimal 200 baris).',
+  item_name_required: 'Nama barang wajib diisi pada setiap baris.',
+  unit_required: 'Satuan barang wajib diisi (mis. sak, lembar, m3).',
+  material_unresolved:
+    'Barang belum terhubung ke master material. Pilih materialnya dulu — biaya tidak boleh masuk tanpa identitas material.',
+  material_mismatch: 'Material baris ini berbeda dari material yang diminta di PR asal.',
+  pr_item_not_found: 'Baris PR asal tidak ditemukan untuk barang ini. Muat ulang lalu pilih ulang dari PR.',
+  project_not_found: 'Proyek yang dipilih tidak ditemukan. Pilih proyek lain dari daftar.',
+  discount_over_total: 'Diskon melebihi total nota sehingga totalnya menjadi negatif. Periksa angka diskon.',
+  bad_allocations: 'Format pembagian proyek tidak dikenali (harus berupa daftar proyek + qty).',
+  allocation_over_bought:
+    'Pembagian ke proyek melebihi qty yang benar-benar dibeli pada baris itu. Kurangi pembagiannya.',
+  actual_price_required:
+    'Harga satuan aktual wajib diisi sebelum barang bisa dibagi ke proyek.',
+  bad_payload: 'Isi formulir tidak bisa dibaca penyimpanan. Muat ulang halaman lalu isi ulang.',
+  bad_item: 'Salah satu baris barang tidak berbentuk data yang sah. Muat ulang lalu isi ulang baris itu.',
+  // --- kontrak/teknis yang tetap harus bisa ditindaklanjuti ---
+  duplicate_active_handover:
+    'Penerimaan ini sudah punya dokumen Serah Terima lain yang belum diserahkan. Konfirmasi dokumen yang PALING AWAL dibuat; dokumen ini hapus bila belum punya bukti.',
+  handover_queue_failed:
+    'Nota tersimpan, tetapi antrean Serah Terima gagal dibuat. Periksa menu Serah Terima sebelum menyimpan ulang nota.',
+  physical_evidence_immutable:
+    'Bukti fisik (penerimaan/serah terima) hanya boleh DITAMBAH, tidak boleh diubah atau dihapus. Catat koreksi lewat dokumen baru.',
+  read_committed_required:
+    'Penyimpanan harus berjalan pada transaksi baca-komit. Coba simpan ulang dari form (jangan lewat skrip).',
+  replace_only:
+    'Pembagian proyek hanya bisa diganti SELURUHNYA, bukan ditambah sepotong. Buka form pembagian lalu simpan ulang.',
   purchase_rpc_required_unused: ''
 }
 

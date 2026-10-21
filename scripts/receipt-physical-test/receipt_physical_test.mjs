@@ -376,6 +376,15 @@ console.log('\nC5. READY tanpa baris alokasi → tetap BISA dikonfirmasi (defect
   const ConfirmForm = (await importDist('modules/handovers/confirmForm.mjs')).default
 
   // C5a-C5d: handover TANPA receiving_id (data lama / orphan).
+  //
+  // REVIEW run 253 / D4: blok ini DULU mengunci premis yang salah — bahwa
+  // dokumen tanpa penerimaan "masih sah" memakai jalur header di mode READY.
+  // Di bawah kontrak v1 trigger `ops_v1_core_guard` menolak SETIAP penulisan
+  // `diserahkan_at` oleh `authenticated` (tanpa melihat `receiving_id`) dan
+  // `handover_confirm` menjawab `handover_not_found`. Jadi jalur itu PASTI
+  // gagal; assertion lama (C5a "tombol tersedia", C5e "menulis header")
+  // mengunci defect, bukan perilaku benar. Sekarang yang diuji: tombolnya
+  // TIDAK ditawarkan, sebabnya terbaca, dan NOL tulisan.
   mock.__reset({ receivings: [], prItems: [], receivingItems: [], handovers: [{ ...HO, id: 'h-orphan', receiving_id: null }], ledger: LEDGER })
   PM.resetPhysicalModal(); resetCapability()
   const says1 = []
@@ -386,26 +395,31 @@ console.log('\nC5. READY tanpa baris alokasi → tetap BISA dikonfirmasi (defect
     })
   )
   await tick(); await tick(); await tick()
-  check('C5a jalur konfirmasi tanpa rincian tersedia', !!tid(doc, 'handover-confirm-headeronly'))
-  check('C5b input nama penerima ada (wajib)', !!tid(doc, 'hc-header-penerima'))
-  // Nama penerima di-prefill dari dokumen (received_by) — bukan kosong.
-  check('C5b2 nama penerima terisi otomatis dari dokumen', /Pak Joko/.test(tid(doc, 'hc-header-penerima')?.value || ''), tid(doc, 'hc-header-penerima')?.value)
-  // Dikosongkan → tombol wajib nonaktif (nama penerima tidak boleh kosong).
-  typeInto(tid(doc, 'hc-header-penerima'), '')
-  await tick()
-  const btn = tid(doc, 'handover-confirm-headeronly-submit')
-  check('C5c tombol nonaktif saat nama kosong', btn?.disabled === true)
-  const inp = tid(doc, 'hc-header-penerima')
-  typeInto(inp, 'Pak Joko (Mandor)')
-  await tick()
-  check('C5d tombol aktif setelah nama diisi', tid(doc, 'handover-confirm-headeronly-submit')?.disabled === false)
-  click(tid(doc, 'handover-confirm-headeronly-submit'))
+  check('C5a jalur "tanpa rincian" TIDAK ditawarkan untuk dokumen tanpa penerimaan (pasti ditolak DB v1)',
+    !tid(doc, 'handover-confirm-headeronly'))
+  check('C5b tidak ada input nama penerima header (tidak ada jalur tulis tersembunyi)', !tid(doc, 'hc-header-penerima'))
+  const orphanPanel = tid(doc, 'handover-confirm-empty')
+  check('C5b2 panel menjelaskan dokumen TIDAK terhubung ke penerimaan', /tidak terhubung ke penerimaan/i.test(orphanPanel?.textContent || ''),
+    (orphanPanel?.textContent || '').slice(0, 200))
+  check('C5c panel menyebut database menolak & dua jalan keluar jujur (hubungkan / hapus)',
+    /menolak/i.test(orphanPanel?.textContent || '')
+    && /hubungkan/i.test(orphanPanel?.textContent || '')
+    && /hapus/i.test(orphanPanel?.textContent || ''),
+    (orphanPanel?.textContent || '').slice(0, 300))
+  // Tombol submit utama juga harus mati: tidak ada baris sah untuk dikirim.
+  check('C5d tombol submit utama NONAKTIF (tidak ada baris sah)', tid(doc, 'handover-confirm-submit')?.disabled === true)
+  // Kalaupun dipaksa (klik programatik), TIDAK boleh ada tulisan sama sekali.
+  click(tid(doc, 'handover-confirm-submit'))
   await tick(); await tick(); await tick()
   const upd = mock.__callsOf('update', 'handovers')
-  check('C5e menulis header (CAS diserahkan_at), BUKAN RPC', upd.length === 1 && mock.__callsOf('rpc').length === 0, JSON.stringify({ upd: upd.length, rpc: mock.__callsOf('rpc').length }))
-  check('C5f nama penerima IKUT tersimpan (bukan field hiasan)', upd[0]?.data?.received_by === 'Pak Joko (Mandor)', JSON.stringify(upd[0]?.data))
-  check('C5g diserahkan_at + status CONFIRMED ditulis', !!upd[0]?.data?.diserahkan_at && upd[0]?.data?.status === 'CONFIRMED', JSON.stringify(upd[0]?.data))
-  check('C5h pesan jujur: rincian TIDAK ditulis', says1.some(m => /Rincian per barang tidak ditulis/i.test(m)), JSON.stringify(says1))
+  check('C5e NOL tulisan header & NOL RPC (dulu: menulis diserahkan_at lalu gagal di DB nyata)',
+    upd.length === 0 && mock.__callsOf('rpc').length === 0,
+    JSON.stringify({ upd: upd.length, rpc: mock.__callsOf('rpc').length }))
+  check('C5f tidak ada klaim sukses palsu ke admin', !says1.some(m => /tersimpan|sudah diserahkan/i.test(String(m))),
+    JSON.stringify(says1).slice(0, 240))
+  check('C5g tidak ada teks SQL/kode mentah di layar', !/physical_rpc_required|handover_not_found|42501|23514/.test(doc.body.textContent || ''))
+  check('C5h pesan tidak menyuruh "catat lewat form yang tersedia" (admin SUDAH di form itu)',
+    !/catat lewat form yang tersedia/i.test(doc.body.textContent || ''))
 }
 
 // C5i-C5k: handover dengan receiving, tapi TIDAK ADA barang bertujuan tukang.

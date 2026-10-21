@@ -60,12 +60,30 @@ import { getReceiptCapability, coreLedgerReady } from '../receivings/receiptCapa
 async function confirmEntryGuard(handover) {
   const dup = await guardConfirmFresh({ handover })
   if (!dup.ok) return { ok: false, reason: dup.reason }
-  if (!handover?.receiving_id) return { ok: true }
   let cap = null
   try {
     cap = await getReceiptCapability({ force: true })
   } catch (e) {
     cap = null
+  }
+  // REVIEW run 253 / D4: dokumen TANPA penerimaan tidak punya jalur penutup di
+  // bawah v1 — trigger menolak SETIAP penulisan `diserahkan_at` dan RPC
+  // menjawab `handover_not_found`. Dulu cabang ini `return { ok: true }`
+  // SEBELUM capability dibaca, jadi tombol ✓ aktif lalu gagal. Sekarang
+  // capability dibaca dulu: LEGACY tetap boleh (satu-satunya jalur di sana),
+  // READY/unknown menolak dengan sebab yang bisa ditindaklanjuti.
+  if (!handover?.receiving_id) {
+    if (coreLedgerReady(cap)) {
+      return {
+        ok: false,
+        reason:
+          'Dokumen lama ini tidak terhubung ke penerimaan, jadi tidak ada rincian barang yang bisa dicatat — '
+          + 'dan sejak pencatatan per barang aktif, database MENOLAK menutup dokumen tanpa rincian. '
+          + 'Hubungkan dokumen ini ke penerimaan (perbaikan data oleh admin) atau hapus dokumen ini (belum punya bukti) '
+          + 'lalu catat serah terima dari penerimaan yang benar.'
+      }
+    }
+    return { ok: true }
   }
   if (!coreLedgerReady(cap)) return { ok: true } // LEGACY/unknown: modal yang memutuskan
   const d = await loadDeliverability({ receivingId: handover.receiving_id })

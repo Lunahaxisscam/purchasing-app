@@ -152,16 +152,29 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
   // Untuk dokumen ber-`receiving_id` tombolnya tidak dirender sama sekali —
   // bukan sekadar dinonaktifkan — supaya tidak ada klik yang berakhir dengan
   // teks SQL mentah (`physical_rpc_required`).
-  const headerOnlyBlocked = ready && !!handover?.receiving_id
+  //
+  // REVIEW run 253 / D4: pengecualian "tanpa receiving_id" itu SALAH di bawah
+  // v1. Trigger `ops_v1_core_guard` menolak SETIAP penulisan `diserahkan_at`
+  // oleh `authenticated` (tanpa melihat `receiving_id`), dan `handover_confirm`
+  // menjawab `handover_not_found` untuk dokumen tanpa penerimaan. Jadi begitu
+  // ledger siap, TIDAK ADA dokumen yang boleh memakai jalur header — termasuk
+  // dokumen lama. Tombolnya tidak dirender untuk semua dokumen saat `ready`.
+  const headerOnlyBlocked = ready
 
   async function submitHeaderOnly() {
     if (saving) return
     setErrorMsg('')
     if (headerOnlyBlocked) {
-      setErrorMsg(
-        'Dokumen ini terhubung ke penerimaan, jadi penutupan tanpa rincian DITOLAK database. '
-        + 'Catat dulu barang yang benar-benar diserahkan lewat konfirmasi per barang.'
-      )
+      // D4: di bawah v1 SEMUA dokumen ditolak saat menulis `diserahkan_at`
+      // langsung. Pesannya dibedakan supaya tidak menyuruh admin melakukan
+      // sesuatu yang tidak ada (dulu: "catat lewat form yang tersedia" —
+      // padahal ia sudah di form itu).
+      setErrorMsg(handover?.receiving_id
+        ? 'Dokumen ini terhubung ke penerimaan, jadi penutupan tanpa rincian DITOLAK database. '
+          + 'Catat dulu barang yang benar-benar diserahkan lewat konfirmasi per barang.'
+        : 'Dokumen ini tidak terhubung ke penerimaan, jadi tidak ada rincian yang bisa dicatat — '
+          + 'dan database MENOLAK menutup dokumen tanpa rincian. Hubungkan dokumen ini ke penerimaan '
+          + 'atau hapus dokumen ini (belum punya bukti).')
       return
     }
     const nama = String(penerimaHeader || '').trim()
@@ -301,7 +314,19 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
 
         {ready && !loading && !loadError && lines.length === 0 && (
           <div data-testid="handover-confirm-empty" style={{ ...S.note, background: '#fef6e7', border: '1px solid #fcdfa6', color: '#7a4a08' }}>
-            {deliverability && !deliverability.hasTukang ? (
+            {!handover?.receiving_id ? (
+              // REVIEW run 253 / D4: dokumen TANPA penerimaan. Di bawah v1 ia
+              // tidak punya jalur penutup apa pun — katakan apa adanya, jangan
+              // menawarkan tombol yang pasti ditolak DB, dan jangan menyuruh
+              // "catat lewat form yang tersedia" (admin SUDAH di form itu).
+              <>
+                Dokumen ini <b>tidak terhubung ke penerimaan</b>, jadi tidak ada satu baris pun barang yang
+                bisa dicatat sebagai diserahkan. Sejak pencatatan per barang aktif, <b>database menolak
+                menutup dokumen tanpa rincian</b> — termasuk dokumen lama seperti ini.
+                {' '}Hubungkan dokumen ini ke penerimaan (perbaikan data oleh admin) bila barangnya memang ada,
+                atau <b>hapus dokumen ini</b> (belum punya bukti) lalu catat serah terima dari penerimaan yang benar.
+              </>
+            ) : deliverability && !deliverability.hasTukang ? (
               // REVIEW run 251 / D1: tidak ada satu pun barang yang PERNAH
               // ditujukan ke tukang. Tombol header-only di bawah SENGAJA tidak
               // dirender: kontrak v1 menolak `diserahkan_at` tanpa rincian
@@ -324,8 +349,8 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
             ) : (
               <>
                 Tidak ada barang berstatus <b>alokasi ke tukang</b> yang belum diserahkan pada penerimaan ini.
-                Bila barang dikirim langsung ke tukang tanpa dicatat di Terima Barang, catat dulu alokasinya —
-                atau konfirmasi header saja (tanpa rincian) lewat tombol di bawah bila memang tidak ada rincian yang bisa dicatat.
+                Bila barang dikirim langsung ke tukang tanpa dicatat di Terima Barang, catat dulu alokasinya
+                lewat <b>Terima Barang</b> — konfirmasi per barang baru bisa diisi setelah itu.
               </>
             )}
           </div>
