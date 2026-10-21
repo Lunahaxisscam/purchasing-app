@@ -13,11 +13,18 @@
 //
 // Mode LEGACY (skema belum ada): form tampil sebagai rencana read-only TAPI
 // submit diblok dengan pesan jujur — tidak ada tulisan, tidak ada klaim.
+//
+// DEFECT run 231 / BUG-T1: keadaan `ready_no_return` (ledger inti AKTIF, layer
+// retur BELUM) dulu jatuh ke tampilan LEGACY dan berkata "Tidak ada barang
+// rusak yang tercatat" + "menunggu migrasi skema" untuk penerimaan yang JELAS
+// punya rusak 2. Sekarang keadaan itu dibedakan: barang rusak yang ADA
+// ditampilkan READ-ONLY (tanpa checkbox, tanpa simpan) supaya admin tahu
+// datanya tidak hilang, dan sebabnya disebut benar.
 // ============================================================
 import React, { useEffect, useMemo, useState } from 'react'
 import { returPlan, commonResolutions } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadReturnedByEvent, createReturnCase } from '../receivings/receiptEventSave'
-import { capabilityMessage, capabilityState } from '../receivings/receiptCapability'
+import { capabilityMessage, capabilityState, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
 
 const RESOLUTIONS = [
   { id: 'RETURN', label: 'Kembalikan ke supplier' },
@@ -45,7 +52,12 @@ const S = {
 }
 
 export default function ReturnForm({ receiving, capability = null, say, refresh, close }) {
-  const ready = !!capability?.returnReady
+  // Retur hanya bisa DITINDAKLANJUTI bila riwayat retur (`return_lines`)
+  // terbaca — tanpa itu anti double-retur tidak bisa ditegakkan.
+  const ready = returnLayerReady(capability)
+  // Tetapi ledger inti bisa saja sudah aktif: barang rusak yang tercatat harus
+  // tetap DITAMPILKAN (read-only) supaya admin tahu datanya ada (run 231).
+  const coreReady = coreLedgerReady(capability)
   // TIGA keadaan (run 212 / BUG-R1): `null` = probe belum selesai, BUKAN
   // "skema belum ada". Pesan & tampilan dibedakan supaya admin tidak diberi
   // tahu hal yang salah tentang database.
@@ -53,8 +65,11 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
   // `partial` (run 219 / BUG-S2) = sebagian objek ledger sudah ADA. Retur
   // memang sudah diblokir saat `!ready`, tetapi pesan/warna tidak boleh
   // menyamar sebagai LEGACY — riwayat retur bisa saja sudah berisi.
-  const pending = capState === 'unknown' || capState === 'error' || capState === 'partial'
-  const [loading, setLoading] = useState(ready)
+  const pending = capState === CAP_STATE.UNKNOWN || capState === CAP_STATE.ERROR || capState === CAP_STATE.PARTIAL
+  // `ready_no_return`: ledger inti aktif, layer retur belum. Baris dibaca untuk
+  // DITAMPILKAN, bukan untuk ditawarkan (tanpa checkbox, tanpa submit).
+  const readOnly = !ready && coreReady && !pending
+  const [loading, setLoading] = useState(ready || readOnly)
   const [loadError, setLoadError] = useState('')
   const [rows, setRows] = useState([])
   const [blocked, setBlocked] = useState([])
@@ -67,7 +82,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
   useEffect(() => {
     let cancelled = false
     async function load() {
-      if (!ready) { setLoading(false); return }
+      if (!ready && !readOnly) { setLoading(false); return }
       setLoading(true)
       const ev = await loadReceivingEvents({ receivingId: receiving?.id })
       if (cancelled) return
@@ -78,6 +93,17 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
       const ret = await loadReturnedByEvent({ eventIds: ids })
       if (cancelled) return
       if (!ret.ok) {
+        // Di read-only (layer retur belum) kegagalan ini JUSTRU informasinya:
+        // qty yang sudah diretur tidak diketahui. Baris rusak tetap ditampilkan
+        // sebagai bukti data ada, tetapi TIDAK ada tawaran retur.
+        if (readOnly) {
+          const plan = returPlan(ev.events || [])
+          setRows([])
+          setBlocked([...plan.lines, ...plan.blocked].map(r => ({ ...r, qty_sudah_retur: null })))
+          setLoadError(`Tidak bisa memeriksa riwayat retur: ${ret.error}`)
+          setLoading(false)
+          return
+        }
         setLoadError(`Tidak bisa memeriksa riwayat retur: ${ret.error}`)
         setRows([])
         setBlocked([])
@@ -86,8 +112,20 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
         return
       }
       const plan = returPlan(ev.events || [], { alreadyReturned: ret.returned || {} })
-      setRows(plan.lines)
       setBlocked(plan.blocked)
+      if (readOnly) {
+        // Semua baris rusak ditampilkan, termasuk yang bersaldo: admin perlu
+        // tahu barang apa saja yang tercatat rusak, tanpa bisa memilihnya.
+        const all = [...plan.lines, ...plan.blocked].map(r => ({
+          ...r,
+          qty_sudah_retur: r.qty_sudah_retur !== undefined ? r.qty_sudah_retur : (ret.returned?.[r.receiving_event_id] || 0)
+        }))
+        setRows([])
+        setBlocked(all)
+        setLoading(false)
+        return
+      }
+      setRows(plan.lines)
       const init = {}
       for (const l of plan.lines) init[l.receiving_event_id] = true
       setPicked(init)
@@ -95,7 +133,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
     }
     load()
     return () => { cancelled = true }
-  }, [ready, receiving?.id])
+  }, [ready, readOnly, receiving?.id])
 
   const chosen = useMemo(() => rows.filter(r => picked[r.receiving_event_id]), [rows, picked])
   const totalQty = useMemo(() => chosen.reduce((s, r) => s + (Number(r.qty) || 0), 0), [chosen])
@@ -151,8 +189,11 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
         </div>
 
         <p className="muted" style={{ margin: 0, fontSize: '12.5px' }}>
-          Barang diambil dari catatan penerimaan yang menyatakan <b>rusak</b> — tidak perlu mengetik ulang
-          nama atau jumlah. Pilih tindakan, lalu centang baris yang benar-benar diretur.
+          {readOnly
+            ? <>Barang rusak diambil dari catatan penerimaan — ditampilkan supaya Anda tahu datanya <b>ada</b>.
+                Retur belum bisa dicatat dari aplikasi (lihat keterangan di bawah).</>
+            : <>Barang diambil dari catatan penerimaan yang menyatakan <b>rusak</b> — tidak perlu mengetik ulang
+                nama atau jumlah. Pilih tindakan, lalu centang baris yang benar-benar diretur.</>}
         </p>
 
         <div
@@ -160,9 +201,9 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
           data-capability-state={capState}
           style={{
             ...S.note,
-            background: ready ? '#e6f4ea' : (pending ? '#eef3f1' : '#fef6e7'),
-            border: `1px solid ${ready ? '#ceead6' : (pending ? '#cbd8d4' : '#fcdfa6')}`,
-            color: ready ? '#137333' : (pending ? '#1f3a34' : '#7a4a08')
+            background: ready ? '#e6f4ea' : (pending ? '#eef3f1' : (readOnly ? '#eef3f1' : '#fef6e7')),
+            border: `1px solid ${ready ? '#ceead6' : (pending ? '#cbd8d4' : (readOnly ? '#cbd8d4' : '#fcdfa6'))}`,
+            color: ready ? '#137333' : (pending ? '#1f3a34' : (readOnly ? '#1f3a34' : '#7a4a08'))
           }}
         >
           {ready
@@ -172,53 +213,83 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
 
         {loading && <div className="muted" style={{ fontSize: '12px' }}>Memuat barang rusak…</div>}
         {loadError && (
-          <div style={{ color: '#c93b2b', fontSize: '12px' }}>Gagal memuat barang rusak: {loadError}</div>
+          <div style={{ color: '#c93b2b', fontSize: '12px' }} data-testid="return-load-error">Gagal memuat barang rusak: {loadError}</div>
         )}
 
-        {!loading && !loadError && rows.length === 0 && (
-          <div data-testid="return-empty" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
-            {blocked.length
-              ? 'Ada barang rusak, tetapi belum ditandai untuk diretur — jadi belum ada saldo retur yang bisa dicatat.'
-              : 'Tidak ada barang rusak yang tercatat pada penerimaan ini.'}
-            {ready
-              ? (blocked.length
-                ? ' Keputusan retur untuk barang-barang di bawah tidak bisa diubah lagi dari aplikasi — lihat penjelasannya.'
-                : ' Catat dulu jumlah rusak di form Terima Barang.')
-              : ' (Pencatatan jumlah rusak per barang belum aktif — menunggu migrasi skema.)'}
-          </div>
-        )}
+        {/* DEFECT run 231 / BUG-T1: di `ready_no_return` (ledger inti aktif,
+            layer retur belum) panel ini dulu berkata "Tidak ada barang rusak
+            yang tercatat" + "menunggu migrasi skema" untuk penerimaan yang
+            JELAS punya rusak 2. Sekarang barang rusak yang ADA ditampilkan
+            read-only, dan sebabnya disebut apa adanya. */}
+        {!loading && rows.length === 0 && (readOnly
+          ? (blocked.length === 0
+            ? <div data-testid="return-empty" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
+                Penerimaan ini memang <b>tidak mencatat barang rusak</b> — jadi tidak ada yang bisa diretur.
+                (Penerimaan &amp; serah terima per barang sudah aktif dan tersimpan; hanya pencatatan retur yang belum siap.)
+              </div>
+            : null)
+          : (!loadError && (
+            <div data-testid="return-empty" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
+              {blocked.length
+                ? 'Ada barang rusak, tetapi belum ditandai untuk diretur — jadi belum ada saldo retur yang bisa dicatat.'
+                : 'Tidak ada barang rusak yang tercatat pada penerimaan ini.'}
+              {ready
+                ? (blocked.length
+                  ? ' Keputusan retur untuk barang-barang di bawah tidak bisa diubah lagi dari aplikasi — lihat penjelasannya.'
+                  : ' Catat dulu jumlah rusak di form Terima Barang.')
+                : ' (Pencatatan jumlah rusak per barang belum aktif — menunggu migrasi skema.)'}
+            </div>
+          )))}
 
         {/* Barang rusak yang BELUM punya saldo retur (retur_qty 0, biasanya
             karena pilihan default "Tentukan nanti"). Ditampilkan sebagai
             penjelasan, bukan disembunyikan: admin harus tahu barangnya ada dan
             apa yang perlu dilakukan. Tidak bisa dicentang — RPC akan menolak
             (reason `no_retur_balance`), jadi menawarkannya = janji palsu. */}
-        {!loading && !loadError && blocked.length > 0 && (
+        {!loading && blocked.length > 0 && (
           <div data-testid="return-blocked" style={{ ...S.note, background: '#fdf8ea', border: '1px solid #f0dcb4', color: '#7a4a08' }}>
-            <b>Belum bisa diretur ({blocked.length} barang rusak):</b>
+            <b>{readOnly ? 'Barang rusak yang TERCATAT' : 'Belum bisa diretur'} ({blocked.length} barang rusak):</b>
             <ul style={{ margin: '5px 0 0', paddingLeft: '18px' }}>
               {blocked.map(b => (
                 <li key={b.receiving_event_id} data-testid={`return-blocked-${b.receiving_event_id}`}>
-                  {b.item_name} — rusak {b.qty_rusak}{b.satuan ? ` ${b.satuan}` : ''}, belum ditandai retur/dibuang.
+                  {b.item_name} — rusak {b.qty_rusak}{b.satuan ? ` ${b.satuan}` : ''}
+                  {readOnly
+                    ? `, keputusan retur: ${b.retur_status && b.retur_status !== 'NONE' ? b.retur_status : 'belum ditentukan'}`
+                    : ', belum ditandai retur/dibuang.'}
                 </li>
               ))}
             </ul>
-            {/* JUJUR (run 202): sebelumnya panel ini menyuruh admin "buka Terima
-                Barang dan pilih Kembalikan ke supplier — setelah itu barisnya
-                muncul di sini". Instruksi itu TIDAK BISA dijalankan: event
-                penerimaan tidak bisa dikoreksi (client_event_id deterministik →
-                RPC menjawab already_applied; aplikasi menolak dengan
-                CORRECTION_UNSUPPORTED), dan tidak ada RPC koreksi/reversal di
-                paket skema. Menyuruh admin melakukan hal yang mustahil =
-                janji palsu. */}
-            <div style={{ marginTop: '6px' }} data-testid="return-blocked-why">
-              Keputusan retur diambil saat barang dicatat datang. Untuk barang di atas, pilihannya
-              dulu dibiarkan <b>"Tentukan nanti"</b> — catatan itu <b>tidak bisa diubah lagi</b> dari
-              aplikasi (koreksi penerimaan belum didukung). Barangnya tetap tercatat rusak dan tetap
-              terlihat di sini; retur-nya perlu dicatat di luar aplikasi atau menunggu fitur koreksi
-              penerimaan dari pemilik skema. Untuk kedatangan berikutnya, pilih{" "}
-              <b>"Kembalikan ke supplier"</b> atau <b>"Dibuang"</b> saat mencatat barang rusak.
-            </div>
+            {readOnly ? (
+              /* DEFECT run 231 / BUG-T1: jangan pernah menyuruh admin "menunggu
+                 migrasi skema" untuk data yang SUDAH ada, dan jangan sebut
+                 "tidak ada barang rusak". Sebab yang benar: layer retur belum
+                 siap (belum dimigrasi ATAU tidak bisa dibaca). */
+              <div style={{ marginTop: '6px' }} data-testid="return-blocked-why">
+                Catatan rusak di atas <b>tersimpan</b> di database — bukan hilang. Yang belum siap adalah
+                <b> pencatatan retur</b>: {(capability?.missing || []).filter(Boolean).join('; ') || 'tabel retur belum tersedia'}.
+                {capability?.returnProbeFailed
+                  ? ' Pemeriksaan tabel retur tidak bisa disimpulkan (biasanya hak akses/RLS) — minta admin memeriksa grant SELECT pada tabel retur.'
+                  : ' Minta admin menjalankan migrasi layer retur.'}
+                {' '}Sampai itu selesai, retur dicatat di luar aplikasi / direkonsiliasi manual dengan supplier (nota koreksi/kredit).
+              </div>
+            ) : (
+              /* JUJUR (run 202): sebelumnya panel ini menyuruh admin "buka Terima
+                 Barang dan pilih Kembalikan ke supplier — setelah itu barisnya
+                 muncul di sini". Instruksi itu TIDAK BISA dijalankan: event
+                 penerimaan tidak bisa dikoreksi (client_event_id deterministik →
+                 RPC menjawab already_applied; aplikasi menolak dengan
+                 CORRECTION_UNSUPPORTED), dan tidak ada RPC koreksi/reversal di
+                 paket skema. Menyuruh admin melakukan hal yang mustahil =
+                 janji palsu. */
+              <div style={{ marginTop: '6px' }} data-testid="return-blocked-why">
+                Keputusan retur diambil saat barang dicatat datang. Untuk barang di atas, pilihannya
+                dulu dibiarkan <b>"Tentukan nanti"</b> — catatan itu <b>tidak bisa diubah lagi</b> dari
+                aplikasi (koreksi penerimaan belum didukung). Barangnya tetap tercatat rusak dan tetap
+                terlihat di sini; retur-nya perlu dicatat di luar aplikasi atau menunggu fitur koreksi
+                penerimaan dari pemilik skema. Untuk kedatangan berikutnya, pilih{" "}
+                <b>"Kembalikan ke supplier"</b> atau <b>"Dibuang"</b> saat mencatat barang rusak.
+              </div>
+            )}
           </div>
         )}
 
@@ -311,10 +382,15 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
         )}
 
         <div className="actions">
-          <button type="button" className="outline" onClick={close}>Batal</button>
-          <button type="submit" disabled={saving || !rows.length || (ready && (!chosen.length || !allowed.length))} data-testid="return-submit">
-            {saving ? 'Menyimpan…' : '↩ Simpan Retur'}
-          </button>
+          <button type="button" className="outline" onClick={close}>{readOnly ? 'Tutup' : 'Batal'}</button>
+          {/* Tombol simpan TIDAK dirender di read-only: tidak ada jalur tulis
+              yang tersembunyi, dan tidak ada tombol mati yang membuat admin
+              mengira tinggal satu klik lagi (run 231). */}
+          {readOnly ? null : (
+            <button type="submit" disabled={saving || !rows.length || (ready && (!chosen.length || !allowed.length))} data-testid="return-submit">
+              {saving ? 'Menyimpan…' : '↩ Simpan Retur'}
+            </button>
+          )}
         </div>
       </form>
     </div>

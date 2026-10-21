@@ -21,7 +21,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { handoverLinesFromEvents, validateHandoverLines } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadDeliveredByEvent, confirmHandoverLines } from '../receivings/receiptEventSave'
-import { capabilityMessage, capabilityState } from '../receivings/receiptCapability'
+import { capabilityMessage, capabilityState, coreLedgerReady, CAP_STATE } from '../receivings/receiptCapability'
 import { markHandoverDelivered } from './confirm'
 
 const fmt = (v) => (v === undefined || v === null || v === '' ? '—' : v)
@@ -43,13 +43,18 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
   // LEGACY. Hanya `ready:false` yang benar-benar hasil probe (skema belum ada)
   // yang boleh memakai jalur tulis header.
   const capState = capabilityState(capability)
-  const ready = capState === 'ready'
-  const legacy = capState === 'legacy'
+  // DEFECT run 231: `ready` di sini berarti "ledger INTI siap". Konfirmasi
+  // serah terima hanya butuh `receiving_events` + `handover_items`, TIDAK butuh
+  // `return_lines` — jadi keadaan `ready_no_return` (layer retur belum) harus
+  // tetap bisa mengonfirmasi per barang. Dulu `capState === 'ready'` membuat
+  // seluruh alur serah terima mati hanya karena tabel retur belum dimigrasi.
+  const ready = coreLedgerReady(capability)
+  const legacy = capState === CAP_STATE.LEGACY
   // `partial` (run 219 / BUG-S2) = sebagian objek ledger SUDAH ADA. Form ini
   // TIDAK boleh jatuh ke jalur LEGACY di keadaan itu: jalur LEGACY menulis
   // header dan mengunci dokumen tanpa rincian, padahal rincian per barang
   // sudah tercatat. Perlakukan seperti pending: tidak menulis, pesan jujur.
-  const pending = capState === 'unknown' || capState === 'error' || capState === 'partial'
+  const pending = capState === CAP_STATE.UNKNOWN || capState === CAP_STATE.ERROR || capState === CAP_STATE.PARTIAL
   // `loadedFor` = kunci pemuatan yang SUDAH selesai (berhasil atau gagal).
   // Dulu `loading` diinisialisasi `useState(ready)`; saat capability berubah
   // null→ready (jendela probe) `loading` tetap false selama satu render,
@@ -219,7 +224,12 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
           }}
         >
           {ready
-            ? 'Rincian per barang AKTIF: baris di bawah diisi otomatis dari penerimaan (alokasi ke tukang) dikurangi yang sudah diserahkan — Anda hanya memverifikasi jumlah fisik. Kosongkan jumlah untuk barang yang BELUM benar-benar diterima; baris itu dilewati, bukan dipaksa nol.'
+            ? <>Rincian per barang AKTIF: baris di bawah diisi otomatis dari penerimaan (alokasi ke tukang) dikurangi yang sudah diserahkan — Anda hanya memverifikasi jumlah fisik. Kosongkan jumlah untuk barang yang BELUM benar-benar diterima; baris itu dilewati, bukan dipaksa nol.
+                {capState === CAP_STATE.READY_NO_RETURN
+                  // Run 231: jangan sembunyikan bahwa layer retur belum siap —
+                  // form ini tidak memakainya, tetapi admin harus tahu batasnya.
+                  ? <> <b>Catatan:</b> pencatatan <b>retur</b> belum aktif ({(capability?.missing || []).filter(Boolean).join('; ') || 'tabel retur belum siap'}); konfirmasi serah terima di sini tidak terpengaruh.</>
+                  : null}</>
             : pending
               ? capabilityMessage(capability)
               : `${capabilityMessage(capability)} Konfirmasi di sini hanya mencatat waktu penyerahan (header), tanpa rincian barang.`}
