@@ -21,7 +21,15 @@ export const __state = {
   replayHandover: false,   // RPC handover_confirm menjawab already=true
   rpcError: null,          // error RPC sekali pakai (mis. over_receipt)
   calls: [],              // {op, table, ...}
-  nextError: null
+  nextError: null,
+  // Waktu INSERT yang dipakai mock untuk `created_at` (default: sekarang).
+  // Dipakai probe balapan untuk memaksa urutan kanonik yang deterministik.
+  insertStamp: null,
+  // Hook sekali pakai yang dijalankan TEPAT sebelum INSERT (meniru sesi lain
+  // yang commit di antara SELECT penjaga dan INSERT kita).
+  beforeInsert: null,
+  // Bila diisi, `nextError` hanya berlaku untuk tabel ini.
+  nextErrorTable: null
 }
 
 export function __reset({ handovers = [], receivings = [], prItems = [], receivingItems = [], ledger = null } = {}) {
@@ -41,6 +49,9 @@ export function __reset({ handovers = [], receivings = [], prItems = [], receivi
   __state.rpcError = null
   __state.calls = []
   __state.nextError = null
+  __state.insertStamp = null
+  __state.beforeInsert = null
+  __state.nextErrorTable = null
 }
 
 // Tabel pendukung untuk modul Handover (distribusi fisik).
@@ -97,17 +108,48 @@ function terminal(st, unwrap = false) {
 }
 
 function terminalRaw(st) {
-  if (__state.nextError) {
+  // `nextErrorTable` (opsional): error HANYA untuk tabel itu. Tanpa ini, probe
+  // yang memaksa "baca DB gagal" tidak bisa menargetkan query tertentu —
+  // capability probe (tabel ledger) akan memakan error-nya lebih dulu dan
+  // pemeriksaan yang ingin diuji justru berjalan sukses (uji palsu).
+  if (__state.nextError && (!__state.nextErrorTable || __state.nextErrorTable === st.table)) {
     const err = __state.nextError
     __state.nextError = null
+    __state.nextErrorTable = null
     return { data: null, error: err }
   }
   if (st.op === 'insert') {
     const size = __state.handovers.size + __state.receivings.size + __state.prItems.size + __state.receivingItems.size
-    const row = { id: `gen-${size}-${Math.random().toString(36).slice(2, 7)}`, ...st.data }
+    // Hook balapan: meniru sesi LAIN yang commit TEPAT sebelum INSERT ini.
+    // Dipakai probe run 242/243 untuk membuktikan penarikan diri (withdraw)
+    // bekerja — bukan untuk membuat uji "lulus" secara palsu.
+    if (typeof __state.beforeInsert === 'function') {
+      const hook = __state.beforeInsert
+      __state.beforeInsert = null
+      hook(st)
+    }
+    // `created_at` di database default now() — tanpa ini urutan kanonik
+    // dokumen (created_at → handover_date → id) tidak bisa diemulasi dan
+    // "dokumen yang lebih awal" menjadi tidak deterministik.
+    const stamp = { created_at: __state.insertStamp || new Date().toISOString() }
+    const row = { id: `gen-${size}-${Math.random().toString(36).slice(2, 7)}`, ...stamp, ...st.data }
     const store = storeOf(st.table)
     if (store) store.set(row.id, { ...row })
     return { data: [row], error: null }
+  }
+  if (st.op === 'delete') {
+    const store = storeOf(st.table)
+    if (!store) return { data: [], error: null }
+    const idF = st.filters.find(f => f.col === 'id')
+    const isF = st.filters.find(f => f.col === 'diserahkan_at' && f.isNull)
+    const row = idF ? store.get(idF.val) : null
+    if (!row) return { data: [], error: null }
+    // CAS: `.delete().eq('id',x).is('diserahkan_at', null)` hanya menghapus
+    // baris yang BELUM diserahkan — sama seperti perilaku yang dituntut
+    // `duplicateGuardDb.insertUniqueActiveHandover` saat menarik diri.
+    if (isF && row.diserahkan_at !== null && row.diserahkan_at !== undefined) return { data: [], error: null }
+    store.delete(row.id)
+    return { data: [{ ...row }], error: null }
   }
   if (st.op === 'update') {
     if (st.table === 'handovers') {

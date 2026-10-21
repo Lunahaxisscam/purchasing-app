@@ -11,11 +11,18 @@
 //
 // `orderedFor` dibangun dari ctx.H (helper yang sudah dimuat halaman) —
 // TIDAK ada query tambahan dan TIDAK ada perubahan kontrak ctx.
+//
+// REVIEW run 242 (BUG-V1): gerbang konfirmasi dulu memakai `ctx.rows`
+// (memori halaman). Halaman ini tidak punya realtime dan tidak refresh saat
+// tab kembali fokus, jadi dokumen yang dibuat admin lain SESUDAH halaman
+// dimuat tidak terlihat — modal merender FORM dan dokumen duplikat bisa
+// dikonfirmasi. Sekarang gerbangnya membaca DB lewat `guardConfirmFresh()`
+// tepat saat modal dibuka, dan GAGAL BACA = TIDAK MERENDER FORM (fail closed).
 // ============================================================
 import React, { useEffect, useMemo, useState } from 'react'
 import { usePhysicalModal, closePhysicalModal } from './physicalModal'
 import { getReceiptCapability } from '../receivings/receiptCapability'
-import { confirmDuplicateGuard } from './duplicateGuard'
+import { guardConfirmFresh } from './duplicateGuardDb'
 import ReceiptForm from './receiptForm'
 import ReturnForm from './returnForm'
 import HandoverConfirmForm from './confirmForm'
@@ -36,9 +43,33 @@ function makeOrderedFor(ctx) {
   }
 }
 
+function BlockedPanel({ title, text, testId, onRetry }) {
+  return (
+    <div className="modal">
+      <div className="dialog" data-testid={testId}>
+        <div className="dialoghead">
+          <h2>{title}</h2>
+          <button type="button" className="icon" onClick={closePhysicalModal} aria-label="Tutup">×</button>
+        </div>
+        <p style={{ fontSize: '12.5px', lineHeight: 1.5, margin: 0 }}>{text}</p>
+        <div className="actions" style={{ marginTop: 12 }}>
+          {onRetry && (
+            <button type="button" className="outline" onClick={onRetry}>🔄 Periksa ulang</button>
+          )}
+          <button type="button" className="outline" onClick={closePhysicalModal}>Tutup</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function PhysicalModalHost({ ctx }) {
   const target = usePhysicalModal()
   const [cap, setCap] = useState(null)
+  // Gerbang duplikat: `null` = SEDANG DIPERIKSA. `{ok}` = hasil baca DB.
+  // Tidak pernah memakai `ctx.rows` untuk KEPUTUSAN (hanya untuk tampilan).
+  const [dup, setDup] = useState(null)
+  const [dupNonce, setDupNonce] = useState(0)
 
   // Probe setiap kali modal dibuka. `force` supaya hasil setelah migrasi
   // langsung terbaca tanpa reload halaman.
@@ -58,6 +89,32 @@ export function PhysicalModalHost({ ctx }) {
       })
     return () => { cancelled = true }
   }, [target])
+
+  // ============================================================
+  // REVIEW run 242 (BUG-V1) — gerbang konfirmasi MEMBACA DATABASE
+  // ============================================================
+  // Modal konfirmasi bisa dibuka dari banner antrean, tombol ✓ baris
+  // desktop, tombol kartu mobile, dan pemanggilan programatik. Semua pintu
+  // itu lewat komponen ini, jadi pemeriksaan di sini menutup SEMUA pintu.
+  //
+  // Yang dibaca adalah DB, bukan `ctx.rows`: dua admin di lapangan tidak
+  // saling melihat halaman, dan `save.js` sudah menyatakan hal yang sama
+  // untuk invarian yang sama ("daftar di halaman bisa basi").
+  //
+  // Gagal baca = JANGAN merender form konfirmasi (fail closed). Konfirmasi
+  // mengunci `diserahkan_at` permanen (CAS), jadi "coba saja" bukan pilihan:
+  // salah konfirmasi tidak bisa dibatalkan dari UI.
+  useEffect(() => {
+    let cancelled = false
+    if (!target || target.kind !== 'confirm') { setDup(null); return }
+    setDup(null)
+    guardConfirmFresh({ handover: target.handover })
+      .then(res => { if (!cancelled) setDup(res || { ok: false, failed: true, reason: 'Pemeriksaan dokumen ganda tidak mengembalikan hasil.' }) })
+      .catch(err => {
+        if (!cancelled) setDup({ ok: false, failed: true, reason: `Pemeriksaan dokumen ganda gagal (${String(err?.message || err)}). Konfirmasi dikunci supaya tidak menandai dokumen yang salah.` })
+      })
+    return () => { cancelled = true }
+  }, [target, dupNonce])
 
   const orderedFor = useMemo(() => makeOrderedFor(ctx), [ctx])
 
@@ -82,31 +139,39 @@ export function PhysicalModalHost({ ctx }) {
   }
 
   if (target.kind === 'confirm') {
-    // ============================================================
-    // DEFECT run 239 — SATU choke point untuk SEMUA pintu konfirmasi
-    // ============================================================
-    // Modal konfirmasi bisa dibuka dari banner antrean, tombol ✓ baris
-    // desktop, tombol kartu mobile, dan pemanggilan programatik. Dua dokumen
-    // AKTIF untuk satu penerimaan bisa sama-sama lolos RPC `handover_confirm`
-    // (kuncinya per DOKUMEN, cek kuota sebelum baris `receiving_items`
-    // dikunci) → rincian 2× kuota dan `belum_diserahkan` negatif.
-    // Gerbang di sini menjaga SEMUA pintu itu sekaligus; tombol yang mati di
-    // view/queue adalah lapis pertama yang terlihat admin.
-    const dup = confirmDuplicateGuard({ handover: target.handover, handovers: ctx?.rows || [] })
-    if (!dup.ok) {
+    // Pemeriksaan BELUM SELESAI: jangan merender form, jangan menulis apa pun.
+    if (dup === null) {
       return (
         <div className="modal">
-          <div className="dialog" data-testid="handover-confirm-dup-blocked">
+          <div className="dialog" data-testid="handover-confirm-dup-checking">
             <div className="dialoghead">
-              <h2>⚠ Konfirmasi dikunci — dokumen duplikat</h2>
+              <h2>Memeriksa dokumen Serah Terima…</h2>
               <button type="button" className="icon" onClick={closePhysicalModal} aria-label="Tutup">×</button>
             </div>
-            <p style={{ fontSize: '12.5px', lineHeight: 1.5, margin: 0 }}>{dup.reason}</p>
-            <div className="actions" style={{ marginTop: 12 }}>
-              <button type="button" className="outline" onClick={closePhysicalModal}>Tutup</button>
-            </div>
+            <p style={{ fontSize: '12.5px', lineHeight: 1.5, margin: 0 }}>
+              Memastikan penerimaan ini hanya punya SATU dokumen aktif. Tidak ada data yang ditulis sampai pemeriksaan selesai.
+            </p>
           </div>
         </div>
+      )
+    }
+    if (dup.failed) {
+      return (
+        <BlockedPanel
+          testId="handover-confirm-dup-check-failed"
+          title="⚠ Konfirmasi dikunci — pemeriksaan gagal"
+          text={dup.reason}
+          onRetry={() => setDupNonce(n => n + 1)}
+        />
+      )
+    }
+    if (!dup.ok) {
+      return (
+        <BlockedPanel
+          testId="handover-confirm-dup-blocked"
+          title="⚠ Konfirmasi dikunci — dokumen duplikat"
+          text={dup.reason}
+        />
       )
     }
     return <HandoverConfirmForm handover={target.handover} {...shared} />

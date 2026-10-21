@@ -47,6 +47,11 @@ if os.path.isfile(f'{REPO}/modules/vendors/categories.js'):
 # tidak harness ini gagal di IMPOR dan menyamarkan hasil suite yang sebenarnya.
 if os.path.isfile(f'{REPO}/modules/handovers/duplicateGuard.js'):
     shutil.copy(f'{REPO}/modules/handovers/duplicateGuard.js', f'{SB}/modules/handovers/duplicateGuard.js')
+# run 243: save.js kini memakai `duplicateGuardDb` (penjaga yang membaca DB +
+# insert → verifikasi → tarik diri sendiri). Tanpa file ini harness gagal di
+# IMPOR dan menyamarkan hasil suite yang sebenarnya.
+if os.path.isfile(f'{REPO}/modules/handovers/duplicateGuardDb.js'):
+    shutil.copy(f'{REPO}/modules/handovers/duplicateGuardDb.js', f'{SB}/modules/handovers/duplicateGuardDb.js')
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')

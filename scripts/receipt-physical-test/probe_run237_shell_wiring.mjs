@@ -60,6 +60,13 @@ console.log('\n=== W7. Tidak ada jalur hapus handover lain di UI ===')
 // UI = pages/*.js (shell), components/, modules/, lib/. `pages/api/**` adalah
 // endpoint maintenance server (bukan UI) dan sengaja TIDAK dihitung di sini —
 // lihat W7b untuk kejujurannya.
+//
+// REVISI run 242: satu jalur hapus BARU muncul di `duplicateGuardDb.js` —
+// penarikan diri (compensating withdraw) saat dokumen yang baru dibuat kalah
+// balapan. Jalur itu SAH hanya bila: (a) menunjuk ID yang baru saja dibuat
+// sendiri (bukan input pengguna), dan (b) memakai CAS `.is('diserahkan_at',
+// null)` sehingga bukti yang sudah tercatat mustahil terhapus. Kedua syarat
+// itu DIPERIKSA di sini, bukan diberi pengecualian buta.
 const roots = ['components', 'modules', 'lib']
 const offenders = []
 function walk(dir) {
@@ -69,8 +76,13 @@ function walk(dir) {
     if (entry.isDirectory()) { walk(p); continue }
     if (!/\.(js|jsx)$/.test(entry.name)) continue
     const s = fs.readFileSync(p, 'utf8')
-    if (/from\(\s*'handovers'\s*\)\s*\.delete\(\)/.test(s) || /from\(\s*"handovers"\s*\)\s*\.delete\(\)/.test(s)) {
-      offenders.push(path.relative(REPO, p))
+    const re = /from\(\s*['"]handovers['"]\s*\)\s*\.delete\(\)/g
+    let m
+    while ((m = re.exec(s)) !== null) {
+      const tail = s.slice(m.index, m.index + 200)
+      const cas = /\.is\(\s*['"]diserahkan_at['"]\s*,\s*null\s*\)/.test(tail)
+      const guardedByOwnId = /\.eq\(\s*['"]id['"]\s*,\s*inserted\.id\s*\)/.test(tail)
+      if (!(cas && guardedByOwnId)) offenders.push(path.relative(REPO, p))
     }
   }
 }

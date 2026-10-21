@@ -16,8 +16,7 @@
 // ============================================================
 import { supabase } from '../../lib/supabaseClient'
 import { buildHandoverNote, parseHandoverNote, dataUrlByteSize, HANDOVER_FOTO_MAX_BYTES } from '../../lib/constants'
-import { insertAndFinish } from '../shared/saveHelpers'
-import { handoverCreateGuard } from './duplicateGuard'
+import { insertUniqueActiveHandover } from './duplicateGuardDb'
 
 export async function save(ctx) {
   const { form, isEdit, editRow, say, close, refresh, setSaving } = ctx
@@ -73,45 +72,25 @@ export async function save(ctx) {
   }
 
   // ============================================================
-  // DEFECT run 239: DUA DOKUMEN AKTIF untuk SATU PENERIMAAN
+  // DEFECT run 239 + REVIEW run 242 (BUG-V2): DUA DOKUMEN AKTIF
   // ============================================================
-  // Sebelum ini, mode TAMBAH langsung INSERT: `receiving_id` tidak diperiksa.
-  // Di PostgreSQL nyata dua dokumen aktif untuk penerimaan yang sama membuat
-  // `handover_confirm` (kunci per DOKUMEN) menerima KEDUANYA — rincian menjadi
-  // 2× kuota dan `belum_diserahkan` negatif (probe_run239_dupdoc.mjs).
+  // Run 239 memasang penjaga SELECT-lalu-INSERT. Review run 242 membuktikan
+  // di PostgreSQL nyata bahwa dua sesi bersamaan SAMA-SAMA lolos (probe
+  // `probe_run242_duprace.mjs`: kedua insert diterima, nol error, 2 dokumen
+  // aktif), lalu `handover_confirm` menerima KEDUANYA (kuncinya per DOKUMEN)
+  // → rincian 2× kuota dan `belum_diserahkan` negatif.
   //
-  // Pembacaan ini SENGAJA dari DB, bukan dari `rows` di memori: daftar di
-  // halaman bisa basi (admin lain baru membuat dokumen). Gagal baca = JANGAN
-  // menulis (fail closed) — lebih baik admin mengulang daripada membuat
-  // duplikat yang tidak bisa ditarik kembali.
-  let activeDocs = []
-  try {
-    const { data, error } = await supabase
-      .from('handovers')
-      .select('id, receiving_id, handover_date, created_at, diserahkan_at')
-      .eq('receiving_id', receivingId)
-      .is('diserahkan_at', null)
-    if (error) {
-      setSaving(false)
-      say(`Tidak bisa memeriksa dokumen Serah Terima yang sudah ada (${error.message}). Penyimpanan dibatalkan supaya tidak membuat dokumen ganda — coba lagi.`)
-      return
-    }
-    activeDocs = data || []
-  } catch (err) {
-    setSaving(false)
-    say(`Tidak bisa memeriksa dokumen Serah Terima yang sudah ada (${err.message}). Penyimpanan dibatalkan supaya tidak membuat dokumen ganda — coba lagi.`)
-    return
-  }
-  const dupGuard = handoverCreateGuard({
-    receiving: { id: receivingId },
-    handovers: activeDocs
-  })
-  if (!dupGuard.ok) {
-    setSaving(false)
-    say(dupGuard.reason)
-    return
-  }
-
+  // `insertUniqueActiveHandover` menutupnya dalam tiga lapis tanpa DDL:
+  //   1. baca DB (bukan `rows` memori) → jalur cepat, nol tulisan;
+  //   2. INSERT;
+  //   3. baca DB LAGI sesudah commit → bila ada dokumen aktif yang lebih awal
+  //      (urutan kanonik created_at → handover_date → id), baris yang baru
+  //      dibuat MENARIK DIRINYA SENDIRI (CAS `diserahkan_at IS NULL`).
+  // Konvergen karena dua penulis tidak mungkin sama-sama tidak melihat yang
+  // lain (lihat pembuktian di header duplicateGuardDb.js).
+  //
+  // Gagal baca = JANGAN menulis (fail closed) — lebih baik admin mengulang
+  // daripada membuat duplikat yang tidak bisa ditarik kembali.
   const data = {
     receiving_id: receivingId,
     project_id: form.project_id || null,
@@ -121,5 +100,12 @@ export async function save(ctx) {
     note
   }
 
-  await insertAndFinish(ctx, { table: 'handovers', data })
+  const result = await insertUniqueActiveHandover({ data, client: supabase })
+  setSaving(false)
+  if (!result.ok) {
+    say(result.reason)
+    return
+  }
+  say('Serah Terima berhasil ditambahkan.')
+  close(); refresh()
 }

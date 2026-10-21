@@ -35,7 +35,8 @@ import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDI
 import { alokasiLabel, isProblemNoted } from './queue'
 import { openPhysicalModal } from './physicalModal'
 import { handoverDeleteGuard } from './deleteGuard'
-import { duplicateInfoFor, confirmDuplicateGuard } from './duplicateGuard'
+import { duplicateInfoFor } from './duplicateGuard'
+import { guardConfirmFresh } from './duplicateGuardDb'
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -267,7 +268,7 @@ export function rowActions(r, ctx) {
             data-testid={`btn-deliver-${r.id}`}
             disabled={dupBlocked}
             aria-disabled={dupBlocked}
-            onClick={() => {
+            onClick={async () => {
               // DEFECT run 206: tombol ✓ dulu langsung memanggil
               // `onMarkHandoverDelivered` (window.confirm + tulis header saja).
               // Di mode READY itu MELEWATI konfirmasi per barang dan langsung
@@ -277,9 +278,11 @@ export function rowActions(r, ctx) {
               // bila skema siap, dan otomatis jatuh ke konfirmasi header
               // (perilaku lama) bila belum — jadi tidak ada jalur yang hilang.
               //
-              // DEFECT run 239: dokumen DUPLIKAT tidak boleh membuka modal
-              // konfirmasi (dua dokumen aktif → penyerahan ganda).
-              const dup = confirmDuplicateGuard({ handover: r, handovers: ctx?.rows || [] })
+              // DEFECT run 239 + REVIEW run 242 (BUG-V1): dokumen DUPLIKAT tidak
+              // boleh membuka modal konfirmasi (dua dokumen aktif → penyerahan
+              // ganda). Pemeriksaan dibaca dari DB, BUKAN `ctx.rows` — halaman
+              // bisa memegang daftar basi dari admin lain. Gagal baca = tolak.
+              const dup = await guardConfirmFresh({ handover: r })
               if (!dup.ok) { ctx?.say?.(dup.reason); return }
               openPhysicalModal({ kind: 'confirm', handover: r })
             }}
@@ -499,8 +502,9 @@ export function mobileCard(r, ctx) {
             data-testid={`btn-deliver-mobile-${r.id}`}
             disabled={dupBlocked}
             aria-disabled={dupBlocked}
-            onClick={() => {
-              const dup = confirmDuplicateGuard({ handover: r, handovers: ctx?.rows || [] })
+            onClick={async () => {
+              // REVIEW run 242 (BUG-V1): keputusan dari DB, bukan `ctx.rows`.
+              const dup = await guardConfirmFresh({ handover: r })
               if (!dup.ok) { ctx?.say?.(dup.reason); return }
               openPhysicalModal({ kind: 'confirm', handover: r })
             }}

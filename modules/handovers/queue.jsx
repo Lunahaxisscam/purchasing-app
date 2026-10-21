@@ -51,7 +51,8 @@ import { RINCIAN_BELUM_TERSEDIA } from './display'
 import { openPhysicalModal } from './physicalModal'
 import { PhysicalModalHost } from './physicalHost'
 import { capabilityState, getReceiptCapability, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
-import { confirmDuplicateGuard, duplicateInfoFor } from './duplicateGuard'
+import { duplicateInfoFor } from './duplicateGuard'
+import { guardConfirmFresh } from './duplicateGuardDb'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
@@ -463,10 +464,17 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   const run = async (action) => {
     if (busy) return
     if (action === ACT_TERIMA) {
-      // Pertahanan kedua (run 239): dokumen duplikat DITOLAK di jalur tulis,
-      // bukan hanya tombolnya dinonaktifkan — klik programatik / test lama
-      // tidak boleh melewatinya.
-      const dup = confirmDuplicateGuard({ handover, handovers: ctx.rows || [] })
+      // Pertahanan kedua (run 239 + REVIEW run 242 / BUG-V1): dokumen duplikat
+      // DITOLAK di jalur tulis, bukan hanya tombolnya dinonaktifkan — klik
+      // programatik / test lama tidak boleh melewatinya.
+      //
+      // REVISI run 242: pemeriksaan memakai DB (`guardConfirmFresh`), BUKAN
+      // `ctx.rows`. Memori halaman bisa basi (admin lain membuat dokumen
+      // sesudah halaman ini dimuat) dan justru itulah jalan masuk penyerahan
+      // ganda. Gagal baca = nol tulisan.
+      setBusy(true)
+      const dup = await guardConfirmFresh({ handover })
+      setBusy(false)
       if (!dup.ok) { say(dup.reason); return }
       if (dup.warn && typeof window !== 'undefined' && window.confirm && !window.confirm(dup.warn)) return
       // Ledger per barang AKTIF → konfirmasi per item (prefill dari penerimaan,
@@ -522,9 +530,12 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
       say('Nama penerima wajib diisi sebelum menandai diserahkan.')
       return
     }
-    // Pertahanan (run 239): jalur tulis header INLINE juga menutup dokumen
-    // (CAS `diserahkan_at`), jadi dokumen duplikat tidak boleh melewatinya.
-    const dup = confirmDuplicateGuard({ handover, handovers: ctx.rows || [] })
+    // Pertahanan (run 239 + REVIEW run 242 / BUG-V1): jalur tulis header INLINE
+    // juga menutup dokumen (CAS `diserahkan_at`), jadi dokumen duplikat tidak
+    // boleh melewatinya. Pemeriksaan dari DB — `ctx.rows` bisa basi.
+    setBusy(true)
+    const dup = await guardConfirmFresh({ handover })
+    setBusy(false)
     if (!dup.ok) { setShowTerima(false); say(dup.reason); return }
     setBusy(true)
     // Pertahanan terakhir (run 234 / BUG-U1): form header ini HANYA untuk
