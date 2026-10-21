@@ -290,7 +290,7 @@ pemanggilan RPC tersebut dan perbarui probe ini.
 ```
 1. backup consistent + restore drill lulus        (BACKUP_RUNBOOK_v2)
 2. apply migrasi 00→05 + readback SQL              (MIGRATION_MANIFEST §5)
-3. probe aplikasi (TTL 60s) → ready=true, returnReady=true   [tanpa deploy]
+3. probe aplikasi (force) → ready=true, returnReady=true   [tanpa deploy]
 4. merge branch ini + patch COMPATIBILITY_CUTOVER §3
 5. deploy
 6. transaksi NYATA pertama oleh Novi (bukan fixture)
@@ -298,3 +298,43 @@ pemanggilan RPC tersebut dan perbarui probe ini.
 
 Langkah 3 aman sebelum langkah 4: selama build produksi belum memuat
 `receiptCapability`, tidak ada UI yang memakai tabel baru.
+
+### 7.1 Kalau langkah 4–5 BELUM jalan (aktivasi tanpa deploy)
+
+Langkah 3 bisa terjadi saat build produksi **belum** memuat branch ini — artinya
+tabel baru sudah ada tetapi UI yang memakainya belum. Itu tidak berbahaya.
+
+Yang **berbahaya** adalah urutan sebaliknya: build yang **sudah** memuat
+`receiptCapability` dipakai Novi, lalu migrasi dijalankan **belum** selesai /
+baru selesai **sesudah** layar terbuka. Dulu capability adalah **snapshot**:
+`queue.jsx` memanggil `getReceiptCapability()` sekali saat mount dan cache modul
+berlaku 60 detik, jadi layar yang sudah terbuka tetap memegang `legacy` untuk
+skema yang sudah hidup. `legacy` satu-satunya keadaan yang masih menulis jalur
+lama, sehingga snapshot basi bisa:
+
+- menimpa `pr_items.status` lewat aksi borongan (tujuan per barang bertentangan), dan
+- mengunci dokumen tanpa rincian (`diserahkan_at` di-set; CAS membuatnya permanen).
+
+Karena itu sekarang:
+
+1. **Probe selalu `force: true`** di antrean — saat mount, saat isi antrean
+   berubah, saat tab kembali fokus/terlihat, dan lewat tombol
+   **"🔄 Periksa ulang kesiapan skema"**. **Tidak perlu reload halaman.**
+2. **Sebelum jalur tulis lama menulis**, capability diperiksa ulang
+   (`force: true`) tepat di titik tulis — aksi borongan, pembukaan form header,
+   tombol Konfirmasi di form header yang sudah terbuka, dan penandaan
+   Retur/Refund header. Bila hasilnya bukan `legacy`, tulisannya **nol** dan
+   admin diberi sebab (`staleWriteMessage`).
+3. Snapshot segar itu langsung dipakai seluruh layar, jadi banner dan semua
+   kartu tidak pernah berbeda pendapat.
+
+Konsekuensi urutan yang benar:
+
+```
+fix (branch ini) → backup → migrasi → probe segar (tanpa reload) → deploy
+```
+
+**Migrasi boleh dijalankan saat aplikasi dipakai**, asalkan build yang aktif
+sudah memuat perbaikan ini. Build lama (tanpa perbaikan) tetap harus di-reload
+sesudah migrasi — tetapi build lama juga belum pernah bisa `ready`, jadi tidak
+ada jalur tulis baru yang terbuka di sana.

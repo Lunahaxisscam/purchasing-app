@@ -115,6 +115,15 @@ shutil.copy(os.path.join(HERE, 'probe_run222_queue_capability.mjs'), SB)
 # (ledger inti siap, layer retur belum) harus punya nama sendiri, tidak boleh
 # menawarkan jalur retur yang buntu, dan TIDAK boleh menjanjikan retur.
 shutil.copy(os.path.join(HERE, 'probe_run233_return_layer_state.mjs'), SB)
+# run 234: pengunci review run 234 (BUG-U1) — capability adalah SNAPSHOT.
+# Migrasi dijalankan TANPA deploy saat aplikasi dipakai, jadi layar yang sudah
+# terbuka memegang LEGACY basi dan LEGACY satu-satunya keadaan yang menulis
+# jalur lama. Probe ini menuntut NOL tulisan di snapshot basi, penolakan pada
+# Konfirmasi form yang sudah terbuka, dan LEGACY yang SAH tetap bisa menulis.
+shutil.copy(os.path.join(HERE, 'probe_run234_stale_capability.mjs'), SB)
+# Kontrak ditulis ulang supaya §7 bisa diperiksa probe 234 (tanpa ini probe
+# membaca path sandbox dan lolos secara hampa).
+shutil.copy(os.path.join(REPO, 'docs', 'receiving-events-contract.md'), SB)
 # Probe MILIK REVIEWER run 219 dijalankan APA ADANYA (tidak diubah satu baris
 # pun) — bukti bahwa temuan mereka benar-benar tertutup, bukan diakali.
 shutil.copy(os.path.join(HERE, 'probe_run219_reviewer_final.mjs'), SB)
@@ -137,6 +146,8 @@ print('\n=== PROBE KUNCI REVIEW RUN 219 (run 222: S1/S2/S3) ===')
 rc_probe4 = subprocess.run(['node', 'probe_run222_queue_capability.mjs'], cwd=SB).returncode
 print('\n=== PROBE KUNCI REVIEW RUN 231 (run 233: T1/T2/T3 — ready_no_return) ===')
 rc_probe5 = subprocess.run(['node', 'probe_run233_return_layer_state.mjs'], cwd=SB).returncode
+print('\n=== PROBE KUNCI REVIEW RUN 234 (run 234: U1 — capability BASI) ===')
+rc_probe6 = subprocess.run(['node', 'probe_run234_stale_capability.mjs'], cwd=SB).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — DIJALANKAN APA ADANYA (final: K1/K2/K3) ===')
 rc_rev1 = subprocess.run(['node', 'probe_run219_reviewer_final.mjs'], cwd=SB).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — kontrol positif READY (J) ===')
@@ -152,4 +163,4 @@ rc_rev4 = subprocess.run(['node', 'probe_run219_reviewer_problem_RAW.mjs'], cwd=
 if rc_rev3 == 0 or rc_rev4 == 0:
     print('\nPERINGATAN: probe I/H milik reviewer LULUS — berarti defect run 219 masih ada!')
     sys.exit(1)
-sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_rev1 or rc_rev2)
+sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_rev1 or rc_rev2)

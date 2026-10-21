@@ -50,7 +50,7 @@ import { runHandoverAction } from './actions'
 import { RINCIAN_BELUM_TERSEDIA } from './display'
 import { openPhysicalModal } from './physicalModal'
 import { PhysicalModalHost } from './physicalHost'
-import { capabilityState, getReceiptCapability, coreLedgerReady, returnLayerReady } from '../receivings/receiptCapability'
+import { capabilityState, getReceiptCapability, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
@@ -283,7 +283,28 @@ function prItemsOf(ctx, receivingId) {
   return ctx.H?.prItemsForPr ? (ctx.H.prItemsForPr(pr.id) || []) : []
 }
 
-function ActionCard({ entry, ctx, onDone, cap }) {
+// ------------------------------------------------------------
+// PESAN saat snapshot capability ternyata BASI (defect run 234 / BUG-U1)
+// ------------------------------------------------------------
+// Jalur tulis LEGACY (status header) hanya sah bila skema memang BELUM ADA.
+// Kalau pemeriksaan SEGAR menjawab keadaan lain, layar yang sudah terbuka
+// sebelum migrasi tidak boleh menulis apa pun — dan admin harus tahu kenapa,
+// bukan sekadar tombol yang tidak bereaksi.
+export function staleWriteMessage(state, cap) {
+  const why = (cap?.missing || []).filter(Boolean).join('; ')
+  if (state === 'ready' || state === 'ready_no_return') {
+    return 'Kesiapan skema BERUBAH sejak layar ini dibuka: pencatatan per barang sekarang AKTIF dan tersimpan permanen. Tidak ada data yang ditulis dari jalur lama — layar sudah diperbarui; ulangi lewat tombol Terima Barang / konfirmasi per barang.'
+  }
+  if (state === 'partial') {
+    return `Migrasi skema sedang BERJALAN / BELUM LENGKAP (${why || 'sebagian objek ledger sudah ada'}). Tidak ada data yang ditulis dari jalur lama — catatan per barang sudah ada di database dan tidak boleh ditimpa status header. Minta admin menyelesaikan migrasi.`
+  }
+  if (state === 'unknown' || state === 'error') {
+    return `Kesiapan skema TIDAK BISA DIPASTIKAN sekarang (${why || 'pemeriksaan gagal'}). Tidak ada data yang ditulis — jalur lama hanya boleh dipakai bila skema benar-benar belum ada. Coba lagi sebentar lagi.`
+  }
+  return 'Kesiapan skema berubah sejak layar ini dibuka. Tidak ada data yang ditulis.'
+}
+
+function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   const { refresh, H, say } = ctx
   const { handover, receiving } = entry
   const [busy, setBusy] = useState(false)
@@ -383,6 +404,36 @@ function ActionCard({ entry, ctx, onDone, cap }) {
   const primary = gated.filter(a => a.key === ACT_GUDANG || a.key === ACT_TUKANG)
   const finish = gated.find(a => a.key === ACT_TERIMA)
 
+  // ------------------------------------------------------------
+  // DEFECT run 234 / BUG-U1 — snapshot capability bisa BASI.
+  // ------------------------------------------------------------
+  // `cap` di kartu ini berasal dari probe yang dijalankan saat banner di-mount.
+  // Urutan aktivasi yang DAT tetapkan (`docs/receiving-events-contract.md` §7)
+  // menjalankan migrasi TANPA deploy, yaitu SAAT Novi sudah memakai aplikasi.
+  // Layar yang sudah terbuka memegang snapshot LEGACY, dan LEGACY adalah
+  // SATU-SATUNYA keadaan yang masih boleh menulis jalur lama:
+  //   - aksi borongan  → menimpa `pr_items.status` (BUG-R2 hidup lagi)
+  //   - tombol penutup → form header → `diserahkan_at` SET tanpa rincian →
+  //                      dokumen TERKUNCI PERMANEN (CAS, BUG-R1/S1 hidup lagi)
+  // Jadi SEBELUM jalur lama menulis, pemeriksaan diulang dengan `force:true`
+  // (bypass TTL 60 dtk). Bila hasilnya bukan LEGACY lagi → NOL tulisan.
+  // Ini pertahanan yang sama polanya dengan `writeBlockReason()`, hanya
+  // kesegarannya yang ditambahkan.
+  const confirmLegacyStillValid = async (action) => {
+    let fresh = null
+    try {
+      fresh = await getReceiptCapability({ force: true })
+    } catch (err) {
+      fresh = { ready: false, returnReady: false, probeFailed: true, missing: [String(err?.message || err || 'pemeriksaan gagal')] }
+    }
+    const freshState = capabilityState(fresh)
+    // Snapshot segar diteruskan ke banner supaya SELURUH layar (banner +
+    // semua kartu) memakai kebenaran yang sama dari titik ini.
+    refreshCapability && refreshCapability(fresh)
+    if (freshState === CAP_STATE.LEGACY) return { ok: true, fresh, state: freshState }
+    return { ok: false, fresh, state: freshState, message: staleWriteMessage(freshState, fresh) }
+  }
+
   const run = async (action) => {
     if (busy) return
     if (action === ACT_TERIMA) {
@@ -398,6 +449,11 @@ function ActionCard({ entry, ctx, onDone, cap }) {
       // jendela probe atau saat migrasi belum lengkap.
       const block = writeBlockReason(ACT_TERIMA, capState)
       if (block) { say(block); return }
+      // Pertahanan ketiga (run 234 / BUG-U1): snapshot LEGACY bisa BASI.
+      setBusy(true)
+      const check = await confirmLegacyStillValid(ACT_TERIMA)
+      setBusy(false)
+      if (!check.ok) { say(check.message); return }
       setShowTerima(true)
       return
     }
@@ -408,6 +464,12 @@ function ActionCard({ entry, ctx, onDone, cap }) {
     if (action === ACT_GUDANG || action === ACT_TUKANG) {
       const block = writeBlockReason(action, capState)
       if (block) { say(block); return }
+      // Pertahanan ketiga (run 234 / BUG-U1): periksa ulang SEBELUM menimpa
+      // `pr_items.status` untuk semua baris nota.
+      setBusy(true)
+      const check = await confirmLegacyStillValid(action)
+      setBusy(false)
+      if (!check.ok) { say(check.message); return }
     }
     setBusy(true)
     const res = await runHandoverAction(action, handover.id)
@@ -429,6 +491,17 @@ function ActionCard({ entry, ctx, onDone, cap }) {
       return
     }
     setBusy(true)
+    // Pertahanan terakhir (run 234 / BUG-U1): form header ini HANYA untuk
+    // keadaan LEGACY. Kalau skema sudah aktif sejak layar dibuka, menekan
+    // Konfirmasi akan mengunci dokumen tanpa rincian — jadi periksa lagi
+    // tepat sebelum menulis, bukan hanya saat form dibuka.
+    const check = await confirmLegacyStillValid(ACT_TERIMA)
+    if (!check.ok) {
+      setBusy(false)
+      setShowTerima(false)
+      say(check.message)
+      return
+    }
     const res = await runHandoverAction(ACT_TERIMA, handover.id, { receivedBy })
     setBusy(false)
     if (res.ok) {
@@ -449,6 +522,15 @@ function ActionCard({ entry, ctx, onDone, cap }) {
     if (typeof ctx.onReceivingStatusChange !== 'function') return
     setBusy(true)
     try {
+      // DEFECT run 234 / BUG-U1: jalur ini menulis `receivings.status`
+      // (header) — hanya sah bila skema memang BELUM ADA. Snapshot LEGACY
+      // yang basi bisa menimpa catatan per barang, jadi periksa ulang dulu.
+      const check = await confirmLegacyStillValid(key)
+      if (!check.ok) {
+        setShowProblem(false)
+        say(check.message)
+        return
+      }
       await ctx.onReceivingStatusChange(receiving, key)
     } finally {
       setBusy(false)
@@ -737,14 +819,56 @@ function HandoverQueueBanner({ ctx }) {
   // Probe kemampuan skema (READ-ONLY). null = belum diperiksa; UI memakai
   // perilaku LEGACY sampai probe selesai (tidak pernah mengklaim tersimpan).
   const [cap, setCap] = React.useState(null)
+  // DEFECT run 234 / BUG-U1 — capability adalah SNAPSHOT, tetapi dipakai
+  // sebagai kebenaran yang berlaku terus. Dulu: `useEffect(..., [])` +
+  // `getReceiptCapability()` TANPA `force` → cache modul 60 detik. Urutan
+  // aktivasi DAT (`docs/receiving-events-contract.md` §7) menjalankan migrasi
+  // TANPA deploy, yaitu SAAT aplikasi sedang dipakai. Hasilnya: layar yang
+  // sudah terbuka tetap memegang snapshot LEGACY sesudah skema hidup, dan
+  // LEGACY satu-satunya keadaan yang MASIH menulis jalur lama (borongan
+  // menimpa tujuan per barang; tombol penutup mengunci dokumen tanpa rincian).
+  // Bahkan remount (pindah menu lalu kembali) tidak menolong selama TTL.
+  //
+  // Sekarang: probe SELALU `force:true` (bypass TTL), dijalankan saat mount,
+  // saat `rows` berubah, saat tab kembali fokus/terlihat, dan lewat tombol
+  // "Periksa ulang" di banner. `refreshCapability` juga dipakai kartu supaya
+  // satu pemeriksaan segar langsung menular ke seluruh layar.
+  const [capSeq, setCapSeq] = React.useState(0)
+  const refreshCapability = React.useCallback((fresh) => {
+    if (fresh) setCap(fresh)
+    else setCapSeq(n => n + 1)
+  }, [])
+  // Kunci stabil dari ISI antrean — bukan identitas array (array baru tiap
+  // render akan memicu probe tanpa henti). Perubahan isi = dokumen baru
+  // selesai/berpindah = momen wajar memeriksa ulang kesiapan skema.
+  const rowsKey = React.useMemo(
+    () => (Array.isArray(rows) ? rows.map(r => `${r?.id || ''}:${r?.status || ''}`).join('|') : ''),
+    [rows]
+  )
   React.useEffect(() => {
     let cancelled = false
-    getReceiptCapability()
+    getReceiptCapability({ force: true })
       .then(c => { if (!cancelled) setCap(c || { ready: false, returnReady: false, probeFailed: true, missing: ['probe tidak mengembalikan hasil'] }) })
       .catch(err => {
         if (!cancelled) setCap({ ready: false, returnReady: false, probeFailed: true, missing: [String(err?.message || err || 'probe gagal')] })
       })
     return () => { cancelled = true }
+  }, [capSeq, rowsKey])
+
+  // Tab kembali fokus / kembali terlihat = momen paling mungkin admin baru
+  // menjalankan migrasi lalu menyuruh Novi "coba sekarang". Periksa ulang.
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.addEventListener) return undefined
+    const onWake = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      setCapSeq(n => n + 1)
+    }
+    window.addEventListener('focus', onWake)
+    document.addEventListener('visibilitychange', onWake)
+    return () => {
+      window.removeEventListener('focus', onWake)
+      document.removeEventListener('visibilitychange', onWake)
+    }
   }, [])
 
   if (!Array.isArray(rows)) return null
@@ -804,10 +928,25 @@ function HandoverQueueBanner({ ctx }) {
                   : <>Penyimpanan per barang (kedatangan/rusak/tujuan/retur) belum aktif —{' '}
                       {(cap?.missing || []).filter(Boolean).join('; ') || 'skema belum tersedia'}. Antrean tetap bisa dipakai untuk
                       distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.</>}
+          {/* DEFECT run 234 / BUG-U1: keadaan bisa BERUBAH selagi layar
+              terbuka (migrasi dijalankan tanpa deploy). Tombol ini memberi
+              admin jalan keluar yang eksplisit tanpa harus reload halaman —
+              dan tanpa menunggu TTL cache 60 detik. */}
+          <div style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              data-testid="handover-capability-recheck"
+              onClick={() => setCapSeq(n => n + 1)}
+              style={S.subtleBtn}
+              title="Periksa ulang kesiapan skema (mis. sesudah admin menjalankan migrasi)"
+            >
+              🔄 Periksa ulang kesiapan skema
+            </button>
+          </div>
         </div>
       )}
       {entries.map(entry => (
-        <ActionCard key={entry.handover.id} entry={entry} ctx={ctx} cap={cap} />
+        <ActionCard key={entry.handover.id} entry={entry} ctx={ctx} cap={cap} refreshCapability={refreshCapability} />
       ))}
       <PhysicalModalHost ctx={ctx} />
     </div>
