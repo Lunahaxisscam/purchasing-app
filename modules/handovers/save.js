@@ -17,6 +17,7 @@
 import { supabase } from '../../lib/supabaseClient'
 import { buildHandoverNote, parseHandoverNote, dataUrlByteSize, HANDOVER_FOTO_MAX_BYTES } from '../../lib/constants'
 import { insertAndFinish } from '../shared/saveHelpers'
+import { handoverCreateGuard } from './duplicateGuard'
 
 export async function save(ctx) {
   const { form, isEdit, editRow, say, close, refresh, setSaving } = ctx
@@ -68,6 +69,46 @@ export async function save(ctx) {
   if (!receivingId) {
     setSaving(false)
     say('Pilih Penerimaan (Purchase) dulu — handover harus terhubung ke penerimaan asalnya.')
+    return
+  }
+
+  // ============================================================
+  // DEFECT run 239: DUA DOKUMEN AKTIF untuk SATU PENERIMAAN
+  // ============================================================
+  // Sebelum ini, mode TAMBAH langsung INSERT: `receiving_id` tidak diperiksa.
+  // Di PostgreSQL nyata dua dokumen aktif untuk penerimaan yang sama membuat
+  // `handover_confirm` (kunci per DOKUMEN) menerima KEDUANYA — rincian menjadi
+  // 2× kuota dan `belum_diserahkan` negatif (probe_run239_dupdoc.mjs).
+  //
+  // Pembacaan ini SENGAJA dari DB, bukan dari `rows` di memori: daftar di
+  // halaman bisa basi (admin lain baru membuat dokumen). Gagal baca = JANGAN
+  // menulis (fail closed) — lebih baik admin mengulang daripada membuat
+  // duplikat yang tidak bisa ditarik kembali.
+  let activeDocs = []
+  try {
+    const { data, error } = await supabase
+      .from('handovers')
+      .select('id, receiving_id, handover_date, created_at, diserahkan_at')
+      .eq('receiving_id', receivingId)
+      .is('diserahkan_at', null)
+    if (error) {
+      setSaving(false)
+      say(`Tidak bisa memeriksa dokumen Serah Terima yang sudah ada (${error.message}). Penyimpanan dibatalkan supaya tidak membuat dokumen ganda — coba lagi.`)
+      return
+    }
+    activeDocs = data || []
+  } catch (err) {
+    setSaving(false)
+    say(`Tidak bisa memeriksa dokumen Serah Terima yang sudah ada (${err.message}). Penyimpanan dibatalkan supaya tidak membuat dokumen ganda — coba lagi.`)
+    return
+  }
+  const dupGuard = handoverCreateGuard({
+    receiving: { id: receivingId },
+    handovers: activeDocs
+  })
+  if (!dupGuard.ok) {
+    setSaving(false)
+    say(dupGuard.reason)
     return
   }
 

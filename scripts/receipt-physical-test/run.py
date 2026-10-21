@@ -129,6 +129,11 @@ shutil.copy(os.path.join(HERE, 'probe_run237_delete_ui.mjs'), SB)
 # run 237: memastikan shell BENAR-BENAR memakai keputusan penjaga SEBELUM
 # menulis (optimistic update & .delete()), termasuk jalur non-tombol.
 shutil.copy(os.path.join(HERE, 'probe_run237_shell_wiring.mjs'), SB)
+# run 239: pengunci defect DUA DOKUMEN untuk SATU PENERIMAAN — penjaga
+# pembuatan (save.js), tombol konfirmasi (queue/view), dan choke point
+# physicalHost. Di PG nyata dua dokumen aktif membuat `handover_confirm`
+# menerima KEDUANYA (kunci per dokumen) → rincian 2× kuota, sisa negatif.
+shutil.copy(os.path.join(HERE, 'probe_run239_dup_ui.mjs'), SB)
 # Kontrak ditulis ulang supaya §7 bisa diperiksa probe 234 (tanpa ini probe
 # membaca path sandbox dan lolos secara hampa).
 shutil.copy(os.path.join(REPO, 'docs', 'receiving-events-contract.md'), SB)
@@ -162,6 +167,8 @@ print('\n=== PROBE SAMBUNGAN PENJAGA HAPUS KE SHELL (run 237: dipakai SEBELUM me
 # Probe ini membaca SUMBER (pages/index.js), jadi dijalankan dengan cwd = repo,
 # bukan sandbox kompilasi.
 rc_probe8 = subprocess.run(['node', os.path.join(SB, 'probe_run237_shell_wiring.mjs')], cwd=REPO).returncode
+print('\n=== PROBE DOKUMEN GANDA (run 239: dua dokumen aktif untuk satu penerimaan) ===')
+rc_probe9 = subprocess.run(['node', 'probe_run239_dup_ui.mjs'], cwd=SB).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — DIJALANKAN APA ADANYA (final: K1/K2/K3) ===')
 rc_rev1 = subprocess.run(['node', 'probe_run219_reviewer_final.mjs'], cwd=SB).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — kontrol positif READY (J) ===')
@@ -177,4 +184,4 @@ rc_rev4 = subprocess.run(['node', 'probe_run219_reviewer_problem_RAW.mjs'], cwd=
 if rc_rev3 == 0 or rc_rev4 == 0:
     print('\nPERINGATAN: probe I/H milik reviewer LULUS — berarti defect run 219 masih ada!')
     sys.exit(1)
-sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_probe7 or rc_probe8 or rc_rev1 or rc_rev2)
+sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_probe7 or rc_probe8 or rc_probe9 or rc_rev1 or rc_rev2)

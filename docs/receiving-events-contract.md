@@ -384,3 +384,91 @@ fix (branch ini) → backup → migrasi → probe segar (tanpa reload) → deplo
 sudah memuat perbaikan ini. Build lama (tanpa perbaikan) tetap harus di-reload
 sesudah migrasi — tetapi build lama juga belum pernah bisa `ready`, jadi tidak
 ada jalur tulis baru yang terbuka di sana.
+
+---
+
+## 9. Dua dokumen untuk satu penerimaan (run 239)
+
+Lensa ini tidak pernah dipakai 16 run sebelumnya (101…237): semuanya menguji
+**simpan**, **tampil**, **kesiapan**, **retur**, **waktu/snapshot**, dan
+**hapus**. Yang belum diuji: **DUA DOKUMEN pada SATU PENERIMAAN**.
+
+### 9.1 Kenapa ini bisa terjadi (bukan skenario karangan)
+
+1. `purchaseSave.js` membuat SATU dokumen DRAFT otomatis per nota — tetapi
+   idempoten **hanya** untuk pembuatan otomatis itu (`select` dulu, baru
+   `insert`).
+2. Modul Handover punya tombol **"+ Tambah Serah Terima"** yang memilih
+   Penerimaan dari daftar. `save.js` mode TAMBAH **tidak** memeriksa apakah
+   penerimaan itu sudah punya dokumen yang belum diserahkan → dokumen DRAFT
+   kedua bisa dibuat dari UI.
+3. `handover_confirm` mengunci `handover:<id>` — **per DOKUMEN**, dan cek kuota
+   dijalankan **sebelum** baris `receiving_items` di-`UPDATE` (baris itulah yang
+   baru memberi row lock). Dua dokumen = dua kunci berbeda = **tidak saling
+   menunggu**.
+
+### 9.2 Bukti di PostgreSQL nyata (`probe_run239_dupdoc.mjs`, 21/21)
+
+| # | Hasil |
+|---|---|
+| S1 | `handovers` menerima **2 dokumen DRAFT** untuk satu `receiving_id` (memang tidak ada unique index — dan tidak boleh ada, karena serah terima bertahap sah) |
+| S2 | **KONTROL berurutan** (commit dulu): dokumen kedua **DITOLAK** `Melebihi alokasi` → aturan kuotanya benar |
+| S3 | **BERSAMAAN** (dua koneksi, dua dokumen): **KEDUA** `ok:true`, rincian menjadi **10** untuk kuota tukang **5**, tanpa satu pun error |
+| S4 | `v_receipt_progress.belum_diserahkan` menjadi **NEGATIF (−5)**; `qty_handed_over` (5) tidak lagi cocok dengan rincian (10); `check_receipt_qty_consistency()` menandai `qty_handed_over_mismatch` |
+| S5 | Sebabnya presisi: transaksi kedua **memegang kunci advisory-nya sendiri** (dokumen berbeda), lalu **menunggu di row lock `receiving_items`** — yaitu **sesudah** cek kuota lewat. Serialisasinya ADA tetapi TERLAMBAT |
+
+### 9.3 Invarian yang ditegakkan aplikasi
+
+> Untuk satu `receiving_id` hanya boleh ada **SATU** dokumen yang **belum
+> diserahkan** (`diserahkan_at` kosong) pada satu waktu.
+
+Bukan "satu dokumen selamanya": serah terima **bertahap** sah dan sudah
+didokumentasikan (`probe_handover_partial.mjs` H3) — dokumen pertama
+dikonfirmasi sebagian → terkunci (CAS) → sisa dicatat lewat dokumen **baru**
+untuk penerimaan yang sama. Yang tidak sah adalah **dua dokumen AKTIF
+sekaligus**.
+
+`modules/handovers/duplicateGuard.js` (murni, teruji) dipakai **empat lapis**:
+
+| Lapis | Fungsi | Efek |
+|---|---|---|
+| `save.js` mode TAMBAH | `handoverCreateGuard` | Membaca DB (bukan `rows` memori — bisa basi) **sebelum** insert; gagal baca = **fail closed**, nol tulisan |
+| `queue.jsx` | `duplicateInfoFor` + `confirmDuplicateGuard` | Tombol penutup **nonaktif** + badge; jalur tulis `run()`/`submitTerima` **menolak sendiri** |
+| `view.jsx` | `confirmDuplicateGuard` | Tombol ✓ desktop **dan** kartu mobile nonaktif (🔒), klik tidak membuka modal |
+| `physicalHost.jsx` | `confirmDuplicateGuard` | **Satu choke point**: modal dibuka programatik pun yang dirender adalah penolakan, **bukan** form konfirmasi |
+
+Dokumen **kanonik** = yang paling awal dibuat (urutan deterministik
+`created_at` → `handover_date` → `id`), sehingga semua layar dan semua render
+menunjuk dokumen yang **sama**. Dokumen kanonik tetap boleh dikonfirmasi,
+**dengan peringatan** bahwa ada duplikat yang harus dihapus sesudahnya.
+
+### 9.4 RED → GREEN
+
+| Probe | `5b8ff92` (sebelum) | kandidat |
+|---|---|---|
+| `probe_run239_dup_ui.mjs` | **13 PASS / 24 FAIL** | **37 PASS / 0 FAIL** |
+| `probe_run239_dupdoc.mjs` (PG16) | — (defect-nya didokumentasikan) | **21 PASS / 0 FAIL** |
+
+Pada pohon sebelum fix, probe UI mencatat **perilaku nyatanya**: `save.js`
+meng-insert dokumen kedua dan menjawab **"Serah Terima berhasil ditambahkan."**,
+tombol ✓ membuka modal konfirmasi, dan `physicalHost` merender **form**.
+
+### 9.5 Batas yang diakui
+
+- Ini penjaga **APLIKASI**. Panggilan RPC langsung (SQL manual / service-role)
+  tetap bisa membuat dokumen kedua lalu mengonfirmasinya.
+- Perbaikan di level database ada di tangan schema owner `t_03b41644`, dua
+  pilihan (pilih salah satu):
+  1. **Kunci per PENERIMAAN**: `pg_advisory_xact_lock(hashtext('handover:rec:' || v_ho.receiving_id))`
+     di `handover_confirm` — dua dokumen pada penerimaan yang sama jadi
+     berurutan, dan cek kuota dokumen kedua melihat tulisan yang pertama.
+  2. **Ambil row lock LEBIH DULU**: `select … from receiving_items where id = any(…) for update`
+     **sebelum** loop validasi kuota, sehingga cek kuota terjadi sesudah
+     serialisasi.
+  Opsi 2 lebih murah (tanpa kunci tambahan) tetapi harus mengunci **semua**
+  baris yang terlibat sebelum validasi; opsi 1 lebih sederhana dan sesuai pola
+  `receipt:`/`return:` yang sudah dipakai.
+- Tidak ada unique index yang ditambahkan: `(receiving_id) where diserahkan_at is null`
+  **tidak bisa** dipakai karena serah terima bertahap sah, dan partial unique
+  index akan memblokir dokumen baru yang sah setelah dokumen lama diserahkan
+  **hanya bila** predikatnya tepat — itu keputusan schema owner, bukan aplikasi.

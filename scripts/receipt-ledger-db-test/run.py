@@ -231,6 +231,16 @@ rc10 = run(['node', os.path.join(HERE, 'probe_run237_delete.mjs')], cwd=REPO, en
 print('\n=== 14. Cakupan FK hapus: nota vs PR (run 237) ===')
 rc11 = run(['node', os.path.join(HERE, 'probe_run237_fk_scope.mjs')], cwd=REPO, env=env)
 
+# ---------------- 15. dua dokumen untuk satu penerimaan (run 239) ----------------
+# LENSA yang belum pernah dipakai 16 run sebelumnya: DUA DOKUMEN pada SATU
+# PENERIMAAN. `handover_confirm` mengunci `handover:<id>` (per DOKUMEN) dan
+# mengecek kuota SEBELUM baris `receiving_items` dikunci, sehingga dua dokumen
+# yang dikonfirmasi bersamaan SAMA-SAMA lolos: rincian 2× kuota, sisa negatif.
+# Penjaga aplikasi ada di modules/handovers/duplicateGuard.js; probe ini
+# mengunci BUKTI-nya di database supaya tidak ada yang menutupnya dengan asumsi.
+print('\n=== 15. Dua dokumen untuk satu penerimaan: penyerahan ganda (run 239) ===')
+rc12 = run(['node', os.path.join(HERE, 'probe_run239_dupdoc.mjs')], cwd=REPO, env=env)
+
 # CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
 # bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
 # menyimpulkan "siap DDL" padahal READY mustahil menyala.
@@ -238,4 +248,4 @@ if rc7 == 2:
     print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
     print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
     sys.exit(2)
-sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11 or rc12)

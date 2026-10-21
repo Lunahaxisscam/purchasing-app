@@ -15,6 +15,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { usePhysicalModal, closePhysicalModal } from './physicalModal'
 import { getReceiptCapability } from '../receivings/receiptCapability'
+import { confirmDuplicateGuard } from './duplicateGuard'
 import ReceiptForm from './receiptForm'
 import ReturnForm from './returnForm'
 import HandoverConfirmForm from './confirmForm'
@@ -81,6 +82,33 @@ export function PhysicalModalHost({ ctx }) {
   }
 
   if (target.kind === 'confirm') {
+    // ============================================================
+    // DEFECT run 239 — SATU choke point untuk SEMUA pintu konfirmasi
+    // ============================================================
+    // Modal konfirmasi bisa dibuka dari banner antrean, tombol ✓ baris
+    // desktop, tombol kartu mobile, dan pemanggilan programatik. Dua dokumen
+    // AKTIF untuk satu penerimaan bisa sama-sama lolos RPC `handover_confirm`
+    // (kuncinya per DOKUMEN, cek kuota sebelum baris `receiving_items`
+    // dikunci) → rincian 2× kuota dan `belum_diserahkan` negatif.
+    // Gerbang di sini menjaga SEMUA pintu itu sekaligus; tombol yang mati di
+    // view/queue adalah lapis pertama yang terlihat admin.
+    const dup = confirmDuplicateGuard({ handover: target.handover, handovers: ctx?.rows || [] })
+    if (!dup.ok) {
+      return (
+        <div className="modal">
+          <div className="dialog" data-testid="handover-confirm-dup-blocked">
+            <div className="dialoghead">
+              <h2>⚠ Konfirmasi dikunci — dokumen duplikat</h2>
+              <button type="button" className="icon" onClick={closePhysicalModal} aria-label="Tutup">×</button>
+            </div>
+            <p style={{ fontSize: '12.5px', lineHeight: 1.5, margin: 0 }}>{dup.reason}</p>
+            <div className="actions" style={{ marginTop: 12 }}>
+              <button type="button" className="outline" onClick={closePhysicalModal}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )
+    }
     return <HandoverConfirmForm handover={target.handover} {...shared} />
   }
 

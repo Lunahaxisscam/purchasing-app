@@ -35,6 +35,7 @@ import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDI
 import { alokasiLabel, isProblemNoted } from './queue'
 import { openPhysicalModal } from './physicalModal'
 import { handoverDeleteGuard } from './deleteGuard'
+import { duplicateInfoFor, confirmDuplicateGuard } from './duplicateGuard'
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -243,6 +244,12 @@ export function rowActions(r, ctx) {
   const delivered = isHandoverDelivered(r)
   const rec = (ctx?.allReceivings || []).find(x => x && x.id === r.receiving_id) || null
   const delGuard = handoverDeleteGuard(r)
+  // DEFECT run 239: tombol ✓ per baris adalah PINTU KEDUA ke konfirmasi fisik.
+  // Dua dokumen aktif untuk satu penerimaan bisa sama-sama lolos RPC (kunci
+  // per dokumen) → penyerahan ganda. Dokumen duplikat ditolak di sini juga,
+  // bukan hanya di antrean.
+  const dupInfo = duplicateInfoFor(r, ctx?.rows || [])
+  const dupBlocked = !delivered && dupInfo.duplicate && !dupInfo.isCanonical
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
@@ -258,6 +265,8 @@ export function rowActions(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-${r.id}`}
+            disabled={dupBlocked}
+            aria-disabled={dupBlocked}
             onClick={() => {
               // DEFECT run 206: tombol ✓ dulu langsung memanggil
               // `onMarkHandoverDelivered` (window.confirm + tulis header saja).
@@ -267,12 +276,23 @@ export function rowActions(r, ctx) {
               // membuka modal konfirmasi yang SAMA dengan antrean: per barang
               // bila skema siap, dan otomatis jatuh ke konfirmasi header
               // (perilaku lama) bila belum — jadi tidak ada jalur yang hilang.
+              //
+              // DEFECT run 239: dokumen DUPLIKAT tidak boleh membuka modal
+              // konfirmasi (dua dokumen aktif → penyerahan ganda).
+              const dup = confirmDuplicateGuard({ handover: r, handovers: ctx?.rows || [] })
+              if (!dup.ok) { ctx?.say?.(dup.reason); return }
               openPhysicalModal({ kind: 'confirm', handover: r })
             }}
-            style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 7px', fontSize: '11px', cursor: 'pointer', fontWeight: 700, lineHeight: 1 }}
-            title="Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik — rincian per barang bila tersedia)"
+            style={{
+              background: dupBlocked ? '#9aa8a4' : '#16a34a',
+              color: '#fff', border: 'none', borderRadius: '4px', padding: '5px 7px',
+              fontSize: '11px', cursor: dupBlocked ? 'not-allowed' : 'pointer', fontWeight: 700, lineHeight: 1
+            }}
+            title={dupBlocked
+              ? 'Dokumen duplikat — penerimaan ini punya dokumen Serah Terima lain yang belum diserahkan. Konfirmasi hanya dokumen paling awal.'
+              : 'Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik — rincian per barang bila tersedia)'}
           >
-            ✓
+            {dupBlocked ? '🔒' : '✓'}
           </button>
         )}
         {/* Terima Barang: satu-satunya pintu input kedatangan/kondisi/tujuan
@@ -381,6 +401,11 @@ export function mobileCard(r, ctx) {
   // dokumen yang sudah punya bukti penyerahan (gerbang sebenarnya ada di
   // pages/index.js → deleteDecision, ini lapis pertama yang terlihat admin).
   const delGuard = handoverDeleteGuard(r)
+  // DEFECT run 239: kartu mobile adalah PINTU KETIGA ke konfirmasi fisik.
+  // Dua dokumen aktif untuk satu penerimaan bisa sama-sama lolos RPC (kunci
+  // per dokumen) → penyerahan ganda. Dokumen duplikat ditolak di sini juga.
+  const dupInfo = duplicateInfoFor(r, ctx?.rows || [])
+  const dupBlocked = !delivered && dupInfo.duplicate && !dupInfo.isCanonical
   const st = statusInfo(r)
   const rinc = rincianInfo(r)
   const isOpen = !!r.id && expandedAcuan === r.id
@@ -472,10 +497,20 @@ export function mobileCard(r, ctx) {
           <button
             type="button"
             data-testid={`btn-deliver-mobile-${r.id}`}
-            onClick={() => openPhysicalModal({ kind: 'confirm', handover: r })}
-            style={{ width: '100%', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: 700 }}
+            disabled={dupBlocked}
+            aria-disabled={dupBlocked}
+            onClick={() => {
+              const dup = confirmDuplicateGuard({ handover: r, handovers: ctx?.rows || [] })
+              if (!dup.ok) { ctx?.say?.(dup.reason); return }
+              openPhysicalModal({ kind: 'confirm', handover: r })
+            }}
+            style={{
+              width: '100%', background: dupBlocked ? '#9aa8a4' : '#16a34a', color: '#fff',
+              border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: 700,
+              cursor: dupBlocked ? 'not-allowed' : 'pointer'
+            }}
           >
-            ✓ Tandai Sudah Diserahkan
+            {dupBlocked ? '🔒 Dokumen duplikat — konfirmasi dokumen paling awal' : '✓ Tandai Sudah Diserahkan'}
           </button>
         )}
         <button

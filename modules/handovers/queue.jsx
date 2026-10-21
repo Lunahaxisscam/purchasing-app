@@ -51,6 +51,7 @@ import { RINCIAN_BELUM_TERSEDIA } from './display'
 import { openPhysicalModal } from './physicalModal'
 import { PhysicalModalHost } from './physicalHost'
 import { capabilityState, getReceiptCapability, coreLedgerReady, returnLayerReady, CAP_STATE } from '../receivings/receiptCapability'
+import { confirmDuplicateGuard, duplicateInfoFor } from './duplicateGuard'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
@@ -339,6 +340,18 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   const legacyWritable = capState === 'legacy'
   const problem = problemPlan(receiving, items.length, typeof ctx.onReceivingStatusChange === 'function', capState, cap)
 
+  // ============================================================
+  // DEFECT run 239 — DUA DOKUMEN AKTIF untuk SATU PENERIMAAN
+  // ============================================================
+  // `handover_confirm` mengunci `handover:<id>` = PER DOKUMEN, dan cek kuota
+  // dilakukan SEBELUM baris `receiving_items` dikunci. Dua dokumen untuk satu
+  // penerimaan karena itu bisa SAMA-SAMA lolos (probe_run239_dupdoc.mjs:
+  // rincian 10 untuk kuota 5, `belum_diserahkan` −5). Penjaga ini menutup
+  // pintu konfirmasi untuk dokumen yang bukan KANONIK (paling awal dibuat).
+  // `rows` di sini = SEMUA baris modul (bukan hanya antrean), jadi duplikat
+  // yang sudah terlanjur ada ikut terlihat walau salah satunya sudah diserahkan.
+  const dupInfo = duplicateInfoFor(handover, ctx.rows || [])
+
   // Lapisan tampilan DI ATAS actionPlan (logic.js tidak diubah):
   //  a) nota yang sudah bermasalah tidak ditawari distribusi — sejalan dengan
   //     penjaga DB yang sudah ada (RPC `receive_to_warehouse` menolak nota
@@ -362,6 +375,19 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
     // modal — bukan ditebak dari status nota.
     if (a.key === ACT_TERIMA) {
       if (handover?.diserahkan_at) return a
+      // DEFECT run 239: dokumen DUPLIKAT tidak boleh membuka konfirmasi sama
+      // sekali — dua dokumen aktif untuk satu penerimaan bisa sama-sama lolos
+      // RPC (kunci per dokumen), menghasilkan penyerahan fisik ganda.
+      if (dupInfo.duplicate && !dupInfo.isCanonical) {
+        return {
+          ...a,
+          ok: false,
+          reason:
+            `Dokumen ini DUPLIKAT: penerimaan ini punya ${dupInfo.activeCount} dokumen Serah Terima yang belum diserahkan. ` +
+            'Mengonfirmasi keduanya membuat barang yang sama tercatat diserahkan dua kali (sisa bisa menjadi minus). ' +
+            'Konfirmasi hanya dokumen yang PALING AWAL dibuat; hapus dokumen duplikat ini (belum punya bukti) lalu ulangi.'
+        }
+      }
       if (ledgerReady) {
         // Tidak disaring lagi di sini: modal konfirmasi sudah punya jalur yang
         // benar untuk SEMUA keadaan — baris prefill bila ada alokasi tukang,
@@ -437,6 +463,12 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
   const run = async (action) => {
     if (busy) return
     if (action === ACT_TERIMA) {
+      // Pertahanan kedua (run 239): dokumen duplikat DITOLAK di jalur tulis,
+      // bukan hanya tombolnya dinonaktifkan — klik programatik / test lama
+      // tidak boleh melewatinya.
+      const dup = confirmDuplicateGuard({ handover, handovers: ctx.rows || [] })
+      if (!dup.ok) { say(dup.reason); return }
+      if (dup.warn && typeof window !== 'undefined' && window.confirm && !window.confirm(dup.warn)) return
       // Ledger per barang AKTIF → konfirmasi per item (prefill dari penerimaan,
       // bukan mengetik ulang). LEGACY → form header lama di bawah.
       if (ledgerReady) {
@@ -490,6 +522,10 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
       say('Nama penerima wajib diisi sebelum menandai diserahkan.')
       return
     }
+    // Pertahanan (run 239): jalur tulis header INLINE juga menutup dokumen
+    // (CAS `diserahkan_at`), jadi dokumen duplikat tidak boleh melewatinya.
+    const dup = confirmDuplicateGuard({ handover, handovers: ctx.rows || [] })
+    if (!dup.ok) { setShowTerima(false); say(dup.reason); return }
     setBusy(true)
     // Pertahanan terakhir (run 234 / BUG-U1): form header ini HANYA untuk
     // keadaan LEGACY. Kalau skema sudah aktif sejak layar dibuka, menekan
@@ -566,6 +602,13 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
           {dest ? <span style={S.tag} data-testid={`queue-dest-${handover.id}`}>Tujuan: {dest}</span> : null}
           {problemNoted ? (
             <span style={S.warnTag} data-testid={`queue-problem-badge-${handover.id}`}>⚠ Nota bermasalah</span>
+          ) : null}
+          {dupInfo.duplicate ? (
+            <span style={S.warnTag} data-testid={`queue-dup-badge-${handover.id}`}>
+              {dupInfo.isCanonical
+                ? `⚠ ${dupInfo.activeCount} dokumen untuk nota ini`
+                : '⚠ Dokumen duplikat'}
+            </span>
           ) : null}
         </div>
       </div>

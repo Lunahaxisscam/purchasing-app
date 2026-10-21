@@ -42,6 +42,11 @@ if os.path.isfile(f'{REPO}/modules/materials/acuan.js'):
 # multi-kategori vendor satu-sumber) — file pendamping ikut disalin.
 if os.path.isfile(f'{REPO}/modules/vendors/categories.js'):
     shutil.copy(f'{REPO}/modules/vendors/categories.js', f'{SB}/modules/vendors/categories.js')
+# run 239: modules/handovers/save.js mengimpor ./duplicateGuard (penjaga SATU
+# dokumen aktif per penerimaan) — file pendamping WAJIB ikut disalin, kalau
+# tidak harness ini gagal di IMPOR dan menyamarkan hasil suite yang sebenarnya.
+if os.path.isfile(f'{REPO}/modules/handovers/duplicateGuard.js'):
+    shutil.copy(f'{REPO}/modules/handovers/duplicateGuard.js', f'{SB}/modules/handovers/duplicateGuard.js')
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')
