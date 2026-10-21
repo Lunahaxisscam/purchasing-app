@@ -282,6 +282,52 @@ pemanggilan RPC tersebut dan perbarui probe ini.
 - Migrasi **belum di produksi** (`applied=0`); aplikasi tetap LEGACY.
 - Cluster uji memakai fixture sintetis, bukan dump produksi.
 - Nomor proyek draft-vs-issued **tidak** diaktifkan (belum diputuskan DAT).
+- **Penghapusan lewat SQL langsung / API service-role tetap bisa merusak
+  `receiving_items.qty_handed_over`** — penjaga hapus ada di aplikasi, bukan
+  trigger database (lihat §8).
+
+---
+
+## 8. Penghapusan: bukti fisik tidak boleh lenyap (run 237)
+
+Lensa ini tidak pernah dipakai 13 run sebelumnya (101…236): semuanya menguji
+**simpan**, **tampil**, dan **kesiapan**. Tombol 🗑️ ada di setiap baris tanpa
+syarat, dan `deleteItem` di `pages/index.js` melakukan
+`delete from handovers where id = …`.
+
+Dibuktikan di PostgreSQL NYATA (`probe_run237_delete.mjs`, 16/16):
+
+| # | Akibat penghapusan dokumen yang sudah diserahkan |
+|---|---|
+| D1 | `handover_items` ikut terhapus lewat `on delete cascade` → **bukti fisik hilang permanen** |
+| D2 | `receiving_items.qty_handed_over` **tidak dikoreksi** → 5 padahal rincian 0 |
+| D3 | `v_receipt_progress.belum_diserahkan` kembali penuh → barang yang sudah diterima tampil "belum diserahkan" |
+| D4 | kuota tukang **terbuka lagi** → dokumen baru diterima RPC untuk barang yang sama (penyerahan ganda) |
+| D5 | `check_receipt_qty_consistency()` sendiri menandai `qty_handed_over_mismatch` |
+
+Penjaga sekarang ada di **aplikasi** (`modules/handovers/deleteGuard.js`),
+dipakai dua lapis: tombol (desktop + kartu mobile) nonaktif dengan sebab
+terbaca, dan `deleteDecision()` di shell **sebelum** optimistic update maupun
+`.delete()` — jadi jalur non-tombol ikut tertutup.
+
+Definisi "bukti" mengikuti kontrak aplikasi sendiri (`display.js`):
+`diserahkan_at` **atau** ada baris rincian. Status `CONFIRMED`/`SELESAI`
+**tanpa** keduanya adalah status basi (bukan bukti) — boleh dihapus, tetapi
+dengan peringatan eksplisit, supaya penjaga tidak lebih ketat dari kontraknya.
+
+Hapus **nota** (Pembelian) yang masih dirujuk serah terima **apa pun** sudah
+ditolak database (`handovers_receiving_id_fkey`, **tidak** cascade — diuji di
+`probe_run237_fk_scope.mjs`). Aplikasi sekarang menolaknya lebih dulu dengan
+sebab yang bisa dibaca, bukan pesan mentah `23503`.
+
+**Batas yang diakui:** tidak ada trigger/RLS yang menolak DELETE di level
+database (itu milik schema owner `t_03b41644`); `pages/api/seed-simulation.js`
+masih bisa menghapus massal bila dipanggil dengan token maintenance. Keduanya
+dicatat, tidak diklaim tertutup. Rekomendasi untuk schema owner: trigger
+`before delete on handovers` yang menolak bila `diserahkan_at is not null`
+atau ada `handover_items`, atau `on delete restrict` pada
+`handover_items.handover_id` + RPC koreksi yang menyinkronkan
+`qty_handed_over`.
 
 ---
 

@@ -213,6 +213,24 @@ rc8 = run(['node', os.path.join(HERE, 'probe_handover_items_visible.mjs')], cwd=
 print('\n=== 12. Qty pecahan (m3/kg): simpan utuh, batas & retur tetap benar ===')
 rc9 = run(['node', os.path.join(HERE, 'probe_run210_fractional.mjs')], cwd=REPO, env=env)
 
+# ---------------- 13. jalur HAPUS (run 237) ----------------
+# LENSA yang belum pernah dipakai 13 run sebelumnya: tombol 🗑️ ada di setiap
+# baris tanpa syarat. `delete from handovers` (persis deleteItem di
+# pages/index.js) menghapus `handover_items` lewat ON DELETE CASCADE → bukti
+# fisik hilang permanen — tanpa mengoreksi `receiving_items.qty_handed_over`,
+# sehingga kuota tukang terbuka lagi dan barang yang sama bisa diserahkan DUA
+# kali. Checker integritas DB sendiri menandainya rusak.
+print('\n=== 13. Jalur HAPUS: bukti fisik hilang & kuota terbuka (run 237) ===')
+rc10 = run(['node', os.path.join(HERE, 'probe_run237_delete.mjs')], cwd=REPO, env=env)
+
+# ---------------- 14. cakupan FK hapus (run 237) ----------------
+# Menentukan kebenaran yang HARUS dipakai penjaga aplikasi: FK
+# `handovers.receiving_id` TIDAK cascade, jadi hapus nota yang masih dirujuk
+# serah terima APA PUN sudah ditolak database dengan pesan mentah 23503.
+# Penjaga aplikasi harus sama ketatnya — bukan lebih longgar.
+print('\n=== 14. Cakupan FK hapus: nota vs PR (run 237) ===')
+rc11 = run(['node', os.path.join(HERE, 'probe_run237_fk_scope.mjs')], cwd=REPO, env=env)
+
 # CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
 # bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
 # menyimpulkan "siap DDL" padahal READY mustahil menyala.
@@ -220,4 +238,4 @@ if rc7 == 2:
     print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
     print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
     sys.exit(2)
-sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11)

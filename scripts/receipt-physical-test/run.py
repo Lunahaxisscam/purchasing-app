@@ -121,6 +121,14 @@ shutil.copy(os.path.join(HERE, 'probe_run233_return_layer_state.mjs'), SB)
 # jalur lama. Probe ini menuntut NOL tulisan di snapshot basi, penolakan pada
 # Konfirmasi form yang sudah terbuka, dan LEGACY yang SAH tetap bisa menulis.
 shutil.copy(os.path.join(HERE, 'probe_run234_stale_capability.mjs'), SB)
+# run 237: pengunci defect HAPUS — tombol 🗑️ ada di setiap baris tanpa syarat;
+# `delete from handovers` menghapus handover_items (cascade) dan membuka kuota
+# tukang. Probe ini menuntut tombol NONAKTIF + nol tulisan untuk dokumen
+# berbekti, dan KONTROL POSITIF bahwa DRAFT tanpa bukti tetap bisa dihapus.
+shutil.copy(os.path.join(HERE, 'probe_run237_delete_ui.mjs'), SB)
+# run 237: memastikan shell BENAR-BENAR memakai keputusan penjaga SEBELUM
+# menulis (optimistic update & .delete()), termasuk jalur non-tombol.
+shutil.copy(os.path.join(HERE, 'probe_run237_shell_wiring.mjs'), SB)
 # Kontrak ditulis ulang supaya §7 bisa diperiksa probe 234 (tanpa ini probe
 # membaca path sandbox dan lolos secara hampa).
 shutil.copy(os.path.join(REPO, 'docs', 'receiving-events-contract.md'), SB)
@@ -148,6 +156,12 @@ print('\n=== PROBE KUNCI REVIEW RUN 231 (run 233: T1/T2/T3 — ready_no_return) 
 rc_probe5 = subprocess.run(['node', 'probe_run233_return_layer_state.mjs'], cwd=SB).returncode
 print('\n=== PROBE KUNCI REVIEW RUN 234 (run 234: U1 — capability BASI) ===')
 rc_probe6 = subprocess.run(['node', 'probe_run234_stale_capability.mjs'], cwd=SB).returncode
+print('\n=== PROBE KUNCI DEFECT HAPUS (run 237: 🗑️ menghancurkan bukti fisik) ===')
+rc_probe7 = subprocess.run(['node', 'probe_run237_delete_ui.mjs'], cwd=SB).returncode
+print('\n=== PROBE SAMBUNGAN PENJAGA HAPUS KE SHELL (run 237: dipakai SEBELUM menulis) ===')
+# Probe ini membaca SUMBER (pages/index.js), jadi dijalankan dengan cwd = repo,
+# bukan sandbox kompilasi.
+rc_probe8 = subprocess.run(['node', os.path.join(SB, 'probe_run237_shell_wiring.mjs')], cwd=REPO).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — DIJALANKAN APA ADANYA (final: K1/K2/K3) ===')
 rc_rev1 = subprocess.run(['node', 'probe_run219_reviewer_final.mjs'], cwd=SB).returncode
 print('\n=== PROBE MILIK REVIEWER RUN 219 — kontrol positif READY (J) ===')
@@ -163,4 +177,4 @@ rc_rev4 = subprocess.run(['node', 'probe_run219_reviewer_problem_RAW.mjs'], cwd=
 if rc_rev3 == 0 or rc_rev4 == 0:
     print('\nPERINGATAN: probe I/H milik reviewer LULUS — berarti defect run 219 masih ada!')
     sys.exit(1)
-sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_rev1 or rc_rev2)
+sys.exit(rc_main or rc_probe or rc_probe2 or rc_probe3 or rc_probe4 or rc_probe5 or rc_probe6 or rc_probe7 or rc_probe8 or rc_rev1 or rc_rev2)

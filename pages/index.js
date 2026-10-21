@@ -27,6 +27,7 @@ import LaborStockModule from '../modules/labor-stock/view'
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
+import { deleteDecision } from '../modules/handovers/deleteGuard'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
@@ -740,6 +741,35 @@ export default function App() {
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
+    // ============================================================
+    // SAFETY BARRIER RIWAYAT FISIK (defect run 237 — t_7bc6246b)
+    // ============================================================
+    // Tombol 🗑️ ada di SETIAP baris Serah Terima tanpa syarat. Di PostgreSQL
+    // nyata (probe_run237_delete.mjs, 16/16) `delete from handovers` yang
+    // PERSIS dilakukan di bawah ini:
+    //   • menghapus `handover_items` lewat `on delete cascade` → bukti fisik
+    //     serah terima hilang permanen;
+    //   • TIDAK mengoreksi `receiving_items.qty_handed_over` → angka
+    //     "sudah diserahkan" (5) tidak lagi cocok dengan rincian (0);
+    //   • membuat `v_receipt_progress.belum_diserahkan` kembali penuh →
+    //     barang yang SUDAH diterima tampil "belum diserahkan";
+    //   • MEMBUKA kuota tukang → dokumen baru diterima RPC untuk barang yang
+    //     sama (penyerahan fisik ganda yang tidak terlihat di total);
+    //   • ditandai `qty_handed_over_mismatch` oleh checker integritas DB.
+    // Hapus NOTA (Pembelian) juga ditolak FK `restrict`, tetapi admin hanya
+    // melihat pesan mentah Postgres. Keduanya sekarang ditolak DI DEPAN dengan
+    // sebab yang bisa dibaca, sebelum optimistic update — jadi semua jalur
+    // hapus (ikon desktop, kartu mobile, pemanggilan programatik) tercakup.
+    // ============================================================
+    const del = deleteDecision(pageTarget, item, { handovers: rows.handovers || [] })
+    if (!del.ok) {
+      setNotice(del.reason)
+      return
+    }
+    // Status CONFIRMED/SELESAI tanpa bukti fisik = status basi (bukan bukti).
+    // Boleh dihapus, tetapi admin harus tahu yang hilang adalah status lama —
+    // bukan bukti penyerahan. Konfirmasi ini TIDAK menghalangi pekerjaan sah.
+    if (del.warn && !window.confirm(del.warn)) return
     // ============================================================
     // SAFETY BARRIER VENDOR (t_e626b674 — arahan DAT): konfirmasi
     // bertingkat SEBELUM konfirmasi generik. Vendor berrelasi dgn riwayat

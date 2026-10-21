@@ -34,6 +34,7 @@ import { format, parseHandoverNote, isHandoverDelivered } from '../../lib/consta
 import { sourceRefs, rincianInfo, rincianCell, statusInfo, RINCIAN_BELUM_TERSEDIA } from './display'
 import { alokasiLabel, isProblemNoted } from './queue'
 import { openPhysicalModal } from './physicalModal'
+import { handoverDeleteGuard } from './deleteGuard'
 
 // --- Bukti foto serah terima (fitur 15 Okt 2026) ---
 // Buka foto ukuran penuh di jendela baru: untuk data-URL, navigasi top-frame
@@ -229,10 +230,19 @@ export function renderCell(h, r, rawVal, ctx) {
 // ✓ (konfirmasi fisik), ✏️ edit, 🗑️ hapus.
 // Konfirmasi fisik menulis diserahkan_at lewat RPC handover_confirm per barang
 // (modal confirmForm) atau confirm.js (header) saat skema belum ada.
+//
+// DEFECT run 237 (hapus): tombol 🗑️ dulu aktif di SETIAP baris, termasuk
+// dokumen yang sudah punya bukti penyerahan. `delete from handovers` menghapus
+// `handover_items` lewat cascade (bukti fisik hilang permanen) tanpa
+// mengoreksi `receiving_items.qty_handed_over`, lalu membuka kuota tukang →
+// barang yang sama bisa diserahkan DUA kali. Sekarang tombolnya dinonaktifkan
+// dengan sebab terbaca; gerbang sebenarnya ada di pages/index.js
+// (deleteDecision) supaya kartu mobile & pemanggilan programatik ikut tertutup.
 export function rowActions(r, ctx) {
   const { title, page, setEditRow, onMarkHandoverDelivered, onDelete } = ctx
   const delivered = isHandoverDelivered(r)
   const rec = (ctx?.allReceivings || []).find(x => x && x.id === r.receiving_id) || null
+  const delGuard = handoverDeleteGuard(r)
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
@@ -290,10 +300,13 @@ export function rowActions(r, ctx) {
           type="button"
           className="btn-delete icon-btn"
           data-testid={`btn-hapus-${r.id}`}
+          disabled={!delGuard.ok}
+          aria-disabled={!delGuard.ok}
           onClick={() => onDelete(page, r)}
-          title={`Hapus ${title}`}
+          title={delGuard.ok ? `Hapus ${title}` : delGuard.reason}
+          style={delGuard.ok ? undefined : { opacity: 0.4, cursor: 'not-allowed' }}
         >
-          🗑️
+          {delGuard.ok ? '🗑️' : '🔒'}
         </button>
       </div>
     </td>
@@ -364,6 +377,10 @@ export function mobileCard(r, ctx) {
   const { page, title, setEditRow, onMarkHandoverDelivered, onDelete, expandedAcuan, setExpandedAcuan, allReceivings, allRequests } = ctx
   const { foto, extra } = parseHandoverNote(r.note)
   const delivered = isHandoverDelivered(r)
+  // DEFECT run 237: tombol hapus di kartu mobile juga harus berhenti pada
+  // dokumen yang sudah punya bukti penyerahan (gerbang sebenarnya ada di
+  // pages/index.js → deleteDecision, ini lapis pertama yang terlihat admin).
+  const delGuard = handoverDeleteGuard(r)
   const st = statusInfo(r)
   const rinc = rincianInfo(r)
   const isOpen = !!r.id && expandedAcuan === r.id
@@ -469,8 +486,17 @@ export function mobileCard(r, ctx) {
         >
           ✏️ Edit
         </button>
-        <button type="button" className="btn-delete" onClick={() => onDelete(page, r)} style={{ width: '100%' }}>
-          Hapus {title}
+        <button
+          type="button"
+          className="btn-delete"
+          data-testid={`btn-hapus-mobile-${r.id}`}
+          disabled={!delGuard.ok}
+          aria-disabled={!delGuard.ok}
+          title={delGuard.ok ? undefined : delGuard.reason}
+          onClick={() => onDelete(page, r)}
+          style={{ width: '100%', ...(delGuard.ok ? {} : { opacity: 0.45, cursor: 'not-allowed' }) }}
+        >
+          {delGuard.ok ? `Hapus ${title}` : `🔒 Tidak bisa dihapus — sudah ada bukti serah terima`}
         </button>
       </div>
     </>
