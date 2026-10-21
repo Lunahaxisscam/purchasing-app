@@ -4,7 +4,11 @@
 // - Mengemulasi compare-and-swap pada handovers seperti server:
 //     update(...).eq('id',x).is('diserahkan_at', null).select()
 //   -> 1 baris dikembalikan bila diserahkan_at masih NULL, 0 baris bila tidak.
-// - insert handovers menghasilkan id unik.
+// - MENGEMULASI PRIMARY KEY `handovers.id`: INSERT dengan id yang SUDAH ADA
+//   ditolak 23505. Ini bukan bantuan untuk lulus: sejak run 245 penjaga
+//   dokumen ganda BERGANTUNG pada constraint itu (id slot deterministik), jadi
+//   mock yang selalu menerima INSERT akan membuat uji "dua penulis bersamaan"
+//   lolos secara palsu. Tanpa emulasi ini, harness berbohong.
 // ============================================================
 
 export const __state = {
@@ -28,6 +32,13 @@ export const __state = {
   // Hook sekali pakai yang dijalankan TEPAT sebelum INSERT (meniru sesi lain
   // yang commit di antara SELECT penjaga dan INSERT kita).
   beforeInsert: null,
+  // Sesi LAIN yang INSERT-nya BELUM COMMIT (meniru kunci index PostgreSQL).
+  // Baris di sini TIDAK terlihat oleh SELECT (belum commit), tetapi id-nya
+  // SUDAH memegang PRIMARY KEY — jadi INSERT kita dengan id yang sama harus
+  // DITOLAK 23505, persis seperti PostgreSQL sesudah sesi itu commit.
+  // `pendingRows[id]` = baris yang akan terlihat begitu sesi itu "commit".
+  pendingIds: [],
+  pendingRows: {},
   // Bila diisi, `nextError` hanya berlaku untuk tabel ini.
   nextErrorTable: null
 }
@@ -51,6 +62,8 @@ export function __reset({ handovers = [], receivings = [], prItems = [], receivi
   __state.nextError = null
   __state.insertStamp = null
   __state.beforeInsert = null
+  __state.pendingIds = []
+  __state.pendingRows = {}
   __state.nextErrorTable = null
 }
 
@@ -134,6 +147,41 @@ function terminalRaw(st) {
     const stamp = { created_at: __state.insertStamp || new Date().toISOString() }
     const row = { id: `gen-${size}-${Math.random().toString(36).slice(2, 7)}`, ...stamp, ...st.data }
     const store = storeOf(st.table)
+    // PRIMARY KEY emulation (handovers.id): INSERT dengan id yang sudah ada
+    // ditolak 23505 — sama seperti PostgreSQL. Penjaga slot run 245 bergantung
+    // pada perilaku ini.
+    if (st.table === 'handovers' && store && store.has(row.id)) {
+      return {
+        data: null,
+        error: {
+          code: '23505',
+          message: `duplicate key value violates unique constraint "handovers_pkey"`,
+          details: `Key (id)=(${row.id}) already exists.`,
+          hint: null
+        }
+      }
+    }
+    // Sesi lain yang belum commit: id-nya sudah memegang PRIMARY KEY walau
+    // barisnya belum terlihat oleh SELECT. Di PostgreSQL INSERT kita akan
+    // MENUNGGU sampai sesi itu commit, lalu ditolak 23505 — dan pada saat itu
+    // barisnya SUDAH terlihat. Itu persis yang dimodelkan di sini: id keluar
+    // dari `pendingIds`, barisnya masuk store, lalu INSERT kita ditolak.
+    // (Tanpa ini, uji "dua penulis bersamaan" hanya membuktikan id-nya sama,
+    // bukan bahwa database menolak yang kedua — atau malah menggantung.)
+    if (st.table === 'handovers' && (__state.pendingIds || []).includes(row.id)) {
+      const pend = __state.pendingRows && __state.pendingRows[row.id]
+      __state.pendingIds = __state.pendingIds.filter(x => x !== row.id)
+      if (pend && store) store.set(pend.id, { ...pend })
+      return {
+        data: null,
+        error: {
+          code: '23505',
+          message: `duplicate key value violates unique constraint "handovers_pkey"`,
+          details: `Key (id)=(${row.id}) already exists.`,
+          hint: null
+        }
+      }
+    }
     if (store) store.set(row.id, { ...row })
     return { data: [row], error: null }
   }

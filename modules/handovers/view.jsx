@@ -250,7 +250,10 @@ export function rowActions(r, ctx) {
   // per dokumen) → penyerahan ganda. Dokumen duplikat ditolak di sini juga,
   // bukan hanya di antrean.
   const dupInfo = duplicateInfoFor(r, ctx?.rows || [])
-  const dupBlocked = !delivered && dupInfo.duplicate && !dupInfo.isCanonical
+  // REVIEW run 244 (L3): sisa dokumen ganda (saudaranya SUDAH dikonfirmasi)
+  // juga harus menutup tombol — dulu badge & tombol mati begitu dokumen
+  // pertama dikonfirmasi, sehingga dokumen kedua bisa dikonfirmasi bebas.
+  const dupBlocked = !delivered && (dupInfo.staleDuplicate || (dupInfo.duplicate && !dupInfo.isCanonical))
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
@@ -292,7 +295,9 @@ export function rowActions(r, ctx) {
               fontSize: '11px', cursor: dupBlocked ? 'not-allowed' : 'pointer', fontWeight: 700, lineHeight: 1
             }}
             title={dupBlocked
-              ? 'Dokumen duplikat — penerimaan ini punya dokumen Serah Terima lain yang belum diserahkan. Konfirmasi hanya dokumen paling awal.'
+              ? (dupInfo.staleDuplicate
+                ? 'Sisa dokumen ganda — dokumen lain untuk penerimaan ini SUDAH diserahkan. Hapus dokumen ini (belum punya bukti) lalu buat dokumen baru untuk sisa barang.'
+                : 'Dokumen duplikat — penerimaan ini punya dokumen Serah Terima lain yang belum diserahkan. Konfirmasi hanya dokumen paling awal.')
               : 'Tandai serah terima SUDAH DISERAHKAN (konfirmasi fisik — rincian per barang bila tersedia)'}
           >
             {dupBlocked ? '🔒' : '✓'}
@@ -408,7 +413,10 @@ export function mobileCard(r, ctx) {
   // Dua dokumen aktif untuk satu penerimaan bisa sama-sama lolos RPC (kunci
   // per dokumen) → penyerahan ganda. Dokumen duplikat ditolak di sini juga.
   const dupInfo = duplicateInfoFor(r, ctx?.rows || [])
-  const dupBlocked = !delivered && dupInfo.duplicate && !dupInfo.isCanonical
+  // REVIEW run 244 (L3): sisa dokumen ganda (saudaranya SUDAH dikonfirmasi)
+  // juga harus menutup tombol — dulu badge & tombol mati begitu dokumen
+  // pertama dikonfirmasi, sehingga dokumen kedua bisa dikonfirmasi bebas.
+  const dupBlocked = !delivered && (dupInfo.staleDuplicate || (dupInfo.duplicate && !dupInfo.isCanonical))
   const st = statusInfo(r)
   const rinc = rincianInfo(r)
   const isOpen = !!r.id && expandedAcuan === r.id
@@ -514,7 +522,11 @@ export function mobileCard(r, ctx) {
               cursor: dupBlocked ? 'not-allowed' : 'pointer'
             }}
           >
-            {dupBlocked ? '🔒 Dokumen duplikat — konfirmasi dokumen paling awal' : '✓ Tandai Sudah Diserahkan'}
+            {dupBlocked
+              ? (dupInfo.staleDuplicate
+                ? '🔒 Sisa dokumen ganda — hapus dokumen ini'
+                : '🔒 Dokumen duplikat — konfirmasi dokumen paling awal')
+              : '✓ Tandai Sudah Diserahkan'}
           </button>
         )}
         <button

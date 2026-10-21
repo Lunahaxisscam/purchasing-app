@@ -468,10 +468,13 @@ tombol ✓ membuka modal konfirmasi, dan `physicalHost` merender **form**.
   Opsi 2 lebih murah (tanpa kunci tambahan) tetapi harus mengunci **semua**
   baris yang terlibat sebelum validasi; opsi 1 lebih sederhana dan sesuai pola
   `receipt:`/`return:` yang sudah dipakai.
-- Tidak ada unique index yang ditambahkan: `(receiving_id) where diserahkan_at is null`
-  **tidak bisa** dipakai karena serah terima bertahap sah, dan partial unique
-  index akan memblokir dokumen baru yang sah setelah dokumen lama diserahkan
-  **hanya bila** predikatnya tepat — itu keputusan schema owner, bukan aplikasi.
+- Tidak ada unique index yang ditambahkan **oleh card ini**. Pernyataan run 239
+  bahwa index `(receiving_id) where diserahkan_at is null` **tidak bisa**
+  dipakai adalah **SALAH** dan sudah dikoreksi di §9B.1: index itu **dapat**
+  dibuat dan **tidak** memblokir serah terima bertahap (dibuktikan di
+  PostgreSQL 16 nyata, `probe_run244_partial_unique.mjs` dan
+  `probe_run245_slot_pg.mjs` S6). Penolakan menjalankannya adalah soal
+  **KEPEMILIKAN** schema (`t_03b41644`), bukan kemustahilan teknis.
 
 ---
 
@@ -488,22 +491,43 @@ perbaikannya:
 | **V3** | Rantai penuh: dua dokumen → **KEDUA** `handover_confirm` diterima → rincian 2× kuota, `belum_diserahkan` negatif (`probe_run242_chain2`) | Ditutup dari dua arah: konvergensi pada pembuatan (V2) **dan** penolakan konfirmasi non-kanonik dari DB (V1) |
 | **V4** | Form Tambah menawarkan **semua** penerimaan, termasuk yang sudah punya dokumen aktif; admin baru ditolak setelah menekan Simpan | `loadActiveReceivingIds()` menandai + menonaktifkan pilihan itu (`🔒 … sudah ada Serah Terima aktif`); kegagalan probe dinyatakan jujur, bukan pura-pura aman |
 
-### 9A.1 Kenapa INSERT → VERIFIKASI → TARIK DIRI itu benar
+### 9A.1 [DICABUT oleh run 244/245] Klaim "INSERT → VERIFIKASI → TARIK DIRI itu benar"
 
-Tanpa DDL (card ini tidak boleh menjalankan SQL) dan tanpa unique index
-(§9.5), dua INSERT bersamaan tetap **mungkin** terjadi. Yang bisa dijamin
-aplikasi adalah **konvergensi**, bukan tidak adanya jendela:
+> **Status bagian ini: SALAH — jangan dipakai sebagai dasar apa pun.**
+> Review independen run 244 membuktikan pembuktian di bawah cacat logika, dan
+> `probe_run244_verify_order.mjs` (PG16 nyata, 7/0) menghasilkan **dua dokumen
+> aktif dengan KEDUANYA `ok:true`**. Mekanisme penggantinya ada di §9B.
+> Teks asli dipertahankan hanya sebagai catatan sejarah.
+
+Klaim run 243 (yang kini dicabut): tanpa DDL dan tanpa unique index, dua INSERT
+bersamaan tetap mungkin, tetapi aplikasi menjamin **konvergensi**:
 
 > Setiap penulis membaca ulang **sesudah commit-nya sendiri**, memakai urutan
-> kanonik yang **sama** (`created_at` → `handover_date` → `id`), lalu yang
-> bukan kanonik menghapus barisnya sendiri.
+> kanonik yang sama (`created_at` → `handover_date` → `id`), lalu yang bukan
+> kanonik menghapus barisnya sendiri.
 
-**Tidak mungkin dua-duanya bertahan.** Agar A tidak melihat B, baca A harus
-sebelum commit B; agar B tidak melihat A, baca B harus sebelum commit A.
-Karena baca A sesudah commit A dan baca B sesudah commit B, kedua syarat itu
-berarti `commit A < commit B < baca B < commit A` — kontradiksi. Jadi paling
-sedikit satu penulis **selalu** melihat yang lain, dan karena urutannya total,
-hanya **satu** yang bertahan.
+Argumen yang dipakai waktu itu: "agar A tidak melihat B, baca A harus sebelum
+commit B; agar B tidak melihat A, baca B harus sebelum commit A; karena baca A
+sesudah commit A dan baca B sesudah commit B, kedua syarat itu berarti
+`commit A < commit B < baca B < commit A` — kontradiksi."
+
+**Cacatnya:** "paling sedikit satu penulis melihat yang lain" **tidak** berarti
+"penulis yang melihat itu adalah yang kalah". Bila yang melihat adalah dokumen
+**KANONIK** (`created_at` paling awal), ia **tidak menarik diri** — dan penulis
+lain sudah selesai lebih dulu tanpa pernah melihatnya. Kontradiksi di atas hanya
+berlaku bila **kedua** penulis memverifikasi sesudah **kedua** commit, yaitu
+urutan yang dipakai probe run 243 (satu skrip menunggu keduanya). Di aplikasi
+verifikasi terjadi di akhir **masing-masing** permintaan, dan `created_at`
+diambil saat INSERT sementara commit di akhir — jadi permintaan yang lebih
+lambat (pooler/jaringan lapangan) mulai dulu tetapi commit terakhir. Itu urutan
+**normal**, bukan karangan:
+
+```
+A: INSERT created_at 04:25:19.271   (belum commit)
+B: INSERT created_at 04:25:19.275 → commit → verifikasi → lihat 1 → TETAP
+A: commit → verifikasi → lihat 2 → A KANONIK → TETAP
+hasil: 2 dokumen aktif · kedua permintaan ok:true
+```
 
 ### 9A.2 Keadaan yang ditampilkan saat pemeriksaan belum/tidak bisa dilakukan
 
@@ -528,22 +552,156 @@ untuk memastikan temuan mereka benar-benar tertutup, bukan diakali.
 
 ### 9A.4 Batas yang diakui (tidak disembunyikan)
 
-- **Jendela singkat "dua baris sempat ada" tetap ada** (insert → verify →
-  delete = 3 round-trip). Yang hilang bukan jendela itu, melainkan **keadaan
-  akhir ganda**. Bila peramban penulis yang kalah mati di antara insert dan
-  verify, baris duplikat bisa tertinggal — karena itu lapis kedua (V1) tetap
-  wajib: konfirmasi dokumen non-kanonik **ditolak dari DB**, sehingga sisa
-  duplikat tidak bisa menjadi penyerahan fisik ganda.
+- ~~Jendela singkat "dua baris sempat ada" tetap ada…~~ **Klaim ini ikut
+  dicabut**: mekanisme run 243 tidak hanya menyisakan jendela, ia meninggalkan
+  **keadaan akhir ganda** (lihat §9A.1 dan §9B).
 - Perbaikan sejati di level database tetap milik schema owner `t_03b41644`
   (§9.5 opsi 1/2: kunci `handover:rec:<receiving_id>` atau row lock
   `receiving_items` **sebelum** cek kuota). Rekomendasi itu **tidak berubah**
-  dan **tidak diklaim selesai** di sini.
+  dan **tidak diklaim selesai** di sini. Yang ditambahkan run 245 adalah
+  jaminan **aplikasi** berbasis PRIMARY KEY (§9B.2) — bukan pengganti kunci
+  per penerimaan di sisi server.
 - Penarikan diri memakai `delete` ber-CAS pada baris yang **baru saja dibuat
   sendiri** (bukan ID dari input pengguna). Jalur itu diperiksa oleh
   `probe_run237_shell_wiring` W7: setiap `.delete()` pada `handovers` di
   `components/ modules/ lib/` harus menunjuk `inserted.id` **dan** memakai
   `.is('diserahkan_at', null)`; kalau tidak, probe GAGAL.
 - Diuji di jsdom + mock perekam (bukan Supabase nyata) untuk jalur aplikasi;
-  dua koneksi bersamaan diuji di PG16 **lokal** (`probe_run242_duprace` milik
-  reviewer, bukan probe ini). Latensi/pooler Supabase hanya **memperbesar**
-  jendela, dan justru itu yang ditutup oleh verifikasi-sesudah-commit.
+  dua koneksi bersamaan diuji di PG16 **lokal**. Latensi/pooler Supabase hanya
+  **memperbesar** jendela — dan justru itulah yang ditutup oleh kunci slot
+  (§9B.2), bukan oleh verifikasi-sesudah-commit.
+
+---
+
+## 9B. Kunci slot PRIMARY KEY + pintu seragam (run 245)
+
+Review independen **run 244** pada `97cd46b` memberi **CHANGES REQUESTED**:
+1 MAJOR, 1 MEDIUM, 1 MINOR. Ketiganya dijawab di sini — bukan dengan
+memperbaiki kata-kata, tetapi dengan mengganti mekanismenya.
+
+| # | Temuan run 244 | Jawaban run 245 |
+|---|---|---|
+| **W1** (MAJOR) | Klaim "keadaan akhir SELALU satu dokumen aktif" **tidak benar**; pembuktian §9A.1 cacat logika; penulis KANONIK yang memverifikasi terakhir tidak menarik diri | Klaim **DICABUT** (§9A.1). Mekanisme diganti **kunci slot PRIMARY KEY** (§9B.2): yang menjamin bukan pembacaan ulang, melainkan database yang menolak INSERT kedua. Dibuktikan pada PG16 nyata dengan urutan aplikasi yang dulu gagal |
+| **W2** (MEDIUM) | Alasan menolak partial unique index salah — index **bisa** dibuat dan **tidak** memblokir serah terima bertahap | Dinyatakan sebagai soal **KEPEMILIKAN** schema (§9.5), bukan kemustahilan. Dibuktikan lagi di `probe_run245_slot_pg` S6 (index dibuat, diuji, lalu **di-drop** di cluster lokal) |
+| **W3** (MINOR) | 2 dari 3 pintu pembuatan `handovers` tidak memakai penjaga; pre-check `purchaseSave` tanpa filter `diserahkan_at` | **Ketiga pintu** memakai penjaga yang sama (`insertUniqueActiveHandover`); pintu konfirmasi shell & modal memakai `confirmUniqueHandover` (§9B.3) |
+
+Tambahan yang ikut ditemukan review 244 dan ditutup di sini:
+
+- **L3 — sisa dokumen ganda setelah dokumen pertama dikonfirmasi.** Dulu
+  `activeDocumentsFor()` hanya melihat `diserahkan_at IS NULL`, jadi dokumen
+  kedua "sendirian" → dianggap kanonik → penjaga meloloskan **tanpa
+  peringatan** → dua dokumen terkonfirmasi, dan `deleteGuard` menolak
+  menghapus keduanya sehingga tidak ada pembersihan dari UI.
+  Sekarang `deliveredSiblingFor()` membedakan **duplikat** dari **bertahap**
+  memakai waktu database: dokumen yang **sudah ada** ketika saudaranya
+  dikonfirmasi (`this.created_at <= sibling.diserahkan_at`) adalah sisa
+  duplikat → **ditolak**; dokumen yang **dibuat sesudah** saudaranya
+  dikonfirmasi (`sibling.diserahkan_at < this.created_at`) adalah serah
+  terima bertahap → **tetap sah**. Data lama tanpa `created_at` → fail closed
+  (tidak menebak aman).
+- **Butir 2a — verifikasi sesudah menulis `diserahkan_at`.** `confirmUniqueHandover()`
+  dan `verifyAfterConfirm()` membaca DB **lagi** sesudah bukti tertulis. Bila
+  masih ada dokumen lain yang aktif, hasilnya dilaporkan `needsReview` dengan
+  sebab terbaca — bukti yang sudah tertulis **tidak dihapus** (menghapus bukti
+  dilarang, §8).
+
+### 9B.1 BUG-W2: kenapa index parsial DITOLAK (jawaban yang benar)
+
+Predikat `(receiving_id) WHERE diserahkan_at IS NULL` **persis** definisi
+"aktif" yang dipakai `activeDocumentsFor()`, dan di PostgreSQL 16 nyata:
+
+| # | Hasil (probe_run244_partial_unique 8/0 · probe_run245_slot_pg S6 5/0) |
+|---|---|
+| U1 | index **DAPAT** dibuat — tanpa kolom/tabel baru |
+| U2 | dokumen aktif kedua **DITOLAK database** (`23505`) |
+| U3 | **serah terima BERTAHAP tetap SAH**: setelah dokumen lama `diserahkan_at` terisi, dokumen baru untuk penerimaan yang sama **DITERIMA** |
+| U4 | penerimaan berbeda tidak saling mengganggu |
+| U5 | jalur withdraw/CAS (delete) tidak diblokir |
+
+Jadi penolakan menjalankannya **bukan** karena tidak mungkin, melainkan karena
+**kepemilikan**: DDL pada `handovers` adalah milik schema owner `t_03b41644`,
+dan card ini tidak boleh menjalankan DDL. Index uji hanya ada di cluster PG16
+lokal dan **sudah di-drop** (diverifikasi S6e). Ini juga menjadi rekomendasi
+konkret untuk schema owner — lihat §9B.5.
+
+### 9B.2 Mekanisme pengganti: `handovers.id` (PRIMARY KEY) sebagai kunci slot
+
+`handovers.id` **sudah** PRIMARY KEY — tidak perlu DDL baru. Setiap penulis
+menurunkan `id` secara **deterministik** dari `(receiving_id, slot)` lewat
+`slotHandoverId()` (fungsi murni, UUID v4 yang sah):
+
+```
+slot = jumlah dokumen yang TERLIHAT pada pembacaan yang sama dengan pre-check
+id   = uuid_deterministik(receiving_id, slot)
+```
+
+Akibatnya, pada dua penulis bersamaan:
+
+- keduanya melihat jumlah yang sama → **id yang sama** → INSERT kedua
+  **menunggu kunci index**, lalu **ditolak `23505`** begitu yang pertama
+  commit (diukur nyata: `probe_run245_slot_pg` S2/S3);
+- penulis yang membaca **sesudah** penulis lain commit melihat slot
+  berikutnya, **tetapi** juga melihat dokumen aktifnya → ditolak pre-check;
+- **serah terima bertahap tetap sah**: dokumen lama sudah dikonfirmasi →
+  keluar dari predikat "aktif" → pre-check lolos → slot berikutnya kosong
+  (S4: id dokumen kedua = slot 1, bukan menabrak slot 0);
+- penerimaan berbeda memakai kunci berbeda → tidak saling mengunci (S5).
+
+**Yang DIJAMIN:** untuk setiap penerimaan, jalur aplikasi (semua pintu tulis di
+repo ini) tidak bisa meninggalkan dua dokumen aktif — bukan karena "pembacaan
+ulang", melainkan karena **database menolak INSERT kedua**.
+
+**Yang TIDAK dijamin** (jujur): SQL manual / service-role yang mengarang `id`
+acak tetap bisa menyisipkan dokumen kedua; untuk itu kunci per PENERIMAAN di
+`handover_confirm` tetap dibutuhkan (§9B.5). Verifikasi sesudah tulis **tetap**
+ada, tetapi sekarang berfungsi sebagai pemeriksa kejujuran dan penarik diri
+untuk sisa duplikat **lama** yang dibuat di luar modul ini — bukan sebagai
+dasar klaim konvergensi.
+
+### 9B.3 Pintu tulis diseragamkan (BUG-W3)
+
+| Pintu | Sebelum run 245 | Sesudah |
+|---|---|---|
+| `modules/handovers/save.js` (form Tambah) | `insertUniqueActiveHandover` ✅ | tetap ✅ (mekanisme baru) |
+| `modules/receivings/purchaseSave.js` (antrean otomatis per nota) | **INSERT LANGSUNG**, pre-check tanpa filter `diserahkan_at` ❌ | `insertUniqueActiveHandover` ✅ |
+| `pages/index.js` `sendToTukang` (fallback non-RPC) | **INSERT LANGSUNG** ❌ | `insertUniqueActiveHandover` ✅ |
+| `pages/index.js` `markHandoverDelivered` (shell) | `confirm.js` langsung ❌ | `confirmUniqueHandover` ✅ (periksa → tulis → periksa) |
+| `modules/handovers/confirmForm.jsx` (dalam modal) | `confirm.js` langsung ❌ | `confirmUniqueHandover` / `verifyAfterConfirm` ✅ |
+| `modules/handovers/queue.jsx` · `view.jsx` · `physicalHost.jsx` | `guardConfirmFresh` (baca DB) ✅ | tetap ✅ + **sisa duplikat (L3)** ikut ditolak |
+
+`probe_run245_doors_race.mjs` G7d memeriksa **seluruh jalur UI** secara statis:
+satu-satunya `from('handovers').insert(` yang tersisa ada di modul penjaga
+sendiri. `pages/api/seed-simulation.js` (endpoint maintenance, bukan UI) tetap
+tercatat sebagai batas yang diakui — lihat §8.
+
+**W3a (pre-check tanpa filter) juga hilang**: `purchaseSave` tidak lagi
+memakai `.select('id').eq('receiving_id', …)` sendiri, jadi nota berikutnya
+untuk penerimaan yang **semua** dokumennya sudah dikonfirmasi tetap mendapat
+antrean baru (G6) — antrean serah terima bertahap tidak lagi hilang.
+
+### 9B.4 RED → GREEN
+
+| Probe | Pohon sebelum | run 245 |
+|---|---|---|
+| `probe_run245_slot_pg.mjs` (PG16 nyata, 2 koneksi, 27 cek) | mekanisme run 243 → **2 dokumen aktif** (S7a/S7b membuktikannya di pohon yang sama) | **27 PASS / 0 FAIL** |
+| `probe_run245_doors_race.mjs` (modul verbatim + mock perekam, 35 cek) | `probe_run244_*` (milik reviewer) gagal pada W1/W3 | **35 PASS / 0 FAIL** |
+| `receipt-physical-test` + probe 206/208/215/222/233/234/237/239/243 | hijau | hijau (167 + 16 + 15 + 41 + 100 + 54 + 52 + 35 + 11 + 37 + 47, semua 0 FAIL) |
+
+### 9B.5 Yang tetap menjadi milik schema owner `t_03b41644`
+
+Tidak berubah dan **tidak diklaim selesai** di sini. Rekomendasi, berurutan
+dari yang paling murah:
+
+1. **Partial unique index** `create unique index … on handovers (receiving_id)
+   where diserahkan_at is null` — terbukti bisa dan tidak memblokir serah
+   terima bertahap (§9B.1). Ini yang paling murah dan menutup jalur SQL
+   manual sekaligus.
+2. **Kunci per PENERIMAAN** `pg_advisory_xact_lock(hashtext('handover:rec:' ||
+   v_ho.receiving_id))` di `handover_confirm`, supaya dua dokumen pada
+   penerimaan yang sama berurutan dan cek kuota dokumen kedua melihat tulisan
+   pertama.
+3. **Row lock lebih dulu**: `select … from receiving_items where id = any(…)
+   for update` **sebelum** loop validasi kuota.
+
+Selama ketiganya belum ada, jaminan yang berlaku adalah jaminan **aplikasi**
+(§9B.2) — dan itu dinyatakan apa adanya, bukan sebagai invarian database.

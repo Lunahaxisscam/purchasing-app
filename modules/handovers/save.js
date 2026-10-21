@@ -72,25 +72,27 @@ export async function save(ctx) {
   }
 
   // ============================================================
-  // DEFECT run 239 + REVIEW run 242 (BUG-V2): DUA DOKUMEN AKTIF
+  // DEFECT run 239 + REVIEW run 242 (BUG-V2) + REVIEW run 244 (BUG-W1)
+  // DUA DOKUMEN AKTIF untuk satu penerimaan.
   // ============================================================
   // Run 239 memasang penjaga SELECT-lalu-INSERT. Review run 242 membuktikan
-  // di PostgreSQL nyata bahwa dua sesi bersamaan SAMA-SAMA lolos (probe
-  // `probe_run242_duprace.mjs`: kedua insert diterima, nol error, 2 dokumen
-  // aktif), lalu `handover_confirm` menerima KEDUANYA (kuncinya per DOKUMEN)
-  // → rincian 2× kuota dan `belum_diserahkan` negatif.
+  // di PostgreSQL nyata bahwa dua sesi bersamaan SAMA-SAMA lolos, lalu
+  // `handover_confirm` menerima KEDUANYA (kuncinya per DOKUMEN) → rincian
+  // 2× kuota dan `belum_diserahkan` negatif.
   //
-  // `insertUniqueActiveHandover` menutupnya dalam tiga lapis tanpa DDL:
-  //   1. baca DB (bukan `rows` memori) → jalur cepat, nol tulisan;
-  //   2. INSERT;
-  //   3. baca DB LAGI sesudah commit → bila ada dokumen aktif yang lebih awal
-  //      (urutan kanonik created_at → handover_date → id), baris yang baru
-  //      dibuat MENARIK DIRINYA SENDIRI (CAS `diserahkan_at IS NULL`).
-  // Konvergen karena dua penulis tidak mungkin sama-sama tidak melihat yang
-  // lain (lihat pembuktian di header duplicateGuardDb.js).
+  // Run 243 mencoba insert → verifikasi → tarik diri sendiri. Review run 244
+  // membuktikan itu TIDAK konvergen: penulis yang commit TERAKHIR melihat
+  // semuanya, dan bila ia justru yang paling awal (`created_at` terkecil) ia
+  // TIDAK menarik diri — penulis lain sudah selesai dan tidak pernah
+  // melihatnya. Dua dokumen aktif, keduanya `ok:true`.
   //
-  // Gagal baca = JANGAN menulis (fail closed) — lebih baik admin mengulang
-  // daripada membuat duplikat yang tidak bisa ditarik kembali.
+  // Run 245: `insertUniqueActiveHandover` memakai PRIMARY KEY `handovers.id`
+  // sebagai kunci slot — id diturunkan DETERMINISTIK dari
+  // (receiving_id, jumlah dokumen yang terlihat), jadi dua penulis bersamaan
+  // menghasilkan id yang SAMA dan database menolak yang kedua (23505).
+  // Baca DB tetap dilakukan lebih dulu (pesan ramah + fail closed), tetapi
+  // jaminannya berasal dari database, bukan dari pembacaan ulang.
+  // Detail + batas yang diakui: header duplicateGuardDb.js dan docs §9B.
   const data = {
     receiving_id: receivingId,
     project_id: form.project_id || null,

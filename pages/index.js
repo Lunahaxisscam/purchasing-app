@@ -26,8 +26,8 @@ import LaborStockModule from '../modules/labor-stock/view'
 // (read-only dari sisi DB; lead dari form adalah draf memori halaman).
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
-import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { deleteDecision } from '../modules/handovers/deleteGuard'
+import { insertUniqueActiveHandover, confirmUniqueHandover } from '../modules/handovers/duplicateGuardDb'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
 import { handleFinishPr } from '../modules/requests/submit'
@@ -425,15 +425,25 @@ export default function App() {
 
       if (!handledByRpc) {
         const now = new Date().toISOString()
-        const { error: hoErr } = await supabase.from('handovers').insert({
-          receiving_id: receiving.id,
-          project_id: receiving.project_id || null,
-          received_by: receivedBy,
-          handover_date: now.slice(0, 10),
-          status: 'DRAFT',
-          note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
+        // REVIEW run 244 (BUG-W3): jalur fallback ini dulu INSERT LANGSUNG
+        // tanpa penjaga — pintu ketiga yang membuat dokumen kedua untuk satu
+        // penerimaan. Sekarang lewat penjaga yang SAMA dengan form Tambah.
+        const queued = await insertUniqueActiveHandover({
+          data: {
+            receiving_id: receiving.id,
+            project_id: receiving.project_id || null,
+            received_by: receivedBy,
+            handover_date: now.slice(0, 10),
+            status: 'DRAFT',
+            note: `Barang dari penerimaan ${label} dikirim langsung ke tukang. Menunggu konfirmasi serah terima fisik.`
+          }
         })
-        if (hoErr) { setNotice(`Gagal membuat Serah Terima: ${hoErr.message}`); return }
+        // Dokumen aktif sudah ada (dibuat pintu lain) → antrean tetap ada,
+        // tidak ada yang perlu dibuat. Bukan kegagalan.
+        if (!queued.ok && !queued.existingId && !queued.raced) {
+          setNotice(`Gagal membuat Serah Terima: ${queued.reason}`)
+          return
+        }
 
         const { error } = await supabase.from('receivings').update({ alokasi: 'KE_TUKANG', tukang_at: now }).eq('id', receiving.id)
         if (error) { setNotice(`Serah Terima dibuat, tapi gagal update alokasi: ${error.message}`); loadAll(); return }
@@ -454,14 +464,21 @@ export default function App() {
   // (bukti live A3: CONFIRMED lama tanpa diserahkan_at). Penulisan lewat
   // modules/handovers/confirm.js: idempoten (guard `diserahkan_at IS NULL`),
   // tidak bisa re-confirm, dan selalu menulis waktu penyerahan.
+  //
+  // REVIEW run 244 (BUG-W3 + butir 2a): jalur shell ini dulu memanggil
+  // `confirm.js` LANGSUNG — pintu konfirmasi keempat yang tidak memakai
+  // penjaga dokumen ganda dan tidak memverifikasi apa pun sesudah menulis.
+  // Sekarang lewat `confirmUniqueHandover()`: periksa DB sebelum, tulis, lalu
+  // periksa DB LAGI sesudah `diserahkan_at` tertulis.
   async function markHandoverDelivered(handover) {
     if (!supabase) return
     if (isHandoverDelivered(handover)) { setNotice('Serah terima ini sudah ditandai diserahkan.'); return }
     const ok = window.confirm('Tandai serah terima ini sebagai SUDAH DISERAHKAN?\nLakukan hanya setelah barang benar-benar diterima tukang/mandor di lokasi.')
     if (!ok) return
-    const res = await confirmHandoverDelivered({ handover })
+    const res = await confirmUniqueHandover({ handover })
     if (!res.ok) { setNotice(`Gagal menandai sudah diserahkan: ${res.error}`); return }
-    setNotice(res.already ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.' : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat).')
+    if (res.warning) setNotice(res.warning)
+    else setNotice(res.already ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.' : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat).')
     loadAll()
   }
 

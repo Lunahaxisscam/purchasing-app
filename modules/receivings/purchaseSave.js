@@ -56,6 +56,7 @@
 import { supabase } from '../../lib/supabaseClient'
 import { buildPurchaseNote, PURCHASED_STATUS, TAHAP_DIBELI, isPurchasedNota, itemPriceNoteOf } from '../../lib/purchaseNote'
 import { buildSavePlan } from './purchaseLogic'
+import { insertUniqueActiveHandover } from '../handovers/duplicateGuardDb'
 
 function isCheckViolation(error) {
   const code = String(error?.code || '')
@@ -411,9 +412,20 @@ export async function savePurchaseWithClient({
   // Barang yang sudah dibeli harus muncul di modul Handover untuk distribusi
   // fisik. Skema handover masih HEADER-level (tabel `handover_items` belum
   // ada), jadi yang dibuat adalah SATU dokumen DRAFT per nota — isinya rincian
-  // barang diambil dari baris nota ini. Idempoten: bila nota ini sudah punya
-  // dokumen handover, tidak dibuat lagi. Kegagalan di langkah ini TIDAK
+  // barang diambil dari baris nota ini. Kegagalan di langkah ini TIDAK
   // membatalkan nota (uang sudah keluar) — dilaporkan apa adanya.
+  //
+  // REVIEW run 244 (BUG-W3): pintu ini dulu INSERT LANGSUNG tanpa penjaga,
+  // dan pre-check-nya `.select('id').eq('receiving_id', …)` TANPA filter
+  // `diserahkan_at`. Dua akibat nyata:
+  //   W3a  dokumen kedua bisa dibuat dari sini (tidak dijaga sama sekali);
+  //   W3b  setelah SEMUA dokumen dikonfirmasi, pre-check tetap menyimpulkan
+  //        "sudah ada dokumen" sehingga nota berikutnya tidak pernah
+  //        mendapat antrean serah terima bertahap.
+  // Sekarang pintu ini lewat penjaga yang SAMA dengan form Tambah
+  // (`insertUniqueActiveHandover`): baca DB (aktif saja), tolak bila ada
+  // dokumen aktif, dan id deterministik supaya dua penulis bersamaan tidak
+  // bisa sama-sama masuk.
   let handoverQueued = false
   let handoverError = ''
   if (!queueHandover) {
@@ -421,26 +433,25 @@ export async function savePurchaseWithClient({
     // serah terima. Dicatat eksplisit supaya UI/laporan tidak menjawab "gagal".
     handoverError = ''
   } else try {
-    const { data: existingHo, error: hoReadErr } = await client
-      .from('handovers')
-      .select('id')
-      .eq('receiving_id', receivingId)
-      .limit(1)
-    if (hoReadErr) {
-      handoverError = hoReadErr.message
-    } else if (existingHo && existingHo.length) {
-      handoverQueued = true
-    } else {
-      const { error: hoErr } = await client.from('handovers').insert({
+    const queued = await insertUniqueActiveHandover({
+      client,
+      data: {
         receiving_id: receivingId,
         project_id: projectId,
         received_by: 'Belum ditentukan',
         handover_date: header.tanggal,
         status: 'DRAFT',
         note: null
-      })
-      if (hoErr) handoverError = hoErr.message
-      else handoverQueued = true
+      }
+    })
+    if (queued.ok) {
+      handoverQueued = true
+    } else if (queued.existingId || queued.raced) {
+      // Nota ini SUDAH punya dokumen aktif (dibuat pintu lain / admin lain) —
+      // antreannya ada, tidak ada yang perlu dibuat. Bukan kegagalan.
+      handoverQueued = true
+    } else {
+      handoverError = queued.reason || 'Gagal membuat antrean Serah Terima.'
     }
   } catch (err) {
     handoverError = err.message

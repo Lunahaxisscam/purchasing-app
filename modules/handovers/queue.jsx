@@ -379,6 +379,21 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
       // DEFECT run 239: dokumen DUPLIKAT tidak boleh membuka konfirmasi sama
       // sekali — dua dokumen aktif untuk satu penerimaan bisa sama-sama lolos
       // RPC (kunci per dokumen), menghasilkan penyerahan fisik ganda.
+      if (dupInfo.staleDuplicate) {
+        // REVIEW run 244 (L3): sesudah dokumen pertama dikonfirmasi, dokumen
+        // kedua dulu "sendirian" → dianggap kanonik → penjaga meloloskan tanpa
+        // peringatan, lalu KEDUANYA terkonfirmasi untuk satu penerimaan.
+        // Sekarang tombolnya ditutup dengan sebab terbaca.
+        return {
+          ...a,
+          ok: false,
+          reason:
+            'Dokumen ini SISA DOKUMEN GANDA: dokumen lain untuk penerimaan yang sama SUDAH diserahkan, ' +
+            'dan dokumen ini sudah ada saat itu terjadi. Mengonfirmasinya membuat barang yang sama ' +
+            'tercatat diserahkan dua kali (sisa bisa menjadi minus). Hapus dokumen ini (belum punya bukti) ' +
+            'lalu catat sisa barang lewat dokumen BARU — itu jalur serah terima bertahap yang sah.'
+        }
+      }
       if (dupInfo.duplicate && !dupInfo.isCanonical) {
         return {
           ...a,
@@ -614,11 +629,13 @@ function ActionCard({ entry, ctx, onDone, cap, refreshCapability }) {
           {problemNoted ? (
             <span style={S.warnTag} data-testid={`queue-problem-badge-${handover.id}`}>⚠ Nota bermasalah</span>
           ) : null}
-          {dupInfo.duplicate ? (
+          {dupInfo.duplicate || dupInfo.staleDuplicate ? (
             <span style={S.warnTag} data-testid={`queue-dup-badge-${handover.id}`}>
-              {dupInfo.isCanonical
-                ? `⚠ ${dupInfo.activeCount} dokumen untuk nota ini`
-                : '⚠ Dokumen duplikat'}
+              {dupInfo.staleDuplicate
+                ? '⚠ Sisa dokumen ganda'
+                : (dupInfo.isCanonical
+                  ? `⚠ ${dupInfo.activeCount} dokumen untuk nota ini`
+                  : '⚠ Dokumen duplikat')}
             </span>
           ) : null}
         </div>

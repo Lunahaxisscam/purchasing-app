@@ -93,6 +93,12 @@ for root, dirs, files in os.walk(os.path.join(REPO, 'modules', 'receivings')):
 # (rincianInfo/rincianCell) supaya yang diuji adalah kode yang dipakai UI,
 # bukan salinannya. display.js hanya bergantung pada lib/constants.
 REL_FILES.append('modules/handovers/display.js')
+# run 245: probe kunci slot memakai `slotHandoverId()` VERBATIM dari modul
+# produksi — id yang diuji harus berasal dari kode yang dipakai aplikasi.
+# duplicateGuard.js murni (tanpa DB/React); duplicateGuardDb.js ikut disalin
+# karena `purchaseSave.js` mengimpornya (rantai impor harus utuh).
+REL_FILES.append('modules/handovers/duplicateGuard.js')
+REL_FILES.append('modules/handovers/duplicateGuardDb.js')
 
 
 def sb_rel(rel):
@@ -245,10 +251,22 @@ rc12 = run(['node', os.path.join(HERE, 'probe_run239_dupdoc.mjs')], cwd=REPO, en
 # Review run 242 membuktikan penjaga SELECT-lalu-INSERT tidak menahan dua sesi
 # bersamaan (probe_run242_duprace). Probe ini menguji MEKANISME PENGGANTINYA
 # terhadap PG16 sungguhan: dua koneksi, commit nyata, verifikasi-sesudah-commit
-# + tarik diri. Hasil yang dituntut: keadaan akhir SELALU satu dokumen aktif,
-# dan yang bertahan adalah yang `created_at` paling awal.
-print('\n=== 16. Konvergensi penjaga create di PostgreSQL nyata (run 243) ===')
+# + tarik diri.
+#
+# CATATAN run 245: probe ini DIPERTAHANKAN sebagai catatan sejarah, tetapi
+# klaim yang diukurnya sudah DICABUT oleh review run 244 (BUG-W1) — mekanisme
+# itu tidak konvergen pada urutan aplikasi. Penggantinya `probe_run245_slot_pg`.
+print('\n=== 16. Konvergensi penjaga create di PostgreSQL nyata (run 243, historis) ===')
 rc13 = run(['node', os.path.join(HERE, 'probe_run243_race_pg.mjs')], cwd=REPO, env=env)
+
+# ------------- 17. KUNCI SLOT (PRIMARY KEY) di PostgreSQL NYATA (run 245) -----
+# Review run 244 (BUG-W1/W2) menuntut: klaim konvergensi diperbaiki ATAU
+# mekanismenya diganti, plus alasan penolakan DDL dinyatakan sebagai soal
+# kepemilikan (bukan kemustahilan). Probe ini menguji mekanisme barunya dengan
+# dua koneksi nyata pada urutan yang DULU gagal, plus membuktikan partial unique
+# index bisa dibuat (lalu di-drop di cluster lokal).
+print('\n=== 17. Kunci slot PRIMARY KEY vs urutan verifikasi (run 245) ===')
+rc14 = run(['node', os.path.join(HERE, 'probe_run245_slot_pg.mjs')], cwd=REPO, env=env)
 
 # CATATAN: exit 2 dari probe_app_role = BLOCKER SKEMA (grant view belum ada),
 # bukan regresi aplikasi. Dibiarkan "tidak hijau" supaya tidak ada yang
@@ -257,4 +275,4 @@ if rc7 == 2:
     print('\n!! BLOCKER SKEMA: grant SELECT pada v_receipt_progress belum ada.')
     print('   DDL/grant milik t_03b41644 — laporkan, jangan ditambal dari aplikasi.')
     sys.exit(2)
-sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11 or rc12 or rc13)
+sys.exit(rc or rc2 or rc3 or rc4 or rc5 or rc6 or rc7 or rc8 or rc9 or rc10 or rc11 or rc12 or rc13 or rc14)

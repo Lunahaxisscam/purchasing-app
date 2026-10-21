@@ -22,7 +22,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { handoverLinesFromEvents, validateHandoverLines } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadDeliveredByEvent, confirmHandoverLines } from '../receivings/receiptEventSave'
 import { capabilityMessage, capabilityState, coreLedgerReady, CAP_STATE } from '../receivings/receiptCapability'
-import { markHandoverDelivered } from './confirm'
+import { confirmUniqueHandover, verifyAfterConfirm } from './duplicateGuardDb'
 
 const fmt = (v) => (v === undefined || v === null || v === '' ? '—' : v)
 
@@ -132,6 +132,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
   // jalur yang sebelumnya mati (defect run 190). Nama penerima WAJIB, sama
   // seperti jalur LEGACY, supaya bukti serah terima tetap bisa
   // dipertanggungjawabkan.
+  //
+  // run 245 (review run 244 / W3): jalur ini dulu memanggil `confirm.js`
+  // langsung, jadi pintu konfirmasi di dalam modal tidak memakai penjaga
+  // dokumen ganda dan tidak memverifikasi apa pun sesudah menulis. Sekarang
+  // lewat `confirmUniqueHandover()` (periksa DB → tulis → periksa DB lagi).
   async function submitHeaderOnly() {
     if (saving) return
     setErrorMsg('')
@@ -139,11 +144,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
     if (!nama) { setErrorMsg('Nama penerima wajib diisi sebelum menandai diserahkan.'); return }
     setSaving(true)
     try {
-      const res = await markHandoverDelivered({ handover, receivedBy: nama })
+      const res = await confirmUniqueHandover({ handover, receivedBy: nama })
       if (!res.ok) { setErrorMsg(res.error); return }
-      say?.(res.already
+      say?.(res.warning || (res.already
         ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.'
-        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang tidak ditulis karena tidak ada alokasi ke tukang pada penerimaan ini.')
+        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang tidak ditulis karena tidak ada alokasi ke tukang pada penerimaan ini.'))
       close?.()
       refresh?.()
     } finally {
@@ -168,14 +173,18 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
       try {
         const res = await confirmHandoverLines({ handover, lines: validation.lines })
         if (!res.ok) { setErrorMsg(res.error); return }
+        // run 245 (review run 244 butir 2a): verifikasi SESUDAH menulis bukti.
+        // RPC menulis `diserahkan_at` + rincian; yang diperiksa sesudahnya
+        // adalah apakah masih ada dokumen LAIN yang belum diserahkan.
+        const after = await verifyAfterConfirm({ handover })
         // Sisa yang belum diserahkan HARUS disebut: dokumen ini terkunci setelah
         // simpan, jadi sisanya hanya bisa dicatat lewat dokumen baru (run 202).
         const sisaMsg = sisaInfo.ada
           ? ` Sisa ${sisaInfo.total} unit belum diserahkan — catat lewat dokumen Serah Terima BARU untuk penerimaan yang sama (dokumen ini sudah terkunci).`
           : ''
-        say?.(res.already
+        say?.(after.warning || (res.already
           ? 'Serah terima ini sudah ditandai diserahkan sebelumnya — tidak ada data yang digandakan.'
-          : `Serah terima tersimpan: ${res.inserted} baris barang diserahkan (${totals.total} unit).${sisaMsg}`)
+          : `Serah terima tersimpan: ${res.inserted} baris barang diserahkan (${totals.total} unit).${sisaMsg}`))
         close?.()
         refresh?.()
       } finally {
@@ -186,11 +195,11 @@ export default function HandoverConfirmForm({ handover, capability = null, say, 
     // LEGACY: konfirmasi header saja — rincian TIDAK diklaim tersimpan.
     setSaving(true)
     try {
-      const res = await markHandoverDelivered({ handover, receivedBy: String(penerimaHeader || '').trim() })
+      const res = await confirmUniqueHandover({ handover, receivedBy: String(penerimaHeader || '').trim() })
       if (!res.ok) { setErrorMsg(res.error); return }
-      say?.(res.already
+      say?.(res.warning || (res.already
         ? 'Serah terima ini sudah ditandai diserahkan sebelumnya.'
-        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang belum tersimpan — menunggu migrasi skema.')
+        : 'Serah terima ditandai sudah diserahkan (waktu penyerahan tercatat). Rincian per barang belum tersimpan — menunggu migrasi skema.'))
       close?.()
       refresh?.()
     } finally {
