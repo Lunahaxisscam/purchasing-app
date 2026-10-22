@@ -112,6 +112,7 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [dialog, setDialog] = useState(null) // { type, invoice }
+  const [salesView, setSalesView] = useState('daftar') // 'daftar' | 'generator' — holder isolasi (t_32990a92), tanpa fetch Supabase
   const [actionError, setActionError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -305,6 +306,27 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
       )}
 
       {loadError && <div className="si-alert si-alert-err">{loadError}</div>}
+
+      {/* SUB-NAV ISOLASI — Daftar vs Generator (zero-coupling, t_32990a92 review t_c3ba9830).
+          Generator mount = iframe public/noir-invoice/index.html — tanpa Supabase,
+          tanpa baca rows/projects, tanpa share tabel/RPC. */}
+      <div className="si-subnav" role="tablist" aria-label="Sub-view Invoice Penjualan" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '0 0 14px', flexWrap: 'wrap' }}>
+        <button type="button" role="tab" aria-selected={salesView === 'daftar'} className={`si-subnav-btn ${salesView === 'daftar' ? 'is-on' : ''}`} onClick={() => setSalesView('daftar')} style={{ background: salesView === 'daftar' ? '#4b523a' : '#f4f5f1', color: salesView === 'daftar' ? '#fff' : '#555', border: '1px solid ' + (salesView === 'daftar' ? '#4b523a' : '#dcdfd6'), borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: salesView === 'daftar' ? 700 : 500, cursor: 'pointer' }}>Daftar Invoice</button>
+        <button type="button" role="tab" aria-selected={salesView === 'generator'} className={`si-subnav-btn ${salesView === 'generator' ? 'is-on' : ''}`} onClick={() => setSalesView('generator')} style={{ background: salesView === 'generator' ? '#4b523a' : '#f4f5f1', color: salesView === 'generator' ? '#fff' : '#555', border: '1px solid ' + (salesView === 'generator' ? '#4b523a' : '#dcdfd6'), borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: salesView === 'generator' ? 700 : 500, cursor: 'pointer' }}>Generator</button>
+        <span className="si-subnav-note" style={{ fontSize: 11, color: '#6b705c', marginLeft: 6 }}>Generator = Noir Invoice (standalone, localStorage per-origin, tanpa data purchasing)</span>
+      </div>
+
+      {salesView === 'generator' ? (
+        <div className="si-generator-holder" data-testid="sales-invoice-generator" style={{ background: '#fff', border: '1px solid #e0e2db', borderRadius: 12, overflow: 'hidden', margin: '0 0 16px' }}>
+          <div className="si-generator-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fcfdfb', borderBottom: '1px solid #e0e2db', flexWrap: 'wrap' }}>
+            <span className="si-generator-label" style={{ fontSize: 11.5, color: '#4b523a', lineHeight: 1.5, maxWidth: 720 }}>Noir Invoice Generator — lokal di dalam halaman sales_invoice (isolasi). Standalone: localStorage per-origin, PDF A4. Toggle “Tampilkan jadwal termin” → isi Total Project → termin 50/40/10 dari Grand Total (sisa ke Term 3).</span>
+            <a className="si-generator-open" href="/noir-invoice/index.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: '#4b523a', textDecoration: 'underline', whiteSpace: 'nowrap' }}>Buka di tab baru ↗</a>
+          </div>
+          <iframe title="Noir Invoice Generator (isolated)" src="/noir-invoice/index.html" className="si-generator-frame" loading="lazy" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups" referrerPolicy="no-referrer" style={{ width: '100%', height: '78vh', minHeight: 620, border: 0, display: 'block', background: '#fff' }} />
+          <p className="si-generator-footnote" style={{ margin: 0, padding: '8px 14px', fontSize: 11, color: '#6b705c', background: '#f7f8f5', borderTop: '1px solid #e0e2db', lineHeight: 1.5 }}>Catatan isolasi: iframe ini TIDAK fetch Supabase purchasing, tidak baca rows/projects, tidak share tabel/RPC. Payment Schedule 50/40/10 otomatis dari Grand Total bila schedule enabled &amp; Grand Total&gt;0 — lihat noir-invoice/src/lib/model.js:applyDefaultTermSchedule. Bank placeholder di form: “mis. Bank - IDR” (bukan BCA hard-coded); PDF “— (belum diisi)” bila bank kosong.</p>
+        </div>
+      ) : (
+      <>
       {actionError && <div className="si-alert si-alert-err">{actionError}</div>}
       {notice && <div className="si-alert si-alert-ok">{notice}</div>}
 
@@ -606,6 +628,7 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         say={say}
       />
 
+      </> /*salesView daftar*/ )}
       <style>{`
         .si-root { padding: 0; }
         .si-intro { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:0 0 12px; }
