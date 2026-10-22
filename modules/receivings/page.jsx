@@ -378,10 +378,11 @@ export default function PurchasePage({ rows, refresh, say }) {
             </div>
           )}
 
-          {/* ===== TABEL SIAP DIBELI — 5 kolom (t_cde1b8ad) =====
-              Barang (nama + kode + satuan) · Qty (PR + sisa) · Proyek (+No. PR)
-              · Toko · Estimasi. Informasi yang dulu punya kolom sendiri tetap
-              tampil, hanya digabung supaya baris tidak melebar ke samping. */}
+          {/* ===== TABEL SIAP DIBELI — 7 kolom (t_4f9625b3) =====
+              Urutan konsisten diminta DAT: PILIH · NOMOR PR · PROJECT ·
+              QUANTITY · BARANG (Nama + kode/satuan) · TOKO / VENDOR ·
+              ESTIMASI. Setiap informasi berdiri di kolomnya sendiri —
+              tidak ada yang digabung/dihilangkan. */}
           <div className="panel table desktop-table-view">
             <table className="purchase-table">
               <thead>
@@ -399,9 +400,10 @@ export default function PurchasePage({ rows, refresh, say }) {
                       <span>Pilih</span>
                     </label>
                   </th>
+                  <th style={{ width: '104px' }}>Nomor PR</th>
+                  <th>Project</th>
+                  <th style={{ width: '92px' }}>Quantity</th>
                   <th>Barang</th>
-                  <th style={{ width: '92px' }}>Qty</th>
-                  <th>Proyek</th>
                   <th style={{ width: '140px' }}>Toko / Vendor</th>
                   <th style={{ width: '110px', textAlign: 'right' }}>Estimasi</th>
                 </tr>
@@ -420,11 +422,11 @@ export default function PurchasePage({ rows, refresh, say }) {
                           aria-label={`Pilih ${r.itemName}`}
                         />
                       </td>
-                      <td>
-                        <b className="purchase-item-name">{r.itemName}</b>
-                        <span className="purchase-item-code">
-                          {r.kode ? r.kode : '—'}{r.unit ? ` · ${r.unit}` : ''}
-                        </span>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <span className="purchase-pr-number">{r.prNumber || '—'}</span>
+                      </td>
+                      <td className="purchase-cell-wrap">
+                        {r.projectName}
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <b>{r.qtyPr}</b> <span className="purchase-muted">{r.unit || ''}</span>
@@ -435,9 +437,9 @@ export default function PurchasePage({ rows, refresh, say }) {
                         )}
                       </td>
                       <td className="purchase-cell-wrap">
-                        {r.projectName}
-                        <span className="purchase-muted" style={{ display: 'block', fontSize: '10.5px' }}>
-                          {r.prNumber}
+                        <b className="purchase-item-name">{r.itemName}</b>
+                        <span className="purchase-item-code">
+                          {r.kode ? r.kode : '—'}
                         </span>
                       </td>
                       <td className="purchase-cell-wrap">
@@ -450,7 +452,7 @@ export default function PurchasePage({ rows, refresh, say }) {
                   )
                 }) : (
                   <tr>
-                    <td colSpan={6} className="empty">
+                    <td colSpan={7} className="empty">
                       Tidak ada barang yang siap dibeli. Barang muncul di sini setelah disetujui di modul Approval.
                     </td>
                   </tr>

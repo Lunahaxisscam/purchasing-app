@@ -3,7 +3,7 @@ import { exportWorkbook } from '../lib/workflow'
 import { headersFor, parseHandoverNote } from '../lib/constants'
 // t_50b783de (Approval OFF): kartu "Menunggu approval" dan sheet ekspor
 // Approval hanya dirender bila modul Approval aktif (satu kebijakan terpusat).
-import { isApprovalEnabled, isLaborStockEnabled, isMarketingEnabled } from '../lib/constants'
+import { isApprovalEnabled, isLaborStockEnabled, isMarketingEnabled, isRapCompareEnabled } from '../lib/constants'
 import CompactRoot from './CompactRoot'
 
 // Ikon kartu metrik (stroke SVG) — menggantikan emoji agar terlihat rapi
@@ -73,7 +73,14 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     // stub yang hanya hidup lewat manipulasi state. Semua rute di bawah
     // dirender pages/index.js (source:'core') dengan guard admin.
     ['rap', 'RAP (Rencana Pelaksanaan)', 'DRAFT_ONLY', 'tone-neutral'],
-    ['rap_compare', 'Perbandingan RAB/RAP/Aktual', 'Read-only', 'tone-neutral'],
+    // t_4f37cdd1 (arahan DAT): kartu pintasan Perbandingan RAB/RAP/Aktual
+    // HILANG dari dashboard — pola sama seperti labor_stock/marketing di
+    // atas: memang tidak dimasukkan ke daftar (bukan CSS-hidden). Data
+    // RAB/RAP/aktual & Project Finance tetap ada (reversible lewat
+    // RAP_COMPARE_MODULE_ENABLED di lib/constants.js).
+    ...(isRapCompareEnabled()
+      ? [['rap_compare', 'Perbandingan RAB/RAP/Aktual', 'Read-only', 'tone-neutral']]
+      : []),
     // t_da4a9ef8 (B3): Stok Workshop sudah digabung ke Material. Kartu ini
     // dipertahankan sebagai jalur lama (ID navigasi lama tetap bekerja) dan
     // akan dialihkan ke Material oleh navAliasFor — labelnya jujur menyebut

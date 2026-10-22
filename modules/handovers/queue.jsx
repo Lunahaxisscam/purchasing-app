@@ -54,37 +54,37 @@ import { getReceiptCapability } from '../receivings/receiptCapability'
 
 // Gaya inline (hindari benturan dengan styles/globals.css milik sesi lain).
 const S = {
-  card: { border: '1px solid #2a2a35', borderRadius: 10, padding: 12, marginBottom: 10, background: '#16161f' },
+  card: { border: '1px solid #2a2a35', borderRadius: 10, padding: 12, marginBottom: 10, background: '#16161f', color: '#f1f5f9' },
   head: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  title: { display: 'block', fontSize: 14 },
-  sub: { display: 'block', fontSize: 12, opacity: 0.75, marginTop: 2 },
+  title: { display: 'block', fontSize: 14, color: '#ffffff', fontWeight: 600 },
+  sub: { display: 'block', fontSize: 12, opacity: 0.95, marginTop: 2, color: '#94a3b8' },
   tags: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'flex-end' },
-  tag: { fontSize: 11, border: '1px solid #3a3a48', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' },
+  tag: { fontSize: 11, border: '1px solid #475569', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap', color: '#cbd5e1' },
   warnTag: { fontSize: 11, border: '1px solid #a15309', color: '#e8a33d', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' },
   actions: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  btn: { fontSize: 13, padding: '7px 12px', cursor: 'pointer' },
+  btn: { fontSize: 13, padding: '7px 12px', cursor: 'pointer', background: '#1e293b', color: '#f1f5f9', border: '1px solid #475569' },
   subtleBtn: {
     fontSize: 11.5,
     padding: '4px 9px',
     cursor: 'pointer',
     background: 'transparent',
-    color: '#b9a17a',
-    border: '1px dashed #4a4136',
+    color: '#e2e8f0',
+    border: '1px dashed #64748b',
     borderRadius: 6,
     lineHeight: 1.2
   },
-  panel: { flexBasis: '100%', border: '1px solid #3a3a48', borderRadius: 8, padding: 10, marginTop: 2, background: '#12121a' },
-  panelText: { fontSize: 11.5, lineHeight: 1.45, opacity: 0.9 },
+  panel: { flexBasis: '100%', border: '1px solid #475569', borderRadius: 8, padding: 10, marginTop: 2, background: '#12121a' },
+  panelText: { fontSize: 11.5, lineHeight: 1.45, opacity: 0.95, color: '#e2e8f0' },
   row: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 },
-  finish: { marginTop: 10, borderTop: '1px dashed #2a2a35', paddingTop: 10 },
-  finishLabel: { display: 'block', fontSize: 11.5, opacity: 0.75, marginBottom: 6 },
+  finish: { marginTop: 10, borderTop: '1px dashed #475569', paddingTop: 10 },
+  finishLabel: { display: 'block', fontSize: 11.5, opacity: 0.9, marginBottom: 6, color: '#cbd5e1' },
   detailToggle: { marginTop: 10, background: 'transparent', border: 'none', color: '#8fb0a6', fontSize: 11.5, cursor: 'pointer', padding: 0 },
-  detail: { marginTop: 6, borderTop: '1px dashed #2a2a35', paddingTop: 8, fontSize: 11.5, lineHeight: 1.5 },
-  detailLine: { display: 'block', opacity: 0.9 },
+  detail: { marginTop: 6, borderTop: '1px dashed #475569', paddingTop: 8, fontSize: 11.5, lineHeight: 1.5, color: '#e2e8f0' },
+  detailLine: { display: 'block', opacity: 0.95, color: '#e2e8f0' },
   banner: { marginBottom: 14 },
   bannerHead: { display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 },
-  label: { display: 'block', fontSize: 12, marginBottom: 6 },
-  input: { display: 'block', width: '100%', maxWidth: 280, marginTop: 4, padding: '6px 8px' }
+  label: { display: 'block', fontSize: 12, marginBottom: 6, color: '#cbd5e1' },
+  input: { display: 'block', width: '100%', maxWidth: 280, marginTop: 4, padding: '6px 8px', background: '#1e293b', color: '#f1f5f9', border: '1px solid #475569', borderRadius: 6 }
 }
 
 // ------------------------------------------------------------
@@ -547,16 +547,6 @@ function HandoverQueueBanner({ ctx }) {
         <h3 style={{ margin: 0, fontSize: 15 }}>📦 Antrean Distribusi Fisik</h3>
         <span style={S.sub} data-testid="handover-queue-count">{entries.length} handover menunggu</span>
       </div>
-      {!cap?.ready && (
-        <div
-          data-testid="handover-capability"
-          style={{ ...S.panel, marginBottom: 10, fontSize: '11.5px', lineHeight: 1.45, color: '#e8c98a' }}
-        >
-          Penyimpanan per barang (kedatangan/rusak/tujuan/retur) belum aktif —{' '}
-          {(cap?.missing || []).filter(Boolean).join('; ') || 'memeriksa skema…'}. Antrean tetap bisa dipakai untuk
-          distribusi dokumen; tidak ada data per barang yang diklaim tersimpan.
-        </div>
-      )}
       {entries.map(entry => (
         <ActionCard key={entry.handover.id} entry={entry} ctx={ctx} cap={cap} />
       ))}

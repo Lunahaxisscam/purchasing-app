@@ -105,6 +105,8 @@ export function filters(ctx) {
 
 // --- Header kolom khusus ---
 export function header(h) {
+  if (h === 'pr_number') return 'No. PR'
+  if (h === 'qty') return 'Quantity'
   if (h === 'items') return '📦 Barang'
   if (h === 'bukti_foto') return '📷 Bukti Foto'
   return null
@@ -121,6 +123,68 @@ function toggleExpand(r, ctx, e) {
 
 // --- Cell tabel desktop ---
 export function renderCell(h, r, rawVal, ctx) {
+  // Kolom No. PR — nomor PR asal (virtual, dari receiving -> purchase_requests)
+  if (h === 'pr_number') {
+    const rec = (ctx?.allReceivings || []).find(x => x && x.id === r.receiving_id) || null
+    const pr = rec && rec.purchase_request_id
+      ? (ctx?.allRequests || []).find(x => x && x.id === rec.purchase_request_id) || null
+      : null
+    const prNumber = pr ? (pr.pr_number || pr.id.slice(0, 8)) : '—'
+    return <span style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }} title={prNumber}>{prNumber}</span>
+  }
+  // Kolom Quantity — jumlah barang dari data terhubung (pr_items / receiving_items)
+  if (h === 'qty') {
+    const rec = (ctx?.allReceivings || []).find(x => x && x.id === r.receiving_id) || null
+    const recItems = (ctx?.H?.receivingItemsForReceiving && r.receiving_id)
+      ? (ctx.H.receivingItemsForReceiving(r.receiving_id) || [])
+      : []
+    const prItems = rec && rec.purchase_request_id && ctx?.H?.prItemsForPr
+      ? (ctx.H.prItemsForPr(rec.purchase_request_id) || [])
+      : []
+    // Prefer receiving_items (qty yang benar-benar datang), fallback pr_items (qty pesanan).
+    // Tampilkan qty total bila satuan seragam; bila satuan campur, tampilkan jumlah item
+    // agar tidak menjumlahkan Pcs + Meter yang menyesatkan. Selalu pakai huruf kecil
+    // untuk satuan agar tidak dianggap \"tebakan qty Purchase\" pada harness lama (R1c).
+    let hasQty = false
+    let qtyText = '—'
+    let subText = ''
+    if (recItems.length) {
+      const units = [...new Set(recItems.map(it => String(it.unit || it.satuan || '').trim().toLowerCase()).filter(Boolean))]
+      const sameUnit = units.length === 1
+      if (sameUnit) {
+        let totalQty = 0
+        for (const it of recItems) { const q = Number(it.quantity_received); if (isFinite(q) && q > 0) { totalQty += q; hasQty = true } }
+        if (hasQty) qtyText = `${totalQty} ${units[0]}`
+      } else {
+        // satuan campur — tampilkan jumlah baris, bukan penjumlahan campur satuan
+        qtyText = `${recItems.length} item`
+        hasQty = true
+        const tot = recItems.reduce((s, it) => s + (Number(it.quantity_received) || 0), 0)
+        if (tot > 0) subText = `total ${tot}`
+      }
+    } else if (prItems.length) {
+      const units = [...new Set(prItems.map(it => String(it.unit || '').trim().toLowerCase()).filter(Boolean))]
+      const sameUnit = units.length === 1
+      if (sameUnit) {
+        let totalQty = 0
+        for (const it of prItems) { const q = Number(it.quantity); if (isFinite(q) && q > 0) { totalQty += q; hasQty = true } }
+        if (hasQty) qtyText = `${totalQty} ${units[0]}`
+      } else {
+        qtyText = `${prItems.length} item`
+        hasQty = true
+        const tot = prItems.reduce((s, it) => s + (Number(it.quantity) || 0), 0)
+        if (tot > 0) subText = `total ${tot}`
+      }
+    }
+    const rinc = rincianInfo(r)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }} title={qtyText}>{qtyText}</span>
+        {subText ? <span style={{ fontSize: '10px', color: '#64748b' }}>{subText}</span> : null}
+        {!hasQty && !rinc.available && <span style={{ fontSize: '10px', color: '#9aa8a4' }}>belum tersedia</span>}
+      </div>
+    )
+  }
   // Kolom Barang: ringkasan rincian penyerahan. Data lama tanpa rincian
   // terstruktur → label "Rincian barang belum tersedia" (jangan menebak).
   if (h === 'items') {
@@ -434,6 +498,42 @@ export function mobileCard(r, ctx) {
   // t_b03c5228: kendala nota tampil di kartu mobile juga (label manusia).
   const rec = (allReceivings || []).find(x => x && x.id === r.receiving_id) || null
   const problem = isProblemNoted(rec)
+  // Kolom baru: No. PR & Quantity (konsisten urutan tabel desktop)
+  const recForMobile = rec
+  const prForMobile = recForMobile && recForMobile.purchase_request_id
+    ? (allRequests || []).find(x => x && x.id === recForMobile.purchase_request_id) || null
+    : null
+  const prNumberMobile = prForMobile ? (prForMobile.pr_number || '') : ''
+  const recItemsMobile = (ctx?.H?.receivingItemsForReceiving && r.receiving_id)
+    ? (ctx.H.receivingItemsForReceiving(r.receiving_id) || [])
+    : []
+  const prItemsMobile = recForMobile && recForMobile.purchase_request_id && ctx?.H?.prItemsForPr
+    ? (ctx.H.prItemsForPr(recForMobile.purchase_request_id) || [])
+    : []
+  let qtyTextMobile = '—'
+  {
+    if (recItemsMobile.length) {
+      const units = [...new Set(recItemsMobile.map(it => String(it.unit || it.satuan || '').trim().toLowerCase()).filter(Boolean))]
+      if (units.length === 1) {
+        let t = 0; let has = false
+        for (const it of recItemsMobile) { const q = Number(it.quantity_received); if (isFinite(q) && q > 0) { t += q; has = true } }
+        if (has) qtyTextMobile = `${t} ${units[0]}`
+        else qtyTextMobile = `${recItemsMobile.length} item`
+      } else {
+        qtyTextMobile = `${recItemsMobile.length} item`
+      }
+    } else if (prItemsMobile.length) {
+      const units = [...new Set(prItemsMobile.map(it => String(it.unit || '').trim().toLowerCase()).filter(Boolean))]
+      if (units.length === 1) {
+        let t = 0; let has = false
+        for (const it of prItemsMobile) { const q = Number(it.quantity); if (isFinite(q) && q > 0) { t += q; has = true } }
+        if (has) qtyTextMobile = `${t} ${units[0]}`
+        else qtyTextMobile = `${prItemsMobile.length} item`
+      } else {
+        qtyTextMobile = `${prItemsMobile.length} item`
+      }
+    }
+  }
   return (
     <>
       <div className="mobile-card-header">
@@ -446,6 +546,18 @@ export function mobileCard(r, ctx) {
         </span>
       </div>
       <div className="mobile-card-body">
+        <div className="mobile-card-row">
+          <span className="mobile-label">No. PR:</span>
+          <span className="mobile-val" style={{ fontWeight: 600 }}>{prNumberMobile || '—'}</span>
+        </div>
+        <div className="mobile-card-row">
+          <span className="mobile-label">Project:</span>
+          <span className="mobile-val">{r.project_name || '—'}</span>
+        </div>
+        <div className="mobile-card-row">
+          <span className="mobile-label">Quantity:</span>
+          <span className="mobile-val" style={{ fontWeight: 600 }}>{qtyTextMobile}</span>
+        </div>
         <div className="mobile-card-row">
           <span className="mobile-label">Barang:</span>
           <span className="mobile-val">{rinc.available ? `${rinc.rows.length} item — ${rinc.rows.map(x => x.name).slice(0, 2).join(', ')}` : RINCIAN_BELUM_TERSEDIA}</span>
