@@ -10,7 +10,8 @@ import CompactRoot from './CompactRoot'
 
 // ============================================================
 // Modul PROJECT FINANCE — khusus role admin (READ-ONLY).
-// Monitoring keuangan PER PROYEK ON-GOING dengan 3 komponen:
+// Monitoring keuangan PER PROYEK (on-going ATAU sudah selesai — pilih
+// lewat filter status di toolbar, t_57f6a3f9) dengan 3 komponen:
 //   💰 Revenue  — nilai kontrak proyek (sync REV PROJECT.xlsx via Drive)
 //   👷 Tukang   — estimasi upah dari modul Budgeting (project_plans)
 //   🧱 Material — cost material (sync REKAP COST 2026) + rincian pengadaan
@@ -26,6 +27,13 @@ import CompactRoot from './CompactRoot'
 // TIDAK ada input di modul ini — semua angka berasal dari sumbernya
 // (Google Drive sync & modul Budgeting). Jangan tambahkan form tulis di sini
 // tanpa permintaan eksplisit dari user.
+//
+// CATATAN KALKULASI (t_57f6a3f9): memilih proyek SELESAI (DONE) tidak
+// mengubah satu pun rumus. Revenue/Cost Material datang dari baris Drive
+// yang cocok dengan project.kode, upah dari project_plans.project_id, PR
+// dari purchase_requests.project_id — semuanya sudah terisi penuh saat
+// proyek ditutup, jadi angka proyek selesai justru biasanya lebih lengkap
+// daripada proyek yang masih jalan.
 // ============================================================
 
 function parseNominalFromNote(note) {
@@ -36,9 +44,34 @@ function parseNominalFromNote(note) {
   return digits ? Number(digits) : null
 }
 
-export default function ProjectFinance({ rows, initialDriveRows, initialPlans, initialView }) {
+// ============================================================
+// FILTER STATUS PROYEK (t_57f6a3f9 — arahan DAT 22 Okt 2026)
+// ============================================================
+// Project Finance dulu HANYA menampilkan proyek on-going, jadi proyek
+// yang sudah selesai (status DONE / Past Project) tidak bisa dilihat
+// keuangannya. Sekarang ada tiga pilihan:
+//   'active' — hanya on-going (perilaku LAMA, tetap default)
+//   'done'   — hanya yang selesai (normalizeStatus === 'DONE')
+//   'all'    — semua proyek; dropdown dikelompokkan per status
+// PENTING: seluruh kalkulasi (Revenue, Cost Material, Upah, Margin)
+// tetap dihitung dari SATU `project` yang terpilih — filter hanya
+// mengubah daftar pilihan, tidak pernah menjumlahkan lintas proyek.
+const PROJECT_STATUS_FILTERS = [
+  { value: 'active', label: 'On-Going', emptyText: 'belum ada proyek on-going' },
+  { value: 'done', label: 'Selesai', emptyText: 'belum ada proyek selesai (status DONE)' },
+  { value: 'all', label: 'Semua Proyek', emptyText: 'belum ada proyek terdaftar' }
+]
+
+export default function ProjectFinance({ rows, initialDriveRows, initialPlans, initialView, initialStatusFilter }) {
   const [projectId, setProjectId] = useState('')
   const [view, setView] = useState(initialView || 'revenue')
+  // t_57f6a3f9: filter status proyek — 'active' | 'done' | 'all'.
+  // Default 'active' = perilaku lama (hanya on-going) supaya tidak ada
+  // kejutan bagi pemakai yang sudah terbiasa; proyek selesai tinggal
+  // dipilih lewat pill di toolbar.
+  const [statusFilter, setStatusFilter] = useState(
+    PROJECT_STATUS_FILTERS.some(f => f.value === initialStatusFilter) ? initialStatusFilter : 'active'
+  )
   // Data dari tabel admin-only (RLS) — dimuat saat komponen dibuka.
   // initial* props (opsional, dipakai SSR/test) mengisi data awal supaya kartu
   // langsung terisi sebelum efek muat data berjalan; produksi memuat via load().
@@ -48,17 +81,38 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
   const [loading, setLoading] = useState(!initialDriveRows)
   const [error, setError] = useState('')
 
+  // Semua proyek + daftar proyek selesai — dipakai toolbar (jumlah per pill)
+  // dan penghitungan daftar pilihan di bawah.
+  const allProjects = useMemo(() => rows.projects || [], [rows])
   const activeProjects = useMemo(
-    () => (rows.projects || []).filter(p => normalizeStatus(p.status) !== 'DONE'),
-    [rows]
+    () => allProjects.filter(p => normalizeStatus(p.status) !== 'DONE'),
+    [allProjects]
+  )
+  const doneProjects = useMemo(
+    () => allProjects.filter(p => normalizeStatus(p.status) === 'DONE'),
+    [allProjects]
   )
 
+  // Daftar pilihan sesuai filter aktif. 'all' memakai SELURUH proyek;
+  // urutannya sama dengan urutan rows.projects (kode naik dari loadAll).
+  const visibleProjects = useMemo(() => {
+    if (statusFilter === 'done') return doneProjects
+    if (statusFilter === 'all') return allProjects
+    return activeProjects
+  }, [statusFilter, activeProjects, doneProjects, allProjects])
+  const activeFilter = PROJECT_STATUS_FILTERS.find(f => f.value === statusFilter) || PROJECT_STATUS_FILTERS[0]
+
   // Pilih proyek pertama otomatis supaya halaman langsung terisi.
+  // Hanya auto-pilih bila pilihan lama sudah tidak ada lagi di daftar yang
+  // sedang tampil (mis. habis pindah filter) — kalau masih ada, jangan
+  // ganggu pilihan yang sedang dilihat user.
   // (fallback di `project` di bawah membuat render pertama/SSR tanpa efek
   // juga langsung menampilkan proyek pertama.)
   useEffect(() => {
-    if (!projectId && activeProjects.length) setProjectId(activeProjects[0].id)
-  }, [activeProjects, projectId])
+    if (visibleProjects.some(p => p.id === projectId)) return
+    if (visibleProjects.length) setProjectId(visibleProjects[0].id)
+    else setProjectId('')
+  }, [visibleProjects, projectId])
 
   const load = useCallback(async (silent = false) => {
     if (!supabase) return
@@ -86,10 +140,10 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
 
   useEffect(() => { load() }, [load])
 
-  const project = activeProjects.find(p => p.id === projectId)
+  const project = visibleProjects.find(p => p.id === projectId)
     // SSR/render pertama: efek auto-select belum berjalan — fallback ke proyek
     // pertama supaya kartu terisi langsung.
-    || activeProjects[0]
+    || visibleProjects[0]
     || null
 
   // Baris cost dari Drive yang cocok dengan kode proyek ini.
@@ -207,22 +261,56 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
 
   return (
     <CompactRoot className="project-finance-compact">
-      {/* Toolbar: pilih proyek on-going */}
+      {/* Toolbar: filter status proyek + pilih proyek (t_57f6a3f9) */}
       <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div>
+          {/* Pill status — On-Going / Selesai / Semua Proyek (t_57f6a3f9) */}
+          <div className="filter-tabs" style={{ marginBottom: '8px' }}>
+            {PROJECT_STATUS_FILTERS.map(f => (
+              <button
+                key={f.value}
+                type="button"
+                className={`pill ${statusFilter === f.value ? 'active' : ''}`}
+                onClick={() => setStatusFilter(f.value)}
+              >
+                {f.label} ({f.value === 'done' ? doneProjects.length : f.value === 'all' ? allProjects.length : activeProjects.length})
+              </button>
+            ))}
+          </div>
           <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#3d4435' }}>
-            Proyek On-Going ({activeProjects.length})
+            {activeFilter.label} ({visibleProjects.length})
             <select
               value={projectId}
               onChange={e => setProjectId(e.target.value)}
               style={{ width: '100%', maxWidth: '360px', padding: '9px 13px', fontSize: '13px' }}
             >
-              {activeProjects.length === 0 && <option value="">— belum ada proyek on-going —</option>}
-              {activeProjects.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.kode ? `[${p.kode}] ` : ''}{p.name}
-                </option>
-              ))}
+              {visibleProjects.length === 0 && <option value="">— {activeFilter.emptyText} —</option>}
+              {statusFilter === 'all' ? (
+                // "Semua Proyek": dikelompokkan per status supaya proyek
+                // selesai dan on-going tidak tercampur dalam satu daftar.
+                <>
+                  <optgroup label={`On-Going (${activeProjects.length})`}>
+                    {activeProjects.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={`Selesai (${doneProjects.length})`}>
+                    {doneProjects.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                visibleProjects.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                  </option>
+                ))
+              )}
             </select>
           </label>
           {project && (
@@ -231,6 +319,11 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
                 {project.kode ? `[${project.kode}] ` : ''}{project.name}
               </span>
               <span className="badge status-DRAFT" style={{ fontSize: '11px' }}>{project.status || '—'}</span>
+              {normalizeStatus(project.status) === 'DONE' && (
+                <span className="badge" style={{ fontSize: '11px', background: '#e7f2ec', color: '#1b6348', border: '1px solid #bfdccd' }}>
+                  ✓ Proyek Selesai
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -250,7 +343,13 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
       {loading ? (
         <div className="panel empty">Memuat data keuangan proyek…</div>
       ) : !project ? (
-        <div className="panel empty">Belum ada proyek on-going. Tambahkan / aktifkan proyek dulu di modul Projects.</div>
+        <div className="panel empty">
+          {statusFilter === 'done'
+            ? 'Belum ada proyek selesai (status DONE). Ubah status proyek di modul Projects → tab Selesai untuk melihatnya di sini.'
+            : statusFilter === 'all'
+              ? 'Belum ada proyek terdaftar. Tambahkan proyek dulu di modul Projects.'
+              : 'Belum ada proyek on-going. Tambahkan / aktifkan proyek dulu di modul Projects.'}
+        </div>
       ) : (
         <>
           {/* Kartu ringkasan 4 komponen — urutan sesuai keputusan brainstorm

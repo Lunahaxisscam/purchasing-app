@@ -39,6 +39,13 @@ const SOURCES = {
   // kalau tidak harness akan gagal resolve (bukan gagal assertion).
   'money.mjs': path.join(SB, 'lib/money.js'),
   'laborSource.mjs': path.join(SB, 'lib/laborSource.js'),
+  // t_57f6a3f9: ProjectFinance juga mengimpor CompactRoot + buildCostBreakdown
+  // (transitif: projectCostBreakdown → purchaseNote). Semua modul ini harus
+  // ikut dikompilasi supaya render SSR tidak gagal resolve import.
+  'compactRoot.mjs': path.join(SB, 'components/CompactRoot.js'),
+  'projectCostBreakdown.mjs': path.join(SB, 'lib/projectCostBreakdown.js'),
+  'purchaseNote.mjs': path.join(SB, 'lib/purchaseNote.js'),
+  'projectCrosswalk.mjs': path.join(SB, 'lib/projectCrosswalk.js')
 }
 for (const [out, src] of Object.entries(SOURCES)) {
   const compiled = swc.transformSync(fs.readFileSync(src, 'utf8'), {
@@ -52,8 +59,20 @@ for (const [out, src] of Object.entries(SOURCES)) {
     .replace(/from ['"]\.\.\/lib\/constants['"]/g, `from './constants.mjs'`)
     .replace(/from ['"]\.\.\/lib\/money['"]/g, `from './money.mjs'`)
     .replace(/from ['"]\.\.\/lib\/laborSource['"]/g, `from './laborSource.mjs'`)
+    .replace(/from ['"]\.\.\/lib\/projectCostBreakdown['"]/g, `from './projectCostBreakdown.mjs'`)
+    .replace(/from ['"]\.\.\/lib\/purchaseNote['"]/g, `from './purchaseNote.mjs'`)
+    .replace(/from ['"]\.\.\/lib\/projectCrosswalk['"]/g, `from './projectCrosswalk.mjs'`)
+    .replace(/from ['"]\.\/projectCrosswalk\.js['"]/g, `from './projectCrosswalk.mjs'`)
+    .replace(/from ['"]\.\/purchaseNote\.js['"]/g, `from './purchaseNote.mjs'`)
+    .replace(/from ['"]\.\/projectCostBreakdown\.js['"]/g, `from './projectCostBreakdown.mjs'`)
+    .replace(/from ['"]\.\/CompactRoot['"]/g, `from './compactRoot.mjs'`)
+    // CompactRoot mengimpor CSS module — SWC tidak menyertakan isinya, jadi
+    // rewrite ke stub kosong (harness hanya peduli DOM, bukan class name asli).
+    .replace(/from ['"]\.\/compact-admin\.module\.css['"]/g, `from './stubCss.mjs'`)
   fs.writeFileSync(path.join(distDir, out), rewritten)
 }
+// Stub CSS module: dipakai CompactRoot (import compact-admin.module.css).
+fs.writeFileSync(path.join(distDir, 'stubCss.mjs'), 'export default {}\n')
 
 // ---------- 2) Import ----------
 const React = (await import('react')).default
@@ -75,16 +94,34 @@ const PROJECTS = [
   { id: 'p2', kode: '83', name: 'Mabes', status: 'ON_GOING' },
   { id: 'p3', kode: '75', name: 'TanpaDrive', status: 'ON_GOING' }
 ]
+// t_57f6a3f9: proyek SUDAH SELESAI (status DONE / Past Project) — dipakai
+// menguji filter status "Selesai" dan "Semua Proyek" di ProjectFinance.
+const DONE_PROJECTS = [
+  { id: 'p4', kode: '61', name: 'Vila PIK 2', status: 'DONE' },
+  { id: 'p5', kode: '42', name: 'Kantor Sudirman', status: 'DONE' }
+]
 const PLANS = [
   { project_id: 'p1', labor_cost: 5000000 },
-  { project_id: 'p2', labor_cost: 2500000 }
+  { project_id: 'p2', labor_cost: 2500000 },
+  // t_57f6a3f9: estimasi upah WBS proyek selesai — dipakai membuktikan
+  // kalkulasi Upah & Margin tetap jalan untuk proyek ber-status DONE.
+  { project_id: 'p4', labor_cost: 6000000 }
 ]
 const DRIVE = [
   { id: 'd1', project_no: '99', project_name: 'Baroni', cumulative_cost: 15000000, current_week_expense: 1000000, revenue: 40000000, petty_cash: 800000 },
   { id: 'd2', project_no: '83', project_name: 'Mabes', cumulative_cost: 9000000, current_week_expense: 500000, revenue: 30000000, petty_cash: 0 },
-  { id: 'd3', project_no: 'operasional ws', project_name: 'Operasional WS', cumulative_cost: 6500000, current_week_expense: 350000 }
+  { id: 'd3', project_no: 'operasional ws', project_name: 'Operasional WS', cumulative_cost: 6500000, current_week_expense: 350000 },
+  // t_57f6a3f9: baris Drive proyek selesai (kode 61) — revenue 55jt,
+  // cost material kumulatif 28jt. Margin proyek selesai harus sama akuratnya:
+  // 55 − 28 − 6 (upah WBS) = 21jt → 38,18% dari revenue.
+  { id: 'd4', project_no: '61', project_name: 'Vila PIK 2', cumulative_cost: 28000000, current_week_expense: 0, revenue: 55000000, petty_cash: 0 }
 ]
+// t_57f6a3f9: rows.projects untuk ProjectFinance menggabungkan on-going +
+// selesai. Finance (Ringkasan Perusahaan) tetap memakai PROJECTS on-going
+// saja supaya assertion A–D di atas tidak berubah.
+const ALL_PROJECTS = [...PROJECTS, ...DONE_PROJECTS]
 const ROWS = { projects: PROJECTS, requests: [], pr_items: [], receivings: [] }
+const ROWS_WITH_DONE = { ...ROWS, projects: ALL_PROJECTS }
 
 console.log('=== VERIFIKASI OPSI C — Finance & ProjectFinance (React SSR) ===\n')
 
@@ -168,12 +205,16 @@ console.log('\nE. ProjectFinance — 4 kartu murni tanpa petty cash')
 // ---------- F: FN-EST_LABEL — aktual tukang_projects TIDAK dicampur ----------
 console.log('\nF. FN-EST_LABEL — estimasi WBS vs aktual tukang_projects')
 {
-  // Proyek Baroni (revenue 40jt, estimasi upah 5jt). tukang_projects
-  // menyimpan AKTUAL 4,25jt untuk proyek yang sama (nama beda kapitalisasi
-  // + spasi ganda → harus tetap cocok lewat projectKey).
+  // Proyek Baroni (revenue 40jt, estimasi upah 5jt). Sesuai KONTRAK TAHAP B
+  // (t_da4a9ef8): penghubungnya NOMOR PROYEK / alias terkonfirmasi — BUKAN
+  // kemiripan nama. Baris bernomor 99 = cocok; baris hanya bernama tanpa
+  // nomor TIDAK dipinjamkan ke proyek mirip (masuk ember "belum terhubung"
+  // yang dilaporkan terpisah) — itulah yang ditest di sini.
   const TUKANG = [
-    { tukang_key: 'mandor-a', project_name: '  baroni  ', total_upah: 4000000 },
-    { tukang_key: 'mandor-b', project_name: 'BARONI', total_upah: 250000 }
+    { tukang_key: 'mandor-a', project_no: '99', project_name: 'baroni', total_upah: 4000000 },
+    { tukang_key: 'mandor-b', project_no: '99', project_name: 'BARONI', total_upah: 250000 },
+    // Tanpa nomor & tanpa alias terkonfirmasi → TIDAK boleh masuk proyek manapun.
+    { tukang_key: 'mandor-c', project_name: 'BARONI', total_upah: 9990000 }
   ]
   const html = renderToStaticMarkup(React.createElement(ProjectFinance, {
     rows: { ...ROWS, tukang_projects: TUKANG },
@@ -186,12 +227,15 @@ console.log('\nF. FN-EST_LABEL — estimasi WBS vs aktual tukang_projects')
 
   check('estimasi WBS tetap 5jt (proyek terpilih = proyek pertama aktif)',
     cards.some(c => c.includes('Estimasi Upah WBS') && c.includes('Rp 5.000.000')), cards.join(' | '))
-  check('aktual tukang_projects tampil terpisah = Rp 4.250.000 (2 baris, cocok walau beda kapitalisasi)',
+  check('aktual tukang_projects tampil terpisah = Rp 4.250.000 (2 baris bernomor 99)',
     cards.some(c => c.includes('Aktual tersinkron: Rp 4.250.000') && c.includes('2 baris')))
   check('estimasi & aktual TIDAK dijumlahkan (9.250.000 tidak muncul)', !text.includes('9.250.000'))
   check('margin tetap memakai estimasi WBS (40 − 15 − 5 = 20jt), bukan aktual',
     cards.some(c => c.includes('Project Margin') && c.includes('Rp 20.000.000')))
   check('kartu TIDAK mengklaim aktual sebagai angka utama', !cards.some(c => /^👷 Aktual Tukang/.test(c.trim())))
+  // Kontrak Tahap B: baris tanpa nomor tidak dipinjamkan lewat kemiripan nama.
+  check('upah tanpa nomor (Rp 9.990.000) TIDAK dipinjamkan ke proyek Baroni',
+    !cards.some(c => c.includes('Aktual tersinkron: Rp 14.240.000')))
 }
 
 // ---------- G: FN-EST_LABEL — aktual belum ada -> "belum ada", bukan Rp 0 ----
@@ -221,6 +265,96 @@ console.log('\nH. FN-TARGET70 — target 70% dibulatkan sekali ke rupiah utuh')
   check('revenue 1.234.567,89 -> integer', Number.isInteger(targetBudget70(1234567.89)))
   check('revenue 0 / negatif / NaN -> 0 (tidak ada pagu karangan)',
     targetBudget70(0) === 0 && targetBudget70(-5) === 0 && targetBudget70('abc') === 0)
+}
+
+// ---------- I: t_57f6a3f9 — filter status proyek (On-Going / Selesai / Semua) ----------
+console.log('\nI. t_57f6a3f9 — filter status proyek di ProjectFinance')
+{
+  // 3 on-going (99/83/75) + 2 selesai DONE (61/42). Drive hanya punya baris
+  // untuk kode 99 dan 61 — kode 42 sengaja TIDAK punya baris Drive supaya
+  // bisa dibuktikan UI tidak crash saat revenue/cost proyek selesai kosong.
+  const rows = { ...ROWS, projects: ALL_PROJECTS }
+
+  // I.1 — DEFAULT: hanya on-going (perilaku lama, tidak ada kejutan)
+  {
+    const html = renderToStaticMarkup(React.createElement(ProjectFinance, {
+      rows, initialDriveRows: DRIVE, initialPlans: PLANS
+    }))
+    const dom = new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`)
+    const doc = dom.window.document
+    const opts = [...doc.querySelectorAll('select option')].map(o => o.textContent)
+    check('default hanya menampilkan proyek on-going (3 pilihan, tanpa DONE)',
+      opts.filter(o => !o.startsWith('—')).length === 3, opts.join(' | '))
+    check('label dropdown menyebut On-Going (3)', (doc.body.textContent || '').includes('On-Going (3)'))
+    check('proyek selesai TIDAK ada di daftar default',
+      !opts.some(o => o.includes('Vila PIK 2') || o.includes('Kantor Sudirman')), opts.join(' | '))
+    check('pill Selesai (2) & Semua Proyek (5) tampil dengan jumlah benar',
+      (doc.body.textContent || '').includes('Selesai (2)') && (doc.body.textContent || '').includes('Semua Proyek (5)'))
+    check('proyek pertama aktif terpilih otomatis (Baroni, revenue 40jt)',
+      (doc.body.textContent || '').includes('Rp 40.000.000'))
+  }
+
+  // I.2 — initialStatusFilter='done': langsung proyek selesai, angka benar
+  {
+    const html = renderToStaticMarkup(React.createElement(ProjectFinance, {
+      rows, initialDriveRows: DRIVE, initialPlans: PLANS, initialStatusFilter: 'done'
+    }))
+    const dom = new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`)
+    const doc = dom.window.document
+    const text = doc.body.textContent || ''
+    const opts = [...doc.querySelectorAll('select option')].map(o => o.textContent)
+    check('filter done: hanya 2 proyek selesai di dropdown',
+      opts.filter(o => !o.startsWith('—')).length === 2, opts.join(' | '))
+    check('filter done: dropdown TIDAK memuat proyek on-going',
+      !opts.some(o => o.includes('Baroni') || o.includes('Mabes') || o.includes('TanpaDrive')), opts.join(' | '))
+    check('filter done: proyek selesai terpilih otomatis = Vila PIK 2 (kode 61)',
+      text.includes('Vila PIK 2'), text.slice(0, 200))
+    check('badge "✓ Proyek Selesai" tampil untuk proyek DONE',
+      (doc.querySelector('.badge') || { textContent: '' }).textContent.includes('Proyek Selesai')
+      || [...doc.querySelectorAll('.badge')].some(b => b.textContent.includes('Proyek Selesai')))
+    // KALKULASI proyek selesai harus sama akuratnya:
+    // Revenue 55jt − Material 28jt − Upah WBS 6jt = 21jt → 38,18%
+    check('Revenue proyek selesai = Rp 55.000.000', text.includes('Rp 55.000.000'))
+    check('Actual Material proyek selesai = Rp 28.000.000', text.includes('Rp 28.000.000'))
+    check('Estimasi Upah WBS proyek selesai = Rp 6.000.000', text.includes('Rp 6.000.000'))
+    check('Project Margin proyek selesai = Rp 21.000.000 (55 − 28 − 6)', text.includes('Rp 21.000.000'))
+    check('% Margin proyek selesai tampil (38,18%: 21jt/55jt)', text.includes('38,18%'))
+    check('margin 21jt TIDAK tercampur angka proyek on-going (20jt Baroni absen)',
+      !text.includes('Rp 20.000.000'))
+  }
+
+  // I.3 — initialStatusFilter='all': semua proyek, dikelompokkan optgroup
+  {
+    const html = renderToStaticMarkup(React.createElement(ProjectFinance, {
+      rows, initialDriveRows: DRIVE, initialPlans: PLANS, initialStatusFilter: 'all'
+    }))
+    const dom = new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`)
+    const doc = dom.window.document
+    const text = doc.body.textContent || ''
+    const opts = [...doc.querySelectorAll('select option')].map(o => o.textContent)
+    const groups = [...doc.querySelectorAll('select optgroup')].map(g => g.getAttribute('label'))
+    check('filter all: 5 proyek di dropdown (3 on-going + 2 selesai)',
+      opts.filter(o => !o.startsWith('—')).length === 5, opts.join(' | '))
+    check('filter all: dropdown dikelompokkan (On-Going / Selesai)',
+      groups.length === 2 && groups[0].startsWith('On-Going') && groups[1].startsWith('Selesai'), groups.join(' | '))
+    check('filter all: proyek pertama terpilih tetap Baroni (urut rows.projects)',
+      text.includes('Rp 40.000.000'))
+    check('filter all: baris on-going dan selesai sama-sama tersedia sebagai pilihan',
+      opts.some(o => o.includes('Baroni')) && opts.some(o => o.includes('Vila PIK 2')))
+  }
+
+  // I.4 — proyek selesai TANPA baris Drive: UI jujur, tidak Rp 0 / tidak crash
+  {
+    const rowsNoDrive = { ...ROWS, projects: ALL_PROJECTS }
+    const html = renderToStaticMarkup(React.createElement(ProjectFinance, {
+      rows: rowsNoDrive, initialDriveRows: [], initialPlans: [], initialStatusFilter: 'done'
+    }))
+    const dom = new JSDOM(`<!DOCTYPE html><html><body>${html}</body></html>`)
+    const text = dom.window.document.body.textContent || ''
+    check('proyek selesai tanpa data Drive tetap ter-render (tanpa crash)', !!text)
+    check('revenue kosong tidak ditulis "Rp 0" (menghindari angka karangan)',
+      !text.includes('Rp 0'))
+  }
 }
 
 console.log(`\n=== HASIL: ${pass} pass, ${fail} fail ===`)
