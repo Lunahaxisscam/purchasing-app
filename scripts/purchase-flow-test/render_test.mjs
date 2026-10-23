@@ -74,6 +74,7 @@ const REQUESTS = [
   { id: 'pr1', pr_number: 'PR-001', title: 'Material dinding', project_id: 'p1', status: 'APPROVED' },
   { id: 'pr2', pr_number: 'PR-002', title: 'Fitting kabinet', project_id: 'p2', status: 'APPROVED' }
 ]
+function resetFixture(opts = {}) { mock.__reset({...opts, tables:{purchase_requests:REQUESTS,pr_items:PR_ITEMS,...opts.tables}}) }
 const PR_ITEMS = [
   { id: 'pi1', pr_id: 'pr1', material_id: 'm1', item_name: 'Triplek 9mm', kode: 'PLY-0001', unit: 'Lembar', quantity: 4, estimated_price: 120000, status: 'APPROVED', vendor_id: 'v1', sort_order: 0 },
   { id: 'pi2', pr_id: 'pr1', material_id: 'm2', item_name: 'Sekrup 3cm', kode: 'HWF-0001', unit: 'Box', quantity: 2, estimated_price: 35000, status: 'APPROVED', vendor_id: 'v1', sort_order: 1 },
@@ -127,7 +128,7 @@ console.log('C1. Dua tab: Siap Dibeli & Riwayat Pembelian')
   await tick()
   const tabReady = tid(doc, 'tab-ready')
   const tabHistory = tid(doc, 'tab-history')
-  check('C1a tab "Siap Dibeli" ada', !!tabReady && /Siap Dibeli/.test(tabReady.textContent))
+  check('C1a tab "Siap Dibeli" ada', !!tabReady && /Belum Tuntas/.test(tabReady.textContent))
   check('C1b tab "Riwayat Pembelian" ada', !!tabHistory && /Riwayat Pembelian/.test(tabHistory.textContent))
   check('C1c tab default = Siap Dibeli', /active/.test(tabReady.className))
   check('C1d 3 barang siap dibeli tampil', doc.querySelectorAll('[data-testid^="ready-row-"]').length === 3, String(doc.querySelectorAll('[data-testid^="ready-row-"]').length))
@@ -173,7 +174,7 @@ console.log('\nC2. Centang beberapa barang -> dialog Proses Pembelian')
 // ---------- C3: hitungan live, nol tulisan ----------
 console.log('\nC3. Hitung live; NOL tulisan DB sebelum "Selesaikan Pembelian"')
 {
-  mock.__reset({ tables: { receivings: RECEIVINGS, receiving_items: RECEIVING_ITEMS, handovers: [] } })
+  resetFixture({ tables: { receivings: RECEIVINGS, receiving_items: RECEIVING_ITEMS, handovers: [] } })
   const { document: doc } = mount()
   await tick()
   toggleCheck(tid(doc, 'check-pi1')); await tick()
@@ -290,7 +291,7 @@ console.log('\nC8. Filter toko/proyek & pilih semua')
 // ---------- C9: validasi UI ----------
 console.log('\nC9. Validasi UI: no. nota wajib, harga wajib')
 {
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const { document: doc } = mount()
   await tick()
   toggleCheck(tid(doc, 'check-pi1')); await tick()
@@ -389,7 +390,7 @@ console.log('\nC11b. Jalur lean tampil di Siap Dibeli + tombol belanja langsung'
   typeInto(doc, tid(doc, `harga-${dk}`), '20000'); await tick()
   typeInto(doc, tid(doc, 'form-date'), '2026-10-17'); await tick()
   check('C11b7 vendor terisi admin, submit aktif', tid(doc, 'purchase-submit')?.disabled === false, doc.body.textContent.slice(0, 400))
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   flushSync(() => tid(doc, 'purchase-form').requestSubmit())
   await tick(); await tick(); await tick()
   const hdrr2 = mock.__rows('receivings')

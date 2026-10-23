@@ -97,6 +97,7 @@ export function isBuyableStatus(status) {
 // PENTING: "tidak ada approval_steps" BUKAN syarat lean. Legacy SUBMITTED
 // tanpa penanda & tanpa step tetap TIDAK bisa dibeli lewat jalur lean.
 export function isBuyable({ item, request } = {}) {
+  if (request && ['DRAFT', 'REVISI', 'REJECTED'].includes(String(request.status || '').toUpperCase())) return false
   if (isLeanRequest(request)) return true
   return isBuyableStatus(item?.status)
 }
@@ -157,7 +158,7 @@ export function buildReadyRows({
     const est = Number(it.estimated_price)
     // Sisa yang belum dibeli = qty PR − yang sudah dibeli (minimal 1 supaya
     // form tidak pernah menawarkan qty 0).
-    const sisa = bought && bought.purchased ? Math.max(1, Math.round((qtyPr - boughtQty) * 100) / 100) : qtyPr
+    const sisa = bought && bought.purchased ? Math.max(0, Number((qtyPr - boughtQty).toFixed(9))) : qtyPr
 
     rows.push({
       key: it.id,

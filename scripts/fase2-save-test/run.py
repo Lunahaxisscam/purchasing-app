@@ -42,6 +42,7 @@ if os.path.isfile(f'{REPO}/modules/materials/acuan.js'):
 # multi-kategori vendor satu-sumber) — file pendamping ikut disalin.
 if os.path.isfile(f'{REPO}/modules/vendors/categories.js'):
     shutil.copy(f'{REPO}/modules/vendors/categories.js', f'{SB}/modules/vendors/categories.js')
+shutil.copy(f'{REPO}/modules/requests/workflow.js', f'{SB}/modules/requests/workflow.js')
 for f in ['saveHelpers.js', 'saveDispatcher.js']:
     shutil.copy(f'{REPO}/modules/shared/{f}', f'{SB}/modules/shared/{f}')
 shutil.copy(f'{REPO}/lib/constants.js', f'{SB}/lib/constants.js')

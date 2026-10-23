@@ -1,0 +1,38 @@
+\set ON_ERROR_STOP on
+begin;
+insert into profiles(id,role) values ('99999999-9999-9999-9999-999999999999','admin') on conflict(id) do nothing;
+select set_config('request.jwt.claim.sub','99999999-9999-9999-9999-999999999999',true);
+update purchase_requests set status='SUBMITTED',notes='[Jalur: LEAN]' where pr_number='PR-001';
+update receiving_items set quantity_received=5,note='[Harga: 140000]';
+update receivings set status='DIBELI';
+do $$declare r jsonb; begin
+r:=pr_return_for_revision('cccccccc-0000-0000-0000-000000000001','Revisi jumlah');
+assert (r->>'ok')::boolean,'return PR failed';
+assert (select status='REVISI' from purchase_requests where pr_number='PR-001'),'return status';
+update purchase_requests set title='revised' where pr_number='PR-001';
+update purchase_requests set status='SUBMITTED' where pr_number='PR-001';
+begin update pr_items set quantity=12; raise exception 'submitted item edit allowed'; exception when sqlstate 'P0001' then assert SQLERRM='PR terkunci. Kembalikan dari Pembelian untuk revisi.','wrong guard error'; end;
+r:=ops_transfer_apply('test-in','PURCHASE','ffffffff-0000-0000-0000-000000000001',null,'GUDANG',3,null,null);
+assert (r->>'ok')::boolean,'warehouse intake failed';
+assert (select current_stock=3 from materials where kode='M001'),'stock not credited';
+r:=ops_transfer_apply('test-in','PURCHASE','ffffffff-0000-0000-0000-000000000001',null,'GUDANG',3,null,null);
+assert (r->>'already')::boolean,'replay not idempotent';
+assert (select current_stock=3 from materials where kode='M001'),'replay double credit';
+r:=ops_transfer_apply('test-out','WAREHOUSE',null,'aaaaaaaa-0000-0000-0000-000000000001','TUKANG',2,'11111111-1111-1111-1111-111111111111','Pujon');
+assert (r->>'ok')::boolean,'warehouse withdrawal failed';
+assert (select current_stock=1 from materials where kode='M001'),'stock not debited';
+assert (select sum(project_cost)=280000 from ops_transfers),'cost incorrect';
+r:=ops_transfer_apply('test-over','WAREHOUSE',null,'aaaaaaaa-0000-0000-0000-000000000001','TUKANG',2,'11111111-1111-1111-1111-111111111111','Pujon');
+assert not (r->>'ok')::boolean,'overdraft allowed';
+assert (select current_stock=1 from materials where kode='M001'),'overdraft changed stock';
+r:=ops_transfer_apply('test-direct','PURCHASE','ffffffff-0000-0000-0000-000000000001',null,'TUKANG',2,'11111111-1111-1111-1111-111111111111','Pujon');
+assert (r->>'ok')::boolean,'direct issue failed';
+assert (select sum(project_cost)=560000 from ops_transfers),'direct plus warehouse cost double counted';
+r:=ops_transfer_apply('test-extra','PURCHASE','ffffffff-0000-0000-0000-000000000001',null,'GUDANG',1,null,null);
+assert not (r->>'ok')::boolean,'overdistribution allowed';
+r:=ops_transfer_apply('test-no-receiver','WAREHOUSE',null,'aaaaaaaa-0000-0000-0000-000000000001','TUKANG',1,'11111111-1111-1111-1111-111111111111','');
+assert not (r->>'ok')::boolean,'missing receiver allowed';
+assert (select count(*)=3 from ops_transfers),'unexpected ledger row count';
+raise notice 'PASS: PR return/edit-lock, warehouse intake, replay, withdrawal, overdraft, direct issue, cost, overdistribution, receiver validation';
+end $$;
+rollback;

@@ -1,0 +1,49 @@
+
+> purchasing-app@1.0.0 build
+> next build
+
+   ▲ Next.js 14.1.0
+   - Environments: .env.local
+
+   Linting and checking validity of types ...
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Collecting page data ...
+   Generating static pages (0/5) ...
+   Generating static pages (1/5) 
+   Generating static pages (2/5) 
+   Generating static pages (3/5) 
+ ✓ Generating static pages (5/5) 
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (pages)                             Size     First Load JS
+┌ ○ /                                     28.9 kB         367 kB
+├ ● /__mobile                             2.04 kB         280 kB
+├ ● /__smoke                              2.85 kB         279 kB
+├   /_app                                 0 B            78.2 kB
+├ ○ /404                                  180 B          78.4 kB
+├ λ /api/alerts/telegram                  0 B            78.2 kB
+├ λ /api/bakpau/telegram                  0 B            78.2 kB
+├ λ /api/bakpau/v1/purchases              0 B            78.2 kB
+├ λ /api/bakpau/v1/read                   0 B            78.2 kB
+├ λ /api/bakpau/whatsapp                  0 B            78.2 kB
+├ λ /api/check-columns                    0 B            78.2 kB
+├ λ /api/columns                          0 B            78.2 kB
+├ λ /api/inspect                          0 B            78.2 kB
+├ λ /api/marketing-contract               0 B            78.2 kB
+├ λ /api/reminders                        0 B            78.2 kB
+├ λ /api/sales-invoices                   0 B            78.2 kB
+├ λ /api/schema                           0 B            78.2 kB
+├ λ /api/seed-simulation                  0 B            78.2 kB
+└ λ /api/sync-materials                   0 B            78.2 kB
++ First Load JS shared by all             96.4 kB
+  ├ chunks/framework-6f93703d1a2e914a.js  45.2 kB
+  ├ chunks/main-7d6f7f9f4e69fa89.js       31.8 kB
+  ├ css/faa257241623f14a.css              18.2 kB
+  └ other shared chunks (total)           1.24 kB
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses getStaticProps)
+λ  (Dynamic)  server-rendered on demand using Node.js
+

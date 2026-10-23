@@ -49,6 +49,15 @@ const PR_ITEMS = [
   // qty>0 di nota lama -> tidak muncul (sudah pernah diproses)
   { id: 'pi6', pr_id: 'pr1', material_id: 'm2', item_name: 'Sekrup (data lama)', kode: 'HWF-0001', unit: 'Box', quantity: 1, estimated_price: 30000, status: 'ORDERED', vendor_id: 'v1', sort_order: 3 }
 ]
+// Fresh-status reads in purchaseSave require real parent/item fixture rows.
+const originalReset = mock.__reset
+function resetFixture(opts = {}) {
+  originalReset({...opts, tables: {
+    purchase_requests: [...REQUESTS, {id:'prS',status:'APPROVED'}, {id:'prJ',status:'APPROVED'}, {id:'prL',status:'SUBMITTED',notes:'[Jalur: LEAN]'}],
+    pr_items: [...PR_ITEMS, {id:'piS',pr_id:'prS',quantity:10}, {id:'piJ',pr_id:'prJ',quantity:4}, {id:'piL1',pr_id:'prL',quantity:6}],
+    ...opts.tables
+  }})
+}
 const RECEIVINGS = [
   // nota DIBELI (alur baru) untuk pi5
   { id: 'rcNew', vendor_id: 'v1', invoice_no: 'TB-001', status: 'DIBELI', received_date: '2026-10-16', note: '[Nominal: Rp 236.000] [Tahap: DIBELI]', project_id: 'p1', purchase_request_id: 'pr1' },
@@ -386,7 +395,7 @@ function formFixture(over = {}) {
 // ---------- B1: simpan normal ----------
 console.log('B1. Simpan nota normal: header + baris barang + status DIBELI')
 {
-  mock.__reset({
+  resetFixture({
     tables: {
       receivings: RECEIVINGS.map(r => ({ ...r })),
       receiving_items: RECEIVING_ITEMS.map(r => ({ ...r })),
@@ -417,7 +426,7 @@ console.log('B1. Simpan nota normal: header + baris barang + status DIBELI')
 // ---------- B2: anti dobel ----------
 console.log('\nB2. Anti dobel: nota toko + nomor sama ditolak (nol tulisan)')
 {
-  mock.__reset({
+  resetFixture({
     tables: {
       receivings: [
         { id: 'rcDup', vendor_id: 'v1', invoice_no: 'TB-88912', status: 'DIBELI', note: '[Tahap: DIBELI]', received_date: '2026-10-16' }
@@ -438,7 +447,7 @@ console.log('\nB2. Anti dobel: nota toko + nomor sama ditolak (nol tulisan)')
 // ---------- B3: cangkang dipakai ulang ----------
 console.log('\nB3. Cangkang nota dari Approval DIPAKAI ULANG (tanpa duplikasi)')
 {
-  mock.__reset({
+  resetFixture({
     tables: {
       receivings: [
         { id: 'rcShell2', vendor_id: null, invoice_no: null, status: 'NORMAL', note: 'Dibuat otomatis dari PR', project_id: 'p1', purchase_request_id: 'pr1' }
@@ -477,7 +486,7 @@ console.log('\nB3. Cangkang nota dari Approval DIPAKAI ULANG (tanpa duplikasi)')
 // ---------- B4: CHECK constraint menolak DIBELI ----------
 console.log('\nB4. CHECK constraint menolak status DIBELI -> fallback penanda tahap')
 {
-  mock.__reset({
+  resetFixture({
     tables: { receivings: [], receiving_items: [], handovers: [] },
     rejectDibeliStatus: true
   })
@@ -496,7 +505,7 @@ console.log('\nB4. CHECK constraint menolak status DIBELI -> fallback penanda ta
 // ---------- B5: antrean handover ----------
 console.log('\nB5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur')
 {
-  mock.__reset({
+  resetFixture({
     tables: { receivings: [], receiving_items: [], handovers: [] }
   })
   const res = await S.savePurchase({
@@ -516,7 +525,7 @@ console.log('\nB5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur')
   // Mock memberi id header pertama "rec-1" (prefix tabel + urutan), jadi
   // handover dengan receiving_id "rec-1" mensimulasikan nota yang sudah punya
   // antrean sebelumnya.
-  mock.__reset({
+  resetFixture({
     tables: {
       receivings: [], receiving_items: [],
       handovers: [{ id: 'hoExist', receiving_id: 'rec-1', status: 'DRAFT' }]
@@ -528,7 +537,7 @@ console.log('\nB5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur')
   check('B5g nota yang sudah punya antrean tidak membuat dokumen kedua', res2.ok === true && res2.handoverQueued === true && mock.__rows('handovers').length === 1, `${mock.__rows('handovers').length}`)
 
   // nota lain (receiving_id berbeda) tetap mendapat antrean sendiri
-  mock.__reset({
+  resetFixture({
     tables: {
       receivings: [], receiving_items: [],
       handovers: [{ id: 'hoLain', receiving_id: 'nota-lain', status: 'DRAFT' }]
@@ -540,7 +549,7 @@ console.log('\nB5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur')
   check('B5h nota lain tetap mendapat antrean sendiri', res2b.ok === true && mock.__rows('handovers').length === 2, String(mock.__rows('handovers').length))
 
   // gagal insert handover -> nota tetap tersimpan + pesan jujur
-  mock.__reset({
+  resetFixture({
     tables: { receivings: [], receiving_items: [], handovers: [] },
     failInsertTable: 'handovers'
   })
@@ -556,7 +565,7 @@ console.log('\nB5. Antrean Handover otomatis (dokumen DRAFT) + kegagalan jujur')
 console.log('\nB6. Validasi awal: nol tulisan bila data belum lengkap')
 console.log('    (t_aead7c06: nota TANPA nomor vendor kini SAH — ref. internal)')
 {
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const noVendor = await S.savePurchase({ form: formFixture({ vendorId: '' }), vendors: VENDORS })
   check('B6a tanpa vendor ditolak', noVendor.ok === false)
   const noItems = await S.savePurchase({ form: formFixture({ items: [] }), vendors: VENDORS })
@@ -564,7 +573,7 @@ console.log('    (t_aead7c06: nota TANPA nomor vendor kini SAH — ref. internal
   check('B6d NOL tulisan sepanjang validasi', mock.__state.calls.filter(c => c.op === 'insert' || c.op === 'update').length === 0)
 
   // B6e: nota tanpa nomor -> tersimpan dengan referensi internal
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const noNum = await S.savePurchase({ form: formFixture({ invoiceNo: '' }), receivings: [], receivingItems: [], vendors: VENDORS })
   check('B6e nota tanpa nomor tetap tersimpan', noNum.ok === true, noNum.error || '')
   check('B6f ditandai referensi internal', noNum.isInternalRef === true)
@@ -576,7 +585,7 @@ console.log('    (t_aead7c06: nota TANPA nomor vendor kini SAH — ref. internal
   // B6j: klik dua kali (form yang sama) -> stamp baru, TIDAK dianggap dobel
   // (nota pertama & kedua adalah pembelian fisik BERBEDA yang berdiri sendiri
   // — anti-dobel nomor hanya berlaku untuk nomor yang eksplisit).
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const n1 = await S.savePurchase({ form: formFixture({ invoiceNo: '' }), receivings: [], receivingItems: [], vendors: VENDORS })
   const n2 = await S.savePurchase({ form: formFixture({ invoiceNo: '', catatan: 'belanja kedua' }), receivings: mock.__rows('receivings'), receivingItems: mock.__rows('receiving_items'), vendors: VENDORS })
   check('B6j submit dua kali tanpa nomor -> dua nota terpisah', n1.ok && n2.ok, n2.error || '')
@@ -587,7 +596,7 @@ console.log('    (t_aead7c06: nota TANPA nomor vendor kini SAH — ref. internal
 // ---------- B8b: SKU sama dibagi dua proyek (split qty eksplisit) ----------
 console.log('\nB8b. Satu SKU dipecah dua proyek -> ALOKASI tidak menumpuk')
 {
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const res = await S.savePurchase({
     form: {
       vendorId: 'v1', tanggal: '2026-10-18', invoiceNo: 'TB-SPL', biayaLain: '', diskon: '',
@@ -622,7 +631,7 @@ console.log('\nB8b. Satu SKU dipecah dua proyek -> ALOKASI tidak menumpuk')
 // ---------- B9: gagal item tengah jalan -> partial + pesan jujur ----------
 console.log('\nB9. Kegagalan item tengah jalan -> nota tersimpan, sisa dilaporkan')
 {
-  mock.__reset({
+  resetFixture({
     tables: { receivings: [], receiving_items: [], handovers: [] },
     failInsertTable: 'receiving_items'
   })
@@ -648,7 +657,7 @@ console.log('\nB7. Dua nota berurutan dari PR yang sama: nota pertama TIDAK bole
   }
   const reqs = [{ id: 'prS', pr_number: 'PR-S', project_id: 'pS' }]
   const projs = [{ id: 'pS', kode: '99', name: 'Baroni' }]
-  mock.__reset({
+  resetFixture({
     tables: {
       receivings: [{
         id: 'rcShellS', vendor_id: null, invoice_no: null, status: 'NORMAL',
@@ -718,7 +727,7 @@ console.log('\nB7. Dua nota berurutan dari PR yang sama: nota pertama TIDAK bole
 // ---------- B8: header nota baru tetap membawa PR & proyek ----------
 console.log('\nB8. Nota tanpa cangkang tetap menyimpan jejak PR & proyek')
 {
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const prItem = {
     id: 'piJ', pr_id: 'prJ', item_name: 'Triplek 9mm', unit: 'Lembar',
     quantity: 4, estimated_price: 120000, status: 'APPROVED', vendor_id: 'v1'
@@ -767,7 +776,7 @@ console.log('\n=== D. JALUR LEAN — item request bertanda [Jalur: LEAN] ===\n')
   check('D1d proyek lean diambil dari request induk', rows.find(r => r.prItemId === 'piL1')?.projectId === 'p1')
 
   console.log('\nD2. Simpan nota untuk item lean + campuran belanja langsung')
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] } })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] } })
   const resLean = await S.savePurchase({
     form: {
       vendorId: 'v2', tanggal: '2026-10-19', invoiceNo: 'TB-LEAN', biayaLain: '', diskon: '',
@@ -800,12 +809,12 @@ console.log('\n=== D. JALUR LEAN — item request bertanda [Jalur: LEAN] ===\n')
   check('D2l openNeeds hanya piL2 (sisa 10)', open.length === 1 && open[0].prItemId === 'piL2' && open[0].remaining === 10, JSON.stringify(open))
 
   console.log('\nD3. Gagal memeriksa duplikat -> berhenti TANPA menulis (boundary)')
-  mock.__reset({ tables: { receivings: [], receiving_items: [], handovers: [] }, failSelect: true })
+  resetFixture({ tables: { receivings: [], receiving_items: [], handovers: [] }, failSelect: true })
   const resFail = await S.savePurchase({ form: formFixture(), receivings: [], receivingItems: [], vendors: VENDORS })
   check('D3a simpan ditolak dengan error', resFail.ok === false)
   check('D3b NOL insert header', mock.__callsOf('insert', 'receivings').length === 0)
   check('D3c NOL insert item', mock.__callsOf('insert', 'receiving_items').length === 0)
-  check('D3d error menyebut penyebab', /Gagal memeriksa nota/.test(resFail.error || ''), resFail.error)
+  check('D3d error menyebut penyebab', /Gagal memeriksa nota|Tidak dapat memverifikasi item PR/.test(resFail.error || ''), resFail.error)
 }
 
 console.log(`\n=== HASIL: ${pass} lulus, ${fail} gagal ===`)

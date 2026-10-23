@@ -1,0 +1,87 @@
+{
+  "base": "http://100.91.244.41:3001",
+  "build_id": "Iw7eA01xmR2GNE4lezHYk",
+  "ui_literals": {
+    "Ambil dari Gudang": true,
+    "Belum Tuntas": true,
+    "Perlu Revisi": true
+  },
+  "http": [
+    {
+      "path": "/_next/static/chunks/polyfills-c67a75d1b6f99dc8.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/webpack-ee7e63bc15b31913.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/framework-6f93703d1a2e914a.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/main-7d6f7f9f4e69fa89.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/pages/_app-65311c04456efdce.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/ab54ef94-01ba45db7e15e120.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/142-0ebbb5e8b188af03.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/862-e4f7d1fd084899cb.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/856-4e73093e54bd5a1f.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/903-41685a5eb04f8d15.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/pages/index-98731465a5f26f2a.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/Iw7eA01xmR2GNE4lezHYk/_buildManifest.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/Iw7eA01xmR2GNE4lezHYk/_ssgManifest.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/css/faa257241623f14a.css",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/css/faa257241623f14a.css",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/css/0207ce74f87d3374.css",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/css/0207ce74f87d3374.css",
+      "status": 200
+    },
+    {
+      "path": "/__smoke",
+      "status": 404
+    },
+    {
+      "path": "/__mobile",
+      "status": 404
+    }
+  ]
+}

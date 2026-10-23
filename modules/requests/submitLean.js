@@ -105,7 +105,7 @@ export async function submitLean(pr, options = {}) {
     const latestStatus = String(latest.status || '').toUpperCase()
 
     // 2. Idempoten: sudah jalur lean -> tidak menulis apa pun.
-    if (isLeanMarked(latest.notes)) {
+    if (latestStatus === 'SUBMITTED' && isLeanMarked(latest.notes)) {
       const msg = `Request ${latest.pr_number || ''} sudah dikirim lewat jalur admin (siap ditindaklanjuti). Tidak ada perubahan.`
       if (setNotice) setNotice(msg)
       return { ok: true, alreadySubmitted: true, pr_id: latest.id, pr_number: latest.pr_number }

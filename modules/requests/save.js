@@ -42,6 +42,7 @@ import { supabase } from '../../lib/supabaseClient'
 // Material, t_090127ad).
 import { isVendorEligible } from './estimator'
 import { composeNotesWithMarkers } from './leanRequest'
+import { verifyRequestEditable } from './workflow'
 
 // Harga valid utk simpan: nonnegative, finite. Tanda minus/parenthesis
 // ditolak EKSPLISIT ('-5' tidak boleh diam-diam jadi 5). Hasil null =
@@ -63,6 +64,13 @@ function validatedQty(q) {
 
 export async function save(ctx) {
   const { form, isEdit, editRow, editItems, prItemsList, nextPrNum, allMaterials, allVendors, say, close, refresh, setSaving } = ctx
+
+  let latestNotes = editRow?.notes
+  if (isEdit) {
+    const gate = await verifyRequestEditable(supabase, editRow?.id)
+    if (!gate.ok) { setSaving(false); say(gate.error); return }
+    latestNotes = gate.request.notes
+  }
 
   const summary = prItemsList.length
     ? prItemsList.map(it => `${it.qty} ${it.satuan || ''} ${it.name}`).join(', ')
@@ -114,7 +122,7 @@ export async function save(ctx) {
       // tersimpan DIPERTAHANKAN saat admin mengedit catatan — kalau dibuang,
       // request akan berubah klasifikasi jadi "Submitted lama" dan sisa
       // kebutuhan yang sudah ditutup terbuka lagi.
-      notes: composeNotesWithMarkers(form.notes || form.title, editRow.notes)
+      notes: composeNotesWithMarkers(form.notes || form.title, latestNotes)
     }).eq('id', editRow.id)
     if (upErr) { setSaving(false); say(upErr.message); return }
 

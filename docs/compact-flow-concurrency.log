@@ -1,0 +1,2 @@
+PASS concurrent withdrawals: one accepted, one denied; stock=1
+PASS anon cannot invoke transfer; authenticated cannot directly insert ledger

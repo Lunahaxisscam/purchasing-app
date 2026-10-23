@@ -1,0 +1,14 @@
+Warning: `ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+Warning: Received `true` for a non-boolean attribute `jsx`.
+
+If you want to write it to the DOM, pass a string instead: jsx="true" or jsx={value.toString()}.
+    at style
+    at form
+    at div
+    at PurchaseForm (/home/ubuntu/dev-workspaces/purchasing-compact-flow/modules/receivings/purchaseForm.jsx:315:22)
+    at div
+    at PurchasePage (/home/ubuntu/dev-workspaces/purchasing-compact-flow/modules/receivings/page.jsx:243:22)
+PASS Beli Sisa opens remaining qty 2 without vendor in PR
+PASS missing backend disables warehouse commit and causes zero RPC writes
+PASS handover page lists purchased item and warehouse button
+{"pass":3}

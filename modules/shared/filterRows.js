@@ -5,6 +5,7 @@
 // ============================================================
 import { normalizeStatus, isReceivingKendala, isStokMenipis, isHandoverDelivered } from '../../lib/constants'
 import { isLeanMarked } from '../requests/leanRequest'
+import { isActiveRequest } from '../requests/workflow'
 
 export function filterRows({
   page,
@@ -32,23 +33,22 @@ export function filterRows({
     else if (projectFilter === 'NOT_START') displayRows = displayRows.filter(p => normalizeStatus(p.status) === 'NOT_START')
     else if (projectFilter === 'ON_GOING') displayRows = displayRows.filter(p => normalizeStatus(p.status) === 'ON_GOING')
   } else if (page === 'requests') {
-    if (prFilter === 'DRAFT') displayRows = rows.filter(r => r.status === 'DRAFT')
-    // t_a5a73034 — jalur lean: "Siap Ditindaklanjuti" = HANYA request yang
-    // punya penanda [Jalur: LEAN]. "Submitted lama" = status SUBMITTED tanpa
-    // penanda (data lama, alur approval lama). Keduanya DIPISAH tegas supaya
-    // legacy tidak otomatis dianggap jalur lean (arahan DAT).
+    // t_4314a4b2 (DAT 22 Okt 2026): filter disederhanakan jadi 3 pill bersih:
+    // Aktif (all / default) = semua PR belum selesai/approved,
+    // Draft = status DRAFT, Submitted = status SUBMITTED.
+    // Alias lama (LEAN / SUBMITTED_LEGACY / APPROVED / REVISI / REJECTED /
+    // URGENT) dipertahankan sebagai fallback agar deep-link/state lama tidak
+    // pecah, tapi tidak lagi ditampilkan sebagai pill.
+    if (prFilter === 'DRAFT') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'DRAFT')
+    else if (prFilter === 'SUBMITTED') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'SUBMITTED')
     else if (prFilter === 'LEAN') displayRows = rows.filter(r => isLeanMarked(r.notes))
     else if (prFilter === 'SUBMITTED_LEGACY') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'SUBMITTED' && !isLeanMarked(r.notes))
-    // Alias lama 'SUBMITTED' dipertahankan (deep-link/state lama) = SEMUA
-    // SUBMITTED apa adanya, tanpa mengubah klasifikasi baris.
-    else if (prFilter === 'SUBMITTED') displayRows = rows.filter(r => r.status === 'SUBMITTED')
-    else if (prFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')
-    else if (prFilter === 'REVISI') displayRows = rows.filter(r => r.status === 'REVISI')
-    else if (prFilter === 'REJECTED') displayRows = rows.filter(r => r.status === 'REJECTED')
+    else if (prFilter === 'APPROVED') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'APPROVED')
+    else if (prFilter === 'REVISI') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'REVISI')
+    else if (prFilter === 'REJECTED') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'REJECTED')
     else if (prFilter === 'URGENT') displayRows = rows.filter(r => r.priority === 'URGENT')
-    // 'all' (default saat modul dibuka): sembunyikan PR yang sudah APPROVED —
-    // arahan DAT. Tab 'APPROVED' tetap tersedia untuk melihat riwayat approval.
-    else displayRows = rows.filter(r => r.status !== 'APPROVED')
+    // 'all' (Aktif) — default: semua PR yang belum selesai/approved.
+    else displayRows = rows.filter(isActiveRequest)
   } else if (page === 'approvals') {
     if (approvalFilter === 'PENDING') displayRows = rows.filter(r => r.status === 'PENDING')
     else if (approvalFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')

@@ -11,6 +11,7 @@
 // halaman dari pages/index.js.
 // ============================================================
 import React from 'react'
+import { requestFilters, compactDesktopRow, compactMobileCard } from './compactView'
 import { format, rupiah } from '../../lib/constants'
 // t_50b783de (Approval OFF): label tombol kirim ulang mengikuti kebijakan
 // terpusat — saat Approval OFF, PR REJECTED yang diperbaiki dikirim ulang
@@ -153,14 +154,16 @@ export function attachMaterialIds(itemRows, rawItems) {
 }
 
 // --- Filter tabs ---
-export function filters(ctx) {
+// t_4314a4b2 (arahan DAT 22 Okt 2026): sederhanakan menjadi 3 pill bersih:
+// Aktif (semua PR belum selesai/approved), Draft (status DRAFT), Submitted
+// (status SUBMITTED). Pill lama seperti Siap Ditindaklanjuti, Submitted lama,
+// Approved, Revisi, Ditolak, Prioritas dihilangkan — bukan lagi antrean harian.
+export function filters(ctx) { return requestFilters(ctx) }
+function legacyFilters(ctx) {
   const { rows, prFilter, setPrFilter } = ctx
-  // t_a5a73034 — tab "Siap Ditindaklanjuti" hanya menghitung request yang
-  // BENAR-BENAR bertanda jalur lean. Request SUBMITTED lama tanpa penanda
-  // dipisah ke "Submitted lama" supaya tidak tercampur ke antrean harian
-  // admin (arahan DAT: jangan anggap legacy otomatis lean).
-  const leanRows = rows.filter(r => isLeanMarked(r.notes))
-  const legacySubmitted = rows.filter(r => String(r.status || '').toUpperCase() === 'SUBMITTED' && !isLeanMarked(r.notes))
+  const aktifCount = rows.filter(r => r.status !== 'APPROVED').length
+  const draftCount = rows.filter(r => String(r.status || '').toUpperCase() === 'DRAFT').length
+  const submittedCount = rows.filter(r => String(r.status || '').toUpperCase() === 'SUBMITTED').length
   return (
     <div className="filter-tabs">
       <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -168,61 +171,24 @@ export function filters(ctx) {
         type="button"
         className={`pill ${prFilter === 'all' ? 'active' : ''}`}
         onClick={() => setPrFilter('all')}
-        title="Semua PR yang belum disetujui — riwayat PR approved ada di tab Approved"
+        title="Semua PR yang belum selesai/approved — riwayat PR approved ada di tab Approved"
       >
-        Semua Aktif ({rows.filter(r => r.status !== 'APPROVED').length})
+        Aktif ({aktifCount})
       </button>
       <button
         type="button"
         className={`pill ${prFilter === 'DRAFT' ? 'active' : ''}`}
         onClick={() => setPrFilter('DRAFT')}
       >
-        Draft ({rows.filter(r => r.status === 'DRAFT').length})
+        Draft ({draftCount})
       </button>
       <button
         type="button"
-        className={`pill ${prFilter === 'LEAN' ? 'active' : ''}`}
-        onClick={() => setPrFilter('LEAN')}
-        title="Request yang sudah dikirim lewat jalur admin — siap ditindaklanjuti tanpa approval"
+        className={`pill ${prFilter === 'SUBMITTED' ? 'active' : ''}`}
+        onClick={() => setPrFilter('SUBMITTED')}
+        title="PR yang sudah diajukan (status SUBMITTED)"
       >
-        Siap Ditindaklanjuti ({leanRows.length})
-      </button>
-      <button
-        type="button"
-        className={`pill ${prFilter === 'SUBMITTED_LEGACY' ? 'active' : ''}`}
-        onClick={() => setPrFilter('SUBMITTED_LEGACY')}
-        title="Request SUBMITTED dari alur lama (tanpa penanda jalur lean) — riwayat, bukan antrean harian"
-      >
-        Submitted lama ({legacySubmitted.length})
-      </button>
-      <button
-        type="button"
-        className={`pill ${prFilter === 'APPROVED' ? 'active' : ''}`}
-        onClick={() => setPrFilter('APPROVED')}
-      >
-        Approved ({rows.filter(r => r.status === 'APPROVED').length})
-      </button>
-      <button
-        type="button"
-        className={`pill ${prFilter === 'REVISI' ? 'active' : ''}`}
-        onClick={() => setPrFilter('REVISI')}
-      >
-        Revisi ({rows.filter(r => r.status === 'REVISI').length})
-      </button>
-      <button
-        type="button"
-        className={`pill ${prFilter === 'REJECTED' ? 'active' : ''}`}
-        onClick={() => setPrFilter('REJECTED')}
-      >
-        Ditolak ({rows.filter(r => r.status === 'REJECTED').length})
-      </button>
-      <button
-        type="button"
-        className={`pill ${prFilter === 'URGENT' ? 'active' : ''}`}
-        onClick={() => setPrFilter('URGENT')}
-        style={rows.some(r => r.priority === 'URGENT') ? { borderColor: '#c93b2b', color: '#c93b2b', fontWeight: 'bold' } : {}}
-      >
-        🚨 Prioritas ({rows.filter(r => r.priority === 'URGENT').length})
+        Submitted ({submittedCount})
       </button>
       </div>
     </div>
@@ -264,6 +230,11 @@ export function statusBadge(r, ctx = {}) {
 
 // --- Header kolom khusus: ikon prioritas (bukan teks "Priority") ---
 export function header(h) {
+  if (h === 'pr_number') return 'PR / Proyek'
+  if (h === 'materials_summary') return 'Barang / Spesifikasi'
+  if (h === 'items_qty') return 'Jumlah'
+  if (h === 'estimated_unit') return 'Est. Harga Satuan'
+  if (h === 'estimated_total') return 'Est. Total'
   if (h === 'priority') {
     return <span className="prio-dot prio-header" title="Prioritas — klik untuk urutkan" />
   }
@@ -426,7 +397,8 @@ export function LeanCloseAction({ pr, onCloseRemaining }) {
 }
 
 // --- Baris desktop khusus: master-detail item PR (rowSpan; tiap item 1 baris) ---
-export function desktopRow(r, ctx) {
+export function desktopRow(r, ctx) { return compactDesktopRow(r, ctx) }
+function legacyDesktopRow(r, ctx) {
   const { H, title, page, setEditRow, onFinishPr, onCloseRemaining, onDelete, openNoteId, setOpenNoteId, allMaterials } = ctx
   const { requestItemRows } = H
   // Master-detail: setiap item = satu baris tabel; Qty / Item Material /
@@ -586,24 +558,26 @@ export function desktopRow(r, ctx) {
               ↻ Submit Ulang
             </button>
           )}
-          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-            <button
-              type="button"
-              className="btn-edit icon-btn"
-              onClick={() => setEditRow(r)}
-              title={`Edit ${r.pr_number || title}`}
-            >
-              ✏️
-            </button>
-            <button
-              type="button"
-              className="btn-delete icon-btn"
-              onClick={() => onDelete(page, r)}
-              title={`Hapus ${r.pr_number || title}`}
-            >
-              🗑️
-            </button>
-          </div>
+          {String(r.status || '').toUpperCase() === 'DRAFT' && (
+            <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn-edit icon-btn"
+                onClick={() => setEditRow(r)}
+                title={`Edit ${r.pr_number || title}`}
+              >
+                ✏️
+              </button>
+              <button
+                type="button"
+                className="btn-delete icon-btn"
+                onClick={() => onDelete(page, r)}
+                title={`Hapus ${r.pr_number || title}`}
+              >
+                🗑️
+              </button>
+            </div>
+          )}
         </div>
       </td>
     </>
@@ -671,31 +645,34 @@ export function rowActions(r, ctx) {
             ↻ Submit Ulang
           </button>
         )}
-        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-          <button
-            type="button"
-            className="btn-edit icon-btn"
-            onClick={() => setEditRow(r)}
-            title={`Edit ${r.pr_number || title}`}
-          >
-            ✏️
-          </button>
-          <button
-            type="button"
-            className="btn-delete icon-btn"
-            onClick={() => onDelete(page, r)}
-            title={`Hapus ${r.pr_number || title}`}
-          >
-            🗑️
-          </button>
-        </div>
+        {String(r.status || '').toUpperCase() === 'DRAFT' && (
+          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn-edit icon-btn"
+              onClick={() => setEditRow(r)}
+              title={`Edit ${r.pr_number || title}`}
+            >
+              ✏️
+            </button>
+            <button
+              type="button"
+              className="btn-delete icon-btn"
+              onClick={() => onDelete(page, r)}
+              title={`Hapus ${r.pr_number || title}`}
+            >
+              🗑️
+            </button>
+          </div>
+        )}
       </div>
     </td>
   )
 }
 
 // --- Kartu mobile ---
-export function mobileCard(r, ctx) {
+export function mobileCard(r, ctx) { return compactMobileCard(r, ctx) }
+function legacyMobileCard(r, ctx) {
   const { H, page, setEditRow, onFinishPr, onCloseRemaining, onDelete, allMaterials } = ctx
   const { requestItemRows } = H
   // Total Estimasi (t_ac0b39c0): snapshot harga tersimpan pr_items.
@@ -820,22 +797,26 @@ export function mobileCard(r, ctx) {
               ↻ Submit Ulang
             </button>
           )}
-          <button
-            type="button"
-            className="outline"
-            onClick={() => setEditRow(r)}
-            style={{ padding: '8px 14px', fontSize: '12px' }}
-          >
-            ✏️ Edit
-          </button>
-          <button
-            type="button"
-            className="btn-delete"
-            onClick={() => onDelete(page, r)}
-            style={{ padding: '8px 14px', fontSize: '12px' }}
-          >
-            🗑️
-          </button>
+          {String(r.status || '').toUpperCase() === 'DRAFT' && (
+            <>
+              <button
+                type="button"
+                className="outline"
+                onClick={() => setEditRow(r)}
+                style={{ padding: '8px 14px', fontSize: '12px' }}
+              >
+                ✏️ Edit
+              </button>
+              <button
+                type="button"
+                className="btn-delete"
+                onClick={() => onDelete(page, r)}
+                style={{ padding: '8px 14px', fontSize: '12px' }}
+              >
+                🗑️
+              </button>
+            </>
+          )}
         </div>
       </div>
     </>

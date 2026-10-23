@@ -31,7 +31,7 @@ const MODULES = {
 // Kelas <table> khusus per modul (undefined = tabel standar).
 const TABLE_CLASS = {
   materials: 'materials-table',
-  requests: 'requests-table',
+  requests: 'requests-compact-table',
   approvals: 'approvals-table'
 }
 

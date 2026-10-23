@@ -1,0 +1,21 @@
+PASS returned lean request is no longer buyable
+PASS submitted label is consistent
+PASS revision label is consistent
+PASS revision overrides legacy approved item in buying queue
+PASS 5 requested 3 bought leaves 2 in buying queue
+PASS fractional remaining is never rounded up to one
+PASS returned PR does not reappear with a leftover lean marker
+PASS revision with retained lean marker resubmits instead of early alreadySubmitted
+PASS edit save checks fresh database status before mutations
+PASS submitted PR is not editable
+PASS revision PR is editable
+PASS active is not a document status and includes submitted
+PASS closed request is not active
+PASS distribution uses bought quantity and sums split destinations
+PASS warehouse overdraw fails validation
+PASS tukang requires project and receiver
+PASS unknown destination rejected
+PASS fresh submitted edit boundary
+PASS fresh revision edit boundary
+PASS database read failure edit boundary
+{"pass":20,"fail":0}

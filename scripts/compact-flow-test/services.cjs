@@ -1,0 +1,13 @@
+const fs=require('fs'),Module=require('module'),assert=require('assert/strict'),root=process.cwd(),swc=require('next/dist/build/swc')
+let state={pr:{id:'p',pr_number:'PR-1',status:'SUBMITTED',notes:'[Jalur: LEAN]'},writes:[],items:[{id:'i',pr_id:'p',item_name:'Engsel',quantity:5,unit:'pcs'}]}
+const client={from(table){let op='read',payload;const b={select(){return b},eq(){return b},update(d){op='update';payload=d;return b},single:async()=>exec(true),then(a,z){return Promise.resolve(exec(false)).then(a,z)}};function exec(single){if(op==='update'){state.writes.push({table,payload});Object.assign(state.pr,payload);return {error:null}}return {data:table==='purchase_requests'?state.pr:state.items,error:null}}return b},async rpc(fn,args){state.writes.push({fn,args});state.pr.status='REVISI';return {data:{ok:true},error:null}}}
+const orig=Module._extensions['.js'];Module._extensions['.js']=function(mod,file){if(!file.startsWith(root+'/')||file.includes('/node_modules/'))return orig(mod,file);if(file.endsWith('/lib/supabaseClient.js')){mod.exports={supabase:client};return}mod._compile(swc.transformSync(fs.readFileSync(file,'utf8'),{filename:file,jsc:{parser:{syntax:'ecmascript',jsx:true}},module:{type:'commonjs'}}).code,file)}
+const wf=require(root+'/modules/requests/workflow.js'),{submitLean}=require(root+'/modules/requests/submitLean.js'),{save}=require(root+'/modules/requests/save.js');let pass=0
+async function test(n,f){await f();pass++;console.log('PASS',n)}
+;(async()=>{
+await test('stale submitted edit fails before any mutation',async()=>{let notice='';await save({form:{},isEdit:true,editRow:{id:'p',status:'DRAFT'},prItemsList:[],say:s=>notice=s,setSaving(){}});assert.equal(state.writes.length,0);assert.match(notice,/terkunci/)})
+await test('return from purchase sets revision with readback',async()=>{const r=await wf.returnRequestToPr(client,state.pr,{reason:'Perbaiki jumlah'});assert.equal(r.ok,true);assert.equal(state.pr.status,'REVISI');assert.equal(state.writes[0].fn,'pr_return_for_revision')})
+await test('resubmit revision retains same ID and does write SUBMITTED',async()=>{const r=await submitLean(state.pr,{supabase:client});assert.equal(r.ok,true);assert.equal(r.alreadySubmitted,undefined);assert.equal(r.pr_id,'p');assert.equal(state.pr.status,'SUBMITTED');assert.equal(state.writes.at(-1).payload.status,'SUBMITTED')})
+await test('repeated submit does not duplicate writes',async()=>{const n=state.writes.length,r=await submitLean(state.pr,{supabase:client});assert.equal(r.alreadySubmitted,true);assert.equal(state.writes.length,n)})
+console.log(JSON.stringify({pass}))
+})().catch(e=>{console.error(e);process.exitCode=1})
