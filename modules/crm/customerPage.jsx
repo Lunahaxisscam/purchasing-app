@@ -347,20 +347,21 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
       )}
 
       <div className="panel table desktop-table-view">
-        <table className="purchase-table" data-testid="crm-table">
+        <table className="purchase-table crm-table" data-testid="crm-table">
           <thead>
             <tr>
-              <th>Nama Customer</th>
-              <th style={{ width: '160px' }}>No. WhatsApp</th>
-              <th style={{ width: '130px' }}>Status</th>
-              <th style={{ width: '120px' }}>Project</th>
-              <th style={{ width: '230px' }}>Aksi</th>
+              <th>Nama</th>
+              <th>Alamat</th>
+              <th style={{ width: '150px' }}>No. WhatsApp</th>
+              <th style={{ width: '110px' }}>Status</th>
+              <th style={{ width: '150px' }}>Proyek</th>
+              <th style={{ width: '140px' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="empty">
+                <td colSpan={6} className="empty">
                   {loading ? 'Memuat customer…' : loadError ? 'Tidak bisa menampilkan customer.' : customers.length ? 'Tidak ada yang cocok dengan pencarian.' : 'Belum ada customer. Klik "+ Tambah Customer" untuk mulai.'}
                 </td>
               </tr>
@@ -370,29 +371,31 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
               const open = String(openId) === String(c.id)
               return (
                 <tr key={c.id} data-testid={`crm-row-${c.id}`}>
+                  {/* NAMA — sengaja SPAN, bukan <button>: aturan global
+                      `button { color: white }` membuat nama putih di atas
+                      latar putih (tidak terbaca). Span mewarisi warna sel. */}
                   <td>
-                    <button
-                      type="button"
-                      className="linklike"
+                    <span
+                      className="crm-name-toggle"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setOpenId(open ? null : c.id)}
-                      style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 600 }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(open ? null : c.id) } }}
                       data-testid={`crm-expand-${c.id}`}
+                      title="Klik untuk lihat / tautkan project"
                     >
-                      {open ? '▾' : '▸'} {c.nama}
-                    </button>
-                    {c.alamat && (
-                      <small className="compact-flow-sub" data-testid={`crm-alamat-${c.id}`}>{c.alamat}</small>
-                    )}
+                      <span className="crm-caret" aria-hidden="true">{open ? '▾' : '▸'}</span> {c.nama}
+                    </span>
                     {open && (
                       <div style={{ marginTop: 8, fontSize: 12 }} data-testid={`crm-projects-${c.id}`}>
                         {linked.length === 0 ? (
-                          <span style={{ color: '#68746b' }}>Belum ada project tertaut.</span>
+                          <span style={{ color: '#5a6b64' }}>Belum ada project tertaut.</span>
                         ) : (
                           <ul style={{ margin: 0, paddingLeft: 16 }}>
                             {linked.map((p) => (
                               <li key={p.id} style={{ marginBottom: 3 }}>
                                 {p.kode ? `[${p.kode}] ` : ''}{p.name}
-                                <small style={{ color: '#68746b' }}> · {p.status || '—'}</small>
+                                <small style={{ color: '#5a6b64' }}> · {p.status || '—'}</small>
                                 <button
                                   type="button"
                                   className="outline"
@@ -432,20 +435,24 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
                       </div>
                     )}
                   </td>
-                  <td style={{ whiteSpace: 'nowrap' }}>{c.wa || <span style={{ color: '#9aa8a4' }}>—</span>}</td>
+                  <td className="crm-cell-alamat">{c.alamat || <span className="crm-muted">—</span>}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{c.wa || <span className="crm-muted">—</span>}</td>
                   <td>
                     <span style={S.badge(isCustomer ? 'customer' : 'prospek')} data-testid={`crm-status-${c.id}`}>
                       {isCustomer ? 'Customer' : 'Prospek'}
                     </span>
                   </td>
-                  <td>{linked.length ? `${linked.length} project` : <span style={{ color: '#9aa8a4' }}>—</span>}</td>
+                  <td className="crm-cell-project">
+                    {linked.length ? (
+                      <span title={linked.map((p) => p.name).join(', ')}>
+                        {linked.length} proyek
+                      </span>
+                    ) : <span className="crm-muted">—</span>}
+                  </td>
                   <td>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                      <button type="button" className="outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => openEdit(c)} disabled={busy} data-testid={`crm-edit-${c.id}`}>Ubah</button>
-                      <button type="button" className="outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => toggleStatus(c)} disabled={busy} data-testid={`crm-toggle-${c.id}`}>
-                        {isCustomer ? '→ Prospek' : '→ Customer'}
-                      </button>
-                      <button type="button" className="outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => removeCustomer(c)} disabled={busy} data-testid={`crm-delete-${c.id}`}>Hapus</button>
+                      <button type="button" className="outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => openEdit(c)} disabled={busy} data-testid={`crm-edit-${c.id}`}>Edit</button>
+                      <button type="button" className="outline crm-btn-hapus" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => removeCustomer(c)} disabled={busy} data-testid={`crm-delete-${c.id}`}>Hapus</button>
                     </div>
                   </td>
                 </tr>
@@ -467,13 +474,13 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
                 <span style={S.badge(isCustomer ? 'customer' : 'prospek')}>{isCustomer ? 'Customer' : 'Prospek'}</span>
               </div>
               <div className="mobile-card-body">
-                <div className="mobile-card-row"><span className="mobile-label">WA</span><span className="mobile-val">{c.wa || '—'}</span></div>
                 <div className="mobile-card-row"><span className="mobile-label">Alamat</span><span className="mobile-val">{c.alamat || '—'}</span></div>
-                <div className="mobile-card-row"><span className="mobile-label">Project</span><span className="mobile-val">{linked.length ? linked.map((p) => p.name).join(', ') : 'Belum ada'}</span></div>
+                <div className="mobile-card-row"><span className="mobile-label">WA</span><span className="mobile-val">{c.wa || '—'}</span></div>
+                <div className="mobile-card-row"><span className="mobile-label">Proyek</span><span className="mobile-val">{linked.length ? linked.map((p) => p.name).join(', ') : 'Belum ada'}</span></div>
               </div>
               <div className="mobile-card-actions" style={{ display: 'flex', gap: 6 }}>
-                <button type="button" className="outline" onClick={() => openEdit(c)} disabled={busy}>Ubah</button>
-                <button type="button" className="outline" onClick={() => toggleStatus(c)} disabled={busy}>{isCustomer ? '→ Prospek' : '→ Customer'}</button>
+                <button type="button" className="outline" onClick={() => openEdit(c)} disabled={busy}>Edit</button>
+                <button type="button" className="outline crm-btn-hapus" onClick={() => removeCustomer(c)} disabled={busy}>Hapus</button>
               </div>
             </div>
           )

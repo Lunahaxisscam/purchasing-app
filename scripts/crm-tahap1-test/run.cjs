@@ -168,10 +168,17 @@ function setInput(testid, value) {
 
   const santi = DB.customers[0]
 
-  // ubah status -> Customer
-  const toggleBtn = [...el.querySelectorAll('button')].find((b) => (b.textContent || '').includes('→ Customer'))
-  check('tombol ubah status tersedia', !!toggleBtn)
-  await act(async () => { toggleBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
+  // ubah status -> Customer lewat form Edit (aksi baris = Edit / Hapus saja)
+  check('aksi baris hanya Edit & Hapus (tanpa tombol ubah status)',
+    ![...el.querySelectorAll('button')].some((b) => /→ (Customer|Prospek)/.test(b.textContent || '')))
+  await act(async () => {
+    el.querySelector(`[data-testid="crm-edit-${santi.id}"]`).dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+  })
+  await act(async () => { await tick() })
+  await act(async () => { setInput('crm-input-status', 'CUSTOMER') })
+  await act(async () => {
+    el.querySelector('[data-testid="crm-form"]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+  })
   await act(async () => { await tick() })
   const upd = calls.filter((c) => c.table === 'customers' && c.op === 'update')
   check('status di-UPDATE menjadi CUSTOMER', upd.length >= 1 && upd[upd.length - 1].payload.status === 'CUSTOMER',

@@ -1,6 +1,9 @@
 import Head from 'next/head'
 import '../styles/globals.css'
 import '../styles/compact-flow.css'
+// Gaya tabel Customer CRM (nama gelap, alamat wrap) — CSS global wajib
+// diimpor dari _app, bukan dari komponen (aturan Next pages-router).
+import '../modules/crm/crm.css'
 
 // CATATAN VIEWPORT (t_eebe4678): tag <meta name="viewport"> hidup HANYA di
 // sini, TIDAK lagi diduplikasi di pages/_document.js.
