@@ -304,9 +304,12 @@ export const modules = [
     source: 'core',
     files: [
       'modules/crm/view.jsx',
+      'modules/crm/customerPage.jsx',
       'modules/crm/selector.jsx',
       'modules/crm/logic.js',
       'modules/crm/README.md',
+      'migrations/2026-10-24_sales_customers.sql',
+      'scripts/crm-tahap1-test/run.cjs',
       'scripts/crm-test/run.py'
     ]
   },

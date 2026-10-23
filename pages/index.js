@@ -21,6 +21,9 @@ import RapCompareModule from '../modules/rap-compare/view'
 // t_7253b859: modul "Customer CRM" — halaman source:'core' (read-only dari
 // sisi DB; customer dari form adalah draf memori halaman, tidak tersimpan).
 import CrmModule from '../modules/crm/view'
+// CRM yang MENULIS database (tabel customers, Tahap 1 alur penjualan).
+// modules/crm/view.jsx tetap ada sebagai halaman baca-saja lama.
+import CustomerCrmPage from '../modules/crm/customerPage'
 // t_62e41e91: modul "Actual Labor & Stok" — halaman source:'core'.
 // t_6a18a263 (arahan DAT): modul ini DINONAKTIFKAN dari navigasi lewat
 // kebijakan terpusat (LABOR_STOCK_MODULE_ENABLED). Import DIPERTAHANKAN
@@ -936,12 +939,12 @@ export default function App() {
           // 'unavailable' — bukan daftar kosong yang terlihat seperti bug.
           // Guard admin sama seperti modul admin lainnya.
           role === 'admin' ? (
-            <CrmModule
-              rows={rows}
-              customers={rows.customers}
-              invoiceCounts={null}
-              say={setNotice}
-            />
+            // TAHAP 1 ALUR PENJUALAN (DAT 24 Okt): CRM kini MENULIS tabel
+            // `customers` (nama, WA, status) dan menautkan project lewat
+            // `projects.customer_id`. Satu akun customer bisa punya banyak
+            // project. Versi baca-saja lama (CrmModule) tidak dipakai lagi
+            // di halaman ini, tetapi filenya dipertahankan.
+            <CustomerCrmPage rows={rows} refresh={loadAll} say={setNotice} />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )
