@@ -134,11 +134,15 @@ shutil.copy(os.path.join(HERE, 'render_test.mjs'), SB)
 shutil.copy(os.path.join(HERE, 'save_test.mjs'), SB)
 
 print(f'Sandbox: {SB}\n')
-r = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB)
+# HARNESS_REPO: test membaca file sumber (styles/globals.css, form.jsx) dari
+# REPO ASLI, bukan dari cwd sandbox — dulu path-nya hardcode ke workspace lain
+# sehingga harness selalu ENOENT di mesin/checkout mana pun.
+env = dict(os.environ, HARNESS_REPO=REPO)
+r = subprocess.run(['node', 'compile_sandbox.mjs'], cwd=SB, env=env)
 if r.returncode:
     sys.exit(r.returncode)
 rc = 0
 for t in ('save_test.mjs', 'render_test.mjs'):
-    r = subprocess.run(['node', t], cwd=SB)
+    r = subprocess.run(['node', t], cwd=SB, env=env)
     rc = rc or r.returncode
 sys.exit(rc)

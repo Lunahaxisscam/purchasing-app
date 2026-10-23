@@ -7,6 +7,8 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
+// Repo asli dikirim run.py lewat env; fallback cwd (dijalankan dari root repo).
+const HREPO = process.env.HARNESS_REPO || process.cwd()
 
 const require = createRequire(import.meta.url)
 const SB = process.cwd()
@@ -215,7 +217,7 @@ console.log('\nA5. Tabel item di kontainer ber-overflow sendiri (anti body overf
   check('Total Estimasi bukan tabel lebar (baris flex → tidak menyeret lebar dialog)',
     !!totalRow && totalRow.tagName === 'DIV', totalRow?.tagName)
   // CSS: tidak ada aturan yang memaksa body melebar dari komponen ini
-  const css = fs.readFileSync('/home/ubuntu/dev-workspaces/agent-1-ops/styles/globals.css', 'utf8')
+  const css = fs.readFileSync(path.join(HREPO,'styles/globals.css'), 'utf8')
   check('CSS body tidak memakai lebar paksa >100%',
     !/body\s*{[^}]*min-width:\s*(1[0-9]{3,}|[2-9][0-9]{2,})px/.test(css))
   // Tabel item WAJIB punya kelas penawar aturan mobile global
@@ -223,10 +225,10 @@ console.log('\nA5. Tabel item di kontainer ber-overflow sendiri (anti body overf
   // dan form WAJIB menyertakan style ter-scope-nya. Tanpa ini tabel jadi
   // 820px di layar 390px → harus digeser ke samping (regresi nyata).
   check('tabel item memakai kelas pr-items-table', !!q(doc, 'table.pr-items-table'))
-  const formSrc = fs.readFileSync('/home/ubuntu/dev-workspaces/agent-1-ops/modules/requests/form.jsx', 'utf8')
+  const formSrc = fs.readFileSync(path.join(HREPO,'modules/requests/form.jsx'), 'utf8')
   check('form menyertakan style ter-scope penawar min-width global',
     /min-width:\s*0\s*!important/.test(formSrc) && /pr-items-table/.test(formSrc))
-  const purFormSrc = fs.readFileSync('/home/ubuntu/dev-workspaces/agent-1-ops/modules/receivings/purchaseForm.jsx', 'utf8')
+  const purFormSrc = fs.readFileSync(path.join(HREPO,'modules/receivings/purchaseForm.jsx'), 'utf8')
   check('dialog Purchase juga menetralkan min-width tabel item',
     /purchase-items-table/.test(purFormSrc) && /min-width:\s*0\s*!important/.test(purFormSrc))
 }
@@ -550,7 +552,7 @@ console.log('\nE4. data-testid lama tetap ada (kontrak harness lama dijaga)')
 console.log('\nF1. Tidak ada file migrasi baru/berubah & file modul lain tidak disentuh')
 {
   const { execSync } = require('node:child_process')
-  const REPO = '/home/ubuntu/dev-workspaces/agent-1-ops'
+  const REPO = HREPO
   const base = process.env.COMPACT_BASE || 'main'
   let changed = []
   try {

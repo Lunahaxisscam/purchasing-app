@@ -1,5 +1,11 @@
 # Aktivasi ledger Serah Terima — checklist & keputusan yang dibutuhkan
 
+**KEPUTUSAN DAT (24 Okt 2026, via Telegram):** poin 1 (trigger kunci PR) —
+**SETUJU, jalankan**. Poin 2 (trigger batas beli) dan poin 3 (kebijakan nilai
+stok lama/FIFO) — **DILEWATI dulu**. Karena itu file yang diaktifkan adalah
+`migrations/2026-10-24_compact_ops_flow_ACTIVATION.sql` (turunan DRAFT tanpa
+`compact_purchase_pr_guard`), bukan DRAFT-nya apa adanya.
+
 Status per 24 Okt 2026 (branch `feat/compact-pr-purchase-handover`, staging :3001).
 
 ## 1. Yang sudah selesai & terverifikasi (bukti nyata)
