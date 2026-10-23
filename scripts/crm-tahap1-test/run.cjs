@@ -215,6 +215,21 @@ function setInput(testid, value) {
   check('customer terhapus dari DB', DB.customers.length === 0, JSON.stringify(DB.customers))
   check('project TIDAK ikut terhapus saat customer dihapus', DB.projects.length === 3, String(DB.projects.length))
 
+  // ---- ALAMAT (impor data lama) ----
+  await act(async () => { findButton('+ Tambah Customer').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })) })
+  await act(async () => { await tick() })
+  await act(async () => { setInput('crm-input-nama', 'Pak Alamat') })
+  await act(async () => { setInput('crm-input-alamat', 'Cluster Dakota 8 No. 3, Tangerang') })
+  await act(async () => {
+    el.querySelector('[data-testid="crm-form"]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+  })
+  await act(async () => { await tick() })
+  const insAlamat = calls.filter((c) => c.table === 'customers' && c.op === 'insert').pop()
+  check('alamat ikut tersimpan saat tambah customer',
+    !!insAlamat && insAlamat.payload.alamat === 'Cluster Dakota 8 No. 3, Tangerang',
+    JSON.stringify(insAlamat?.payload))
+  check('alamat tampil di daftar', /Cluster Dakota 8 No\. 3/.test(el.textContent || ''))
+
   console.log(`\ncrm_tahap1_test: ${pass}/${pass + fail} lulus${fail ? ' — GAGAL' : ''}`)
   process.exit(fail ? 1 : 0)
 })().catch((e) => {

@@ -60,7 +60,7 @@ export function projectsOf(customerId, projects = []) {
   return (projects || []).filter((p) => String(p.customer_id || '') === String(customerId))
 }
 
-const EMPTY = { nama: '', wa: '', status: STATUS_PROSESPEK }
+const EMPTY = { nama: '', wa: '', alamat: '', status: STATUS_PROSESPEK }
 
 const S = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 14 },
@@ -128,7 +128,7 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
     return customers.filter((c) => {
       if (filter !== 'all' && String(c.status || '').toUpperCase() !== filter) return false
       if (!key) return true
-      return [c.nama, c.wa].some((x) => String(x || '').toLowerCase().includes(key))
+      return [c.nama, c.wa, c.alamat].some((x) => String(x || '').toLowerCase().includes(key))
     })
   }, [customers, q, filter])
 
@@ -143,7 +143,7 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
   }
 
   function openEdit(c) {
-    setForm({ nama: c.nama || '', wa: c.wa || '', status: String(c.status || STATUS_PROSESPEK).toUpperCase() })
+    setForm({ nama: c.nama || '', wa: c.wa || '', alamat: c.alamat || '', status: String(c.status || STATUS_PROSESPEK).toUpperCase() })
     setEditing(c); setErrors({}); setShowForm(true); setNotice(null)
   }
 
@@ -158,6 +158,7 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
     const payload = {
       nama: form.nama.trim(),
       wa: form.wa.trim() || null,
+      alamat: form.alamat.trim() || null,
       status: String(form.status || STATUS_PROSESPEK).toUpperCase()
     }
     try {
@@ -268,7 +269,7 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Nama atau nomor WA…"
+            placeholder="Nama, WA, atau alamat…"
             data-testid="crm-search"
           />
         </label>
@@ -315,6 +316,15 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
                 data-testid="crm-input-wa"
               />
               {errors.wa && <small style={{ color: '#c93b2b' }} data-testid="crm-error-wa">{errors.wa}</small>}
+            </label>
+            <label style={S.field}>
+              Alamat proyek (opsional)
+              <input
+                type="text" value={form.alamat}
+                onChange={(e) => setForm({ ...form, alamat: e.target.value })}
+                placeholder="Contoh: Cluster Dakota 8 No. 3, Tangerang"
+                data-testid="crm-input-alamat"
+              />
             </label>
             <label style={S.field}>
               Status
@@ -370,6 +380,9 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
                     >
                       {open ? '▾' : '▸'} {c.nama}
                     </button>
+                    {c.alamat && (
+                      <small className="compact-flow-sub" data-testid={`crm-alamat-${c.id}`}>{c.alamat}</small>
+                    )}
                     {open && (
                       <div style={{ marginTop: 8, fontSize: 12 }} data-testid={`crm-projects-${c.id}`}>
                         {linked.length === 0 ? (
@@ -455,6 +468,7 @@ export default function CustomerCrmPage({ rows = {}, refresh, say }) {
               </div>
               <div className="mobile-card-body">
                 <div className="mobile-card-row"><span className="mobile-label">WA</span><span className="mobile-val">{c.wa || '—'}</span></div>
+                <div className="mobile-card-row"><span className="mobile-label">Alamat</span><span className="mobile-val">{c.alamat || '—'}</span></div>
                 <div className="mobile-card-row"><span className="mobile-label">Project</span><span className="mobile-val">{linked.length ? linked.map((p) => p.name).join(', ') : 'Belum ada'}</span></div>
               </div>
               <div className="mobile-card-actions" style={{ display: 'flex', gap: 6 }}>
