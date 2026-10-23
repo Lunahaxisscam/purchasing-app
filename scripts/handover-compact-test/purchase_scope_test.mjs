@@ -162,13 +162,32 @@ console.log('\n=== B4. JALUR SIMPAN PURCHASE TIDAK MENULIS KOLOM FISIK ===\n')
   const baseHeaderBlock = (saveSrc.match(/baseHeader\s*=\s*\{([\s\S]*?)\n\s*\};/) || [])[1] || ''
   check('B4b baseHeader (dipakai UPDATE) tidak memuat kolom fisik',
     baseHeaderBlock.length > 0 && !/masuk_gudang|tukang_at|alokasi|diserahkan_at/.test(baseHeaderBlock), baseHeaderBlock.slice(0, 200))
-  // Satu-satunya penyebutan masuk_gudang harus berada di blok yang menghasilkan
-  // `row` (insert), bukan di payload update.
-  const mgIdx = saveSrc.indexOf('masuk_gudang')
-  const around = mgIdx >= 0 ? saveSrc.slice(Math.max(0, mgIdx - 300), mgIdx + 500) : ''
-  check('B4c header BARU (row -> insert) menginisialisasi alokasi/masuk_gudang',
-    mgIdx >= 0 && /row\s*=/.test(around) && /\.insert\(row\)/.test(around) && /alokasi\s*:\s*null/.test(around), around.slice(0, 260))
-  check('B4c2 objek row itu benar-benar dipakai .insert(row)', /\.insert\(row\)/.test(saveSrc))
+  // B4c/B4c2 — PERILAKU, bukan grep nama variabel. Versi lama mencocokkan
+  // `.insert(row)` pada HASIL KOMPILASI SWC; SWC menamai ulang variabel
+  // (`row` -> `row1`), jadi test merah padahal perilakunya benar — dan
+  // sebaliknya bisa hijau saat perilaku berubah. Sekarang jalur simpan
+  // BENAR-BENAR DIJALANKAN pada mock perekam, lalu payload yang dikirim ke
+  // DB diperiksa apa adanya.
+  const { savePurchaseWithClient } = await import(pathToFileURL(path.join(SB, 'dist/modules/receivings/purchaseSave.mjs')).href)
+  mock.__reset({})
+  const notaForm = {
+    vendorId: 'v1', tanggal: '2026-10-23', invoiceNo: 'TB-B4-1',
+    items: [{ itemName: 'Triplek 9mm', unit: 'Lembar', qty: 2, harga: 100000, projectId: 'p1' }]
+  }
+  const savedNota = await savePurchaseWithClient({
+    client: mock.supabase, form: notaForm, vendors: [{ id: 'v1', name: 'TB Sumber Jaya' }]
+  })
+  const headerRow = (mock.__callsOf('insert', 'receivings')[0] || {}).data
+  check('B4c header BARU ditulis dengan alokasi=null & masuk_gudang=false',
+    !!headerRow && headerRow.alokasi === null && headerRow.masuk_gudang === false,
+    headerRow ? JSON.stringify(headerRow).slice(0, 240) : 'tidak ada insert receivings')
+  check('B4c2 header itu benar-benar dipakai membuat nota (insert jalan, receivingId kembali)',
+    savedNota?.ok === true && !!savedNota?.receivingId,
+    JSON.stringify(savedNota).slice(0, 240))
+  const physicalUpdates = mock.__callsOf('update', 'receivings')
+    .filter(c => ['masuk_gudang', 'tukang_at', 'alokasi', 'diserahkan_at'].some(k => k in (c.data || {})))
+  check('B4c3 jalur simpan tidak menulis kolom fisik lewat UPDATE',
+    physicalUpdates.length === 0, JSON.stringify(physicalUpdates).slice(0, 240))
   // Status nota hanya ditulis sebagai penanda "sudah dibeli" — bukan retur/refund.
   const statusWrites = [...saveSrc.matchAll(/status\s*:\s*'([A-Z_]+)'/g)].map(m => m[1])
   check('B4d Purchase tidak pernah menulis status RETUR/REFUND/RUSAK',
