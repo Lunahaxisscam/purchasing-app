@@ -31,6 +31,7 @@ function makeChain(table) {
         eq: async (col, val) => { __calls.push({ op: 'eq', table, col, val }); return __state.nextResult || { data: null, error: null } }
       }
     },
+    single: async () => ({ data: { id: 'pr-1', status: 'DRAFT', notes: '' }, error: null }),
     select() {
       __calls.push({ op: 'select', table })
       return { eq: () => api, order: async () => __state.nextResult || { data: [], error: null } }

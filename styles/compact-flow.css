@@ -1,0 +1,24 @@
+/* Scoped compact workflow: preserve global design tokens and unrelated modules. */
+table.requests-compact-table{width:100%;table-layout:fixed}
+table.requests-compact-table th:nth-child(1){width:17%}
+table.requests-compact-table th:nth-child(2){width:26%}
+table.requests-compact-table th:nth-child(3){width:10%}
+table.requests-compact-table th:nth-child(4),table.requests-compact-table th:nth-child(5){width:13%}
+table.requests-compact-table th:nth-child(6){width:11%}
+table.requests-compact-table th:nth-child(7){width:10%}
+table.requests-compact-table th,table.requests-compact-table td{white-space:normal!important;overflow-wrap:anywhere}
+
+.compact-flow-sub{display:block;color:#68746b;font-size:11px;font-weight:400;line-height:1.4;margin-top:3px;white-space:normal}
+.compact-flow-actions{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.compact-flow-actions button{font-size:12px;padding:5px 9px;min-height:30px}
+.compact-flow-remaining{display:block;color:#9a5417;font-size:12px;margin-top:3px}
+.compact-flow-row td{vertical-align:top;padding:8px!important}
+.compact-flow-row td:nth-child(2){max-width:250px}
+.compact-flow-detail{padding:8px 0;font-size:12px;line-height:1.5;white-space:normal;overflow-wrap:anywhere;max-width:520px}
+.compact-flow-detail small{display:block}
+.compact-flow-row summary,.compact-handover summary,.compact-flow-actions summary{cursor:pointer;font-size:11px;color:#556344;margin-top:5px}
+.compact-flow-mobile-item{display:flex;flex-direction:column;gap:3px;padding:7px 0;border-bottom:1px solid #e5e9e0}
+.compact-flow-warning{background:#fff5df;border:1px solid #dec998;border-radius:6px;padding:9px 12px;font-size:12px;color:#7e5212;white-space:normal;line-height:1.5}
+.compact-handover .purchase-table td{vertical-align:top}
+.compact-handover .purchase-filters input{max-width:300px}
+@media(max-width:760px){.compact-handover .purchase-toolbar{display:flex;flex-wrap:wrap;gap:8px}.compact-handover .purchase-filters{width:100%}.compact-flow-actions{flex-direction:row;flex-wrap:wrap}.compact-flow-mobile-item span{font-size:12px}.compact-handover .dialog{max-width:calc(100vw - 24px)}}

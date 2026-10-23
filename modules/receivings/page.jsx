@@ -48,6 +48,7 @@ import {
   buildHistoryRows, historySummary, groupByVendor
 } from './purchaseLogic'
 import PurchaseForm from './purchaseForm'
+import ReturnRequest from './returnRequest'
 
 // Draft item belanja langsung (tanpa request) untuk dialog Proses Pembelian.
 // Identitas barang aktual ditulis admin; TANPA pr_item_id (tidak membuat
@@ -198,17 +199,15 @@ export default function PurchasePage({ rows, refresh, say }) {
     // jejak PR tetap di tiap baris (prItemId → purchase_request_id).
     const groups = selectedByVendor.filter(g => g.vendorId)
     const tanpaVendor = selectedByVendor.filter(g => !g.vendorId)
+    // No planned vendor is valid: choose the actual supplier in Purchase,
+    // never force a submitted PR to be edited merely to buy its items.
     if (!groups.length) {
-      // Semua barang belum punya vendor: jangan mengarang label toko.
-      say?.('Barang yang dipilih belum punya vendor di PR. Lengkapi vendor di PR dulu — nota tidak boleh diberi label toko yang tidak tercatat pada barangnya.')
+      setPurchaseQueue([])
+      setFormRows({ rows: selectedRows, vendorId: '', vendorName: '' })
       return
     }
-    if (tanpaVendor.length) {
-      const jml = tanpaVendor.reduce((s, g) => s + g.rows.length, 0)
-      say?.(`${jml} barang belum punya vendor dan tidak ikut dibuatkan nota. Lengkapi vendor di PR dulu, lalu proses lagi.`)
-    }
     // Urutan: vendor terbanyak lebih dulu (kebiasaan admin), sisanya menyusul.
-    const ordered = [...groups].sort((a, b) => b.count - a.count)
+    const ordered = [...groups, ...tanpaVendor].sort((a, b) => b.count - a.count)
     const queue = ordered.map(g => ({ rows: g.rows, vendorId: g.vendorId, vendorName: g.vendorName }))
     setPurchaseQueue(queue)
     // Buka nota vendor PERTAMA; sisanya berurutan setelah nota tersimpan.
@@ -256,10 +255,17 @@ export default function PurchasePage({ rows, refresh, say }) {
     if (sisa > 0) say?.('Sisa nota vendor yang belum dibuat dibatalkan. Nota yang sudah tersimpan tetap ada di Riwayat Pembelian.')
   }
 
+  function actualPriceFor(prItemId) {
+    const prices = receivingItems.filter(i => i.pr_item_id === prItemId && Number(i.quantity_received) > 0)
+      .map(i => parseItemPrice(i.note)).filter(p => p !== null && p !== undefined)
+    const unique = [...new Set(prices)]
+    return unique.length > 1 ? 'Beberapa pembelian' : unique.length === 1 ? rupiah(unique[0]) : '—'
+  }
   const allVisibleSelected = readyRows.length > 0 && readyRows.every(r => selected.has(r.prItemId))
 
   return (
     <div className="ops-container">
+      <details className="compact-flow-detail"><summary>Revisi PR dari Pembelian</summary>{requests.filter(p=>['SUBMITTED','APPROVED'].includes(String(p.status).toUpperCase())).map(p=><div key={p.id} style={{display:'flex',gap:8,alignItems:'center',marginBottom:6}}><b>{p.pr_number}</b><ReturnRequest pr={p} refresh={refresh} say={say}/></div>)}</details>
       {/* ===== TAB ===== */}
       <div className="purchase-tabs" role="tablist">
         <button
@@ -270,7 +276,7 @@ export default function PurchasePage({ rows, refresh, say }) {
           onClick={() => setTab(TAB_READY)}
           data-testid="tab-ready"
         >
-          <span className="purchase-tab-title">Siap Dibeli</span>
+          <span className="purchase-tab-title">Belum Tuntas</span>
           <span className="purchase-tab-count">{readyAll.length}</span>
         </button>
         <button
@@ -374,7 +380,7 @@ export default function PurchasePage({ rows, refresh, say }) {
           )}
           {selectedRows.length > 0 && selectedByVendor.some(g => !g.vendorId) && (
             <div className="purchase-hint" data-testid="hint-no-vendor">
-              {selectedByVendor.filter(g => !g.vendorId).reduce((s, g) => s + g.rows.length, 0)} barang belum punya vendor di PR — barang itu tidak akan dibuatkan nota sampai vendornya dilengkapi.
+              {selectedByVendor.filter(g => !g.vendorId).reduce((s, g) => s + g.rows.length, 0)} barang belum punya rencana toko — pilih toko aktual pada form pembelian.
             </div>
           )}
 
@@ -402,10 +408,12 @@ export default function PurchasePage({ rows, refresh, say }) {
                   </th>
                   <th style={{ width: '104px' }}>Nomor PR</th>
                   <th>Project</th>
-                  <th style={{ width: '92px' }}>Quantity</th>
-                  <th>Barang</th>
-                  <th style={{ width: '140px' }}>Toko / Vendor</th>
-                  <th style={{ width: '110px', textAlign: 'right' }}>Estimasi</th>
+                  <th>Barang / Spesifikasi</th>
+                  <th>Jumlah PR</th>
+                  <th>Dibeli / Sisa</th>
+                  <th style={{ textAlign: 'right' }}>Est. Harga Satuan</th>
+                  <th>Harga Beli</th>
+                  <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -428,32 +436,20 @@ export default function PurchasePage({ rows, refresh, say }) {
                       <td className="purchase-cell-wrap">
                         {r.projectName}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <b>{r.qtyPr}</b> <span className="purchase-muted">{r.unit || ''}</span>
-                        {r.qtyBought > 0 && r.qtySisa < r.qtyPr && (
-                          <span className="purchase-muted" style={{ display: 'block', fontSize: '10px' }}>
-                            sisa {r.qtySisa}
-                          </span>
-                        )}
-                      </td>
-                      <td className="purchase-cell-wrap">
-                        <b className="purchase-item-name">{r.itemName}</b>
-                        <span className="purchase-item-code">
-                          {r.kode ? r.kode : '—'}
-                        </span>
-                      </td>
-                      <td className="purchase-cell-wrap">
-                        {r.vendorName || <span className="purchase-muted">Belum ditentukan</span>}
-                      </td>
+                      <td className="purchase-cell-wrap"><b>{r.itemName}</b><small className="compact-flow-sub">{r.kode || ''}</small></td>
+                      <td>{r.qtyPr} {r.unit}</td>
+                      <td><span>Dibeli {r.qtyBought} {r.unit}</span><strong className="compact-flow-remaining">Sisa {r.qtySisa} {r.unit}</strong></td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {r.estimasi !== null ? rupiah(r.estimasi) : <span className="purchase-muted">—</span>}
                       </td>
+                      <td>{actualPriceFor(r.prItemId)}</td>
+                      <td><div className="compact-flow-actions"><button onClick={()=>setFormRows({rows:[r],vendorId:r.vendorId||'',vendorName:r.vendorName||''})}>{r.qtyBought>0?'Beli Sisa':'Beli'}</button><details><summary>Detail</summary><ReturnRequest pr={requests.find(p=>p.id===r.prId)} refresh={refresh} say={say}/><small>Rencana toko: {r.vendorName||'Belum ditentukan'}. Harga beli aktual dan riwayat per nota ada di Riwayat Pembelian.</small></details></div></td>
                     </tr>
                   )
                 }) : (
                   <tr>
-                    <td colSpan={7} className="empty">
-                      Tidak ada barang yang siap dibeli. Barang muncul di sini setelah disetujui di modul Approval.
+                    <td colSpan={9} className="empty">
+                      Tidak ada sisa kebutuhan. Barang muncul setelah PR di-submit.
                     </td>
                   </tr>
                 )}
@@ -483,8 +479,8 @@ export default function PurchasePage({ rows, refresh, say }) {
                     <div className="mobile-card-row">
                       <span className="mobile-label">Qty PR</span>
                       <span className="mobile-val">
-                        {r.qtyPr} {r.unit}
-                        {r.qtyBought > 0 && r.qtySisa < r.qtyPr ? ` · sisa ${r.qtySisa}` : ''}
+                        {r.qtyPr} {r.unit} · Dibeli {r.qtyBought}
+                        <strong className="compact-flow-remaining">Sisa {r.qtySisa} {r.unit}</strong>
                       </span>
                     </div>
                     <div className="mobile-card-row">
@@ -496,9 +492,11 @@ export default function PurchasePage({ rows, refresh, say }) {
                       <span className="mobile-val">{r.vendorName || 'Belum ditentukan'}</span>
                     </div>
                     <div className="mobile-card-row">
-                      <span className="mobile-label">Estimasi</span>
+                      <span className="mobile-label">Est. Harga Satuan</span>
                       <span className="mobile-val">{r.estimasi !== null ? rupiah(r.estimasi) : '—'}</span>
                     </div>
+                    <div className="mobile-card-row"><span>Harga Beli</span><span>{actualPriceFor(r.prItemId)}</span></div>
+                    <div className="compact-flow-actions"><button onClick={()=>setFormRows({rows:[r],vendorId:r.vendorId||'',vendorName:r.vendorName||''})}>{r.qtyBought>0?'Beli Sisa':'Beli'}</button><details><summary>Detail</summary><ReturnRequest pr={requests.find(p=>p.id===r.prId)} refresh={refresh} say={say}/></details></div>
                   </div>
                 </div>
               )

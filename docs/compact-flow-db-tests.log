@@ -1,0 +1,13 @@
+BEGIN
+INSERT 0 0
+              set_config              
+--------------------------------------
+ 99999999-9999-9999-9999-999999999999
+(1 row)
+
+UPDATE 1
+UPDATE 1
+UPDATE 1
+psql:scripts/compact-flow-test/db.sql:37: NOTICE:  PASS: PR return/edit-lock, warehouse intake, replay, withdrawal, overdraft, direct issue, cost, overdistribution, receiver validation
+DO
+ROLLBACK

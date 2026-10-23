@@ -1,0 +1,5 @@
+PASS stale submitted edit fails before any mutation
+PASS return from purchase sets revision with readback
+PASS resubmit revision retains same ID and does write SUBMITTED
+PASS repeated submit does not duplicate writes
+{"pass":4}

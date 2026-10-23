@@ -1,0 +1,7 @@
+PASS PR submitted desktop hides edit and fulfilment
+PASS PR revision allows edit and resubmit
+PASS PR mobile hides fulfilment
+PASS purchase shows 5/3/2 and Beli Sisa
+PASS handover omits old queue and retains warehouse action
+PASS handover without backend disables confirmation truthfully
+{"passed":6}

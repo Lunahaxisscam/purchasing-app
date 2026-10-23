@@ -166,8 +166,8 @@ export function resubmittedAtOf(notes) {
 export function classifyRequest(pr, { approvalStepCount = 0 } = {}) {
   const status = String(pr?.status || '').toUpperCase()
   const lean = isLeanMarked(pr?.notes)
-  if (status === 'DRAFT') return { key: 'DRAFT', lean, legacy: false }
-  if (lean) return { key: 'LEAN', lean: true, legacy: false }
+  if (status === 'DRAFT' || status === 'REVISI') return { key: status, lean, legacy: false }
+  if (isLeanRequest(pr)) return { key: 'LEAN', lean: true, legacy: false }
   if (status === 'SUBMITTED') {
     return approvalStepCount > 0
       ? { key: 'LEGACY_APPROVAL', lean: false, legacy: true }
@@ -181,15 +181,16 @@ export function classifyRequest(pr, { approvalStepCount = 0 } = {}) {
 
 /** True hanya bila request benar-benar dikirim lewat jalur lean. */
 export function isLeanRequest(pr) {
-  return isLeanMarked(pr?.notes)
+  return String(pr?.status || '').toUpperCase() === 'SUBMITTED' && isLeanMarked(pr?.notes) && !closeReasonOf(pr?.notes)
 }
 
 // ============================================================
 // LABEL UI JUJUR (nilai enum TIDAK diubah, hanya terjemahan tampilan)
 // ============================================================
 export function requestStatusLabel(pr, opts = {}) {
+  if (String(pr?.status || '').toUpperCase() === 'SUBMITTED') return 'Submitted'
   const c = classifyRequest(pr, opts)
-  if (c.key === 'LEAN') return 'Siap Ditindaklanjuti'
+  if (c.key === 'LEAN') return 'Submitted'
   if (c.key === 'DRAFT') return 'Draft'
   if (c.key === 'LEGACY_APPROVAL') return 'Antrean Approval (lama)'
   // Tanpa data approval_steps di halaman, label TIDAK mengklaim "tanpa jejak
@@ -197,7 +198,7 @@ export function requestStatusLabel(pr, opts = {}) {
   if (c.key === 'LEGACY_UNKNOWN') return 'Submitted lama'
   if (c.key === 'APPROVED') return 'Disetujui (lama)'
   if (c.key === 'REJECTED') return 'Ditolak (lama)'
-  if (c.key === 'REVISI') return 'Revisi (lama)'
+  if (c.key === 'REVISI') return 'Perlu Revisi'
   return String(pr?.status || '—')
 }
 

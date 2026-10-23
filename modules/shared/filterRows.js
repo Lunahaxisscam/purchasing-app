@@ -5,6 +5,7 @@
 // ============================================================
 import { normalizeStatus, isReceivingKendala, isStokMenipis, isHandoverDelivered } from '../../lib/constants'
 import { isLeanMarked } from '../requests/leanRequest'
+import { isActiveRequest } from '../requests/workflow'
 
 export function filterRows({
   page,
@@ -47,7 +48,7 @@ export function filterRows({
     else if (prFilter === 'REJECTED') displayRows = rows.filter(r => String(r.status || '').toUpperCase() === 'REJECTED')
     else if (prFilter === 'URGENT') displayRows = rows.filter(r => r.priority === 'URGENT')
     // 'all' (Aktif) — default: semua PR yang belum selesai/approved.
-    else displayRows = rows.filter(r => String(r.status || '').toUpperCase() !== 'APPROVED')
+    else displayRows = rows.filter(isActiveRequest)
   } else if (page === 'approvals') {
     if (approvalFilter === 'PENDING') displayRows = rows.filter(r => r.status === 'PENDING')
     else if (approvalFilter === 'APPROVED') displayRows = rows.filter(r => r.status === 'APPROVED')

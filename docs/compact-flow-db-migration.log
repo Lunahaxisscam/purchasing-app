@@ -1,0 +1,33 @@
+BEGIN
+psql:migrations/2026-10-23_compact_ops_flow.DRAFT.sql:17: NOTICE:  relation "ops_transfers" already exists, skipping
+CREATE TABLE
+psql:migrations/2026-10-23_compact_ops_flow.DRAFT.sql:23: NOTICE:  relation "ops_stock_lots" already exists, skipping
+CREATE TABLE
+psql:migrations/2026-10-23_compact_ops_flow.DRAFT.sql:29: NOTICE:  relation "ops_stock_allocations" already exists, skipping
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+REVOKE
+GRANT
+DROP POLICY
+CREATE POLICY
+DROP POLICY
+CREATE POLICY
+DROP POLICY
+CREATE POLICY
+CREATE FUNCTION
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+REVOKE
+GRANT
+REVOKE
+GRANT
+COMMIT

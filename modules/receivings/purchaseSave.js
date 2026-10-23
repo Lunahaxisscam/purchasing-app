@@ -191,6 +191,16 @@ export async function savePurchaseWithClient({
   const items = nota.items
   if (!items.length) return { ok: false, error: 'Tidak ada barang dengan harga yang bisa disimpan.' }
 
+  // Reject a stale form if its PR was returned while the dialog stayed open.
+  if (queueHandover) {
+    for (const it of items.filter(x => x.prItemId)) {
+      const { data: sourceItem, error: itemReadError } = await client.from('pr_items').select('id,pr_id').eq('id', it.prItemId).single()
+      if (itemReadError || !sourceItem) return { ok: false, error: `Tidak dapat memverifikasi item PR: ${itemReadError?.message || 'data tidak ditemukan'}. Muat ulang.` }
+      const { data: parent, error: parentReadError } = await client.from('purchase_requests').select('id,status').eq('id', sourceItem.pr_id).single()
+      if (parentReadError || !parent || !['SUBMITTED', 'APPROVED'].includes(String(parent.status).toUpperCase())) return { ok: false, error: 'PR telah dikembalikan atau belum di-submit. Muat ulang sebelum membeli.' }
+    }
+  }
+
   // --- 0b) Nota tanpa nomor vendor: referensi internal jelas dibedakan ---
   let invoiceNo = header.invoiceNo
   let isInternalRef = false

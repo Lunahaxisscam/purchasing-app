@@ -112,7 +112,7 @@ function makeBuilder(table) {
     not() { return api },
     order() { return api },
     limit(n) { st.limit = n; return api },
-    single() { return Promise.resolve(terminal(st)) },
+    single() { const r = terminal(st); if (st.op === 'select' && Array.isArray(r.data)) r.data = r.data[0] || null; return Promise.resolve(r) },
     maybeSingle() { return Promise.resolve(terminal(st)) },
     then(resolve, reject) { return Promise.resolve(terminal(st)).then(resolve, reject) },
     catch(reject) { return Promise.resolve(terminal(st)).catch(reject) }

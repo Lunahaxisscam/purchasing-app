@@ -34,6 +34,8 @@ import LaborStockModule from '../modules/labor-stock/view'
 // atas. Import dipertahankan agar reversible.
 import MarketingModule from '../modules/marketing/view'
 import PurchasePage from '../modules/receivings/page'
+import CompactHandoverPage from '../modules/handovers/compactPage'
+import { verifyRequestEditable } from '../modules/requests/workflow'
 import { markHandoverDelivered as confirmHandoverDelivered } from '../modules/handovers/confirm'
 import { labels, normalizeStatus, orderSpecFor, isHandoverDelivered, isApprovalEnabled, approvalGuard, APPROVAL_OFF_MESSAGE, navAliasFor, STOCK_MENU_NOTICE, isNavModuleDisabled } from '../lib/constants'
 import { sendPrAlert } from '../lib/telegramAlert'
@@ -709,6 +711,10 @@ export default function App() {
 
   async function deleteItem(pageTarget, item) {
     if (!supabase) return
+    if (pageTarget === 'requests') {
+      const gate = await verifyRequestEditable(supabase, item?.id)
+      if (!gate.ok) { setNotice(gate.error); return }
+    }
     // ============================================================
     // SAFETY BARRIER VENDOR (t_e626b674 — arahan DAT): konfirmasi
     // bertingkat SEBELUM konfirmasi generik. Vendor berrelasi dgn riwayat
@@ -1099,6 +1105,8 @@ export default function App() {
           // pun tombol gudang/tukang/retur/refund yang tersisa dari alur lama.
           // Data & callback yang dipakai hanya baca (rows) + refresh/say.
           <PurchasePage rows={rows} refresh={loadAll} say={setNotice} />
+        ) : page === 'handovers' ? (
+          <CompactHandoverPage rows={rows} refresh={loadAll} say={setNotice} />
         ) : (
           <Module
             page={modulePage}
