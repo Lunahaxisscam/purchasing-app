@@ -24,5 +24,26 @@ await test('transfer dialog: qty default 1, proyek & material ikut PR (tanpa pil
   assert.match(el.textContent,/Baroni/,'nama proyek dari PR tidak tampil')
   assert.equal(calls.length,0,'tidak boleh ada tulisan DB')
 })
+await test('tujuan Gudang: material ikut PR (tanpa pilih) & qty default 1',async()=>{
+  const row={id:'ri3',item_name:'Sekrup (2 cm)',unit:'Box',remaining:3,materialId:'m1',projectId:'p1',projectName:'Baroni'}
+  await act(async()=>app.render(React.createElement(H.TransferDialog,{target:{source:'PURCHASE',row},materials:[{id:'m1',name:'Sekrup (2 cm)',current_stock:0,satuan:'Box'}],projects:[{id:'p1',name:'Baroni',status:'ON_GOING'}],ready:false,onClose(){}})))
+  const qty=el.querySelector('input[type="number"]')
+  assert.equal(qty.value,'1','qty default Gudang harus 1, dapat: '+qty.value)
+  const tujuan=[...el.querySelectorAll('select')].find(s=>[...s.options].some(o=>o.value==='GUDANG'))
+  await act(async()=>{tujuan.value='GUDANG';tujuan.dispatchEvent(new dom.window.Event('change',{bubbles:true}))})
+  const selects=[...el.querySelectorAll('select')].map(s=>[...s.options].map(o=>o.value).join('|'))
+  assert.ok(!selects.some(o=>o.includes('Pilih material')),'material masih diminta: '+selects.join(' ;; '))
+  assert.match(el.textContent,/Sekrup \(2 cm\)/,'material dari PR tidak tampil')
+  assert.equal(calls.length,0)
+})
+await test('belanja langsung tanpa PR: material dicocokkan dari nama, tanpa pilih manual',async()=>{
+  const row={id:'ri4',item_name:'Triplek 9mm',unit:'Lembar',remaining:2,materialId:null,projectId:null}
+  await act(async()=>app.render(React.createElement(H.TransferDialog,{target:{source:'PURCHASE',row},materials:[{id:'m9',name:'Triplek 9mm',current_stock:0,satuan:'Lembar'}],projects:[],ready:false,onClose(){}})))
+  const tujuan=[...el.querySelectorAll('select')].find(s=>[...s.options].some(o=>o.value==='GUDANG'))
+  await act(async()=>{tujuan.value='GUDANG';tujuan.dispatchEvent(new dom.window.Event('change',{bubbles:true}))})
+  const selects=[...el.querySelectorAll('select')].map(s=>[...s.options].map(o=>o.value).join('|'))
+  assert.ok(!selects.some(o=>o.includes('Pilih material')),'material masih diminta padahal nama cocok: '+selects.join(' ;; '))
+  assert.match(el.textContent,/cocok nama/,'penanda cocok-nama tidak tampil')
+})
 await act(async()=>app.unmount());console.log(JSON.stringify({pass}))
 })().catch(e=>{console.error(e);process.exitCode=1})
