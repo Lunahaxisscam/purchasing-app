@@ -104,15 +104,33 @@ def main():
     missing = []
     for t in TABLES:
         st, raw = call(url, key, f'/rest/v1/{t}?select=id&limit=1')
-        state = 'ADA' if st in (200, 206) else 'BELUM ADA'
-        if state == 'BELUM ADA':
+        c = code_of(raw)
+        if st in (200, 206):
+            state = 'ADA (anon bisa baca)'
+        elif c == 'PGRST205' or st == 404:
+            state = 'BELUM ADA'
             missing.append(t)
-        print(f'tabel {t:<24}: HTTP {st} {code_of(raw)} -> {state}'.rstrip())
+        elif st in (400, 401, 403):
+            # 42501 = permission denied (RLS/GRANT), 42703 = kolom `id` tidak ada
+            # (tabel pakai PK gabungan). Keduanya berarti objek SUDAH ada.
+            state = 'ADA (akses anon ditutup — benar)'
+        else:
+            state = f'TIDAK JELAS (HTTP {st})'
+        print(f'tabel {t:<24}: HTTP {st} {c} -> {state}'.rstrip())
 
     for fn, payload in RPCS:
         st, raw = call(url, key, f'/rest/v1/rpc/{fn}', method='POST', body=payload)
-        state = 'ADA' if st not in (404,) else 'BELUM ADA'
-        print(f'rpc   {fn:<24}: HTTP {st} {code_of(raw)} -> {state}'.rstrip())
+        c = code_of(raw)
+        if c == 'PGRST202' or st == 404:
+            state = 'BELUM ADA'
+            missing.append(fn)
+        elif st in (400, 401, 403):
+            state = 'ADA (akses anon ditutup — benar)'
+        elif st in (200, 204):
+            state = 'ADA (PERINGATAN: anon bisa memanggil!)'
+        else:
+            state = f'TIDAK JELAS (HTTP {st})'
+        print(f'rpc   {fn:<24}: HTTP {st} {c} -> {state}'.rstrip())
 
     print()
     if missing:

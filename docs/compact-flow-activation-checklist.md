@@ -29,6 +29,28 @@ jalur `savePurchaseWithClient` benar-benar dijalankan pada mock perekam, lalu
 payload INSERT diperiksa (`alokasi: null`, `masuk_gudang: false`) dan dipastikan
 tidak ada UPDATE yang menulis kolom fisik. Ditambah B4c3.
 
+## 1b. AKTIVASI SUDAH DIJALANKAN (24 Okt 2026, ~00:35 WIB)
+
+Migrasi `migrations/2026-10-24_compact_ops_flow_ACTIVATION.sql` dijalankan di
+Supabase produksi (`wuurovgjflrhczlsbixm`) lewat SQL Editor dari Chrome DAT
+(pc_browser MCP). Hasil editor: **"Success. No rows returned"**.
+
+Verifikasi sesudah aktivasi:
+
+| Cek | Hasil |
+|---|---|
+| `ops_transfers` / `ops_stock_lots` / `ops_stock_allocations` | ADA (probe REST: 401 42501 = akses anon ditutup, bukan 404) |
+| RPC `ops_transfer_apply` / `pr_return_for_revision` | ADA, EXECUTE untuk `authenticated`=1, `anon`=0 |
+| GRANT tabel | `authenticated` SELECT=1, INSERT=0 (tulis hanya via RPC); `anon` SELECT=0 |
+| Trigger | `compact_pr_guard`=1, `compact_pr_item_guard`=1, `compact_purchase_guard`=**0** (sesuai keputusan: poin 2 dilewati) |
+| RLS policy | 1 per tabel ledger |
+| Baca sebagai `authenticated` | berhasil (uji `set local role authenticated` + JWT claims admin) |
+| Uji transaksi self-cleaning (ROLLBACK) | PASS: intake gudang 3/5, replay idempoten (stok tetap 3), penarikan gudang 2 → cost proyek Rp 40.000, overdraft ditolak, direct issue sisa 2, overdistribution ditolak, penerima kosong ditolak, PR SUBMITTED terkunci |
+| Data produksi sebelum vs sesudah | IDENTIK: PR 20, pr_items 74, receivings 9, receiving_items 9, handovers 4, materials 343, projects 11, vendors 22 |
+
+Artinya ledger Serah Terima **aktif**; tombol `Serahkan` dan `Ambil dari Gudang`
+tidak lagi fail-closed untuk user yang login.
+
 ## 2. Kondisi database yang dipakai app (probe read-only, bukan tebakan)
 
 `python3 scripts/compact-flow-test/probe_ledger_readiness.py`
