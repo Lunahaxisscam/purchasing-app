@@ -22,6 +22,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import CompactRoot from '../../components/CompactRoot'
 import CreateInvoiceModal from './CreateInvoiceModal'
 import { buildSalesInvoicePdf, downloadPdf, missingPaymentFields, missingIssuerFields } from './pdf'
+// Template RESMI (hasil gabungan generator invoice): layout A4 Noir dengan
+// termin, tabel item, dan tanda tangan. Dipakai sebagai PDF utama.
+import { buildOfficialInvoicePdf, downloadBytes as downloadOfficial } from './official'
 import {
   getAccessToken,
   issueInvoice,
@@ -217,6 +220,22 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
       }
     } catch (err) {
       setActionError('Gagal membuat PDF: ' + err.message)
+    }
+  }
+
+  // PDF TEMPLATE RESMI — memakai renderer generator (kop olive, BILL TO, tabel
+  // item, termin, transfer, tanda tangan). Draf diberi watermark DRAF supaya
+  // tidak bisa dipakai sebagai tagihan sah tanpa sengaja.
+  const handleExportOfficial = async (invoice) => {
+    try {
+      setActionError('')
+      const mode = isDraftStatus(invoice.status) ? 'draft' : 'final'
+      const { bytes } = await buildOfficialInvoicePdf(invoice, { issuer, payment, mode })
+      const filename = `Invoice_${(invoice.invoice_no || 'DRAFT').replace(/\//g, '-')}_${(invoice.customer_name || 'Client').replace(/[^\w-]+/g, '_')}${mode === 'draft' ? '-DRAF' : ''}.pdf`
+      downloadOfficial(bytes, filename)
+      setNotice(`PDF template resmi ${invoice.invoice_no || 'draf'} diunduh (${mode === 'draft' ? 'DRAF — berwatermark' : 'final'}).`)
+    } catch (err) {
+      setActionError('Gagal membuat PDF template resmi: ' + err.message)
     }
   }
 
@@ -443,10 +462,20 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
                           <button
                             type="button"
                             className="si-act-btn si-act-pdf"
-                            title="Unduh PDF invoice"
-                            onClick={() => handleExportPdf(inv)}
+                            title="Unduh PDF invoice (template resmi Noir, A4)"
+                            onClick={() => handleExportOfficial(inv)}
+                            data-testid="si-pdf-official"
                           >
                             📄 PDF
+                          </button>
+                          <button
+                            type="button"
+                            className="si-act-btn"
+                            title="Unduh PDF ringkas (format lama)"
+                            onClick={() => handleExportPdf(inv)}
+                            data-testid="si-pdf-simple"
+                          >
+                            📄 Ringkas
                           </button>
 
                           {isDraft && (
