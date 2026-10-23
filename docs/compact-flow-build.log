@@ -18,7 +18,7 @@
    Collecting build traces ...
 
 Route (pages)                             Size     First Load JS
-┌ ○ /                                     28.9 kB         367 kB
+┌ ○ /                                     29.4 kB         368 kB
 ├ ● /__mobile                             2.04 kB         280 kB
 ├ ● /__smoke                              2.85 kB         279 kB
 ├   /_app                                 0 B            78.2 kB
@@ -37,10 +37,10 @@ Route (pages)                             Size     First Load JS
 ├ λ /api/schema                           0 B            78.2 kB
 ├ λ /api/seed-simulation                  0 B            78.2 kB
 └ λ /api/sync-materials                   0 B            78.2 kB
-+ First Load JS shared by all             96.4 kB
++ First Load JS shared by all             96.5 kB
   ├ chunks/framework-6f93703d1a2e914a.js  45.2 kB
   ├ chunks/main-7d6f7f9f4e69fa89.js       31.8 kB
-  ├ css/faa257241623f14a.css              18.2 kB
+  ├ css/b65eac29e9793090.css              18.3 kB
   └ other shared chunks (total)           1.24 kB
 
 ○  (Static)   prerendered as static content

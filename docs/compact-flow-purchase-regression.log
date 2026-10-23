@@ -296,15 +296,6 @@ C2. Centang beberapa barang -> dialog Proses Pembelian
   ✓ C2d petunjuk satu toko tampil
   ✓ C2e centang 2 -> (2)
   ✓ C2f dialog belum terbuka
-Warning: Received `true` for a non-boolean attribute `jsx`.
-
-If you want to write it to the DOM, pass a string instead: jsx="true" or jsx={value.toString()}.
-    at style
-    at form
-    at div
-    at PurchaseForm (file:///tmp/purchase-flow-verify/dist/modules/receivings/purchaseForm.mjs:264:22)
-    at div
-    at PurchasePage (file:///tmp/purchase-flow-verify/dist/modules/receivings/page.mjs:183:22)
   ✓ C2g dialog Proses Pembelian terbuka
   ✓ C2h judul dialog benar
   ✓ C2i 2 baris item di dialog
