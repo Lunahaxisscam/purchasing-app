@@ -392,6 +392,8 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
       const { handled } = await dispatchSave(page, {
         page, form, isEdit, editRow, editItems, prItemsList,
         nextPrNum, allMaterials, allVendors,
+        // Proyek: dipakai guard "proyek selesai tidak boleh dibuatkan PR".
+        allProjects,
         // Estimator PR (t_ac0b39c0): save butuh data acuan utk validasi
         // kelayakan vendor & harga nonnegatif — resolver SAMA dgn form.
         allPrItems, allReceivingItems, allReceivings,

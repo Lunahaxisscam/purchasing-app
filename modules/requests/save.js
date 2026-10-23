@@ -43,6 +43,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { isVendorEligible } from './estimator'
 import { composeNotesWithMarkers } from './leanRequest'
 import { verifyRequestEditable } from './workflow'
+import { normalizeStatus } from '../../lib/constants'
 
 // Harga valid utk simpan: nonnegative, finite. Tanda minus/parenthesis
 // ditolak EKSPLISIT ('-5' tidak boleh diam-diam jadi 5). Hasil null =
@@ -63,7 +64,26 @@ function validatedQty(q) {
 }
 
 export async function save(ctx) {
-  const { form, isEdit, editRow, editItems, prItemsList, nextPrNum, allMaterials, allVendors, say, close, refresh, setSaving } = ctx
+  const { form, isEdit, editRow, editItems, prItemsList, nextPrNum, allMaterials, allVendors, allProjects, say, close, refresh, setSaving } = ctx
+
+  // ============================================================
+  // GUARD PROYEK SELESAI (arahan DAT 24 Okt 2026)
+  // ============================================================
+  // PR TIDAK boleh dibuat untuk proyek berstatus DONE: pekerjaan sudah
+  // ditutup, jadi belanja baru tidak punya proyek aktif untuk dibebani dan
+  // akan mengotori laporan cost proyek selesai. Dicek di SERVICE BOUNDARY
+  // (bukan hanya dropdown form) supaya payload langsung / form basi pun
+  // ditolak. Edit PR lama yang proyeknya sudah DONE tetap diizinkan supaya
+  // dokumen lama tidak terkunci tanpa jalan keluar — yang dilarang adalah
+  // MEMBUAT PR baru.
+  if (!isEdit && form?.project_id && Array.isArray(allProjects) && allProjects.length) {
+    const proj = allProjects.find(p => String(p.id) === String(form.project_id))
+    if (proj && normalizeStatus(proj.status) === 'DONE') {
+      setSaving(false)
+      say(`Proyek "${proj.name}" sudah selesai (DONE) — PR baru tidak bisa dibuat untuk proyek selesai. Pilih proyek yang masih berjalan.`)
+      return
+    }
+  }
 
   let latestNotes = editRow?.notes
   if (isEdit) {

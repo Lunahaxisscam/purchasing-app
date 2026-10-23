@@ -50,7 +50,7 @@
 //   BELUM tersimpan (lihat docs/pr-estimasi-policy.md).
 // ============================================================
 import React from 'react'
-import { rupiah } from '../../lib/constants'
+import { rupiah, normalizeStatus } from '../../lib/constants'
 
 // Sumber harga item PR utk form: estimasi harga yang DIKETIK USER = sumber
 // "Manual"; yang terisi otomatis memakai sumber acuan dari resolver
@@ -274,9 +274,15 @@ export function formBody(ctx) {
             required
           >
             <option value="">-- Pilih Project --</option>
-            {allProjects.map(p => (
+            {/* Proyek DONE tidak boleh dipilih untuk PR baru (arahan DAT
+                24 Okt): PR untuk proyek selesai hanya menambah pekerjaan
+                palsu & biaya tak bisa dipertanggungjawabkan. Proyek yang
+                SEDANG dipakai baris edit tetap ditampilkan (supaya edit PR
+                lama tidak buntu) dengan penanda "(selesai)". */}
+            {allProjects.filter(p => normalizeStatus(p.status) !== 'DONE' || p.id === form.project_id).map(p => (
               <option key={p.id} value={p.id}>
                 {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                {normalizeStatus(p.status) === 'DONE' ? ' (selesai)' : ''}
               </option>
             ))}
           </select>
