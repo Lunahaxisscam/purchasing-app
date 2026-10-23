@@ -911,7 +911,12 @@ export default function App() {
           role === 'admin' ? (
             <SalesInvoiceModule
               projects={rows.projects || []}
-              allProjects={allProjects || []}
+              // BUG LAMA (ditemukan 24 Okt): di sini dulu memakai `allProjects`
+              // yang TIDAK PERNAH didefinisikan di pages/index.js — ReferenceError
+              // hanya terpicu untuk role admin saat membuka modul ini, sehingga
+              // halaman jatuh ke "Application error: a client-side exception".
+              // Sumber proyek di halaman ini selalu `rows.projects`.
+              allProjects={rows.projects || []}
               say={setNotice}
             />
           ) : (
