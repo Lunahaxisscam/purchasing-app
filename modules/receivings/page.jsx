@@ -406,19 +406,17 @@ export default function PurchasePage({ rows, refresh, say }) {
                       <span>Pilih</span>
                     </label>
                   </th>
-                  <th style={{ width: '104px' }}>Nomor PR</th>
-                  <th>Project</th>
+                  <th>PR / Proyek</th>
                   <th>Barang / Spesifikasi</th>
-                  <th>Jumlah PR</th>
-                  <th>Dibeli / Sisa</th>
-                  <th style={{ textAlign: 'right' }}>Est. Harga Satuan</th>
-                  <th>Harga Beli</th>
-                  <th>Aksi</th>
+                  <th style={{ width: '104px' }}>Jumlah</th>
+                  <th style={{ width: '132px', textAlign: 'right' }}>Harga</th>
+                  <th style={{ width: '104px' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {readyRows.length ? readyRows.map(r => {
                   const on = selected.has(r.prItemId)
+                  const hargaBeli = actualPriceFor(r.prItemId)
                   return (
                     <tr key={r.prItemId} className={on ? 'purchase-row-on' : undefined} data-testid={`ready-row-${r.prItemId}`}>
                       <td className="purchase-select-col">
@@ -430,25 +428,35 @@ export default function PurchasePage({ rows, refresh, say }) {
                           aria-label={`Pilih ${r.itemName}`}
                         />
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <span className="purchase-pr-number">{r.prNumber || '—'}</span>
+                      {/* PR + Proyek satu sel (pola sama dengan modul PR): nomor di
+                          atas, proyek kecil di bawah. Dulu dua kolom terpisah —
+                          nomor PR panjang meluber dan menimpa nama proyek. */}
+                      <td className="purchase-cell-wrap">
+                        <b className="purchase-pr-number">{r.prNumber || '—'}</b>
+                        <small className="compact-flow-sub">{r.projectName}</small>
                       </td>
                       <td className="purchase-cell-wrap">
-                        {r.projectName}
+                        <b>{r.itemName}</b>
+                        <small className="compact-flow-sub">{r.kode || ''}</small>
                       </td>
-                      <td className="purchase-cell-wrap"><b>{r.itemName}</b><small className="compact-flow-sub">{r.kode || ''}</small></td>
-                      <td>{r.qtyPr} {r.unit}</td>
-                      <td><span>Dibeli {r.qtyBought} {r.unit}</span><strong className="compact-flow-remaining">Sisa {r.qtySisa} {r.unit}</strong></td>
+                      {/* Jumlah + realisasi satu kolom: "Dibeli/Sisa" hanya muncul
+                          bila memang sudah ada pembelian (tidak mengulang 0). */}
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {r.qtyPr} {r.unit}
+                        {r.qtyBought > 0 && (
+                          <small className="compact-flow-sub">Dibeli {r.qtyBought} · Sisa {r.qtySisa} {r.unit}</small>
+                        )}
+                      </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {r.estimasi !== null ? rupiah(r.estimasi) : <span className="purchase-muted">—</span>}
+                        {hargaBeli !== '—' && <small className="compact-flow-sub">Beli: {hargaBeli}</small>}
                       </td>
-                      <td>{actualPriceFor(r.prItemId)}</td>
                       <td><div className="compact-flow-actions"><button onClick={()=>setFormRows({rows:[r],vendorId:r.vendorId||'',vendorName:r.vendorName||''})}>{r.qtyBought>0?'Beli Sisa':'Beli'}</button><details><summary>Detail</summary><ReturnRequest pr={requests.find(p=>p.id===r.prId)} refresh={refresh} say={say}/><small>Rencana toko: {r.vendorName||'Belum ditentukan'}. Harga beli aktual dan riwayat per nota ada di Riwayat Pembelian.</small></details></div></td>
                     </tr>
                   )
                 }) : (
                   <tr>
-                    <td colSpan={9} className="empty">
+                    <td colSpan={6} className="empty">
                       Tidak ada sisa kebutuhan. Barang muncul setelah PR di-submit.
                     </td>
                   </tr>
