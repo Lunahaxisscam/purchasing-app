@@ -48,13 +48,6 @@ export default function UpahKasbonPage() {
 
   return (
     <div className="upah-kasbon-wrap">
-      <div className="upah-kasbon-note">
-        <b>Upah &amp; Kasbon</b> — modul input upah borongan, kasbon, dan
-        totalan/slip tukang. Data tersimpan di <b>Supabase</b> (database
-        master, admin-only) dan otomatis tersimpan saat kamu mengubah apa pun.
-        Jika banner di dalam modul menunjukkan <i>baca-saja</i>, koneksi
-        database bermasalah — muat ulang halaman.
-      </div>
       <iframe
         src={PROTO_URL}
         title="Modul Upah & Kasbon"

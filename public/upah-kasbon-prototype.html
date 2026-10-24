@@ -95,23 +95,7 @@
 </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <div class="logo">n. IR</div>
-    <div>
-      <h1>Modul Upah &amp; Kasbon Tukang</h1>
-      <div class="sub">Modul terpisah v8 — potongan kasbon per-entri terkontrol; proyek & kasbon yang sudah ditotal tidak bisa masuk totalan lagi · prototipe sebelum digabung ke Purchasing App · data tersimpan lokal di browser ini</div>
-    </div>
-  </div>
-  <div class="hbtns">
-    <button class="ghost" id="btnDemo">Isi Data Contoh (Asep + Pujon)</button>
-    <button class="ghost" id="btnExportJson">Ekspor JSON</button>
-    <button class="ghost" id="btnImportJson">Impor JSON</button>
-    <input type="file" id="fileImport" accept=".json" style="display:none">
-    <button class="ghost" id="btnExportCsv">Ekspor CSV (tukang aktif)</button>
-    <button class="ghost" id="btnReset">Reset</button>
-  </div>
-</header>
+
 
 <main id="app">
   <div class="tukangbar">
@@ -272,8 +256,6 @@
       <div id="slip"></div>
     </div>
   </section>
-
-  <p class="note" style="margin-top:14px">Modul terpisah v8 — perhitungan diuji terhadap data asli kedua file: Asep (Proyek Josh-Mabes Rp9.230.000 ✓) dan Pujon (524 baris rincian, 54 proyek, 92 kasbon). Angka di modul dihitung live dari rincian; angka Dashboard pada file Excel bisa berbeda karena nilai cache lama di file tsb. Saat digabung ke Purchasing App nanti, tampilan &amp; hitungan tidak berubah; hanya penyimpanan lokal ini yang diganti Supabase.</p>
 </main>
 
 <div id="printRoot" style="display:none"></div>
@@ -1142,29 +1124,29 @@ function buildDatasetPujon(){
   d.idCounter = 1000
   return d
 }
-document.getElementById('btnDemo').addEventListener('click', () => {
+document.getElementById('btnDemo')?.addEventListener('click', () => {
   if(state.tukangs.some(t => t.projects.length || t.kasbon.length) && !confirm('Isi data contoh akan MENGGANTI semua data sekarang dengan data asli Asep + Pujon. Lanjut?')) return
   state = { version: 2, activeKey: 'pujon', tukangs: [buildDatasetAsep(), buildDatasetPujon()] }
   detailProjectId = null; kasbonPickTouched = false; slipTotalanId = null; editUpahId = null; editKasbonId = null
   render()
   notice('Data contoh dimuat: 2 tukang. Aktif: Pak Pujon (54 proyek, 524 rincian, 92 kasbon — total hak dihitung live Rp407.535.500). Ganti tukang lewat pemilih di atas untuk melihat data Asep.')
 })
-document.getElementById('btnReset').addEventListener('click', () => {
+document.getElementById('btnReset')?.addEventListener('click', () => {
   if(!confirm('Reset akan MENGHAPUS semua data modul (semua tukang) di browser ini. Lanjut?')) return
   state = blankState(); detailProjectId = null; kasbonPickTouched = false; editUpahId = editKasbonId = slipTotalanId = null; resetFormUpah(); resetFormKasbon(); render(); notice('Data direset.')
 })
-document.getElementById('btnExportJson').addEventListener('click', () => {
+document.getElementById('btnExportJson')?.addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'upah-kasbon-semua-tukang.json'; a.click(); URL.revokeObjectURL(a.href)
 })
-document.getElementById('btnImportJson').addEventListener('click', () => document.getElementById('fileImport').click())
+document.getElementById('btnImportJson')?.addEventListener('click', () => document.getElementById('fileImport').click())
 document.getElementById('fileImport').addEventListener('change', e => {
   const f = e.target.files[0]; if(!f) return
   const rd = new FileReader()
   rd.onload = () => { try{ const s = JSON.parse(rd.result); if(!Array.isArray(s.tukangs)) throw new Error('format v2 tidak dikenal'); state = Object.assign(blankState(), s); if(!state.tukangs.some(t => t.key === state.activeKey)) state.activeKey = state.tukangs[0].key; detailProjectId = null; kasbonPickTouched = false; render(); notice('Impor berhasil: ' + state.tukangs.length + ' tukang.') }catch(err){ notice('Gagal impor: ' + err.message, true) } }
   rd.readAsText(f); e.target.value = ''
 })
-document.getElementById('btnExportCsv').addEventListener('click', () => {
+document.getElementById('btnExportCsv')?.addEventListener('click', () => {
   const d = D()
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'
   let csv = 'Tukang;' + q(d.name) + '\n\nRINCIAN UPAH\nProyek;Pekerjaan;Ukuran;Satuan;Harga Satuan;Upah Rincian;Catatan\n'
