@@ -7,6 +7,9 @@ import Finance from '../components/Finance'
 import Planning from '../components/Planning'
 import ProjectFinance from '../components/ProjectFinance'
 import TukangUpah from '../components/TukangUpah'
+// t_upah_kasbon (24 Okt 2026): modul INPUT upah/kasbon/totalan — pelengkap
+// TukangUpah yang read-only. Tahap 1 = prototipe DAT via iframe.
+import UpahKasbonPage from '../modules/upah-kasbon/view'
 import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
@@ -837,7 +840,7 @@ export default function App() {
               Resolusi konflik port Marketing (7ce9414): daftar HEAD dipertahankan
               UTUH (termasuk 'rap' yang ditambahkan integrasi S3) dan 'marketing'
               ditambahkan — jangan sampai port modul baru menghapus rute lain. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'rap_compare', 'crm', 'labor_stock', 'marketing', 'settings'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'rap_compare', 'crm', 'labor_stock', 'marketing', 'settings', 'upah_kasbon'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -894,6 +897,15 @@ export default function App() {
         ) : page === 'tukang_upah' ? (
           role === 'admin' ? (
             <TukangUpah />
+          ) : (
+            <div className="panel empty">Halaman ini khusus administrator.</div>
+          )
+        ) : page === 'upah_kasbon' ? (
+          // t_upah_kasbon — modul INPUT upah/kasbon/totalan tukang.
+          // Guard RENDER di sini (bukan hanya menu): non-admin yang memaksa
+          // page='upah_kasbon' tetap dapat panel "khusus administrator".
+          role === 'admin' ? (
+            <UpahKasbonPage />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )

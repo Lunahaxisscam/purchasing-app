@@ -162,6 +162,29 @@ export const modules = [
     files: ['components/TukangUpah.js']
   },
   {
+    // t_upah_kasbon (arahan DAT 24 Okt 2026): modul INPUT upah borongan,
+    // kasbon, dan totalan/slip tukang — pelengkap modul `tukang_upah` yang
+    // read-only (hasil sync Google Sheets). Sengaja id TERPISAH supaya
+    // modul sync lama tetap utuh sampai keputusan sumber data diambil
+    // (SPEC.md risiko #1: tabel tukang_* masih ditimpa sync).
+    // Tahap 1: prototipe DAT dijalankan apa adanya lewat iframe
+    // (/public/upah-kasbon-prototype.html) agar logika teruji 41/41 tidak
+    // berubah. Tahap 2: port React memakai logic.js yang sudah ada.
+    id: 'upah_kasbon',
+    label: 'Upah & Kasbon',
+    adminOnly: true,
+    source: 'core',
+    files: [
+      'modules/upah-kasbon/view.jsx',
+      'modules/upah-kasbon/logic.js',
+      'modules/upah-kasbon/store.js',
+      'modules/upah-kasbon/upah-kasbon.css',
+      'modules/upah-kasbon/README.md',
+      'modules/upah-kasbon/SPEC.md',
+      'public/upah-kasbon-prototype.html'
+    ]
+  },
+  {
     // RAB & BOQ (t_18564dce) — port modul DAT perhitungan-rab-otomatis-2.html.
     // Halaman source:'core' (dirender pages/index.js, BUKAN tabel ModuleView)
     // karena UI-nya kalkulator full-page, bukan tabel CRUD. Admin-only:

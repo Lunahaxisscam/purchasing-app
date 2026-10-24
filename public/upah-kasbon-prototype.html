@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modul Upah &amp; Kasbon — Noir Living</title>
+<style>
+  :root{
+    --olive:#6B7A45; --olive-dark:#57653a; --olive-50:#eef0e6; --olive-200:#d5dbc2;
+    --ink:#23281e; --muted:#6d7263; --line:#dde0d2; --bg:#f6f7f2; --card:#ffffff;
+    --danger:#a02c2c; --danger-bg:#fdeeee; --warn:#96660a; --warn-bg:#fdf3d7;
+    --ok:#2e6b34; --ok-bg:#e7f4e8; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:var(--olive);color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+  header .brand{display:flex;align-items:center;gap:12px}
+  header .logo{background:#fff;color:var(--olive-dark);font-weight:800;border-radius:8px;padding:6px 9px;letter-spacing:.5px}
+  header h1{font-size:17px;margin:0;font-weight:700}
+  header .sub{font-size:12px;opacity:.85}
+  .hbtns{display:flex;gap:6px;flex-wrap:wrap}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:7px 12px}
+  button:hover{border-color:var(--olive)}
+  button.primary{background:var(--olive);border-color:var(--olive);color:#fff;font-weight:600}
+  button.primary:hover{background:var(--olive-dark)}
+  button.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
+  button.small{padding:4px 9px;font-size:12.5px;border-radius:7px}
+  button.danger{color:var(--danger)}
+  main{max-width:1180px;margin:0 auto;padding:16px 16px 60px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .card .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .card .val{font-size:21px;font-weight:800;margin-top:4px}
+  .card.blue{border-top:4px solid #3b6ea5}.card.red{border-top:4px solid #b04a4a}
+  .card.green{border-top:4px solid #4a8a54}.card.amber{border-top:4px solid #c99a2e}
+  .note{font-size:12.5px;color:var(--muted)}
+  .tukangbar{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+  .tukangbar b{color:var(--olive-dark)}
+  .tukangbar select,.tukangbar input{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .tukangbar .sep{border-left:1px solid var(--line);padding-left:18px}
+  nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 0}
+  nav.tabs button{border-radius:10px 10px 0 0;border-bottom:none;padding:9px 16px;background:var(--olive-50);font-weight:600;color:var(--olive-dark)}
+  nav.tabs button.active{background:var(--card);color:var(--ink);box-shadow:0 -1px 0 var(--line) inset}
+  section.panel{background:var(--card);border:1px solid var(--line);border-radius:0 var(--radius) var(--radius) var(--radius);padding:18px}
+  section.panel h2{margin:0 0 4px;font-size:16px}
+  form.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 14px;margin:14px 0;padding:14px;background:var(--olive-50);border-radius:var(--radius)}
+  form.grid .wide{grid-column:span 2}
+  label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:#444a3a}
+  label.f input,label.f select,label.f textarea{font:inherit;font-weight:400;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  label.f input:focus,label.f select:focus{outline:2px solid var(--olive-200);border-color:var(--olive)}
+  .formbtns{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th{background:var(--olive);color:#fff;text-align:left;padding:8px 10px;font-size:12.5px}
+  td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.subtotal td{background:var(--olive-50);font-weight:700}
+  tr.grand td{background:#e6ead6;font-weight:800}
+  tr.clickable{cursor:pointer}
+  tr.clickable:hover td{background:#f4f6ee}
+  .badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}
+  .badge.lunas{background:var(--ok-bg);color:var(--ok)}
+  .badge.cek{background:var(--warn-bg);color:var(--warn)}
+  .badge.dup{background:var(--danger-bg);color:var(--danger)}
+  .badge.grey{background:var(--olive-50);color:var(--olive-dark)}
+  .empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius);margin-top:12px}
+  .preview{background:#fff;border:1px solid var(--olive-200);border-radius:var(--radius);padding:12px 14px;margin-top:4px}
+  .preview table{margin:0}.preview td{border-bottom:1px dashed var(--line)}
+  .checks{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .checks label{display:flex;gap:8px;align-items:center;font-weight:400;font-size:13.5px}
+  .checks .amt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+  #notice{display:none;margin:12px 0 0;padding:10px 14px;border-radius:10px;background:var(--ok-bg);color:var(--ok);font-weight:600}
+  #notice.err{background:var(--danger-bg);color:var(--danger)}
+  .detailbox{border:1px solid var(--olive-200);border-radius:var(--radius);padding:16px;margin-top:14px;background:#fbfcf8}
+  .rincian-layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;align-items:start}
+  .rincian-side{position:sticky;top:12px;margin-top:14px}
+  @media(max-width:920px){.rincian-layout{grid-template-columns:1fr}.rincian-side{position:static}}
+  .detailstats{display:flex;gap:10px 26px;flex-wrap:wrap;margin:8px 0}
+  .detailstats .ds .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .detailstats .ds .val{font-size:17px;font-weight:800}
+  .slipwrap{margin-top:18px}
+  #slip{border:2px solid #333;padding:26px 30px;background:#fff;max-width:720px;margin:0 auto}
+  #slip h3{text-align:center;margin:0 0 2px;letter-spacing:.6px}
+  #slip .co{text-align:center;color:#555;font-size:12.5px;margin-bottom:16px}
+  #slip table td{border-bottom:1px solid #ddd}
+  #slip .sign{display:flex;justify-content:space-between;margin-top:44px;text-align:center}
+  #slip .sign div{width:200px}
+  #slip .sign .nm{margin-top:64px;border-top:1px solid #333;padding-top:4px}
+  .rowflex{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  @media (max-width:640px){ form.grid .wide{grid-column:span 1} .card .val{font-size:18px} section.panel{padding:12px} }
+  @media print{
+    body>*{display:none !important}
+    body>#printRoot{display:block !important}
+    #printRoot{padding:10px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">n. IR</div>
+    <div>
+      <h1>Modul Upah &amp; Kasbon Tukang</h1>
+      <div class="sub">Modul terpisah v8 — potongan kasbon per-entri terkontrol; proyek & kasbon yang sudah ditotal tidak bisa masuk totalan lagi · prototipe sebelum digabung ke Purchasing App · data tersimpan lokal di browser ini</div>
+    </div>
+  </div>
+  <div class="hbtns">
+    <button class="ghost" id="btnDemo">Isi Data Contoh (Asep + Pujon)</button>
+    <button class="ghost" id="btnExportJson">Ekspor JSON</button>
+    <button class="ghost" id="btnImportJson">Impor JSON</button>
+    <input type="file" id="fileImport" accept=".json" style="display:none">
+    <button class="ghost" id="btnExportCsv">Ekspor CSV (tukang aktif)</button>
+    <button class="ghost" id="btnReset">Reset</button>
+  </div>
+</header>
+
+<main id="app">
+  <div class="tukangbar">
+    <span>Tukang aktif:
+      <select id="tukangSwitch" style="font-weight:700;min-width:170px"></select>
+    </span>
+    <span class="sep">
+      <input id="newTukangName" placeholder="Nama tukang baru" style="width:150px">
+      <button class="small primary" id="btnAddTukang">+ Tambah Tukang</button>
+      <button class="small danger" id="btnDelTukang">Hapus Tukang</button>
+    </span>
+  </div>
+
+  <div id="notice"></div>
+
+  <div class="cards">
+    <div class="card blue"><div class="lbl">Total Hak Upah — <span class="tkName">Tukang</span></div><div class="val" id="cardHak">Rp0</div><div class="note" id="cardHakSub"></div></div>
+    <div class="card red"><div class="lbl">Total Kasbon Diambil</div><div class="val" id="cardKasbon">Rp0</div><div class="note" id="cardKasbonSub"></div></div>
+    <div class="card green"><div class="lbl">Total Pelunasan Dibayar</div><div class="val" id="cardLunas">Rp0</div></div>
+    <div class="card amber"><div class="lbl">Sisa Saldo Berjalan</div><div class="val" id="cardSisa">Rp0</div></div>
+    <div class="card" style="background:#f4f7ec;border-color:var(--olive-200)"><div class="lbl">Sisa Hak Periode Berjalan — Belum Diarsipkan</div><div class="val" id="cardPeriode">Rp0</div><div class="note" id="cardPeriodeSub"></div></div>
+  </div>
+  <div class="note" style="margin:-4px 0 14px">Kartu terakhir dihitung dari periode terbuka saja: <b>total proyek yang masih aktif di List Proyek</b> (belum masuk arsip) <b>dikurangi kasbon yang belum terpotong</b>. Proyek arsip &amp; kasbon yang sudah terpotong = periode yang sudah ditutup, tidak ikut dihitung di kartu itu.</div>
+
+  <nav class="tabs">
+    <button data-tab="proyek" class="active">List Proyek</button>
+    <button data-tab="upah">Rincian Upah</button>
+    <button data-tab="kasbon">Kasbon</button>
+    <button data-tab="totalan">Totalan &amp; Slip</button>
+  </nav>
+
+  <!-- ============ TAB LIST PROYEK (MODUL 1) ============ -->
+  <section class="panel" id="tab-proyek">
+    <h2>List Proyek — <span class="tkName">Tukang</span></h2>
+    <div class="note">Modul List Proyek (terpisah dari Modul Rincian Upah). Klik baris proyek (atau tombol <b>Rincian</b>) untuk <b>pindah ke tab Rincian Upah</b> — di sana tabel rincian upah proyek itu tampil <b>menyamping</b>: data rincian di kiri, form tambah/edit di kanan. Proyek yang sudah <b>ditotal dan lunas</b> otomatis pindah ke bagian <b>Arsip</b> dan tidak muncul lagi di pilihan totalan periode berikutnya.</div>
+    <form class="grid" id="formProyek">
+      <label class="f wide">Nama Proyek
+        <input id="pName" required placeholder="cth: Project Intercon">
+      </label>
+      <label class="f">Status Proyek
+        <select id="pStatus"><option>On Going</option><option>Selesai</option></select>
+      </label>
+      <div class="formbtns"><button type="submit" class="primary">+ Tambah Proyek</button></div>
+    </form>
+    <div id="proyekTableWrap"></div>
+  </section>
+
+  <!-- ============ TAB RINCIAN UPAH (MODUL 2, terpisah) ============ -->
+  <section class="panel" id="tab-upah" style="display:none">
+    <h2>Rincian Upah — <span class="tkName">Tukang</span></h2>
+    <div class="note">Modul Rincian Upah (terpisah dari Modul List Proyek). Menampilkan rincian upah proyek yang dipilih dari List Proyek, dengan tampilan <b>menyamping</b>: tabel data rincian di kiri, form tambah/edit di kolom kanan.</div>
+    <div id="rincianEmpty" class="empty">Rincian Upah masih kosong — belum ada proyek yang dipilih. Klik proyek di List Proyek untuk membuka rinciannya di sini.<br><br><button class="small primary" id="btnGoList">Ke List Proyek</button></div>
+    <div id="rincianLayout" class="rincian-layout" style="display:none">
+      <div class="rincian-main"><div id="proyekDetailWrap"></div></div>
+      <div class="rincian-side detailbox" id="rincianFormWrap">
+        <h2 style="margin-top:0">Tambah / Edit Rincian</h2>
+        <div class="note">Untuk proyek: <b id="uProjectLabel">—</b> (proyek yang sedang dibuka). Upah Rincian terisi otomatis dari Ukuran × Harga Satuan, tapi <b>boleh diubah manual</b> — nilai final itulah yang dihitung. Semua nominal rupiah penuh.</div>
+        <form class="grid" id="formUpah">
+      <label class="f wide">Pekerjaan
+        <input id="uPekerjaan" required placeholder="cth: Wardrobe, Instalasi LED + saklar">
+      </label>
+      <label class="f">Ukuran
+        <input id="uUkuran" inputmode="decimal" placeholder="cth: 3,2">
+      </label>
+      <label class="f">Satuan Ukuran
+        <select id="uSatuan">
+          <option value="">—</option><option>m</option><option>m²</option><option>unit</option><option>ls</option><option>titik</option><option>set</option>
+        </select>
+      </label>
+      <label class="f">Harga Satuan (Rp)
+        <input id="uHarga" inputmode="numeric" placeholder="450.000">
+      </label>
+      <label class="f">Upah Rincian (Rp)
+        <input id="uRincian" inputmode="numeric" required placeholder="otomatis, bisa diubah">
+      </label>
+      <label class="f wide">Catatan
+        <input id="uCatatan" placeholder="opsional">
+      </label>
+      <div class="formbtns">
+        <button type="submit" class="primary" id="uSubmit">+ Tambah Baris</button>
+        <button type="button" id="uCancel" style="display:none">Batal Edit</button>
+      </div>
+    </form>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============ TAB KASBON ============ -->
+  <section class="panel" id="tab-kasbon" style="display:none">
+    <h2>Kasbon &amp; Pelunasan Lama — <span class="tkName">Tukang</span></h2>
+    <div class="note">Kasbon terpotong hanya bila <b>dicentang di form Totalan</b> — kolom <b>Status Potongan</b> menunjukkan setiap kasbon sudah dibayarkan lewat totalan nomor berapa (atau masih belum terpotong). Baris berjenis <b>Pelunasan</b> hanya riwayat lama, tidak dihitung sebagai kasbon.</div>
+    <form class="grid" id="formKasbon">
+      <label class="f">Tanggal
+        <input type="date" id="kTanggal" required>
+      </label>
+      <label class="f">Jenis
+        <select id="kJenis"><option>Kasbon</option><option>Pelunasan</option></select>
+      </label>
+      <label class="f wide">Deskripsi
+        <input id="kDeskripsi" placeholder="cth: kasbon mingguan">
+      </label>
+      <label class="f">Metode
+        <select id="kMetode"><option value="">—</option><option>Tunai</option><option>Transfer</option><option>Lainnya</option></select>
+      </label>
+      <label class="f">Nominal (Rp)
+        <input id="kNominal" inputmode="numeric" required placeholder="500.000">
+      </label>
+      <label class="f wide">Bukti (link / keterangan)
+        <input id="kBukti" placeholder="opsional — link foto / no. referensi transfer">
+      </label>
+      <div class="formbtns">
+        <button type="submit" class="primary" id="kSubmit">+ Tambah Kasbon</button>
+        <button type="button" id="kCancel" style="display:none">Batal Edit</button>
+      </div>
+    </form>
+    <div id="kasbonTableWrap"></div>
+    <h2 style="margin-top:22px">Rekap Kasbon Bulanan</h2>
+    <div id="rekapKasbonWrap"></div>
+  </section>
+
+  <!-- ============ TAB TOTALAN ============ -->
+  <section class="panel" id="tab-totalan" style="display:none">
+    <h2>Buat Totalan (Slip Pembayaran) — <span class="tkName">Tukang</span></h2>
+    
+    <form class="grid" id="formTotalan">
+      <label class="f">No. Totalan
+        <input id="tNo" required>
+      </label>
+      <label class="f">Tanggal Totalan
+        <input type="date" id="tTanggal" required>
+      </label>
+      <label class="f">Pembayaran Aktual (Rp)
+        <input id="tBayar" inputmode="numeric" placeholder="yang benar-benar dibayar">
+      </label>
+      <label class="f wide">Proyek yang Ikut Totalan
+        <div class="checks" id="tProjects"></div>
+      </label>
+      <label class="f wide">Kasbon yang Dipotong di Totalan Ini
+        <div class="checks" id="tKasbon"></div>
+      </label>
+      <div class="preview" style="grid-column:1/-1">
+        <b>Pratinjau hitungan:</b>
+        <table>
+          <tr><td>Total Upah proyek terpilih</td><td class="num" id="pvUpah">Rp0</td></tr>
+          <tr><td>Kasbon Dipotong (sesuai kasbon yang dicentang di atas)</td><td class="num" id="pvKasbon">Rp0</td></tr>
+          <tr><td>Hak Bersih</td><td class="num" id="pvBersih">Rp0</td></tr>
+          <tr><td>Saldo Akhir (setelah pembayaran aktual)</td><td class="num" id="pvSaldo">Rp0</td></tr>
+        </table>
+      </div>
+      <div class="formbtns">
+        <button type="submit" class="primary">Simpan Totalan</button>
+      </div>
+    </form>
+    <div id="totalanTableWrap"></div>
+    <div class="slipwrap" id="slipWrap" style="display:none">
+      <div class="rowflex"><h2>Slip Pembayaran</h2><button id="btnPrintSlip" class="primary">🖨 Cetak Slip</button></div>
+      <div id="slip"></div>
+    </div>
+  </section>
+
+  <p class="note" style="margin-top:14px">Modul terpisah v8 — perhitungan diuji terhadap data asli kedua file: Asep (Proyek Josh-Mabes Rp9.230.000 ✓) dan Pujon (524 baris rincian, 54 proyek, 92 kasbon). Angka di modul dihitung live dari rincian; angka Dashboard pada file Excel bisa berbeda karena nilai cache lama di file tsb. Saat digabung ke Purchasing App nanti, tampilan &amp; hitungan tidak berubah; hanya penyimpanan lokal ini yang diganti Supabase.</p>
+</main>
+
+<div id="printRoot" style="display:none"></div>
+
+<script>
+'use strict'
+/* ===== Salinan logic.js (modules/upah-kasbon/logic.js) — JAGA TETAP SAMA ===== */
+// ============================================================
+// modules/upah-kasbon/logic.js — PERHITUNGAN MURNI UPAH & KASBON
+// ============================================================
+// Port dari rumus `*_Simple_Upah_Kasbon.xlsx` (lihat SPEC.md di root paket).
+// File ini SENGAJA tanpa import (tanpa React/DB/jaringan) — pola yang sama
+// dengan lib/laborSource.js di purchasing app — supaya:
+//   1. bisa diuji langsung di Node tanpa UI,
+//   2. TIDAK berubah saat modul digabung ke purchasing app;
+//      yang diganti saat integrasi hanya store.js (lokal -> Supabase).
+//
+// Semua nominal dalam RUPIAH PENUH. (File Excel menyimpan dalam ribuan
+// dengan format sel #,##0"000" — jangan tiru itu di data modul.)
+//
+// Dua penyimpangan sadar dari rumus Excel (didokumentasikan, bukan diam-diam):
+//   A. Total kasbon dashboard & rekap hanya menghitung Jenis = 'Kasbon'.
+//      Rumus Excel menjumlah SEMUA baris Total Kasbon tanpa filter jenis,
+//      padahal sheet yang sama menyimpan baris 'Pelunasan' lama sebagai
+//      riwayat — menjumlahkannya akan menghitung pelunasan dua kali.
+//   B. Urutan potongan kasbon antar-totalan mengikuti urutan kronologis
+//      (tanggal, lalu urutan input). Rumus Excel memakai tanggal "<"
+//      secara ketat, jadi dua totalan di tanggal yang sama bisa memotong
+//      kasbon yang sama dua kali. Di sini totalan kedua di hari yang sama
+//      melanjutkan potongan totalan pertama.
+// ============================================================
+
+/** Angka aman: null/''/teks acak -> 0. */
+function toNum(v) {
+  if (v === null || v === undefined || v === '') return 0
+  const n = typeof v === 'number' ? v : Number(String(v).replace(/[^\d.-]/g, ''))
+  return isFinite(n) ? n : 0
+}
+
+/** Usulan Upah Rincian = Ukuran x Harga Satuan (dibulatkan ke rupiah penuh).
+ *  HANYA usulan: nilai final di form boleh diubah manual — di data asli
+ *  memang ada baris yang tidak sama dengan hasil kali ini. */
+function saranUpahRincian(ukuran, hargaSatuan) {
+  return Math.round(toNum(ukuran) * toNum(hargaSatuan))
+}
+
+/** Total satu proyek.
+ *  Aturan file: bila subtotal manual (override) terisi -> pakai override;
+ *  bila kosong -> jumlahkan Upah Rincian proyek tsb. */
+function totalUpahProyek(items, projectId, override) {
+  if (override !== null && override !== undefined && override !== '') {
+    return toNum(override)
+  }
+  return (items || [])
+    .filter((it) => it.projectId === projectId)
+    .reduce((s, it) => s + toNum(it.upahRincian), 0)
+}
+
+/** Ringkasan per proyek: [{ projectId, jumlahItem, sumRincian, override, total }] */
+function ringkasanProyek(projects, items, overrides) {
+  const ov = overrides || {}
+  return (projects || []).map((p) => {
+    const rows = (items || []).filter((it) => it.projectId === p.id)
+    const sumRincian = rows.reduce((s, it) => s + toNum(it.upahRincian), 0)
+    const hasOverride = ov[p.id] !== null && ov[p.id] !== undefined && ov[p.id] !== ''
+    return {
+      projectId: p.id,
+      jumlahItem: rows.length,
+      sumRincian,
+      override: hasOverride ? toNum(ov[p.id]) : null,
+      total: hasOverride ? toNum(ov[p.id]) : sumRincian
+    }
+  })
+}
+
+/** Total kasbon (Jenis = 'Kasbon') dengan tanggal <= tanggalBatas (inklusif).
+ *  tanggalBatas kosong -> semua kasbon. Tanggal format 'YYYY-MM-DD'. */
+function totalKasbonSampai(kasbon, tanggalBatas) {
+  return (kasbon || [])
+    .filter((k) => String(k.jenis || 'Kasbon') === 'Kasbon')
+    .filter((k) => !tanggalBatas || !k.tanggal || k.tanggal <= tanggalBatas)
+    .reduce((s, k) => s + toNum(k.nominal), 0)
+}
+
+/** Urutan kronologis totalan: tanggal naik, lalu urutan input (seq). */
+function urutkanTotalan(totalans) {
+  return [...(totalans || [])].sort((a, b) => {
+    const d = String(a.tanggal || '').localeCompare(String(b.tanggal || ''))
+    return d !== 0 ? d : toNum(a.seq) - toNum(b.seq)
+  })
+}
+
+/** Hitung semua totalan (SEKALIGUS, karena potongan kasbon bersifat
+ *  kumulatif antar-totalan). Mengembalikan array sesuai urutan kronologis,
+ *  tiap elemen = totalan asli + field hitungan:
+ *    totalUpah, kasbonDipotong, hakBersih, saldoAkhir, status
+ *  Rumus (dari sheet Slip Pembayaran Upah):
+ *    kasbonDipotong = max(0, kasbon s/d tanggal totalan - kasbon yang
+ *                     sudah terpotong di totalan-totalan sebelumnya)
+ *    totalUpah      = Σ total proyek-proyek di detail totalan
+ *    hakBersih      = totalUpah - kasbonDipotong
+ *    saldoAkhir     = hakBersih - pembayaranAktual
+ *    status         = 'Nomor duplikat' | 'Lunas' (saldo 0) | 'Perlu cek'  */
+/** Alokasi potongan kasbon per totalan — DASAR KONTROL kasbon.
+ *  Setiap entri kasbon (jenis 'Kasbon') dialokasikan ke TEPAT SATU totalan
+ *  yang memotongnya, jadi kasbon tanggal berapa pun bisa dilacak:
+ *  "kasbon ini sudah dibayarkan lewat totalan yang mana".
+ *  Cara alokasi per totalan (diproses urut tanggal totalan):
+ *   - Totalan BARU menyimpan pilihan eksplisit `kasbonIds` (entri kasbon
+ *     yang dicentang operator di form totalan). Hanya entri itu yang
+ *     dipotong oleh totalan tsb — TIDAK menyapu semua kasbon.
+ *   - Totalan LAMA (belum punya kasbonIds — dibuat sebelum fitur ini)
+ *     dialokasikan FIFO: kasbon belum teralokasi bertanggal <= tanggal
+ *     totalan, supaya angka totalan lama tidak berubah.
+ *  Return: { perTotalan: Map totalanId -> [{kasbonId, tanggal, deskripsi, nominal}],
+ *            perKasbon:  Map kasbonId -> { totalanId, no, tanggal, mode } } */
+function alokasiKasbon(state) {
+  const { kasbon = [], totalans = [] } = state || {}
+  const perTotalan = new Map(), perKasbon = new Map()
+  const byId = new Map(kasbon.map((k) => [k.id, k]))
+  const urutKasbon = kasbon.map((k, i) => ({ k, i }))
+    .filter((x) => x.k.jenis === 'Kasbon')
+    .sort((a, b) => String(a.k.tanggal).localeCompare(String(b.k.tanggal)) || a.i - b.i)
+    .map((x) => x.k)
+  for (const t of urutkanTotalan(totalans)) {
+    const daftar = []
+    const alokasi = (k, mode) => {
+      if (perKasbon.has(k.id)) return
+      perKasbon.set(k.id, { totalanId: t.id, no: t.no, tanggal: t.tanggal, mode })
+      daftar.push({ kasbonId: k.id, tanggal: k.tanggal, deskripsi: k.deskripsi || '', nominal: toNum(k.nominal) })
+    }
+    if (Array.isArray(t.kasbonIds)) {
+      for (const id of t.kasbonIds) { const k = byId.get(id); if (k && k.jenis === 'Kasbon') alokasi(k, 'pilihan') }
+    } else {
+      for (const k of urutKasbon) { if (String(k.tanggal) <= String(t.tanggal)) alokasi(k, 'otomatis') }
+    }
+    perTotalan.set(t.id, daftar)
+  }
+  return { perTotalan, perKasbon }
+}
+
+/** Status potongan SETIAP entri kasbon — bahan kontrol & tampilan:
+ *  [{ ...kasbon, terpotong, totalanNo, totalanTanggal, modeAlokasi }] */
+function statusKasbon(state) {
+  const { kasbon = [] } = state || {}
+  const { perKasbon } = alokasiKasbon(state)
+  return kasbon.map((k) => {
+    const a = perKasbon.get(k.id)
+    return { ...k, terpotong: !!a, totalanNo: a ? a.no : null, totalanTanggal: a ? a.tanggal : null, modeAlokasi: a ? a.mode : null }
+  })
+}
+
+function hitungTotalans(state) {
+  const { projects = [], upahItems = [], kasbon = [], totalans = [], projectOverrides = {} } = state || {}
+  const totals = {}
+  for (const r of ringkasanProyek(projects, upahItems, projectOverrides)) {
+    totals[r.projectId] = r.total
+  }
+  const { perTotalan } = alokasiKasbon(state)
+  const seen = new Set()
+  return urutkanTotalan(totalans).map((t) => {
+    const totalUpah = (t.projectIds || []).reduce((s, pid) => s + toNum(totals[pid]), 0)
+    const potonganDetail = perTotalan.get(t.id) || []
+    const kasbonDipotong = potonganDetail.reduce((s, x) => s + x.nominal, 0)
+    const hakBersih = totalUpah - kasbonDipotong
+    const saldoAkhir = hakBersih - toNum(t.pembayaranAktual)
+    const duplikat = seen.has(String(t.no || '').trim())
+    if (t.no) seen.add(String(t.no).trim())
+    const status = duplikat ? 'Nomor duplikat' : saldoAkhir === 0 ? 'Lunas' : 'Perlu cek'
+    return { ...t, totalUpah, kasbonDipotong, potonganDetail, hakBersih, saldoAkhir, status }
+  })
+}
+
+/** Angka kartu Dashboard:
+ *    totalHakUpah   = Σ total semua proyek
+ *    totalKasbon    = Σ kasbon Jenis 'Kasbon' (semua tanggal)
+ *    totalPelunasan = Σ pembayaran aktual semua totalan
+ *    sisaSaldo      = totalHakUpah - totalKasbon - totalPelunasan
+ *    kasbonBelumTerpotong = totalKasbon - Σ kasbonDipotong semua totalan  */
+function ringkasanDashboard(state) {
+  const { projects = [], upahItems = [], kasbon = [], projectOverrides = {} } = state || {}
+  const totalHakUpah = ringkasanProyek(projects, upahItems, projectOverrides)
+    .reduce((s, r) => s + r.total, 0)
+  const totalKasbon = totalKasbonSampai(kasbon, null)
+  const computed = hitungTotalans(state)
+  const totalPelunasan = computed.reduce((s, t) => s + toNum(t.pembayaranAktual), 0)
+  const kasbonTerpotong = computed.reduce((s, t) => s + t.kasbonDipotong, 0)
+  return {
+    totalHakUpah,
+    totalKasbon,
+    totalPelunasan,
+    sisaSaldo: totalHakUpah - totalKasbon - totalPelunasan,
+    kasbonTerpotong,
+    kasbonBelumTerpotong: totalKasbon - kasbonTerpotong
+  }
+}
+
+/** Rekap kasbon bulanan: [{ bulan: 'YYYY-MM', jumlah, total }] terurut.
+ *  Hanya Jenis = 'Kasbon' (lihat penyimpangan A di header). */
+function rekapKasbonBulanan(kasbon) {
+  const map = new Map()
+  for (const k of kasbon || []) {
+    if (String(k.jenis || 'Kasbon') !== 'Kasbon' || !k.tanggal) continue
+    const bulan = String(k.tanggal).slice(0, 7)
+    const cur = map.get(bulan) || { bulan, jumlah: 0, total: 0 }
+    cur.jumlah += 1
+    cur.total += toNum(k.nominal)
+    map.set(bulan, cur)
+  }
+  return [...map.values()].sort((a, b) => a.bulan.localeCompare(b.bulan))
+}
+
+/** Himpunan projectId yang sudah LUNAS: proyek yang masuk ke minimal satu
+ *  totalan berstatus 'Lunas'. Proyek di totalan 'Perlu cek' / duplikat
+ *  TIDAK dianggap lunas. */
+function proyekLunasSet(state) {
+  const set = new Set()
+  for (const t of hitungTotalans(state)) {
+    if (t.status === 'Lunas') (t.projectIds || []).forEach((id) => set.add(id))
+  }
+  return set
+}
+
+/** Apakah proyek masuk ARSIP (tidak di-carry over ke periode berikutnya)?
+ *  Aturan:
+ *    project.arsipManual === true  -> arsip (dipaksa manual)
+ *    project.arsipManual === false -> TIDAK arsip (ditahan aktif manual,
+ *                                     walau sudah lunas)
+ *    selain itu (null/undefined)   -> arsip bila proyek sudah lunas
+ *  Menghapus totalan lunasnya otomatis mengeluarkan proyek dari arsip
+ *  (karena status ini turunan, bukan label sekali tulis). */
+function isProyekArsip(project, lunasSet) {
+  if (!project) return false
+  if (project.arsipManual === true) return true
+  if (project.arsipManual === false) return false
+  return lunasSet ? lunasSet.has(project.id) : false
+}
+
+/** Ringkasan arsip: { jumlah, total } untuk proyek-proyek arsip. */
+function ringkasanArsip(state) {
+  const { projects = [], upahItems = [], projectOverrides = {} } = state || {}
+  const lunas = proyekLunasSet(state)
+  const ring = ringkasanProyek(projects, upahItems, projectOverrides)
+  let jumlah = 0, total = 0
+  for (const p of projects) {
+    if (isProyekArsip(p, lunas)) {
+      jumlah += 1
+      const r = ring.find((x) => x.projectId === p.id)
+      if (r) total += r.total
+    }
+  }
+  return { jumlah, total }
+}
+
+/** Logika bisnis: kasbon diambil tukang SAAT proyek masih berjalan;
+ *  TOTALAN baru dilakukan SAAT PROYEK SUDAH SELESAI. Jadi proyek boleh
+ *  masuk totalan hanya bila statusnya 'Selesai'. */
+function proyekSiapTotalan(project) {
+  return !!project && project.status === 'Selesai'
+}
+
+/** Sisa hak PERIODE BERJALAN — hitungan antara List Proyek dan Kasbon
+ *  untuk periode yang BELUM diarsipkan:
+ *    total proyek yang masih AKTIF di List Proyek (belum masuk arsip)
+ *    DIKURANGI kasbon yang belum terpotong di totalan.
+ *  Proyek yang sudah diarsipkan dan kasbon yang sudah terpotong adalah
+ *  urusan periode yang sudah ditutup — tidak ikut hitungan ini. */
+function sisaHakPeriodeBerjalan(state) {
+  const dash = ringkasanDashboard(state)
+  const ra = ringkasanArsip(state)
+  const totalAktif = dash.totalHakUpah - ra.total
+  const kasbonBelum = dash.kasbonBelumTerpotong
+  const jumlahProyek = state && Array.isArray(state.projects) ? state.projects.length : 0
+  return { totalAktif, kasbonBelum, sisa: totalAktif - kasbonBelum, jumlahAktif: jumlahProyek - ra.jumlah }
+}
+
+/** Nomor totalan berikutnya: 'TOT-001', 'TOT-002', ... dari nomor terbesar
+ *  berformat sama yang sudah ada. */
+function nomorTotalanBerikut(totalans) {
+  let max = 0
+  for (const t of totalans || []) {
+    const m = String(t.no || '').match(/(\d+)\s*$/)
+    if (m) max = Math.max(max, parseInt(m[1], 10))
+  }
+  return 'TOT-' + String(max + 1).padStart(3, '0')
+}
+/* ===== Akhir salinan logic.js ===== */
+
+/* ===== Data contoh asli Pujon (ekstrak Pujon_Simple_Upah_Kasbon.xlsx) ===== */
+const DEMO_PUJON = {"name":"Pak Pujon","unit":"Cybergerak Design & Build","projects":[{"name":"Project Intercon","status":"Selesai"},{"name":"Project Cosmos","status":"Selesai"},{"name":"Project Radio Dalam","status":"Selesai"},{"name":"Project Jessie","status":"Selesai"},{"name":"Project Sunter Hijau 8","status":"Selesai"},{"name":"Project Cendana Icon","status":"Selesai"},{"name":"Project Park Serpong","status":"Selesai"},{"name":"Project Gatsu","status":"Selesai"},{"name":"Project Duren Sawit","status":"Selesai"},{"name":"Project Meranti","status":"Selesai"},{"name":"Project Nerin 1","status":"Selesai"},{"name":"Project Nerin 5","status":"Selesai"},{"name":"Project Park Serpong - Cendana","status":"Selesai"},{"name":"Project Rosini -","status":"Selesai"},{"name":"Service Park Serpong","status":"Selesai"},{"name":"Service Tokyo","status":"Selesai"},{"name":"Service TA","status":"Selesai"},{"name":"Service Bintaro","status":"Selesai"},{"name":"Project Barbershop","status":"Selesai"},{"name":"Project Dulcet","status":"Selesai"},{"name":"Project Flaminggo","status":"Selesai"},{"name":"Project Casa de Parco","status":"Selesai"},{"name":"Project Sunter Hijau Utama","status":"Selesai"},{"name":"Everbeau","status":"Selesai"},{"name":"Cityzen North 3 -17","status":"Selesai"},{"name":"Cove 2 - 27","status":"Selesai"},{"name":"Cove 2 - 76","status":"Selesai"},{"name":"Park Serpong 9 - 15","status":"Selesai"},{"name":"Osaka PIK","status":"Selesai"},{"name":"Servis","status":"Selesai"},{"name":"Park Serpong Flo 7 -66","status":"Selesai"},{"name":"Barbershop HI - 2","status":"Selesai"},{"name":"Project Apt Baywalk","status":"Selesai"},{"name":"Project Cisauk","status":"Selesai"},{"name":"Peak Springhill","status":"Selesai"},{"name":"Project Sunter Hijau IX ni2 4","status":"On Going"},{"name":"Project Pademangan","status":"Selesai"},{"name":"Project Barbershop Pintu","status":"Selesai"},{"name":"Project Skyhouse BSD","status":"Selesai"},{"name":"Project Charm 23 - 56","status":"Selesai"},{"name":"Project Cove 2 - 27","status":"Selesai"},{"name":"Cendana Botanic","status":"Selesai"},{"name":"Project Springhill","status":"Selesai"},{"name":"Servisan 2","status":"Selesai"},{"name":"Project Bekasi","status":"Selesai"},{"name":"Project Panola","status":"Selesai"},{"name":"Project Semanan","status":"Selesai"},{"name":"Project Rempoa","status":"Selesai"},{"name":"Project Barbershop Pekayon","status":"Selesai"},{"name":"Project Leo Sunter","status":"Selesai"},{"name":"Project Cove 2-21","status":"Selesai"},{"name":"Project Steffi","status":"Selesai"},{"name":"Proyek Josh - Mabes","status":"Selesai"},{"name":"Taman Cosmos","status":"Selesai"}],"items":[[0,"Tall Cabinet 1 & 2",4.8,550000,5280000],[0,"Panel TV",8.1,350000,2835000],[0,"Cabinet TV",3.0,550000,1650000],[0,"Panel Atas",1.0,150000,150000],[0,"Instalasi Lampu",3.0,50000,150000],[0,"Instalasi LED",1.0,75000,75000],[0,"Tall Cabinet 3 & 4",2.4,550000,1320000],[0,"Kabinet Display",9.0,550000,4950000],[0,"Pintu kaca",6.0,75000,450000],[0,"Instalasi LED",3.0,75000,225000],[0,"Instalasi Lampu",6.0,50000,300000],[0,"Panel Kiri dan kanan",6.0,350000,2100000],[0,"Kisi Balok",2.6,400000,1040000],[0,"Panel Headboard",9.6,350000,3360000],[0,"Instalasi LED",2.0,75000,150000],[0,"Instalasi Listrik",4.0,50000,200000],[0,"Kabinet Brankas",3.9,550000,2145000],[0,"Instalasi lampu",1.0,50000,50000],[0,"Kabinet 1",3.3,550000,1815000],[0,"Panel kiri kanan pintu WIC",3.0,350000,1050000],[0,"Pintu WIC",1.0,1000000,1000000],[0,"Kabinet 2",3.3,550000,1815000],[0,"Kabinet 3",3.9,550000,2145000],[0,"Panel kiri kanan pintu utama",3.0,350000,1050000],[0,"Pintu Utama",1.0,1000000,1000000],[0,"Panel belakang pintu",6.0,350000,2100000],[0,"Pelurus pintu",10.0,50000,500000],[0,"Ganti HPL Pintu",6.0,150000,900000],[0,"Ganti HPL Panel",3.0,150000,450000],[0,"Bonus tambahan beban HMR",1.0,500000,500000],[0,"Tambahan kenek - detail terpisah","",0,-3340000],[1,"A.1 Kitchen Set - Atas",3.77,450000,1696500],[1,"A.2 Kitchen Set - bawah",4.6,450000,2070000],[1,"A.1 Kabinet Dispenser + atas",3.0,450000,1350000],[1,"Instalasi Listrik",5.0,50000,250000],[1,"Instalasi LED",1.0,75000,75000],[2,"Meja Rias + cermin",3.0,450000,1350000],[2,"Tempel Ulang pintu (per set)",17.0,220000,3740000],[2,"Tempel ulang Body",1.0,2000000,2000000],[2,"Potong Body + Body atas pojok",1.0,400000,400000],[2,"Bongkaran",1.0,250000,250000],[2,"Ambalan + ganti roda",1.0,150000,150000],[2,"Perbaikan pintu kamar",1.0,50000,50000],[3,"Kabinet Bawah",2.9,550000,1595000],[3,"Kabinet Berdiri",2.9,550000,1595000],[3,"Panel TV",2.9,350000,1015000],[3,"Panel Kisi atas",2.9,450000,1305000],[3,"Instalasi LED Panel Kisi",7.0,75000,525000],[3,"Instalasi LED kabinet terbuka",2.0,75000,150000],[4,"Kabinet Bawah",6.1,450000,2745000],[4,"Kabinet bawah 2 muka",1.0,350000,350000],[4,"Kabinet Atas",5.0,450000,2250000],[4,"Pintu Kaca",3.0,50000,150000],[4,"Kabinet Kulkas",6.24,450000,2808000],[4,"Instalasi LED",3.0,75000,225000],[4,"Instalasi Listrik",6.0,50000,300000],[4,"Instalasi Cooker Hood",1.0,200000,200000],[6,"Kabinet Dispenser",2.7,450000,1215000],[6,"Tall Cabinet",2.2,450000,990000],[6,"Kabinet TV + Bench",3.5,450000,1575000],[6,"Instalasi Listrik",6.0,50000,300000],[6,"Instalasi LED",2.0,75000,150000],[7,"Kabinet Terbuka - bag atas",4.18,550000,2296800],[7,"Kabinet Terbuka - bag bawah",4.12,450000,1854000],[7,"Instalasi LED",2.0,75000,150000],[7,"Meja Meeting",7.52,450000,3384000],[7,"Penempelan Panel HPL",12.0,250000,3000000],[7,"Handle Pintu Kaca",6.0,100000,600000],[7,"Ambalan - Gudang",4.0,150000,600000],[7,"Ambalan - Papan tulis",1.0,200000,200000],[7,"Ambalan - Ruang Meeting kecil",2.0,150000,300000],[7,"Ambalan - Ruang Server",2.0,250000,500000],[7,"Laci",16.0,250000,4000000],[7,"Tambahan u/laci",1.0,500000,500000],[7,"Instalasi Meja Staff - Kaki Meja",16.0,50000,800000],[7,"Instalasi Meja Staff - Partisi + Perkuatan",4.0,100000,400000],[7,"Bongkar Kabinet Locker",1.0,500000,500000],[7,"Penambahan Locker Kabinet",2.7,450000,1215000],[8,"Pantry - Kabinet Atas",5.4,550000,2970000],[8,"Pantry - Kabinet Bawah",5.2,550000,2860000],[8,"Pantry - Meja Island",2.2,650000,1430000],[8,"Instalasi Listrik",1.0,50000,50000],[8,"Instalasi Sink & Kran",1.0,100000,100000],[8,"Instalasi LED",1.0,75000,75000],[8,"Dapur Kotor - Ambalan",5.0,200000,1000000],[8,"Dapur Kotor - Kabinet Bawah",4.5,550000,2475000],[8,"Instalasi Listrik",1.0,50000,50000],[8,"Instalasi LED",1.0,75000,75000],[8,"Bobokan Tembok",1.0,100000,100000],[8,"Instalasi Sink & Kran",1.0,100000,100000],[8,"Instalasi Cooker Hood",1.0,100000,100000],[8,"Island Table",2.2,750000,1650000],[8,"WIC Kabinet & backdrop TV",10.4,750000,7800000],[8,"Instalasi Cermin",1.0,100000,100000],[8,"Instalasi Listrik",5.0,50000,250000],[8,"WIC Kabinet - Sisi tembok",14.43,550000,7936500],[8,"Instalasi Listrik",1.0,50000,50000],[8,"Laci Rahasia",1.0,50000,50000],[8,"Sekat Laci",2.0,75000,150000],[8,"Partisi",3.8,450000,1710000],[8,"Toilet Kamar Mandi",1.2,550000,660000],[9,"Lemari Sliding",8.68,450000,3906000],[9,"Rombak ukuran",3.0,350000,1050000],[9,"Headboard",3.0,350000,1050000],[9,"Instalasi Listrik",3.0,50000,150000],[9,"Instalasi LED",1.0,75000,75000],[9,"Meja Rias + samping",1.0,450000,450000],[9,"Cermin + Backing",1.0,250000,250000],[9,"Pemasangan Headboard",1.0,50000,50000],[9,"Divan",3.2,450000,1440000],[9,"Backdrop TV",2.1,350000,735000],[9,"Rombak Ukuran",1.0,350000,350000],[9,"Instalasi Listrik",1.0,50000,50000],[9,"Instalasi LED",1.0,75000,75000],[10,"A.1 Backdrop TV",2.53,350000,885500],[10,"WPC",1.0,150000,150000],[10,"Ambalan Gantung",3.0,50000,150000],[10,"Buffet TV",2.1,450000,945000],[10,"A.2 Kabinet Tangga",4.62,450000,2079000],[10,"Kabinet Terbuka + Frame Pintu",2.0,150000,300000],[10,"(+) sisi belakang tangga",1.0,150000,150000],[10,"Panel",6.69,350000,2342200],[10,"Rangka Panel",6.69,100000,669000],[10,"Pintu Kamuflase + Aksesoris",1.0,800000,800000],[10,"B.1 Kitchen Set - Atas",3.62,450000,1631250],[10,"Kitchen Set - Bawah",2.9,450000,1305000],[10,"Kabinet Kulkas",2.8,550000,1540000],[10,"Instalasi Cooker Hood",1.0,200000,200000],[10,"Instalasi Fleksibel Pipa & Kran",1.0,150000,150000],[10,"Instalasi Kompor",1.0,50000,50000],[10,"(+) Meja Tarik",1.0,200000,200000],[10,"C.1 Ambalan Toilet",1.0,50000,50000],[10,"E.1 Panel WPC",1.6,150000,240000],[10,"Nakas",1.0,450000,450000],[10,"Kabinet Tembok",2.8,550000,1540000],[10,"E.3 Backdrop TV",2.8,350000,980000],[10,"Frame + Cermin",3.0,100000,300000],[10,"Buffet TV + Meja Rias",2.0,450000,900000],[10,"Panel WPC",1.0,150000,150000],[10,"Wardrobe",7.56,450000,3402000],[10,"Lemari Meja Rias",2.8,450000,1260000],[10,"F.1 Kabinet Toilet",0.8,550000,440000],[10,"Ambalan",2.0,50000,100000],[10,"H.1 Kabinet Toilet",1.0,550000,550000],[10,"Kitchen",3.0,50000,150000],[10,"Kabinet tembok - Kamar",1.0,50000,50000],[10,"WPC Panel",3.0,50000,150000],[10,"Backdrop TV - ruang bawah",4.0,50000,200000],[10,"Backdrop TV - kamar",7.0,50000,350000],[10,"Lampu",3.0,50000,150000],[10,"Kitchen",1.0,75000,75000],[10,"Master Bedroom",2.0,75000,150000],[10,"Backdrop TV",1.0,75000,75000],[11,"A.1 Backdrop TV",2.1,350000,735000],[11,"Buffet TV",2.1,450000,945000],[11,"Instalasi WPC",1.5,150000,225000],[11,"B.1 Kitchen Set Atas",4.28,450000,1926000],[11,"Kitchen Set Bawah",3.0,450000,1350000],[11,"Kabinet Kulkas",1.9,550000,1045000],[11,"Instalasi Cooker Hood",1.0,200000,200000],[11,"Instalasi Fleksibel Pipa & Kran",1.0,150000,150000],[11,"Fin Kabinet Terbuka + Frame",2.0,150000,300000],[11,"Instalasi Kompor",1.0,50000,50000],[11,"C.1 Kabinet Tangga",2.4,450000,1080000],[11,"D.1 Kabinet Ruang Kerja - Atas",2.1,550000,1155000],[11,"Kabinet Ruang Kerja - Bawah",2.1,450000,945000],[11,"Frame Aluminium",4.0,50000,200000],[11,"E.1 Kamar - Kabinet Sudut",5.88,450000,2646000],[11,"Kabinet Terbuka + Frame",2.0,150000,300000],[11,"E.2 Meja Rias",1.0,450000,450000],[11,"Kabinet Dalam Tembok",2.8,550000,1540000],[11,"Panel Meja Rias",2.8,350000,980000],[11,"Headboard",2.6,350000,910000],[11,"Nakas",1.0,450000,450000],[11,"E.5 Wardrobe",5.6,450000,2520000],[11,"F.1 Kabinet Toilet",0.7,550000,385000],[11,"Ambalan",3.0,50000,150000],[11,"G.1 Kabinet Toilet",1.0,550000,550000],[11,"Ambalan Toilet",1.0,50000,50000],[11,"Backdrop TV - Bawah",5.0,50000,250000],[11,"Kitchen",3.0,50000,150000],[11,"Tangga",1.0,50000,50000],[11,"Kamar headboard",4.0,50000,200000],[11,"Backdrop TV",1.0,75000,75000],[11,"Kitchen",1.0,75000,75000],[11,"Kabinet Ruang Kerja",1.0,75000,75000],[11,"Kabinet Terbuka",2.0,75000,150000],[11,"Meja Rias",1.0,75000,75000],[12,"A.1 Kitchen Set",1.6,450000,720000],[18,"Meja Barber + Baki",5.0,750000,3750000],[18,"Baki Meja",6.0,100000,600000],[18,"Instalasi Listrik",5.0,100000,500000],[18,"Instalasi Cermin",5.0,100000,500000],[18,"Instalasi LED",5.0,75000,375000],[18,"Meja Kasir",2.0,450000,900000],[18,"Instalasi LED",1.0,75000,75000],[18,"Instalasi Kaca",1.0,100000,100000],[13,"Kabinet Dispenser",1.0,550000,550000],[14,"Instal ulang LED",1.0,150000,150000],[14,"Install ulang kabinet laundry",1.0,250000,250000],[14,"WPC",1.0,150000,150000],[14,"(+) tambahan","",0,450000],[15,"Instalasi LED",1.0,75000,75000],[15,"(+) tambahan",1.0,175000,175000],[16,"Perbaikan dan finishing",1.0,1000000,1000000],[53,"Copot pasang kitchen set",1.0,500000,500000],[17,"Install kabinet",1.0,1000000,1000000],[17,"Pintu kabinet",1.0,500000,500000],[19,"Partisi",2.0,735000,1470000],[19,"- Modif Booth dan finsih ulang",1.0,800000,800000],[19,"- Pasang tiang besi dan bracket",1.0,500000,500000],[20,"- Backing Cermin",5.8,350000,2030000],[20,"- Pasang Cermin",5.8,150000,870000],[20,"Kabinet WPC",1.59,450000,717750],[20,"Panel",3.19,350000,1116500],[20,"Kabinet terbuka",1.5,550000,825000],[20,"Pintu Kaca",2.0,100000,200000],[20,"Lampu LED",3.0,75000,225000],[21,"Kabinet",5.17,450000,2326500],[21,"stop kontak",4.0,50000,200000],[21,"led",1.0,75000,75000],[22,"Bongkaran",1.0,1000000,1000000],[22,"Lemari",10.32,450000,4644000],[22,"Potong Cermin",2.0,100000,200000],[22,"Pemasangan Cermin + Frame",2.0,250000,500000],[22,"Servis Sliding Door",1.0,350000,350000],[23,"Bongkaran",1.0,1000000,1000000],[23,"Bongkar dan pasang cermin",1.0,500000,500000],[23,"Tempel ulang HPL",2.0,200000,400000],[23,"Install ulang LED",1.0,75000,75000],[23,"Bonus lemburan",1.0,500000,500000],[24,"Kitchen Set - bawah",2.0,450000,900000],[24,"Install ulang air bersih dan kotor",2.0,100000,200000],[24,"Install Kompor dan stop kontak",1.0,175000,175000],[24,"Cabinet TV",1.8,450000,810000],[24,"Stop Kontak",4.0,50000,200000],[24,"Ambalan",1.0,200000,200000],[24,"Wardrobe",2.88,550000,1582350],[24,"Instalasi LED",1.0,75000,75000],[24,"Instal Saklar di bodi kabinet",1.0,50000,50000],[24,"Pintu Kaca + Frame",2.0,150000,300000],[24,"Divan",2.6,450000,1170000],[24,"Headboard",2.42,350000,847000],[24,"Instalasi LED",1.0,75000,75000],[24,"Papan nakas",2.0,100000,200000],[24,"Stop Kontak",3.0,50000,150000],[24,"Meja Rias",1.0,450000,450000],[24,"Cermin + Backing",1.0,350000,350000],[24,"Stop kontak",3.0,50000,150000],[24,"Bobokan jalur listrik",2.0,500000,1000000],[25,"Divan",3.2,450000,1440000],[25,"Headboard",1.6,350000,560000],[25,"Meja Rias",1.0,450000,450000],[25,"Cermin",1.0,150000,150000],[25,"Kabinet atas",1.1,450000,495000],[25,"Kaca clear",1.0,50000,50000],[25,"Stop kontak",3.0,50000,150000],[25,"Instalasi LED",1.0,75000,75000],[25,"Wardrobe",4.93,450000,2218500],[25,"Pintu sliding cermin",2.0,300000,600000],[25,"Kitchen set - bawah",2.1,550000,1155000],[25,"Install Kompor",1.0,150000,150000],[25,"Install Sink",1.0,150000,150000],[25,"Install air bersih dan kotor",2.0,100000,200000],[25,"Backing Top Table",1.8,100000,180000],[25,"Kabinet Kulkas",4.94,450000,2223000],[25,"Install LED",1.0,75000,75000],[25,"Install stop Kontak",2.0,50000,100000],[26,"Kitchen Set bawah",1.56,450000,702000],[27,"Kitchen set bawah",2.0,550000,1100000],[27,"Install sink",1.0,150000,150000],[27,"Install kompor",1.0,150000,150000],[27,"install air bersih dan kotor",2.0,100000,200000],[27,"Pan hanger",1.0,50000,50000],[27,"Kabinet Tangga",2.0,450000,900000],[27,"Cover Backing anak tangga",11.0,75000,825000],[28,"Divan",2.4,450000,1080000],[28,"Divan x2",2.4,450000,1080000],[28,"Headboard",3.24,350000,1134000],[28,"Headboard x2",3.24,350000,1134000],[28,"Ambalan",1.0,250000,250000],[28,"Ambalan x2",1.0,250000,250000],[28,"Wardrobe",5.28,450000,2376000],[28,"Wardrobe x2",5.28,450000,2376000],[28,"Frame Kaca",2.0,250000,500000],[28,"Install LED (tambahan)",2.0,500000,1000000],[28,"Install Stop Kontak",4.0,50000,200000],[29,"1.  Bintaro - anti rayap",1.0,200000,200000],[29,"2.  Cosmos - setting pintu door closer, tempel ulang pintu",1.0,500000,500000],[29,"3.  Suvarna sutera catriona - LED",1.0,150000,150000],[29,"4.  Highland BSD project mas heri - listrik",1.0,350000,350000],[29,"5.  Park serpong prive project mas indra\n- LED Lemari\n- LED Dapur",2.0,150000,300000],[29,"7.  Grand royal - titik listrik",1.0,250000,250000],[29,"10.  Sunter benerin push open pintu",1.0,150000,150000],[29,"11. Duren Sawit - ganti engsel",1.0,250000,250000],[29,"12. TA - engsel",1.0,150000,150000],[30,"Divan",3.6,450000,1620000],[30,"Headboard",2.0,350000,700000],[30,"Instalasi LED",1.0,75000,75000],[30,"Instalasi Stop Kontak",2.0,50000,100000],[30,"Lemari",3.0,450000,1350000],[30,"Meja Rias",1.0,450000,450000],[30,"Instalasi Cermin",1.0,100000,100000],[30,"Instalasi Ambalan",1.0,200000,200000],[30,"Instalasi LED",1.0,75000,75000],[30,"Instalasi Stop Kontak",2.0,50000,100000],[31,"Meja Kabinet",5.0,750000,3750000],[31,"Baki",5.0,100000,500000],[31,"Instalasi Listrik",5.0,100000,500000],[31,"Intalasi Cermin",5.0,100000,500000],[31,"Instalasi LED",5.0,75000,375000],[31,"Kabinet Kasir",2.9,550000,1595000],[31,"Instalasi LED",1.0,75000,75000],[31,"Instalasi Stop Kontak",2.0,50000,100000],[31,"Bench 1",1.7,450000,765000],[31,"Bench 2",1.7,450000,765000],[31,"Bench 3",1.3,450000,585000],[31,"Instalasi Listrik",3.0,50000,150000],[33,"Kabinet Kulkas",4.76,450000,2142000],[33,"Kabinet Atas",1.8,450000,810000],[33,"Kabinet Bawah",1.8,450000,810000],[33,"Instalasi LED",1.0,75000,75000],[33,"Instalasi Kompor",1.0,100000,100000],[33,"Instalasi Cooker Hood",1.0,150000,150000],[33,"Instalasi Sink + Kran",1.0,150000,150000],[33,"Instalasi Stop Kontak + lampu sorot",6.0,50000,300000],[34,"Divan",3.6,450000,1620000],[34,"Headboard",2.7,350000,945000],[34,"SideTable",2.0,350000,700000],[34,"Instalasi LED",1.0,75000,75000],[34,"Instalasi Stop Kontak",2.0,50000,100000],[34,"Wardrobe",2.1,450000,945000],[34,"Ambalan Wastafel",1.0,350000,350000],[34,"Backdrop TV",1.0,450000,450000],[34,"Kabinet",1.0,450000,450000],[34,"Cover Tembok",2.4,300000,720000],[34,"Instalasi LED",1.0,75000,75000],[34,"Instalasi Stop Kontak",3.0,50000,150000],[32,"Kitchen set - atas",1.6,450000,720000],[32,"Kabinet Samping",2.1,450000,945000],[32,"Meja Makan",1.0,450000,450000],[32,"Kitchen set - bawah",1.6,450000,720000],[32,"Adjuster Atas",2.2,150000,330000],[32,"Instalasi Stop Kontak",5.0,50000,250000],[32,"Instalasi LED",2.0,75000,150000],[35,"- Kabinet Berdiri",2.38,550000,1309000],[35,"- Kabinet Tidur",5.0,550000,2750000],[35,"- Panel Kisi",3.74,400000,1497600],[35,"- Panel Dinding",6.1,350000,2133600],[35,"Kabinet",7.8,550000,4290000],[35,"Bench",3.78,550000,2081200],[35,"Panel Kisi",2.3,400000,920000],[35,"Bench 1",2.2,550000,1210000],[35,"Bench 2",2.7,550000,1485000],[35,"Tall Kabinet 1",3.0,550000,1650000],[35,"Tall Kabinet 2",3.0,550000,1650000],[35,"Kabinet Laci",2.0,550000,1100000],[35,"Storage",8.1,550000,4455000],[35,"Panel",6.3,350000,2205000],[35,"Kabinet TV - Bedroom",4.35,550000,2392500],[36,"Credenza",1.5,450000,675000],[37,"Tambahan Pintu Penutup bawah tangga",2.0,450000,900000],[38,"A1. Kabinet TV",1.7,450000,765000],[38,"Panel TV",2.72,350000,952000],[38,"Pemasangan Stop Kontak + saklar",3.0,50000,150000],[38,"LED",1.0,75000,75000],[38,"B.1 Wardrobe",4.82,450000,2169000],[38,"Meja Rias",1.0,450000,450000],[38,"Cermin + Backing",1.0,150000,150000],[38,"Panel bawah meja",1.0,100000,100000],[38,"Stop Kontak + saklar",3.0,50000,150000],[38,"LED",1.0,75000,75000],[38,"Panel TV",2.2,350000,770000],[38,"Stop Kontak + saklar",2.0,50000,100000],[38,"Divan",3.6,450000,1620000],[38,"Headboard",3.36,350000,1176000],[38,"Stop Kontak + saklar",4.0,50000,200000],[38,"C.1 Kabinet Kulkas",2.88,450000,1296000],[38,"Stop Kontak",2.0,50000,100000],[38,"D.1 Kabinet Toilet",1.0,405000,405000],[38,"Pemasangan Top Table HMR",1.0,250000,250000],[38,"Kabinet Atas",1.0,550000,550000],[38,"Pemasangan Pintu Cermin",1.0,100000,100000],[39,"A.1 Kabinet bawah tangga",4.4,450000,1980000],[39,"Stop Kontak",7.0,50000,350000],[39,"Laci samping tangga",1.0,450000,450000],[39,"Cover Tangga",11.0,100000,1100000],[39,"B.1 Kitchen Set",1.1,450000,495000],[39,"Kabinet atas",1.9,450000,855000],[39,"Backsplash",1.7,350000,595000],[39,"Saklar dan stop kontak",2.0,50000,100000],[39,"LED",1.0,75000,75000],[39,"C.1 Kabinet Gantung",1.0,550000,550000],[39,"Meja Kerja + kabinet bawah",2.0,450000,900000],[39,"Stop kontak",3.0,50000,150000],[39,"Wardrobe",2.5,450000,1125000],[40,"A.1 Kabinet bawah tangga",2.0,450000,900000],[40,"Laci samping",1.0,450000,450000],[40,"Meja Tarik",1.0,250000,250000],[40,"Cover anak tangga",11.0,75000,825000],[41,"A.1 Kitchen bawah",1.7,450000,765000],[41,"Tall Cabinet",2.2,450000,990000],[41,"Kabinet atas",1.04,450000,465750],[41,"Ambalan",2.0,100000,200000],[41,"LED",1.0,75000,75000],[41,"Stop Kontak",3.0,50000,150000],[42,"Meja",2.0,450000,900000],[42,"Stop Kontak",1.0,50000,50000],[44,"Pintu Kamuflase",1.9,550000,1045000],[44,"Door Closer",1.0,50000,50000],[44,"Panel WPC + backing",6.4,250000,1600000],[44,"Stop Kontak + frame",1.0,100000,100000],[45,"Kabinet Kitchen Sink",1.6,450000,720000],[45,"Kabinet Kitchen",1.6,550000,880000],[45,"Backsplash",2.3,250000,575000],[45,"Instalasi Stop Kontak",1.0,50000,50000],[46,"- Lemari",3.64,450000,1638000],[46,"- Divan",2.0,450000,900000],[46,"- Headboard",1.0,350000,350000],[46,"- Instalasi LED",1.0,75000,75000],[46,"- Meja Belajar",1.0,450000,450000],[46,"- Instalasi Stop kontak",1.0,50000,50000],[46,"- Lemari",4.2,450000,1890000],[46,"- Meja",1.0,450000,450000],[46,"- Pasang Cermin + backing",3.0,150000,450000],[46,"- Pintu Cermin + Frame",3.0,150000,450000],[46,"- Divan",3.6,450000,1620000],[46,"- Headboard",2.2,350000,770000],[46,"- Ambalan",1.0,100000,100000],[46,"- Backdrop TV",2.64,350000,924000],[46,"- Instalasi Stop kontak dan saklar",3.0,50000,150000],[46,"- Instalasi LED",3.0,75000,225000],[46,"Meja Laundry",1.2,550000,660000],[46,"Meja Wastafel",1.0,550000,550000],[46,"Meja Makan",1.8,450000,810000],[46,"Kabinet gantung",1.2,550000,660000],[46,"Instalasi LED",2.0,75000,150000],[46,"Backdrop TV",2.66,350000,931000],[46,"- Instalasi Saklar",2.0,50000,100000],[46,"Kabinet berdiri",1.9,550000,1045000],[46,"Kabinet tidur",2.2,450000,990000],[46,"Instalasi LED",1.0,75000,75000],[46,"Instalasi Listrik",2.0,50000,100000],[46,"Kitchen set atas",2.73,450000,1228500],[46,"Kitchen set bawah",1.9,450000,855000],[46,"Instalasi Cooker hood",1.0,100000,100000],[46,"Rombak Cooker hood",1.0,250000,250000],[46,"Instalasi LED",1.0,75000,75000],[46,"Kabinet tangga",2.85,450000,1282500],[46,"Kabinet tangga",2.75,450000,1238000],[46,"Instalasi Stop Kontak",3.0,50000,150000],[46,"Pintu gandeng",1.0,100000,100000],[47,"A.1 Kabinet Tangga",5.4,450000,2430000],[47,"Tempel kabinet tangga",1.0,800000,800000],[47,"B.1 Kitchen Kotor",2.8,450000,1260000],[47,"Instalasi Kompor",1.0,50000,50000],[47,"Instalasi Air bersih",1.0,100000,100000],[47,"Panel Samping Kompor",1.0,350000,350000],[47,"B.2 Tall Kabinet Dapur",8.64,450000,3888000],[47,"Tambahan isi kabinet",1.8,450000,810000],[47,"Partisi samping kabinet",2.4,350000,840000],[47,"Instalasi Stop Kontak",4.0,50000,200000],[47,"Pintu Pocket",2.0,100000,200000],[47,"Island Table",1.8,750000,1350000],[47,"Instalasi Listrik",1.0,50000,50000],[47,"Install Roda",1.0,50000,50000],[47,"Kabinet TV",5.4,450000,2430000],[47,"Instalasi Stop Kontak",1.0,50000,50000],[47,"Meja Kerja",3.0,450000,1350000],[47,"Kabinet Laci",1.0,450000,450000],[47,"Instalasi Stop Kontak",2.0,50000,100000],[47,"Rombak Bukaan",1.0,500000,500000],[47,"Meja Rias",1.0,550000,550000],[47,"Pemasangan Cermin",1.0,50000,50000],[47,"Instalasi Stop Kontak",1.0,50000,50000],[47,"Toilet",1.4,550000,770000],[47,"Lepas Pasang Kaca Tempered",1.0,100000,100000],[48,"Meja",3.0,750000,2250000],[48,"Baki",3.0,100000,300000],[48,"Install Kaca",4.0,100000,400000],[48,"Install LED",4.0,75000,300000],[48,"Backing Cermin MCB",1.0,250000,250000],[48,"Install Stop kontak",5.0,100000,500000],[48,"Rombak kabinet lama",1.0,250000,250000],[49,"Kabinet Rangka",2.03,450000,913500],[49,"Kabinet Bawah",1.0,450000,450000],[50,"Kitchen Set atas",3.0,450000,1350000],[50,"Kitchen Set Bawah",3.0,550000,1650000],[50,"- tambah tusir",1.0,100000,100000],[50,"Instalasi Listrik",2.0,50000,100000],[50,"Instalasi LED",1.0,75000,75000],[50,"Instalasi Air Bersih dan Kotor",1.0,100000,100000],[50,"Instalasi Kompor",1.0,50000,50000],[51,"Divan",2.52,450000,1134000],[51,"Headboard",1.2,350000,420000],[51,"Meja + headboard",1.44,450000,648000],[51,"Lemari",3.9,550000,2145000],[51,"Body samping",3.0,150000,450000],[51,"Stop Kontak",2.0,50000,100000],[51,"LED",2.0,75000,150000],[51,"tambahan papan di sisi kaki",1.0,150000,150000],[43,"- Anti rayap CPN",1.0,100000,100000],[43,"- Pasang bracket Charm",1.0,100000,100000],[43,"- Prive Install Ulang lampu + pasang hpl",1.0,500000,500000],[43,"- Baywalk rombak laci",1.0,150000,150000],[52,"Divan dengan laci",3.2,450000,1440000],[52,"Headboard",1.7,350000,595000],[52,"Panel samping divan",2.1,350000,500000],[52,"Pemindahan stop kontak",1.0,50000,50000],[52,"Instalasi LED divan + saklar",1.0,75000,75000],[52,"Kabinet TV kamar",1.5,450000,675000],[52,"Wardrobe",3.6,450000,1620000],[52,"Kabinet atas meja",1.8,550000,990000],[52,"Meja + laci terintegrasi",1.5,450000,675000],[52,"Wallpanel atas meja",1.5,350000,525000],[52,"Pasang cermin dalam pintu",2.0,50000,100000],[52,"Stop kontak pada wallpanel",3.0,50000,150000],[52,"Instalasi LED lemari/meja",1.0,75000,75000],[52,"Kabinet TV ruang tamu",1.8,450000,810000],[52,"Pemindahan stop kontak TV",2.0,50000,100000],[52,"Instalasi LED TV + saklar",1.0,75000,75000],[52,"Kabinet toilet HMR",1.0,550000,550000],[52,"Cermin toilet + backing",1.0,150000,150000],[52,"Instalasi LED cermin + saklar",1.0,75000,75000]],"kasbon":[["2024-12-07","kasbon mingguan","",3000000],["2024-12-14","kasbon mingguan","",3000000],["2024-12-21","kasbon mingguan","",5000000],["2024-12-24","kasbon mingguan","",4000000],["2024-12-28","kasbon mingguan","",5000000],["2025-01-02","kasbon mingguan","",1000000],["2025-01-11","kasbon mingguan","",2500000],["2025-01-18","kasbon mingguan","",2500000],["2025-01-25","kasbon mingguan","",2000000],["2025-02-01","kasbon mingguan","",2850000],["2025-02-08","kasbon mingguan","",3000000],["2025-02-15","kasbon mingguan","",3000000],["2025-02-22","kasbon mingguan","",2500000],["2025-03-01","kasbon mingguan","",2000000],["2025-03-08","kasbon mingguan","",2500000],["2025-03-15","kasbon mingguan","",2500000],["2025-03-22","kasbon mingguan","",2500000],["2025-03-27","Kasbon totalan","",5000000],["2025-03-29","Kasbon totalan","",7000000],["2025-04-12","Kasbon totalan","",5459000],["2025-04-19","kasbon mingguan","",3000000],["2025-04-26","kasbon mingguan","",3000000],["2025-05-03","kasbon mingguan","",3000000],["2025-05-10","kasbon mingguan","",3000000],["2025-05-17","kasbon mingguan","",4000000],["2025-05-24","kasbon mingguan","",4000000],["2025-05-31","kasbon mingguan","",4000000],["2025-06-07","kasbon mingguan","",4000000],["2025-06-14","kasbon mingguan","",4000000],["2025-06-21","kasbon mingguan","",6000000],["2025-06-28","kasbon mingguan","",4000000],["2025-07-06","Pelunasan","paper",10000000],["2025-07-12","Pelunasan","trf",6000000],["2025-07-19","Pelunasan","paper",8000000],["2025-07-26","kasbon mingguan","paper",4000000],["2025-08-02","kasbon mingguan","paper",4500000],["2025-08-09","kasbon mingguan","trf",4000000],["2025-08-16","kasbon mingguan","trf",4000000],["2025-08-23","kasbon mingguan","paper",4000000],["2025-08-30","kasbon mingguan","paper",4000000],["2025-09-06","kasbon mingguan","trf",4000000],["2025-09-13","kasbon mingguan","trf",4000000],["2025-09-20","kasbon mingguan","trf",4000000],["2025-09-27","kasbon mingguan","paper + trf (3+1)",4000000],["2025-10-04","kasbon mingguan","trf",4000000],["2025-10-12","kasbon mingguan","trf",4000000],["2025-10-14","kasbon pelunasan","",5000000],["2025-10-18","kasbon mingguan","",4000000],["2025-10-25","kasbon mingguan","",4000000],["2025-10-25","kasbon pelunasan","",5000000],["2025-11-01","kasbon mingguan","",4000000],["2025-11-01","kasbon pelunasan","",5000000],["2025-11-08","kasbon mingguan","",5000000],["2025-11-15","kasbon mingguan","",4000000],["2025-11-22","kasbon mingguan","",4000000],["2025-11-29","kasbon mingguan","",4000000],["2025-12-06","kasbon mingguan","",4000000],["2025-12-13","kasbon mingguan","",4000000],["2025-12-20","kasbon mingguan","",4000000],["2025-12-27","kasbon mingguan","",6000000],["2026-01-03","kasbon mingguan","",4000000],["2026-01-10","kasbon mingguan","",4000000],["2026-01-17","kasbon mingguan","",4000000],["2026-01-24","kasbon mingguan","",4000000],["2026-01-31","kasbon mingguan","",4000000],["2026-02-02","kasbon mingguan","",4000000],["2026-02-07","kasbon mingguan","",4000000],["2026-02-14","kasbon mingguan","",4000000],["2026-02-21","kasbon mingguan","",4000000],["2026-02-28","kasbon mingguan","",4000000],["2026-03-07","kasbon mingguan","",4000000],["2026-03-14","kasbon mingguan","",4000000],["2026-03-18","Kasbon pulang","",4000000],["2026-03-18","tiket","",0],["2026-03-19","kasbon pulang","",15000000],["2026-04-02","kasbon mingguan","",4000000],["2026-04-02","Uang Tiket balik","",0],["2026-04-11","kasbon mingguan","",4000000],["2026-04-18","kasbon mingguan","",5000000],["2026-04-25","kasbon mingguan","",5000000],["2026-05-02","kasbon mingguan","",5000000],["2026-05-03","kasbon totalan","",3774000],["2026-05-09","kasbon mingguan","",5000000],["2026-05-16","kasbon mingguan","",5000000],["2026-05-23","kasbon mingguan","",7000000],["2026-05-30","kasbon mingguan","",5000000],["2026-06-06","kasbon mingguan","",4500000],["2026-06-13","kasbon mingguan","",4500000],["2026-06-20","kasbon mingguan","",4000000],["2026-06-27","kasbon mingguan","",4500000],["2026-07-05","Totalan trf","",2178000],["2026-07-05","Totalan paper","",13000000]]}
+/* ===== Akhir data Pujon ===== */
+
+const LS_KEY = 'modulUpahKasbon.v2'
+const LS_KEY_V1 = 'modulUpahKasbon.v1'
+let state = loadState()
+let editUpahId = null, editKasbonId = null, slipTotalanId = null, rincianDirty = false
+let detailProjectId = null, kasbonPickTouched = false
+
+function blankDataset(key, name, unit){
+  return { key, name: name || 'Tukang', unit: unit || 'Noir Living',
+    projects: [], upahItems: [], kasbon: [], totalans: [], projectOverrides: {}, seq: 0, idCounter: 0 }
+}
+function blankState(){
+  return { version: 2, activeKey: 'asep', tukangs: [blankDataset('asep', 'Asep', 'Noir Living')] }
+}
+function slugKey(name){
+  return (name || 'tukang').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'tukang'
+}
+function D(){
+  return state.tukangs.find(t => t.key === state.activeKey) || state.tukangs[0]
+}
+function loadState(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_KEY))
+    if(s && Array.isArray(s.tukangs) && s.tukangs.length) return Object.assign(blankState(), s)
+  }catch(e){}
+  try{ // migrasi v1 (satu tukang) -> v2
+    const v1 = JSON.parse(localStorage.getItem(LS_KEY_V1))
+    if(v1 && v1.tukang){
+      const d = blankDataset(slugKey(v1.tukang.name), v1.tukang.name, v1.tukang.unit)
+      Object.assign(d, { projects: v1.projects || [], upahItems: v1.upahItems || [], kasbon: v1.kasbon || [],
+        totalans: v1.totalans || [], projectOverrides: v1.projectOverrides || {}, seq: v1.seq || 0, idCounter: v1.idCounter || 0 })
+      return { version: 2, activeKey: d.key, tukangs: [d] }
+    }
+  }catch(e){}
+  return blankState()
+}
+function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)) }
+function nextId(p){ const d = D(); d.idCounter = (d.idCounter || 0) + 1; return p + d.idCounter.toString(36) + Date.now().toString(36) }
+function projectName(id){ const p = D().projects.find(x => x.id === id); return p ? p.name : '(proyek terhapus)' }
+function fmtRp(n){ return 'Rp' + Math.round(toNum(n)).toLocaleString('id-ID') }
+function parseMoney(s){ return toNum(String(s || '').replace(/[^\d-]/g, '')) }
+function formatMoneyInput(el){ const v = parseMoney(el.value); el.value = v ? v.toLocaleString('id-ID') : '' }
+function parseUkuran(s){ return Number(String(s || '').replace(',', '.')) || 0 }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
+function todayISO(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+function fmtTgl(iso){ if(!iso) return '-'; const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; const p = String(iso).split('-'); return p.length === 3 ? (+p[2]) + ' ' + bln[(+p[1]) - 1] + ' ' + p[0] : iso }
+function notice(msg, isErr){
+  const n = document.getElementById('notice'); n.textContent = msg; n.className = isErr ? 'err' : ''; n.style.display = 'block'
+  clearTimeout(n._t); n._t = setTimeout(() => { n.style.display = 'none' }, 4500)
+}
+function switchTab(id){
+  document.querySelectorAll('nav.tabs button').forEach(x => x.classList.toggle('active', x.dataset.tab === id))
+  for(const t of ['proyek', 'upah', 'kasbon', 'totalan']) document.getElementById('tab-' + t).style.display = t === id ? 'block' : 'none'
+}
+
+/* ---------- Render ---------- */
+function render(){
+  const d = D()
+  const sw = document.getElementById('tukangSwitch')
+  sw.innerHTML = state.tukangs.map(t => '<option value="' + t.key + '"' + (t.key === d.key ? ' selected' : '') + '>' + esc(t.name) + '</option>').join('')
+  document.querySelectorAll('.tkName').forEach(el => { el.textContent = d.name })
+  const dash = ringkasanDashboard(d)
+  document.getElementById('cardHak').textContent = fmtRp(dash.totalHakUpah)
+  document.getElementById('cardKasbon').textContent = fmtRp(dash.totalKasbon)
+  document.getElementById('cardKasbonSub').textContent = dash.kasbonBelumTerpotong > 0 ? 'Belum terpotong di totalan: ' + fmtRp(dash.kasbonBelumTerpotong) : 'Sudah terpotong semua di totalan'
+  document.getElementById('cardLunas').textContent = fmtRp(dash.totalPelunasan)
+  document.getElementById('cardSisa').textContent = fmtRp(dash.sisaSaldo)
+  const ra = ringkasanArsip(d)
+  document.getElementById('cardHakSub').textContent = ra.jumlah ? ('Sudah lunas & masuk arsip: ' + ra.jumlah + ' proyek · ' + fmtRp(ra.total) + ' — tidak di-carry over') : 'Belum ada proyek yang lunas / masuk arsip'
+  const per = sisaHakPeriodeBerjalan(d)
+  document.getElementById('cardPeriode').textContent = fmtRp(per.sisa)
+  document.getElementById('cardPeriodeSub').textContent = 'Proyek aktif (' + per.jumlahAktif + ') ' + fmtRp(per.totalAktif) + ' − kasbon belum terpotong ' + fmtRp(per.kasbonBelum)
+  renderProyekList(); renderProyekDetail(); renderKasbon(); renderTotalanForm(); renderTotalans(); renderSlip()
+  saveState()
+}
+
+/* ================================================================
+   MODUL 1 — LIST PROYEK (modul tersendiri)
+   Tanggung jawab: daftar proyek aktif + arsip, tambah/hapus proyek,
+   arsipkan/aktifkan. Modul ini TIDAK merender rincian upah; ia hanya
+   menetapkan KONTEKS antarmuka `detailProjectId` (proyek terpilih)
+   saat baris/tombol Rincian diklik.
+   ================================================================ */
+function renderProyekList(){
+  const d = D(); const wrap = document.getElementById('proyekTableWrap')
+  if(!d.projects.length){ wrap.innerHTML = '<div class="empty">Belum ada proyek untuk tukang ini. Tambah lewat form di atas.</div>'; return }
+  const ring = ringkasanProyek(d.projects, d.upahItems, d.projectOverrides)
+  const lunas = proyekLunasSet(d)
+  const sudahDipakai = new Set(); hitungTotalans(d).forEach(t => (t.projectIds || []).forEach(pid => sudahDipakai.add(pid)))
+  const aktif = d.projects.filter(p => !isProyekArsip(p, lunas))
+  const arsip = d.projects.filter(p => isProyekArsip(p, lunas))
+  let html = '<table><tr><th>Proyek Aktif (klik untuk rincian)</th><th>Status</th><th class="num">Item Pekerjaan</th><th class="num">Total Upah</th><th></th></tr>'
+  let grand = 0
+  if(!aktif.length) html += '<tr><td colspan="5" style="color:var(--muted)">Tidak ada proyek aktif — semua sudah lunas / diarsipkan.</td></tr>'
+  for(const p of aktif){
+    const r = ring.find(x => x.projectId === p.id); grand += r.total
+    html += '<tr class="clickable" data-open-proyek="' + p.id + '" title="Klik untuk melihat rincian upah"><td><b>' + esc(p.name) + '</b>' + (r.override != null ? ' <span class="badge grey">total manual</span>' : '') + (sudahDipakai.has(p.id) ? ' <span class="badge cek">sudah ditotal — belum lunas</span>' : '') + (lunas.has(p.id) ? ' <span class="badge lunas">lunas — ditahan aktif</span>' : '') + '</td><td>' + esc(p.status || 'On Going') + '</td><td class="num">' + r.jumlahItem + '</td><td class="num"><b>' + fmtRp(r.total) + '</b></td><td style="white-space:nowrap"><button class="small" data-open-proyek="' + p.id + '">Rincian →</button> <button class="small" data-arsip-proyek="' + p.id + '">Arsipkan</button> <button class="small danger" data-del-proyek="' + p.id + '">Hapus</button></td></tr>'
+  }
+  html += '<tr class="grand"><td colspan="3">TOTAL PROYEK AKTIF</td><td class="num">' + fmtRp(grand) + '</td><td></td></tr></table>'
+  if(arsip.length){
+    html += '<h2 style="margin-top:22px">Arsip — Proyek Lunas / Ditutup (' + arsip.length + ')</h2><div class="note">Proyek di sini tidak muncul di pilihan totalan dan tidak di-carry over ke periode berikutnya. Totalnya tetap tercatat di riwayat dashboard.</div>'
+    html += '<table><tr><th>Proyek Arsip</th><th>Tanda</th><th class="num">Item</th><th class="num">Total Upah</th><th></th></tr>'
+    for(const p of arsip){
+      const r = ring.find(x => x.projectId === p.id)
+      html += '<tr><td><b>' + esc(p.name) + '</b></td><td>' + (lunas.has(p.id) ? '<span class="badge lunas">Lunas</span>' : '<span class="badge grey">Arsip manual</span>') + '</td><td class="num">' + r.jumlahItem + '</td><td class="num">' + fmtRp(r.total) + '</td><td style="white-space:nowrap"><button class="small" data-open-proyek="' + p.id + '">Rincian →</button> <button class="small" data-aktifkan-proyek="' + p.id + '">Aktifkan Lagi</button></td></tr>'
+    }
+    html += '</table>'
+  }
+  wrap.innerHTML = html
+}
+
+/* ================================================================
+   MODUL 2 — RINCIAN UPAH (modul tersendiri, terpisah dari List Proyek)
+   Tanggung jawab: menampilkan & mengedit rincian upah HANYA untuk
+   proyek terpilih (`detailProjectId`) yang ditetapkan Modul List
+   Proyek. Tanpa proyek terpilih, modul ini tampil KOSONG (default).
+   Kedua modul hanya berbagi: dataset tukang aktif + logic.js murni.
+   Di UI, modul ini punya tab/layar sendiri; klik dari List Proyek
+   hanya memindahkan pengguna ke tab ini dengan konteks proyek tsb.
+   ================================================================ */
+function renderProyekDetail(){
+  const d = D(); const wrap = document.getElementById('proyekDetailWrap')
+  const p = d.projects.find(x => x.id === detailProjectId)
+  const emptyEl = document.getElementById('rincianEmpty'), layoutEl = document.getElementById('rincianLayout')
+  if(!p){ wrap.innerHTML = ''; if(emptyEl) emptyEl.style.display = 'block'; if(layoutEl) layoutEl.style.display = 'none'; return }
+  if(emptyEl) emptyEl.style.display = 'none'; if(layoutEl) layoutEl.style.display = 'grid'
+  document.getElementById('uProjectLabel').textContent = p.name
+  const rows = d.upahItems.filter(it => it.projectId === p.id)
+  const r = ringkasanProyek([p], d.upahItems, d.projectOverrides)[0]
+  let html = '<div class="detailbox"><h2 style="margin:0 0 10px">Rincian Upah — ' + esc(p.name) + '</h2>'
+  html += '<div class="detailstats"><div class="ds"><div class="lbl">Status</div><div class="val" style="font-size:14px">' + esc(p.status || 'On Going') + '</div></div>'
+  html += '<div class="ds"><div class="lbl">Item Pekerjaan</div><div class="val">' + rows.length + '</div></div>'
+  html += '<div class="ds"><div class="lbl">Jumlah Rincian</div><div class="val">' + fmtRp(r.sumRincian) + '</div></div>'
+  html += '<div class="ds"><div class="lbl">Total Manual (opsional)</div><div class="val"><input data-override="' + p.id + '" inputmode="numeric" style="width:140px;text-align:right;padding:5px 7px;border:1px solid var(--line);border-radius:7px;font:inherit" placeholder="—" value="' + (r.override != null ? r.override.toLocaleString('id-ID') : '') + '"></div></div>'
+  html += '<div class="ds"><div class="lbl">Total Dipakai</div><div class="val">' + fmtRp(r.total) + '</div></div>'
+  const lunasD = proyekLunasSet(d); const arsipD = isProyekArsip(p, lunasD)
+  html += '<div class="ds"><div class="lbl">Arsip / Lunas</div><div class="val" style="font-size:13px">' + (arsipD ? (lunasD.has(p.id) ? '<span class="badge lunas">Lunas — diarsipkan</span> ' : '<span class="badge grey">Arsip manual</span> ') + '<button class="small" data-aktifkan-proyek="' + p.id + '">Aktifkan Lagi</button>' : '<button class="small" data-arsip-proyek="' + p.id + '">Arsipkan Proyek</button>') + '</div></div></div>'
+  if(!rows.length){ html += '<div class="empty">Proyek ini belum punya rincian upah.</div>' }
+  else{
+    html += '<table><tr><th>Pekerjaan</th><th class="num">Ukuran</th><th class="num">Harga Satuan</th><th class="num">Upah Rincian</th><th>Catatan</th><th></th></tr>'
+    for(const it of rows){
+      html += '<tr><td>' + esc(it.pekerjaan) + '</td><td class="num">' + (it.ukuran !== '' && it.ukuran != null ? String(it.ukuran).replace('.', ',') : '-') + (it.satuanUkuran ? ' ' + esc(it.satuanUkuran) : '') + '</td><td class="num">' + fmtRp(it.hargaSatuan) + '</td><td class="num">' + fmtRp(it.upahRincian) + '</td><td>' + esc(it.catatan || '') + '</td><td style="white-space:nowrap"><button class="small" data-edit-upah="' + it.id + '">Edit</button> <button class="small danger" data-del-upah="' + it.id + '">Hapus</button></td></tr>'
+    }
+    html += '<tr class="subtotal"><td colspan="3">Total — ' + esc(p.name) + (r.override != null ? ' (manual)' : '') + '</td><td class="num">' + fmtRp(r.total) + '</td><td colspan="2"></td></tr></table>'
+  }
+  html += '</div>'
+  wrap.innerHTML = html
+}
+
+function renderKasbon(){
+  const d = D(); const wrap = document.getElementById('kasbonTableWrap')
+  const rows = [...d.kasbon].sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)))
+  if(!rows.length){ wrap.innerHTML = '<div class="empty">Belum ada kasbon untuk tukang ini.</div>' }
+  else{
+    let html = '<table><tr><th>Tanggal</th><th>Jenis</th><th>Deskripsi</th><th>Metode</th><th class="num">Nominal</th><th>Bukti</th><th>Status Potongan</th><th></th></tr>'
+    const petaStatus = new Map(statusKasbon(d).map(k => [k.id, k]))
+    let totK = 0
+    for(const k of rows){
+      if(k.jenis === 'Kasbon') totK += toNum(k.nominal)
+      const stK = petaStatus.get(k.id)
+      const selStatus = k.jenis !== 'Kasbon' ? '<span style="color:var(--muted)">—</span>'
+        : (stK && stK.terpotong ? '<span class="badge lunas">Terpotong — ' + esc(stK.totalanNo) + '</span>' + (stK.modeAlokasi === 'otomatis' ? ' <span class="badge grey">totalan lama</span>' : '')
+        : '<span class="badge cek">Belum terpotong</span>')
+      html += '<tr><td>' + fmtTgl(k.tanggal) + '</td><td>' + esc(k.jenis) + '</td><td>' + esc(k.deskripsi || '') + '</td><td>' + esc(k.metode || '') + '</td><td class="num">' + fmtRp(k.nominal) + '</td><td>' + (k.bukti ? ('<a href="' + esc(k.bukti) + '" target="_blank" rel="noopener">lihat</a>') : '') + '</td><td>' + selStatus + '</td><td style="white-space:nowrap"><button class="small" data-edit-kasbon="' + k.id + '">Edit</button> <button class="small danger" data-del-kasbon="' + k.id + '">Hapus</button></td></tr>'
+    }
+    html += '<tr class="grand"><td colspan="4">TOTAL KASBON (jenis Kasbon saja)</td><td class="num">' + fmtRp(totK) + '</td><td colspan="3"></td></tr></table>'
+    wrap.innerHTML = html
+  }
+  const rek = rekapKasbonBulanan(d.kasbon)
+  document.getElementById('rekapKasbonWrap').innerHTML = rek.length
+    ? '<table><tr><th>Bulan / Periode</th><th class="num">Jumlah Transaksi</th><th class="num">Total Kasbon</th></tr>' + rek.map(r => '<tr><td>' + esc(r.bulan) + '</td><td class="num">' + r.jumlah + '</td><td class="num">' + fmtRp(r.total) + '</td></tr>').join('') + '</table>'
+    : '<div class="empty">Belum ada rekap.</div>'
+}
+
+function previewTotalan(){
+  const d = D()
+  const no = document.getElementById('tNo').value.trim()
+  const tanggal = document.getElementById('tTanggal').value
+  const bayar = parseMoney(document.getElementById('tBayar').value)
+  const ids = [...document.querySelectorAll('#tProjects input[type=checkbox]:checked')].map(c => c.value)
+  if(!tanggal || !ids.length){ return null }
+  const kbIds = [...document.querySelectorAll('#tKasbon input[type=checkbox]:checked')].map(c => c.value)
+  const calon = { id: '__calon__', no: no || '(baru)', tanggal, seq: 1e9, projectIds: ids, pembayaranAktual: bayar, kasbonIds: kbIds }
+  const semua = hitungTotalans({ ...d, totalans: [...d.totalans, calon] })
+  return semua.find(t => t.id === '__calon__') || null
+}
+function renderTotalanForm(){
+  const d = D(); const box = document.getElementById('tProjects')
+  const noEl0 = document.getElementById('tNo'); if(!noEl0.value) noEl0.value = nomorTotalanBerikut(d.totalans)
+  const tglEl0 = document.getElementById('tTanggal'); if(!tglEl0.value) tglEl0.value = todayISO()
+  const prev = new Set([...box.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value))
+  const ring = ringkasanProyek(d.projects, d.upahItems, d.projectOverrides)
+  const sudahDipakai = new Set()
+  hitungTotalans(d).forEach(t => (t.projectIds || []).forEach(pid => sudahDipakai.add(pid)))
+  const lunasTf = proyekLunasSet(d)
+  const aktifTf = d.projects.filter(p => !isProyekArsip(p, lunasTf))
+  const hiddenTf = d.projects.length - aktifTf.length
+  box.innerHTML = aktifTf.length ? aktifTf.map(p => {
+    const r = ring.find(x => x.projectId === p.id)
+    const tag = sudahDipakai.has(p.id) ? ' <span class="badge cek">sudah pernah ditotal</span>' : ''
+    if(sudahDipakai.has(p.id)) return '<label style="opacity:.55"><input type="checkbox" value="' + p.id + '" disabled> ' + esc(p.name) + ' <span class="badge cek">sudah ditotal — tidak bisa masuk totalan lagi</span><span class="amt">' + fmtRp(r.total) + '</span></label>'
+    if(!proyekSiapTotalan(p)) return '<label style="opacity:.55"><input type="checkbox" value="' + p.id + '" disabled> ' + esc(p.name) + ' <span class="badge grey">On Going — belum selesai, belum bisa ditotal</span><span class="amt">' + fmtRp(r.total) + '</span></label>'
+    return '<label><input type="checkbox" value="' + p.id + '"' + (prev.has(p.id) ? ' checked' : '') + '> ' + esc(p.name) + tag + '<span class="amt">' + fmtRp(r.total) + '</span></label>'
+  }).join('') : '<span class="note">Tidak ada proyek aktif untuk ditotal.</span>'
+  if(hiddenTf > 0) box.innerHTML += '<div class="note" style="margin-top:6px">' + hiddenTf + ' proyek sudah lunas / masuk arsip — disembunyikan dan tidak di-carry over ke totalan berikutnya.</div>'
+  const kbBox = document.getElementById('tKasbon')
+  const prevK = new Set([...kbBox.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value))
+  const sudahAlokasi = alokasiKasbon(d).perKasbon
+  const tglT = document.getElementById('tTanggal').value || todayISO()
+  const daftarK = d.kasbon.filter(k => k.jenis === 'Kasbon' && !sudahAlokasi.has(k.id))
+    .sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)))
+  kbBox.innerHTML = daftarK.length ? daftarK.map(k => {
+    const on = kasbonPickTouched ? prevK.has(k.id) : String(k.tanggal) <= tglT
+    return '<label><input type="checkbox" value="' + k.id + '"' + (on ? ' checked' : '') + '> ' + fmtTgl(k.tanggal) + ' — ' + esc(k.deskripsi || 'kasbon') + '<span class="amt">' + fmtRp(k.nominal) + '</span></label>'
+  }).join('') : '<span class="note">Tidak ada kasbon yang belum terpotong.</span>'
+  updatePreview()
+}
+function updatePreview(){
+  const pv = previewTotalan()
+  const set = (id, v) => { document.getElementById(id).textContent = pv ? fmtRp(v) : 'Rp0' }
+  if(pv){ set('pvUpah', pv.totalUpah); set('pvKasbon', pv.kasbonDipotong); set('pvBersih', pv.hakBersih); set('pvSaldo', pv.saldoAkhir) }
+  else { ['pvUpah', 'pvKasbon', 'pvBersih', 'pvSaldo'].forEach(id => document.getElementById(id).textContent = 'Rp0') }
+}
+
+function renderTotalans(){
+  const d = D(); const wrap = document.getElementById('totalanTableWrap')
+  const tots = hitungTotalans(d)
+  if(!tots.length){ wrap.innerHTML = '<div class="empty">Belum ada totalan untuk tukang ini.</div>'; return }
+  let html = '<table><tr><th>No. Totalan</th><th>Tanggal</th><th>Proyek</th><th class="num">Total Upah</th><th class="num">Kasbon Dipotong</th><th class="num">Hak Bersih</th><th class="num">Pembayaran Aktual</th><th class="num">Saldo Akhir</th><th>Status</th><th></th></tr>'
+  for(const t of tots){
+    const names = (t.projectIds || []).map(projectName).join(', ')
+    const badge = t.status === 'Lunas' ? 'lunas' : (t.status === 'Nomor duplikat' ? 'dup' : 'cek')
+    html += '<tr><td>' + esc(t.no) + '</td><td>' + fmtTgl(t.tanggal) + '</td><td>' + esc(names) + '</td><td class="num">' + fmtRp(t.totalUpah) + '</td><td class="num">' + fmtRp(t.kasbonDipotong) + '</td><td class="num">' + fmtRp(t.hakBersih) + '</td><td class="num">' + fmtRp(t.pembayaranAktual) + '</td><td class="num">' + fmtRp(t.saldoAkhir) + '</td><td><span class="badge ' + badge + '">' + esc(t.status) + '</span></td><td style="white-space:nowrap"><button class="small" data-slip="' + t.id + '">Slip</button> <button class="small danger" data-del-totalan="' + t.id + '">Hapus</button></td></tr>'
+    if(t.potonganDetail && t.potonganDetail.length){
+      html += '<tr><td colspan="10" style="font-size:12px;color:var(--muted);padding-left:18px">Kasbon terpotong di totalan ini: ' + t.potonganDetail.map(x => fmtTgl(x.tanggal) + ' · ' + esc(x.deskripsi || 'kasbon') + ' · ' + fmtRp(x.nominal)).join(' &nbsp;|&nbsp; ') + '</td></tr>'
+    } else {
+      html += '<tr><td colspan="10" style="font-size:12px;color:var(--muted);padding-left:18px">Tidak ada kasbon yang dipotong di totalan ini.</td></tr>'
+    }
+  }
+  html += '</table>'
+  wrap.innerHTML = html
+}
+
+function renderSlip(){
+  const d = D(); const wrap = document.getElementById('slipWrap'); const el = document.getElementById('slip')
+  const t = hitungTotalans(d).find(x => x.id === slipTotalanId)
+  if(!t){ wrap.style.display = 'none'; return }
+  wrap.style.display = 'block'
+  const names = (t.projectIds || []).map(projectName).join(', ')
+  el.innerHTML =
+    '<h3>NOIR LIVING — SLIP PEMBAYARAN UPAH</h3><div class="co">Interior Design &amp; Build</div>' +
+    '<table>' +
+    '<tr><td style="width:190px">No. Totalan</td><td><b>' + esc(t.no) + '</b></td></tr>' +
+    '<tr><td>Tanggal</td><td>' + fmtTgl(t.tanggal) + '</td></tr>' +
+    '<tr><td>Tukang / Subkon</td><td>' + esc(d.name) + '</td></tr>' +
+    '<tr><td>Proyek</td><td>' + esc(names) + '</td></tr>' +
+    '<tr><td>Total Upah</td><td>' + fmtRp(t.totalUpah) + '</td></tr>' +
+    '<tr><td>Kasbon Dipotong</td><td>' + fmtRp(t.kasbonDipotong) + '</td></tr>' +
+    (t.potonganDetail && t.potonganDetail.length
+      ? t.potonganDetail.map(x => '<tr><td style="padding-left:22px;color:#555;font-size:12.5px">— kasbon ' + fmtTgl(x.tanggal) + (x.deskripsi ? ' · ' + esc(x.deskripsi) : '') + '</td><td style="color:#555;font-size:12.5px">' + fmtRp(x.nominal) + '</td></tr>').join('')
+      : '<tr><td style="padding-left:22px;color:#555;font-size:12.5px">— tidak ada kasbon dipotong</td><td></td></tr>') +
+    '<tr><td>Hak Bersih</td><td><b>' + fmtRp(t.hakBersih) + '</b></td></tr>' +
+    '<tr><td>Pembayaran Aktual</td><td>' + fmtRp(t.pembayaranAktual) + '</td></tr>' +
+    '<tr><td>Saldo Akhir</td><td>' + fmtRp(t.saldoAkhir) + '</td></tr>' +
+    '<tr><td>Status</td><td>' + esc(t.status) + '</td></tr>' +
+    '</table>' +
+    '<p style="font-size:12.5px;color:#555;margin-top:14px">Dengan menandatangani slip ini, penerima menyatakan pembayaran telah diterima.</p>' +
+    '<div class="sign"><div>Penerima<div class="nm">' + esc(d.name) + '</div></div><div>Disetujui<div class="nm">&nbsp;</div></div></div>'
+}
+
+/* ---------- Events: tabs ---------- */
+document.getElementById('btnGoList').addEventListener('click', () => switchTab('proyek'))
+document.querySelectorAll('nav.tabs button').forEach(b => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab))
+})
+
+/* ---------- Events: tukang ---------- */
+document.getElementById('tukangSwitch').addEventListener('change', e => {
+  state.activeKey = e.target.value
+  detailProjectId = null; kasbonPickTouched = false; slipTotalanId = null; editUpahId = null; editKasbonId = null
+  resetFormUpah(); resetFormKasbon()
+  document.getElementById('tNo').value = ''; document.getElementById('tBayar').value = ''
+  render(); notice('Tukang aktif: ' + D().name + '. Semua angka & daftar sekarang milik tukang ini.')
+})
+document.getElementById('btnAddTukang').addEventListener('click', () => {
+  const name = document.getElementById('newTukangName').value.trim()
+  if(!name){ notice('Isi nama tukang baru dulu.', true); return }
+  let key = slugKey(name)
+  if(state.tukangs.some(t => t.key === key)){ let i = 2; while(state.tukangs.some(t => t.key === key + '-' + i)) i++; key = key + '-' + i }
+  state.tukangs.push(blankDataset(key, name, 'Noir Living'))
+  state.activeKey = key; detailProjectId = null; kasbonPickTouched = false; slipTotalanId = null
+  document.getElementById('newTukangName').value = ''
+  render(); notice('Tukang baru ditambah & diaktifkan: ' + name + ' (key: ' + key + '). Datanya kosong dan terpisah dari tukang lain.')
+})
+document.getElementById('btnDelTukang').addEventListener('click', () => {
+  if(state.tukangs.length <= 1){ notice('Tidak bisa menghapus satu-satunya tukang.', true); return }
+  const d = D()
+  if(!confirm('Hapus tukang "' + d.name + '" beserta SEMUA proyek, upah, kasbon & totalannya?')) return
+  state.tukangs = state.tukangs.filter(t => t.key !== d.key)
+  state.activeKey = state.tukangs[0].key; detailProjectId = null; kasbonPickTouched = false; slipTotalanId = null
+  render(); notice('Tukang dihapus.')
+})
+
+/* ---------- Events: MODUL LIST PROYEK ---------- */
+document.getElementById('formProyek').addEventListener('submit', e => {
+  e.preventDefault(); const d = D()
+  const name = document.getElementById('pName').value.trim(); if(!name) return
+  if(d.projects.some(p => p.name.toLowerCase() === name.toLowerCase()) &&
+     !confirm('Sudah ada proyek bernama "' + name + '" untuk tukang ini (di file asli memang ada nama proyek yang berulang). Tetap tambah sebagai proyek terpisah?')) return
+  d.projects.push({ id: nextId('p'), name, status: document.getElementById('pStatus').value })
+  e.target.reset(); render(); notice('Proyek ditambah: ' + name)
+})
+
+/* ---------- Events: MODUL RINCIAN UPAH (proyek terpilih = detailProjectId) ---------- */
+const uUkuran = document.getElementById('uUkuran'), uHarga = document.getElementById('uHarga'), uRincian = document.getElementById('uRincian')
+function autoRincian(){ if(!rincianDirty){ const v = saranUpahRincian(parseUkuran(uUkuran.value), parseMoney(uHarga.value)); uRincian.value = v ? v.toLocaleString('id-ID') : '' } }
+uUkuran.addEventListener('input', autoRincian)
+uHarga.addEventListener('input', () => { formatMoneyInput(uHarga); autoRincian() })
+uRincian.addEventListener('input', () => { rincianDirty = true; formatMoneyInput(uRincian) })
+document.getElementById('formUpah').addEventListener('submit', e => {
+  e.preventDefault(); const d = D()
+  const pid = detailProjectId
+  if(!pid){ notice('Buka dulu rincian proyeknya dari List Proyek — rincian upah diisi dari proyek yang sedang dibuka.', true); return }
+  const row = { projectId: pid, pekerjaan: document.getElementById('uPekerjaan').value.trim(),
+    ukuran: uUkuran.value.trim() === '' ? '' : parseUkuran(uUkuran.value), satuanUkuran: document.getElementById('uSatuan').value,
+    hargaSatuan: parseMoney(uHarga.value), upahRincian: parseMoney(uRincian.value), catatan: document.getElementById('uCatatan').value.trim() }
+  if(!row.pekerjaan){ notice('Pekerjaan wajib diisi.', true); return }
+  if(editUpahId){ Object.assign(d.upahItems.find(x => x.id === editUpahId), row); notice('Baris upah diperbarui.') }
+  else { d.upahItems.push({ id: nextId('u'), ...row }); notice('Baris upah ditambah untuk ' + projectName(pid) + ' — form tetap di proyek ini, lanjut isi pekerjaan berikutnya.') }
+  resetFormUpah(); render()
+  const pk = document.getElementById('uPekerjaan'); if(pk.focus) pk.focus()
+})
+function resetFormUpah(){
+  editUpahId = null; rincianDirty = false
+  document.getElementById('formUpah').reset()
+  document.getElementById('uSubmit').textContent = '+ Tambah Baris'
+  document.getElementById('uCancel').style.display = 'none'
+}
+document.getElementById('uCancel').addEventListener('click', resetFormUpah)
+
+/* ---------- Events: kasbon ---------- */
+const kNominal = document.getElementById('kNominal')
+kNominal.addEventListener('input', () => formatMoneyInput(kNominal))
+document.getElementById('formKasbon').addEventListener('submit', e => {
+  e.preventDefault(); const d = D()
+  const row = { tanggal: document.getElementById('kTanggal').value, jenis: document.getElementById('kJenis').value,
+    deskripsi: document.getElementById('kDeskripsi').value.trim(), metode: document.getElementById('kMetode').value,
+    nominal: parseMoney(kNominal.value), bukti: document.getElementById('kBukti').value.trim() }
+  if(!row.tanggal || !row.nominal){ notice('Tanggal dan nominal kasbon wajib diisi.', true); return }
+  if(editKasbonId){ Object.assign(d.kasbon.find(x => x.id === editKasbonId), row); notice('Kasbon diperbarui.') }
+  else { d.kasbon.push({ id: nextId('k'), ...row }); notice('Kasbon ditambah.') }
+  resetFormKasbon(); render()
+})
+function resetFormKasbon(){
+  editKasbonId = null; document.getElementById('formKasbon').reset()
+  document.getElementById('kTanggal').value = todayISO()
+  document.getElementById('kSubmit').textContent = '+ Tambah Kasbon'
+  document.getElementById('kCancel').style.display = 'none'
+}
+document.getElementById('kCancel').addEventListener('click', resetFormKasbon)
+
+/* ---------- Events: totalan ---------- */
+const tBayar = document.getElementById('tBayar')
+tBayar.addEventListener('input', () => { formatMoneyInput(tBayar); updatePreview() })
+document.getElementById('tTanggal').addEventListener('change', () => renderTotalanForm())
+document.getElementById('tKasbon').addEventListener('change', () => { kasbonPickTouched = true; updatePreview() })
+document.getElementById('tNo').addEventListener('input', updatePreview)
+document.getElementById('tProjects').addEventListener('change', updatePreview)
+document.getElementById('formTotalan').addEventListener('submit', e => {
+  e.preventDefault(); const d = D()
+  const no = document.getElementById('tNo').value.trim()
+  const tanggal = document.getElementById('tTanggal').value
+  const ids = [...document.querySelectorAll('#tProjects input[type=checkbox]:checked')].map(c => c.value)
+  if(!no || !tanggal){ notice('No. Totalan dan tanggal wajib diisi.', true); return }
+  if(d.totalans.some(t => String(t.no).trim() === no)){ notice('No. Totalan "' + no + '" sudah dipakai untuk tukang ini — pakai nomor lain.', true); return }
+  if(!ids.length){ notice('Centang minimal satu proyek untuk totalan ini.', true); return }
+  const sudahSet = new Set(); hitungTotalans(d).forEach(t => (t.projectIds || []).forEach(pid => sudahSet.add(pid)))
+  const dobelProyek = ids.find(pid => sudahSet.has(pid))
+  if(dobelProyek){ notice('Proyek "' + projectName(dobelProyek) + '" sudah pernah ditotal — tidak bisa masuk totalan lagi.', true); return }
+  const alokasiAda = alokasiKasbon(d).perKasbon
+  const kbIds0 = [...document.querySelectorAll('#tKasbon input[type=checkbox]:checked')].map(c => c.value)
+  const dobelKasbon = kbIds0.find(kid => alokasiAda.has(kid))
+  if(dobelKasbon){ const kk = d.kasbon.find(x => x.id === dobelKasbon); notice('Kasbon ' + fmtTgl(kk ? kk.tanggal : '') + ' (' + (kk ? kk.deskripsi : '') + ') sudah terpotong di totalan ' + alokasiAda.get(dobelKasbon).no + ' — tidak bisa dipotong lagi.', true); return }
+  const kbIds = [...document.querySelectorAll('#tKasbon input[type=checkbox]:checked')].map(c => c.value)
+  d.seq = (d.seq || 0) + 1
+  const t = { id: nextId('t'), no, tanggal, seq: d.seq, projectIds: ids, pembayaranAktual: parseMoney(tBayar.value), kasbonIds: kbIds }
+  kasbonPickTouched = false
+  d.totalans.push(t); slipTotalanId = t.id
+  document.getElementById('tNo').value = ''; tBayar.value = ''
+  render(); notice('Totalan ' + no + ' untuk ' + d.name + ' disimpan. Slip siap dicetak di bawah.')
+})
+document.getElementById('btnPrintSlip').addEventListener('click', () => {
+  const pr = document.getElementById('printRoot')
+  pr.innerHTML = document.getElementById('slip').outerHTML.replace('id="slip"', 'style="border:2px solid #333;padding:26px 30px;max-width:720px;margin:0 auto;font-family:Segoe UI,Arial,sans-serif"')
+  pr.style.display = 'block'; window.print(); pr.style.display = 'none'
+})
+
+/* ---------- Events: tabel (delegasi) ---------- */
+document.addEventListener('click', e => {
+  const op = e.target.closest('[data-open-proyek]')
+  const eu = e.target.closest('[data-edit-upah]'), du = e.target.closest('[data-del-upah]')
+  const ek = e.target.closest('[data-edit-kasbon]'), dk = e.target.closest('[data-del-kasbon]')
+  const dt = e.target.closest('[data-del-totalan]'), sl = e.target.closest('[data-slip]'), dp = e.target.closest('[data-del-proyek]')
+  const d = D()
+  const ar = e.target.closest('[data-arsip-proyek]'), ak = e.target.closest('[data-aktifkan-proyek]')
+  if(ar){ const p = d.projects.find(x => x.id === ar.dataset.arsipProyek); if(p){ p.arsipManual = true; render(); notice('Proyek "' + p.name + '" diarsipkan — tidak muncul di pilihan totalan berikutnya.') } return }
+  if(ak){ const p = d.projects.find(x => x.id === ak.dataset.aktifkanProyek); if(p){ p.arsipManual = false; render(); notice('Proyek "' + p.name + '" diaktifkan lagi (ditahan aktif walau sudah lunas).') } return }
+  if(op && !dp){
+    detailProjectId = op.dataset.openProyek
+    switchTab('upah'); renderProyekDetail()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return
+  }
+  if(eu){
+    const it = d.upahItems.find(x => x.id === eu.dataset.editUpah); if(!it) return
+    editUpahId = it.id; rincianDirty = true
+    detailProjectId = it.projectId; switchTab('upah'); renderProyekDetail()
+    document.getElementById('uPekerjaan').value = it.pekerjaan || ''
+    uUkuran.value = it.ukuran === '' || it.ukuran == null ? '' : String(it.ukuran).replace('.', ',')
+    document.getElementById('uSatuan').value = it.satuanUkuran || ''
+    uHarga.value = it.hargaSatuan ? toNum(it.hargaSatuan).toLocaleString('id-ID') : ''
+    uRincian.value = it.upahRincian ? toNum(it.upahRincian).toLocaleString('id-ID') : ''
+    document.getElementById('uCatatan').value = it.catatan || ''
+    document.getElementById('uSubmit').textContent = 'Simpan Perubahan'
+    document.getElementById('uCancel').style.display = 'inline-block'
+    const fw = document.getElementById('rincianFormWrap'); if(fw.scrollIntoView) fw.scrollIntoView({ behavior: 'smooth' })
+  }
+  if(du && confirm('Hapus baris upah ini?')){ d.upahItems = d.upahItems.filter(x => x.id !== du.dataset.delUpah); render() }
+  if(ek){
+    const k = d.kasbon.find(x => x.id === ek.dataset.editKasbon); if(!k) return
+    editKasbonId = k.id
+    switchTab('kasbon')
+    document.getElementById('kTanggal').value = k.tanggal || ''
+    document.getElementById('kJenis').value = k.jenis || 'Kasbon'
+    document.getElementById('kDeskripsi').value = k.deskripsi || ''
+    document.getElementById('kMetode').value = k.metode || ''
+    kNominal.value = k.nominal ? toNum(k.nominal).toLocaleString('id-ID') : ''
+    document.getElementById('kBukti').value = k.bukti || ''
+    document.getElementById('kSubmit').textContent = 'Simpan Perubahan'
+    document.getElementById('kCancel').style.display = 'inline-block'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  if(dk && confirm('Hapus kasbon ini?')){ d.kasbon = d.kasbon.filter(x => x.id !== dk.dataset.delKasbon); render() }
+  if(dt && confirm('Hapus totalan ini? Potongan kasbon totalan lain akan dihitung ulang.')){ d.totalans = d.totalans.filter(x => x.id !== dt.dataset.delTotalan); if(slipTotalanId === dt.dataset.delTotalan) slipTotalanId = null; render() }
+  if(sl){ slipTotalanId = sl.dataset.slip; renderSlip(); document.getElementById('slipWrap').scrollIntoView({ behavior: 'smooth' }) }
+  if(dp){
+    const p = d.projects.find(x => x.id === dp.dataset.delProyek); if(!p) return
+    if(d.upahItems.some(it => it.projectId === p.id) && !confirm('Proyek ini punya rincian upah. Hapus proyeknya? Rincian akan yatim dan tidak dihitung.')) return
+    if(confirm('Hapus proyek "' + p.name + '" dari tukang ' + d.name + '?')){ d.projects = d.projects.filter(x => x.id !== p.id); delete d.projectOverrides[p.id]; if(detailProjectId === p.id) detailProjectId = null; kasbonPickTouched = false; render() }
+  }
+})
+document.addEventListener('change', e => {
+  const ov = e.target.closest('[data-override]')
+  if(ov){
+    const d = D()
+    if(ov.value.trim() === '') delete d.projectOverrides[ov.dataset.override]
+    else d.projectOverrides[ov.dataset.override] = parseMoney(ov.value)
+    render(); notice('Total manual proyek disimpan.')
+  }
+})
+
+/* ---------- Header: demo / ekspor / impor / reset ---------- */
+function buildDatasetAsep(){
+  const d = blankDataset('asep', 'Asep', 'Noir Living')
+  const pid = 'p-asep-josh'
+  d.projects.push({ id: pid, name: 'Proyek Josh - Mabes', status: 'Selesai' })
+  const rows = [
+    ['Divan dengan laci', 3.2, 'm', 450, 1440], ['Headboard', 1.7, 'm', 350, 595], ['Panel samping divan', 2.1, 'm', 350, 500],
+    ['Pemindahan stop kontak', 1, 'titik', 50, 50], ['Instalasi LED divan + saklar', 1, 'titik', 75, 75], ['Kabinet TV kamar', 1.5, 'm', 450, 675],
+    ['Wardrobe', 3.6, 'm', 450, 1620], ['Kabinet atas meja', 1.8, 'm', 550, 990], ['Meja + laci terintegrasi', 1.5, 'm', 450, 675],
+    ['Wallpanel atas meja', 1.5, 'm', 350, 525], ['Pasang cermin dalam pintu', 2, 'unit', 50, 100], ['Stop kontak pada wallpanel', 3, 'titik', 50, 150],
+    ['Instalasi LED lemari/meja', 1, 'titik', 75, 75], ['Kabinet TV ruang tamu', 1.8, 'm', 450, 810], ['Pemindahan stop kontak TV', 2, 'titik', 50, 100],
+    ['Instalasi LED TV + saklar', 1, 'titik', 75, 75], ['Kabinet toilet HMR', 1, 'unit', 550, 550], ['Cermin toilet + backing', 1, 'unit', 150, 150],
+    ['Instalasi LED cermin + saklar', 1, 'titik', 75, 75]
+  ]
+  rows.forEach((r, i) => d.upahItems.push({ id: 'u-asep-' + i, projectId: pid, pekerjaan: r[0], ukuran: r[1], satuanUkuran: r[2], hargaSatuan: r[3] * 1000, upahRincian: r[4] * 1000, catatan: '' }))
+  d.kasbon.push({ id: 'k-asep-1', tanggal: todayISO(), jenis: 'Kasbon', deskripsi: '(contoh) Kasbon mingguan', metode: 'Transfer', nominal: 1000000, bukti: '' })
+  d.kasbon.push({ id: 'k-asep-2', tanggal: todayISO(), jenis: 'Kasbon', deskripsi: '(contoh) Kasbon makan tim', metode: 'Tunai', nominal: 500000, bukti: '' })
+  d.idCounter = 100
+  return d
+}
+function buildDatasetPujon(){
+  const d = blankDataset('pujon', 'Pak Pujon', 'Cybergerak Design & Build')
+  if(!DEMO_PUJON) return d
+  const pids = DEMO_PUJON.projects.map((p, i) => {
+    const id = 'p-pujon-' + i
+    d.projects.push({ id, name: p.name, status: p.status })
+    return id
+  })
+  DEMO_PUJON.items.forEach((r, i) => d.upahItems.push({ id: 'u-pujon-' + i, projectId: pids[r[0]], pekerjaan: r[1], ukuran: r[2], satuanUkuran: '', hargaSatuan: r[3], upahRincian: r[4], catatan: '' }))
+  DEMO_PUJON.kasbon.forEach((r, i) => d.kasbon.push({ id: 'k-pujon-' + i, tanggal: r[0], jenis: 'Kasbon', deskripsi: r[1], metode: r[2], nominal: r[3], bukti: '' }))
+  d.idCounter = 1000
+  return d
+}
+document.getElementById('btnDemo').addEventListener('click', () => {
+  if(state.tukangs.some(t => t.projects.length || t.kasbon.length) && !confirm('Isi data contoh akan MENGGANTI semua data sekarang dengan data asli Asep + Pujon. Lanjut?')) return
+  state = { version: 2, activeKey: 'pujon', tukangs: [buildDatasetAsep(), buildDatasetPujon()] }
+  detailProjectId = null; kasbonPickTouched = false; slipTotalanId = null; editUpahId = null; editKasbonId = null
+  render()
+  notice('Data contoh dimuat: 2 tukang. Aktif: Pak Pujon (54 proyek, 524 rincian, 92 kasbon — total hak dihitung live Rp407.535.500). Ganti tukang lewat pemilih di atas untuk melihat data Asep.')
+})
+document.getElementById('btnReset').addEventListener('click', () => {
+  if(!confirm('Reset akan MENGHAPUS semua data modul (semua tukang) di browser ini. Lanjut?')) return
+  state = blankState(); detailProjectId = null; kasbonPickTouched = false; editUpahId = editKasbonId = slipTotalanId = null; resetFormUpah(); resetFormKasbon(); render(); notice('Data direset.')
+})
+document.getElementById('btnExportJson').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'upah-kasbon-semua-tukang.json'; a.click(); URL.revokeObjectURL(a.href)
+})
+document.getElementById('btnImportJson').addEventListener('click', () => document.getElementById('fileImport').click())
+document.getElementById('fileImport').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return
+  const rd = new FileReader()
+  rd.onload = () => { try{ const s = JSON.parse(rd.result); if(!Array.isArray(s.tukangs)) throw new Error('format v2 tidak dikenal'); state = Object.assign(blankState(), s); if(!state.tukangs.some(t => t.key === state.activeKey)) state.activeKey = state.tukangs[0].key; detailProjectId = null; kasbonPickTouched = false; render(); notice('Impor berhasil: ' + state.tukangs.length + ' tukang.') }catch(err){ notice('Gagal impor: ' + err.message, true) } }
+  rd.readAsText(f); e.target.value = ''
+})
+document.getElementById('btnExportCsv').addEventListener('click', () => {
+  const d = D()
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'
+  let csv = 'Tukang;' + q(d.name) + '\n\nRINCIAN UPAH\nProyek;Pekerjaan;Ukuran;Satuan;Harga Satuan;Upah Rincian;Catatan\n'
+  for(const it of d.upahItems) csv += [projectName(it.projectId), it.pekerjaan, String(it.ukuran).replace('.', ','), it.satuanUkuran || '', it.hargaSatuan, it.upahRincian, it.catatan || ''].map(q).join(';') + '\n'
+  csv += '\nKASBON\nTanggal;Jenis;Deskripsi;Metode;Nominal;Bukti\n'
+  for(const k of d.kasbon) csv += [k.tanggal, k.jenis, k.deskripsi || '', k.metode || '', k.nominal, k.bukti || ''].map(q).join(';') + '\n'
+  csv += '\nTOTALAN\nNo;Tanggal;Proyek;Total Upah;Kasbon Dipotong;Hak Bersih;Pembayaran Aktual;Saldo Akhir;Status\n'
+  for(const t of hitungTotalans(d)) csv += [t.no, t.tanggal, (t.projectIds || []).map(projectName).join(', '), t.totalUpah, t.kasbonDipotong, t.hakBersih, t.pembayaranAktual, t.saldoAkhir, t.status].map(q).join(';') + '\n'
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv' })
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'upah-kasbon-' + d.key + '.csv'; a.click(); URL.revokeObjectURL(a.href)
+})
+
+/* ---------- Init ---------- */
+document.getElementById('kTanggal').value = todayISO()
+render()
+</script>
+</body>
+</html>
