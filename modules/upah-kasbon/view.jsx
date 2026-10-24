@@ -26,16 +26,24 @@ import { supabase } from '../../lib/supabaseClient'
 
 const PROTO_URL = '/upah-kasbon-prototype.html'
 
+// Injeksi klien HARUS terjadi sebelum iframe dimuat. useEffect berjalan
+// setelah React commit — iframe sudah mulai fetch HTML prototipe, jadi
+// prototipe bisa membaca window.parent.__UPAH_SUPABASE__ yang masih kosong
+// dan terlanjur masuk mode legacy (localStorage). Karena itu dipasang di
+// module scope: modul ini dieksekusi saat import, jauh sebelum render.
+if (typeof window !== 'undefined' && supabase) {
+  window.__UPAH_SUPABASE__ = supabase
+}
+
 export default function UpahKasbonPage() {
   useEffect(() => {
-    // Injeksi klien untuk iframe (same-origin). Dipasang SEBELUM iframe
-    // dimuat; jika supabase belum siap, iframe berjalan legacy & banner
-    // di dalam modul yang menunjukkan statusnya.
+    // jaring pengaman: bila modul di-import sebelum klien siap (mis. env
+    // diisi belakangan), pasang lagi saat mount.
     try {
       if (typeof window !== 'undefined' && supabase) {
         window.__UPAH_SUPABASE__ = supabase
       }
-    } catch (e) { /* abaikan: iframe akan tampil mode legacy + banner */ }
+    } catch (e) { /* iframe akan tampil mode legacy + banner status */ }
   }, [])
 
   return (
