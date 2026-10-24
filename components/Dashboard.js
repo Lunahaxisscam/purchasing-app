@@ -1,6 +1,6 @@
 import React from 'react'
 import { exportWorkbook } from '../lib/workflow'
-import { headersFor, parseHandoverNote } from '../lib/constants'
+import { headersFor, parseHandoverNote, isTukangUpahLegacyEnabled } from '../lib/constants'
 // t_50b783de (Approval OFF): kartu "Menunggu approval" dan sheet ekspor
 // Approval hanya dirender bila modul Approval aktif (satu kebijakan terpusat).
 import { isApprovalEnabled, isLaborStockEnabled, isMarketingEnabled } from '../lib/constants'
@@ -18,6 +18,8 @@ const CARD_ICONS = {
   project_finance: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   finance: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
   tukang_upah: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
+  // Ikon modul upah_kasbon (input upah/kasbon/totalan) — uang + centang.
+  upah_kasbon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
   rab_boq: <path d="M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 11h3M8 15h3M15 11v6M13 15h4" />,
   sales_invoice: <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />,
   rap: <path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h4" />,
@@ -97,7 +99,12 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
     ['planning', 'Budgeting', 'Rencana', 'tone-neutral'],
     ['project_finance', 'Project Finance', 'Laba/rugi', 'tone-neutral'],
     ['finance', 'Finance', 'Ringkasan', 'tone-neutral'],
-    ['tukang_upah', 'Upah Tukang', 'Upah', 'tone-neutral'],
+    // t_upah_kasbon (24 Okt): kartu pintasan LAMA diganti modul upah_kasbon
+    // (DAT: "jadi 1 saja"). Disembunyikan lewat flag, bukan dihapus.
+    ...(isTukangUpahLegacyEnabled()
+      ? [['tukang_upah', 'Upah Tukang', 'Upah', 'tone-neutral']]
+      : []),
+    ['upah_kasbon', 'Upah & Kasbon', 'Input', 'tone-neutral'],
     ['settings', 'Settings', 'Admin', 'tone-neutral']
   ] : []
   return (

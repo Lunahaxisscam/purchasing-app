@@ -102,6 +102,14 @@ console.error = (...a) => { errors.push(a.map(String).join(' ')) }
   if (ROLE === 'admin') {
     check('menu "Upah & Kasbon" tampil untuk admin', menu.length > 0,
       'sidebar: ' + (el.textContent || '').replace(/\s+/g, ' ').slice(0, 200))
+    // DAT: "jadi 1 saja" — modul upah_kasbon MENGGANTIKAN tukang_upah.
+    const sidebar = [...el.querySelectorAll('aside button, aside a, nav button, nav a')]
+      .map(x => (x.textContent || '').trim())
+    const upahItems = sidebar.filter(t => /^upah/i.test(t))
+    check('sidebar hanya punya SATU entri upah (konsolidasi)',
+      upahItems.length === 1, 'entri upah: ' + JSON.stringify(upahItems))
+    check('entri upah yang tampil = "Upah & Kasbon" (bukan yang lama)',
+      upahItems.length === 1 && /kasbon/i.test(upahItems[0]), JSON.stringify(upahItems))
   } else {
     check('menu "Upah & Kasbon" TIDAK tampil untuk non-admin', menu.length === 0)
   }
