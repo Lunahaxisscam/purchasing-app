@@ -23,6 +23,18 @@
   'use strict'
 
   // ---------- util ----------
+  // STATUS PROYEK: DB memakai SELESAI/ON_GOING, sedangkan logic.js memakai
+  // 'Selesai'/'On Going' (isProjectTotalable: status === 'Selesai'). Tanpa
+  // normalisasi dua arah, semua proyek terbaca "belum selesai" -> checkbox
+  // totalan mati dan Total Upah selalu Rp0.
+  function statusToState(v) {
+    const u = String(v || '').trim().toUpperCase()
+    return (u === 'SELESAI' || u === 'DONE' || u === 'LUNAS' || u === 'ARSIP') ? 'Selesai' : 'On Going'
+  }
+  function statusToDb(v) {
+    const s = String(v || '').trim().toLowerCase()
+    return (s === 'selesai' || s === 'done' || s === 'lunas' || s === 'arsip') ? 'SELESAI' : 'ON_GOING'
+  }
   function toNum(v) { const n = Number(v); return Number.isFinite(n) ? n : null }
   function nOr(v) { const n = toNum(v); return n === null ? null : n }
   function clone(v) { return JSON.parse(JSON.stringify(v)) }
@@ -48,7 +60,7 @@
       const d = dsByTukangId[p.tukang_id]; if (!d) return
       projName[p.id] = p.project_name
       projStatus[p.id] = p.status
-      d.projects.push({ id: p.id, name: p.project_name, status: p.status || 'ON_GOING', arsipManual: p.arsip_manual === null ? undefined : !!p.arsip_manual, dbId: p.id })
+      d.projects.push({ id: p.id, name: p.project_name, status: statusToState(p.status), arsipManual: p.arsip_manual === null ? undefined : !!p.arsip_manual, dbId: p.id })
       if (p.total_manual !== null && p.total_manual !== undefined) d.projectOverrides[p.id] = Number(p.total_manual)
       d.idCounter = Math.max(d.idCounter, 0)
     })
@@ -101,7 +113,7 @@
 
   function rowProject(p, tukangId) {
     return {
-      tukang_id: tukangId, project_name: p.name, status: p.status || 'ON_GOING',
+      tukang_id: tukangId, project_name: p.name, status: statusToDb(p.status),
       arsip_manual: p.arsipManual === undefined ? null : !!p.arsipManual,
       total_manual: null, sort_order: 0
     }
@@ -207,7 +219,8 @@
   function mappedOld(table, k, o, pd) {
     switch (table + ':' + k) {
       case 'upah_projects:project_name': return o.name
-      case 'upah_projects:status': return o.status || 'ON_GOING'
+      // pembanding memakai nilai DB (row baru juga nilai DB) -> normalisasi ke DB
+      case 'upah_projects:status': return statusToDb(o.status)
       case 'upah_projects:arsip_manual': return o.arsipManual === undefined ? null : !!o.arsipManual
       case 'upah_projects:total_manual': return Object.prototype.hasOwnProperty.call((pd && pd.projectOverrides) || {}, o.id) ? nOr(pd.projectOverrides[o.id]) : null
       case 'upah_projects:sort_order': return 0
@@ -320,5 +333,5 @@
     }
   }
 
-  return { stateFromDb, planPersist, executeOps, applyIdMap, fetchAll, toNum, clone }
+  return { stateFromDb, planPersist, executeOps, applyIdMap, fetchAll, statusToState, statusToDb, toNum, clone }
 })

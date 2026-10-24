@@ -42,7 +42,11 @@ console.log('== 1. stateFromDb memetakan baris DB ke bentuk state v2 ==')
   eq(st.tukangs[0].name, 'Asep', 'nama jadi name')
   eq(st.tukangs[0].projects[0].id, 'PR-1', 'project id = uuid')
   eq(st.tukangs[0].projects[0].name, 'Project A', 'project_name jadi name')
-  eq(st.tukangs[0].projects[0].status, 'ON_GOING', 'status diteruskan')
+  // KONTRAK logic.js: isProjectTotalable() membandingkan status === 'Selesai'
+  // (title case). DB menyimpan 'SELESAI'/'ON_GOING'. Tanpa normalisasi,
+  // SEMUA proyek terbaca "belum selesai" -> checkbox totalan mati, Total
+  // Upah Rp0, tombol totalan tidak bisa diklik.
+  eq(st.tukangs[0].projects[0].status, 'On Going', 'status ON_GOING -> "On Going" (kontrak logic.js)')
   eq(st.tukangs[0].projectOverrides['PR-1'], 12345, 'total_manual jadi projectOverrides')
   const it = st.tukangs[0].upahItems[0]
   eq([it.id, it.projectId, it.pekerjaan, it.ukuran, it.satuanUkuran, it.hargaSatuan, it.upahRincian], ['IT-1', 'PR-1', 'Kabinet', 2.5, 'm2', 350000, 875000], 'item camelCase utuh')
@@ -52,6 +56,34 @@ console.log('== 1. stateFromDb memetakan baris DB ke bentuk state v2 ==')
   eq(st.tukangs[0].kasbon[1].jenis, 'Pelunasan', 'jenis PELUNASAN dinormalisasi ke Pelunasan')
   const tt = st.tukangs[0].totalans[0]
   eq([tt.id, tt.no, tt.seq, tt.projectIds, tt.kasbonIds, tt.pembayaranAktual], ['TT-1', 'TOT-001', 1, ['PR-1'], ['KB-1'], 800000], 'totalan + junction jadi projectIds/kasbonIds')
+}
+
+// ============================================================
+console.log('== 1b. status proyek: SELESAI <-> Selesai (dua arah) ==')
+{
+  const st = sync.stateFromDb({
+    tukangs: [{ id: 'TK-1', kode: 'asep', nama: 'Asep', unit_bisnis: 'Noir Living', aktif: true }],
+    projects: [
+      { id: 'PR-1', tukang_id: 'TK-1', project_name: 'Sudah Selesai', status: 'SELESAI', arsip_manual: null, total_manual: null, sort_order: 0 },
+      { id: 'PR-2', tukang_id: 'TK-1', project_name: 'Masih Jalan', status: 'ON_GOING', arsip_manual: null, total_manual: null, sort_order: 1 }
+    ],
+    items: [], kasbon: [], totalans: [], totalanProjects: [], totalanKasbon: []
+  })
+  eq(st.tukangs[0].projects[0].status, 'Selesai', 'SELESAI -> "Selesai" (bisa ditotal)')
+  eq(st.tukangs[0].projects[1].status, 'On Going', 'ON_GOING -> "On Going" (belum bisa ditotal)')
+
+  // arah balik: state -> row DB
+  st.tukangs[0].projects[1].status = 'Selesai'   // user menandai selesai di UI
+  const ops = sync.planPersist(
+    sync.stateFromDb({
+      tukangs: [{ id: 'TK-1', kode: 'asep', nama: 'Asep', unit_bisnis: 'Noir Living', aktif: true }],
+      projects: [{ id: 'PR-2', tukang_id: 'TK-1', project_name: 'Masih Jalan', status: 'ON_GOING', arsip_manual: null, total_manual: null, sort_order: 1 }],
+      items: [], kasbon: [], totalans: [], totalanProjects: [], totalanKasbon: []
+    }),
+    st, { snapshotTotalan: () => ({}) })
+  const upd = ops.find(o => o.table === 'upah_projects' && o.kind === 'update')
+  ok(!!upd, 'perubahan status menghasilkan update')
+  eq(upd.row.status, 'SELESAI', '"Selesai" -> SELESAI saat disimpan ke DB')
 }
 
 // ============================================================
