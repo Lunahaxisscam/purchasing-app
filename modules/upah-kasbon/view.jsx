@@ -1,41 +1,51 @@
 // ============================================================
 // modules/upah-kasbon/view.jsx — Upah & Kasbon (staging)
 // ============================================================
-// STATUS: tahap 1 integrasi (24 Okt 2026, arahan DAT "masukkan ke staging
-// 3001 di modul upah kasbon").
+// TAHAP 2 (24 Okt 2026, keputusan DAT): Supabase = DATABASE MASTER,
+// tanpa sync Google Sheets. Prototipe (v8, logika teruji 41/41)
+// tetap dipakai apa adanya, tetapi penyimpanannya sekarang Supabase:
 //
-// KENAPA IFRAME, BUKAN REACT PORT LANGSUNG:
-// Prototipe dari DAT (`modul-upah-kasbon.html`, v8) adalah 1.102 baris
-// HTML + vanilla JS dengan logika yang SUDAH diuji 41/41 assertion
-// (total proyek, potongan kasbon per entri, hak bersih, saldo, status,
-// arsip proyek lunas, anti-dobel totalan). Menulis ulang ke React dalam
-// satu langkah berisiko mengubah perilaku yang sudah terbukti.
+//   - view.jsx menginjeksi KLIEN Supabase milik aplikasi ke
+//     window.__UPAH_SUPABASE__ sebelum iframe dirender. Iframe
+//     same-origin membacanya, jadi memakai SESI LOGIN & RLS yang
+//     sama (admin-only) — tanpa kredensial baru, tanpa CDN.
+//   - public/upah-kasbon-sync.js: diff state -> operasi DB
+//     (insert/update/delete berurutan, junction totalan ikut).
+//   - Data master: upah_tukang, upah_projects, upah_items,
+//     upah_kasbon, upah_totalan (+ 2 junction). Migrasi:
+//     migrations/2026-10-24_upah_kasbon_master.sql
+//   - Gagal memuat database -> modul baca-saja (fail-closed),
+//     TIDAK ada fallback diam-diam ke localStorage.
 //
-// Jadi tahap 1 = prototipe dijalankan APA ADANYA di dalam panel app
-// (sumber: /public/upah-kasbon-prototype.html). Keuntungannya: yang diuji
-// DAT di staging = persis yang dia uji di browser lokal.
-//
-// TAHAP 2 (belum dikerjakan): port ke view.jsx React asli memakai
-// `logic.js` (sudah ada di folder ini, TIDAK perlu diubah) + `store.js`
-// diganti Supabase. Lihat README.md bagian "Kontrak integrasi".
-//
-// CATATAN DATA: prototipe menyimpan ke localStorage browser, BUKAN ke
-// tabel Supabase. Tabel `tukang_*` sengaja tidak disentuh karena masih
-// diisi sync Google Sheets (konflik sumber data — SPEC.md risiko #1).
-// Artinya: data di modul ini TIDAK terlihat oleh user/perangkat lain.
+// Tab lama "Upah Tukang" (read-only, hasil sync Sheets) sengaja
+// tetap ada sampai DAT menyatakan modul ini siap menggantikan.
 // ============================================================
 
-import React from 'react'
+import React, { useEffect } from 'react'
+import { supabase } from '../../lib/supabaseClient'
 
 const PROTO_URL = '/upah-kasbon-prototype.html'
 
 export default function UpahKasbonPage() {
+  useEffect(() => {
+    // Injeksi klien untuk iframe (same-origin). Dipasang SEBELUM iframe
+    // dimuat; jika supabase belum siap, iframe berjalan legacy & banner
+    // di dalam modul yang menunjukkan statusnya.
+    try {
+      if (typeof window !== 'undefined' && supabase) {
+        window.__UPAH_SUPABASE__ = supabase
+      }
+    } catch (e) { /* abaikan: iframe akan tampil mode legacy + banner */ }
+  }, [])
+
   return (
     <div className="upah-kasbon-wrap">
       <div className="upah-kasbon-note">
         <b>Upah &amp; Kasbon</b> — modul input upah borongan, kasbon, dan
-        totalan/slip tukang. Data tersimpan di <b>browser ini</b> (localStorage),
-        belum ke database. Gunakan <b>Ekspor JSON</b> di dalam modul untuk cadangan.
+        totalan/slip tukang. Data tersimpan di <b>Supabase</b> (database
+        master, admin-only) dan otomatis tersimpan saat kamu mengubah apa pun.
+        Jika banner di dalam modul menunjukkan <i>baca-saja</i>, koneksi
+        database bermasalah — muat ulang halaman.
       </div>
       <iframe
         src={PROTO_URL}

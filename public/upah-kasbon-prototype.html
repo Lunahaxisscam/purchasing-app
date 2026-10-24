@@ -278,6 +278,7 @@
 
 <div id="printRoot" style="display:none"></div>
 
+<script src="/upah-kasbon-sync.js"></script>
 <script>
 'use strict'
 /* ===== Salinan logic.js (modules/upah-kasbon/logic.js) — JAGA TETAP SAMA ===== */
@@ -585,6 +586,22 @@ function slugKey(name){
 function D(){
   return state.tukangs.find(t => t.key === state.activeKey) || state.tukangs[0]
 }
+/* ==== LAPISAN PENYIMPANAN: Supabase master vs localStorage legacy ====
+ * Master (default di app): klien Supabase diinjeksi parent via
+ * window.__UPAH_SUPABASE__ (sesi & RLS sama dengan aplikasi).
+ * Semua perubahan di-diff (UpahSync.planPersist) lalu ditulis.
+ * Gagal jaringan/RLS -> modul baca-saja + pesan (fail-closed),
+ * TIDAK ada fallback diam-diam ke localStorage.
+ * Legacy (file dibuka standalone / uji jsdom): localStorage seperti semula. */
+const UP = window.UpahSync
+const PARENT_SB = (typeof window.parent !== 'undefined' && window.parent.__UPAH_SUPABASE__) || null
+const MASTER = { ok:false, client:null, last:null, timer:null, busy:false }
+function masterStatus(msg, isErr, sticky){
+  const n = document.getElementById('notice')
+  n.textContent = msg; n.className = isErr ? 'err' : ''; n.style.display = 'block'
+  clearTimeout(n._t)
+  if(!sticky) n._t = setTimeout(() => { n.style.display = 'none' }, 4500)
+}
 function loadState(){
   try{
     const s = JSON.parse(localStorage.getItem(LS_KEY))
@@ -601,7 +618,73 @@ function loadState(){
   }catch(e){}
   return blankState()
 }
-function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)) }
+function saveState(){
+  if(PARENT_SB){ // mode master
+    if(MASTER.ok){ clearTimeout(MASTER.timer); MASTER.timer = setTimeout(persistNow, 700) }
+    else masterStatus('Baca-saja: database tidak terjangkau, perubahan TIDAK disimpan. Muat ulang halaman.', true)
+    return
+  }
+  localStorage.setItem(LS_KEY, JSON.stringify(state)) // legacy
+}
+function snapTotalan(t, d){
+  try{
+    const comp = hitungTotalans({ projects:d.projects, upahItems:d.upahItems, kasbon:d.kasbon, projectOverrides:d.projectOverrides, totalans:d.totalans })
+    const f = (comp || []).find(x => x.id === t.id)
+    return f ? { total_upah:f.totalUpah, kasbon_dipotong:f.kasbonDipotong, hak_bersih:f.hakBersih, saldo_akhir:f.saldoAkhir, status:f.status } : {}
+  }catch(e){ return {} }
+}
+async function persistNow(){
+  if(MASTER.busy){ clearTimeout(MASTER.timer); MASTER.timer = setTimeout(persistNow, 1200); return }
+  MASTER.busy = true
+  try{
+    const prev = MASTER.last || UP.clone(state)
+    const ops = UP.planPersist(prev, state, { snapshotTotalan: snapTotalan })
+    if(ops.length){
+      const idMap = {}
+      const res = await UP.executeOps(ops, MASTER.client, { idMap, resolve: id => idMap[id] || id })
+      if(!res.ok) throw new Error((res.error && (res.error.message || res.error.code)) || 'gagal menyimpan')
+      if(Object.keys(idMap).length){
+        // id sementara -> UUID lalu ambil ulang supaya junction rapi
+        state.tukangs.forEach(d => UP.applyIdMap(d, idMap))
+        const fresh = await UP.fetchAll(MASTER.client)
+        state = UP.stateFromDb(fresh)
+        if(!state.tukangs.some(t => t.key === state.activeKey)) state.activeKey = state.tukangs[0].key
+        render()
+      }
+    }
+    MASTER.last = UP.clone(state)
+    masterStatus('Tersimpan ke database.')
+  }catch(e){
+    // last TIDAK diubah: percobaan berikutnya mendiff ulang operasi yang sama
+    masterStatus('GAGAL SIMPAN ke database: ' + (e.message || e) + ' — coba lagi / muat ulang.', true)
+    clearTimeout(MASTER.timer); MASTER.timer = setTimeout(persistNow, 5000)
+  }finally{ MASTER.busy = false }
+}
+async function bootMaster(){
+  if(!PARENT_SB){ render(); return } // legacy: file standalone / jsdom
+  MASTER.client = PARENT_SB
+  masterStatus('Memuat data dari database…', false, true)
+  try{
+    const fresh = await UP.fetchAll(MASTER.client)
+    state = UP.stateFromDb(fresh)
+    MASTER.ok = true
+    MASTER.last = UP.clone(state)
+    // tombol yang MENGGANTI data master dinonaktifkan di mode database
+    ;['btnDemo','btnReset','btnImportJson'].forEach(id => {
+      const b = document.getElementById(id)
+      if(b){ b.disabled = true; b.title = 'Nonaktif di mode database (data master di Supabase)' }
+    })
+    render()
+    const nTk = fresh.tukangs.length, nIt = fresh.items.length, nKb = fresh.kasbon.length
+    masterStatus(nTk === 0
+      ? 'Mode database: TAPI tidak ada data terlihat — periksa login/akses admin, lalu muat ulang.'
+      : 'Mode database: perubahan tersimpan otomatis ke Supabase (' + nTk + ' tukang, ' + nIt + ' rincian upah, ' + nKb + ' kasbon).')
+  }catch(e){
+    state = blankState() // fail-closed: JANGAN pakai cache lokal
+    render()
+    masterStatus('GAGAL MEMUAT DATABASE: ' + (e.message || e) + ' — mode baca-saja, perubahan tidak disimpan.', true, true)
+  }
+}
 function nextId(p){ const d = D(); d.idCounter = (d.idCounter || 0) + 1; return p + d.idCounter.toString(36) + Date.now().toString(36) }
 function projectName(id){ const p = D().projects.find(x => x.id === id); return p ? p.name : '(proyek terhapus)' }
 function fmtRp(n){ return 'Rp' + Math.round(toNum(n)).toLocaleString('id-ID') }
@@ -1096,7 +1179,7 @@ document.getElementById('btnExportCsv').addEventListener('click', () => {
 
 /* ---------- Init ---------- */
 document.getElementById('kTanggal').value = todayISO()
-render()
+bootMaster()
 </script>
 </body>
 </html>

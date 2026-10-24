@@ -4,7 +4,7 @@
 //   1) menu "Upah & Kasbon" muncul untuk ADMIN
 //   2) mengklik menu tidak melempar exception (kelas bug ReferenceError
 //      di cabang admin yang dulu bikin "Application error")
-//   3) modul benar-benar terender: iframe prototipe + catatan localStorage
+//   3) modul benar-benar terender: iframe prototipe + catatan penyimpanan master
 //   4) non-admin TIDAK bisa membuka modul (guard render, bukan cuma menu)
 const fs = require('fs')
 const Module = require('module')
@@ -136,7 +136,7 @@ console.error = (...a) => { errors.push(a.map(String).join(' ')) }
     check('iframe menunjuk file prototipe yang benar',
       !!iframe && iframe.getAttribute('src') === '/upah-kasbon-prototype.html',
       iframe ? iframe.getAttribute('src') : '-')
-    check('catatan localStorage tampil', /tersimpan di browser ini|localStorage/i.test(bodyText),
+    check('catatan penyimpanan master tampil', /Supabase|database\s+master/i.test(bodyText),
       bodyText.slice(0, 240))
     check('tidak ada ReferenceError di console',
       !errors.some(e => /ReferenceError/.test(e)),

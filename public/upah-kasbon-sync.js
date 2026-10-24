@@ -1,0 +1,324 @@
+// ============================================================
+// public/upah-kasbon-sync.js — LAPISAN SYNC localStorage -> Supabase
+// ============================================================
+// Dimuat prototipe via <script src> biasa (bukan module) supaya bisa
+// diuji langsung dari Node (require). Dual export:
+//   Browser : window.UpahSync
+//   Node    : module.exports
+//
+// Prinsip (keputusan DAT, 24 Okt 2026): Supabase = database master,
+// TANPA sync Google Sheets. Klien Supabase DIINJEKSI dari parent
+// (view.jsx menaruh window.__UPAH_SUPABASE__), jadi file ini:
+//   - tidak menyimpan kredensial apa pun
+//   - memakai sesi login yang sama dengan aplikasi (RLS admin-only)
+//
+// Murni & bisa diuji: planPersist / executeOps / stateFromDb /
+// applyIdMap tidak menyentuh localStorage dan tidak membuat klien.
+// ============================================================
+(function (root, factory) {
+  const api = factory()
+  if (typeof module !== 'undefined' && module.exports) module.exports = api
+  root.UpahSync = api
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict'
+
+  // ---------- util ----------
+  function toNum(v) { const n = Number(v); return Number.isFinite(n) ? n : null }
+  function nOr(v) { const n = toNum(v); return n === null ? null : n }
+  function clone(v) { return JSON.parse(JSON.stringify(v)) }
+  function same(a, b) { return JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b) }
+
+  // ---------- 1. BARIS DB -> STATE v2 ----------
+  function stateFromDb(db) {
+    db = db || {}
+    const tukangById = {}
+    const tukangs = (db.tukangs || []).map(t => {
+      tukangById[t.id] = t
+      return {
+        key: t.kode, dbId: t.id, name: t.nama, unit: t.unit_bisnis || 'Noir Living',
+        projects: [], upahItems: [], kasbon: [], totalans: [], projectOverrides: {},
+        seq: 0, idCounter: 0
+      }
+    })
+    const dsByTukangId = {}
+    tukangs.forEach(d => { dsByTukangId[d.dbId] = d })
+
+    const projName = {}, projStatus = {}
+    ;(db.projects || []).forEach(p => {
+      const d = dsByTukangId[p.tukang_id]; if (!d) return
+      projName[p.id] = p.project_name
+      projStatus[p.id] = p.status
+      d.projects.push({ id: p.id, name: p.project_name, status: p.status || 'ON_GOING', arsipManual: p.arsip_manual === null ? undefined : !!p.arsip_manual, dbId: p.id })
+      if (p.total_manual !== null && p.total_manual !== undefined) d.projectOverrides[p.id] = Number(p.total_manual)
+      d.idCounter = Math.max(d.idCounter, 0)
+    })
+    ;(db.items || []).forEach(i => {
+      const proj = (db.projects || []).find(p => p.id === i.project_id); if (!proj) return
+      const d = dsByTukangId[proj.tukang_id]; if (!d) return
+      d.upahItems.push({
+        id: i.id, projectId: i.project_id, pekerjaan: i.pekerjaan, ukuran: i.ukuran,
+        satuanUkuran: i.satuan_ukuran || '', hargaSatuan: i.harga_satuan,
+        upahRincian: i.upah_rincian, catatan: i.catatan || ''
+      })
+    })
+    ;(db.kasbon || []).forEach(k => {
+      const d = dsByTukangId[k.tukang_id]; if (!d) return
+      d.kasbon.push({ id: k.id, tanggal: k.tanggal, jenis: k.jenis === 'PELUNASAN' ? 'Pelunasan' : 'Kasbon', deskripsi: k.deskripsi || '', metode: k.metode || '', nominal: Number(k.nominal), bukti: k.bukti || '' })
+    })
+    const jpByTotalan = {}, jkByTotalan = {}
+    ;(db.totalanProjects || []).forEach(j => { (jpByTotalan[j.totalan_id] = jpByTotalan[j.totalan_id] || []).push(j) })
+    ;(db.totalanKasbon || []).forEach(j => { (jkByTotalan[j.totalan_id] = jkByTotalan[j.totalan_id] || []).push(j) })
+    ;(db.totalans || []).forEach(t => {
+      const d = dsByTukangId[t.tukang_id]; if (!d) return
+      d.totalans.push({
+        id: t.id, no: t.no_totalan, tanggal: t.tanggal, seq: t.seq || 0,
+        projectIds: (jpByTotalan[t.id] || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map(j => j.project_id),
+        pembayaranAktual: Number(t.pembayaran_aktual || 0),
+        kasbonIds: (jkByTotalan[t.id] || []).map(j => j.kasbon_id)
+      })
+      d.seq = Math.max(d.seq, t.seq || 0)
+    })
+    if (!tukangs.length) {
+      // RLS menolak / belum login / DB kosong -> dataset kosong, jangan crash
+      tukangs.push({ key: 'asep', dbId: null, name: 'Asep', unit: 'Noir Living',
+        projects: [], upahItems: [], kasbon: [], totalans: [], projectOverrides: {}, seq: 0, idCounter: 0 })
+    }
+    return { version: 2, activeKey: tukangs[0].key, tukangs }
+  }
+
+  // ---------- 2. PLAN: diff prev -> next = daftar operasi berurutan ----------
+  // Urutan penting: parent dulu baru anak; hapus anak dulu baru parent.
+  //   tukang -> project(ins/upd) -> item/kasbon(ins/upd) -> item/kasbon(del)
+  //   -> project(del) -> totalan(ins/upd) -> junction -> totalan(del)
+  // Op: {kind:'insert'|'update'|'delete', table, row?, id?, provId?}
+  // FK field berakhiran '_id' di-resolve saat eksekusi (provisional -> UUID).
+  const DS_TABLES = [
+    { arr: 'projects', table: 'upah_projects' },
+    { arr: 'upahItems', table: 'upah_items' },
+    { arr: 'kasbon', table: 'upah_kasbon' },
+    { arr: 'totalans', table: 'upah_totalan' }
+  ]
+
+  function rowProject(p, tukangId) {
+    return {
+      tukang_id: tukangId, project_name: p.name, status: p.status || 'ON_GOING',
+      arsip_manual: p.arsipManual === undefined ? null : !!p.arsipManual,
+      total_manual: null, sort_order: 0
+    }
+  }
+  function rowItem(u, projectId) {
+    return {
+      project_id: projectId, pekerjaan: u.pekerjaan, ukuran: nOr(u.ukuran),
+      satuan_ukuran: u.satuanUkuran || null, harga_satuan: nOr(u.hargaSatuan),
+      upah_rincian: nOr(u.upahRincian) || 0, catatan: u.catatan || null, sort_order: 0
+    }
+  }
+  function rowKasbon(k, tukangId) {
+    return {
+      tukang_id: tukangId, tanggal: k.tanggal, jenis: k.jenis === 'Pelunasan' ? 'PELUNASAN' : 'KASBON',
+      deskripsi: k.deskripsi || null, metode: k.metode || null,
+      nominal: nOr(k.nominal) || 0, bukti: k.bukti || null, sort_order: 0
+    }
+  }
+  function rowTotalan(t, tukangId, snap) {
+    const s = snap || {}
+    return {
+      tukang_id: tukangId, no_totalan: t.no, tanggal: t.tanggal, seq: t.seq || 0,
+      kasbon_dipotong: s.kasbon_dipotong || 0, total_upah: s.total_upah || 0,
+      hak_bersih: s.hak_bersih || 0, pembayaran_aktual: nOr(t.pembayaranAktual) || 0,
+      saldo_akhir: s.saldo_akhir || 0, status: s.status || null
+    }
+  }
+
+  function planPersist(prevState, nextState, opts) {
+    opts = opts || {}
+    const snap = opts.snapshotTotalan || function () { return {} }
+    const prevBy = {}
+    ;((prevState && prevState.tukangs) || []).forEach(d => { prevBy[d.key] = d })
+    const ops = []
+
+    ;((nextState && nextState.tukangs) || []).forEach(nd => {
+      const pd = prevBy[nd.key]
+      const tid = nd.dbId || (pd && pd.dbId)
+      if (!pd) {
+        // tukang baru (dbId akan terisi setelah insert via idMap)
+        ops.push({ kind: 'insert', table: 'upah_tukang', row: { kode: nd.key, nama: nd.name, unit_bisnis: nd.unit || 'Noir Living', aktif: true }, provId: nd.key, provField: 'kode' })
+      } else if (!same(nd.name, pd.name) || !same(nd.unit, pd.unit)) {
+        ops.push({ kind: 'update', table: 'upah_tukang', row: { nama: nd.name, unit_bisnis: nd.unit || 'Noir Living' }, id: tid })
+      }
+
+      DS_TABLES.forEach(spec => {
+        const prevArr = (pd && pd[spec.arr]) || []
+        const nextArr = nd[spec.arr] || []
+        const prevMap = {}; prevArr.forEach(r => { prevMap[r.id] = r })
+        const nextMap = {}; nextArr.forEach(r => { nextMap[r.id] = r })
+
+        // inserts + updates
+        nextArr.forEach(r => {
+          const o = prevMap[r.id]
+          if (!o) {
+            if (spec.table === 'upah_projects') ops.push({ kind: 'insert', table: spec.table, row: rowProject(r, tid), provId: r.id })
+            else if (spec.table === 'upah_items') ops.push({ kind: 'insert', table: spec.table, row: rowItem(r, r.projectId), provId: r.id })
+            else if (spec.table === 'upah_kasbon') ops.push({ kind: 'insert', table: spec.table, row: rowKasbon(r, tid), provId: r.id })
+            else if (spec.table === 'upah_totalan') {
+              ops.push({ kind: 'insert', table: spec.table, row: rowTotalan(r, tid, snap(r, nd)), provId: r.id })
+              pushJunctions(ops, r, nd)
+            }
+          } else {
+            let row = null
+            if (spec.table === 'upah_projects') {
+              row = rowProject(r, tid)
+              row.total_manual = Object.prototype.hasOwnProperty.call(nd.projectOverrides || {}, r.id)
+                ? nOr(nd.projectOverrides[r.id]) : null
+            } else if (spec.table === 'upah_items') row = rowItem(r, r.projectId)
+            else if (spec.table === 'upah_kasbon') row = rowKasbon(r, tid)
+            else if (spec.table === 'upah_totalan') {
+              row = rowTotalan(r, tid, snap(r, nd))
+              pushJunctions(ops, r, nd, true) // junction totalan di-rebuild
+            }
+            const changed = Object.keys(row).filter(k => !FK.test(k))
+              .some(k => !same(row[k], mappedOld(spec.table, k, o, pd)))
+            if (changed) ops.push({ kind: 'update', table: spec.table, row, id: r.id })
+          }
+        })
+
+        // deletes (anak dulu baru parent di level luar)
+        prevArr.forEach(r => {
+          if (!nextMap[r.id]) ops.push({ kind: 'delete', table: spec.table, id: r.id })
+        })
+      })
+    })
+
+    // urutkan: gabungkan antar-dataset sesuai fase
+    const phase = (o) => {
+      switch (o.table) {
+        case 'upah_tukang': return o.kind === 'delete' ? 9 : 0
+        case 'upah_projects': return o.kind === 'delete' ? 8 : 1
+        case 'upah_items': case 'upah_kasbon': return o.kind === 'delete' ? 7 : 2
+        case 'upah_totalan': return o.kind === 'delete' ? 10 : 3
+        default: return 4 // junction
+      }
+    }
+    return ops.map((o, i) => [o, i])
+      .sort((a, b) => (phase(a[0]) - phase(b[0])) || (a[1] - b[1]))
+      .map(x => x[0])
+  }
+
+  function mappedOld(table, k, o, pd) {
+    switch (table + ':' + k) {
+      case 'upah_projects:project_name': return o.name
+      case 'upah_projects:status': return o.status || 'ON_GOING'
+      case 'upah_projects:arsip_manual': return o.arsipManual === undefined ? null : !!o.arsipManual
+      case 'upah_projects:total_manual': return Object.prototype.hasOwnProperty.call((pd && pd.projectOverrides) || {}, o.id) ? nOr(pd.projectOverrides[o.id]) : null
+      case 'upah_projects:sort_order': return 0
+      case 'upah_items:pekerjaan': return o.pekerjaan
+      case 'upah_items:ukuran': return nOr(o.ukuran)
+      case 'upah_items:satuan_ukuran': return o.satuanUkuran || null
+      case 'upah_items:harga_satuan': return nOr(o.hargaSatuan)
+      case 'upah_items:upah_rincian': return nOr(o.upahRincian) || 0
+      case 'upah_items:catatan': return o.catatan || null
+      case 'upah_kasbon:tanggal': return o.tanggal
+      case 'upah_kasbon:jenis': return o.jenis === 'Pelunasan' ? 'PELUNASAN' : 'KASBON'
+      case 'upah_kasbon:deskripsi': return o.deskripsi || null
+      case 'upah_kasbon:metode': return o.metode || null
+      case 'upah_kasbon:nominal': return nOr(o.nominal) || 0
+      case 'upah_kasbon:bukti': return o.bukti || null
+      case 'upah_totalan:no_totalan': return o.no
+      case 'upah_totalan:tanggal': return o.tanggal
+      case 'upah_totalan:seq': return o.seq || 0
+      case 'upah_totalan:pembayaran_aktual': return nOr(o.pembayaranAktual) || 0
+      case 'upah_tukang:nama': return o.name
+      case 'upah_tukang:unit_bisnis': return o.unit || 'Noir Living'
+      default: return undefined // snapshot & FK tidak dibandingkan (snapshot dari callback)
+    }
+  }
+
+  function pushJunctions(ops, totalan, dataset, isUpdate) {
+    if (isUpdate) ops.push({ kind: 'deleteJunction', table: 'upah_totalan_projects', totalanProv: totalan.id })
+    ;(totalan.projectIds || []).forEach((pid, i) => {
+      const p = (dataset.projects || []).find(x => x.id === pid)
+      ops.push({
+        kind: 'insert', table: 'upah_totalan_projects',
+        row: { totalan_id: totalan.id, project_id: pid, nama_snapshot: p ? p.name : null, total_upah: 0, sort_order: i }
+      })
+    })
+    if (isUpdate) ops.push({ kind: 'deleteJunction', table: 'upah_totalan_kasbon', totalanProv: totalan.id })
+    ;(totalan.kasbonIds || []).forEach(kid => {
+      const k = (dataset.kasbon || []).find(x => x.id === kid)
+      ops.push({ kind: 'insert', table: 'upah_totalan_kasbon', row: { totalan_id: totalan.id, kasbon_id: kid, nominal: k ? (nOr(k.nominal) || 0) : 0 } })
+    })
+  }
+
+  // ---------- 3. EKSEKUSI operasi terhadap klien supabase ----------
+  const FK = /_id$/
+  async function executeOps(ops, client, opts) {
+    opts = opts || {}
+    const idMap = opts.idMap || {}
+    const resolve = opts.resolve || (id => idMap[id] || id)
+    try {
+      for (const op of ops) {
+        const t = client.from(op.table)
+        if (op.kind === 'insert') {
+          const row = Object.assign({}, op.row)
+          Object.keys(row).forEach(k => { if (FK.test(k)) row[k] = resolve(row[k]) })
+          if (op.provId) {
+            const { data, error } = await t.insert(row).select('id')
+            if (error) return { ok: false, error, op }
+            if (data && data[0] && data[0].id) idMap[op.provId] = data[0].id
+          } else {
+            const { error } = await t.insert(row)
+            if (error) return { ok: false, error, op }
+          }
+        } else if (op.kind === 'update') {
+          const row = Object.assign({}, op.row)
+          Object.keys(row).forEach(k => { if (FK.test(k)) row[k] = resolve(row[k]) })
+          const { error } = await t.update(row).eq('id', resolve(op.id))
+          if (error) return { ok: false, error, op }
+        } else if (op.kind === 'delete') {
+          const { error } = await t.delete().eq('id', resolve(op.id))
+          if (error) return { ok: false, error, op }
+        } else if (op.kind === 'deleteJunction') {
+          const { error } = await t.delete().in('totalan_id', [resolve(op.totalanProv)])
+          if (error) return { ok: false, error, op }
+        }
+      }
+      return { ok: true, idMap }
+    } catch (e) { return { ok: false, error: e } }
+  }
+
+  // ---------- 4. UUID -> id sementara di state ----------
+  function applyIdMap(dataset, idMap) {
+    const rep = id => idMap[id] || id
+    ;(dataset.projects || []).forEach(p => { p.id = rep(p.id) })
+    ;(dataset.upahItems || []).forEach(u => { u.id = rep(u.id); u.projectId = rep(u.projectId) })
+    ;(dataset.kasbon || []).forEach(k => { k.id = rep(k.id) })
+    ;(dataset.totalans || []).forEach(t => {
+      t.id = rep(t.id)
+      t.projectIds = (t.projectIds || []).map(rep)
+      t.kasbonIds = (t.kasbonIds || []).map(rep)
+    })
+    const po = {}
+    Object.keys(dataset.projectOverrides || {}).forEach(k => { po[rep(k)] = dataset.projectOverrides[k] })
+    dataset.projectOverrides = po
+  }
+
+  // ---------- 5. FETCH semua tabel (pemanggilan nyata via klien) ----------
+  async function fetchAll(client) {
+    const tables = ['upah_tukang', 'upah_projects', 'upah_items', 'upah_kasbon', 'upah_totalan', 'upah_totalan_projects', 'upah_totalan_kasbon']
+    const results = await Promise.all(tables.map(t => client.from(t).select('*')))
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].error) {
+        const e = new Error((results[i].error.message || 'gagal membaca') + ' [' + tables[i] + ']')
+        e.code = results[i].error.code
+        throw e
+      }
+    }
+    return {
+      tukangs: results[0].data || [], projects: results[1].data || [], items: results[2].data || [],
+      kasbon: results[3].data || [], totalans: results[4].data || [],
+      totalanProjects: results[5].data || [], totalanKasbon: results[6].data || []
+    }
+  }
+
+  return { stateFromDb, planPersist, executeOps, applyIdMap, fetchAll, toNum, clone }
+})
