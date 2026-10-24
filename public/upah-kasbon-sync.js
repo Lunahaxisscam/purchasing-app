@@ -44,10 +44,19 @@
   function stateFromDb(db) {
     db = db || {}
     const tukangById = {}
+    // nama kosong/spasi membuat pilihan tukang terlihat kosong. Gunakan kode
+    // sebagai label cadangan, tanpa mengubah key identitas untuk sinkronisasi.
+    function displayName(t) {
+      const nama = String(t.nama == null ? '' : t.nama).trim()
+      if (nama) return nama
+      const kode = String(t.kode == null ? '' : t.kode).trim()
+      if (!kode) return 'Tukang'
+      return kode.charAt(0).toUpperCase() + kode.slice(1)
+    }
     const tukangs = (db.tukangs || []).map(t => {
       tukangById[t.id] = t
       return {
-        key: t.kode, dbId: t.id, name: t.nama, unit: t.unit_bisnis || 'Noir Living',
+        key: t.kode, dbId: t.id, name: displayName(t), unit: t.unit_bisnis || 'Noir Living',
         projects: [], upahItems: [], kasbon: [], totalans: [], projectOverrides: {},
         seq: 0, idCounter: 0
       }
