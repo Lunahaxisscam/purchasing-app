@@ -23,6 +23,15 @@ import {
   isProjectCodeTaken,
   nextNumericProjectCode
 } from './contract.js'
+import {
+  DEFAULT_TERM_PERCENTS,
+  recalcTerms,
+  validateTermSum,
+  formatTermsForPayload,
+  formatAmount,
+  parseAmount,
+  PAYMENT_TERMS_LIMIT
+} from './paymentSchedule.js'
 
 export default function CreateInvoiceModal({
   isOpen,
@@ -49,6 +58,10 @@ export default function CreateInvoiceModal({
   // atau PPN. Admin mengisi sendiri bila memang ada kesepakatan.
   const [notes, setNotes] = useState('')
   const [paymentTerms, setPaymentTerms] = useState('')
+  // Termin: 3 baris default (50/40/10). `terms` adalah SATU-SATUNYA sumber
+  // kebenaran; teks `paymentTerms` di bawah adalah output untuk dikirim.
+  const [termPercents, setTermPercents] = useState(DEFAULT_TERM_PERCENTS)
+  const [termAmounts, setTermAmounts] = useState(['', '', ''])
 
   const [projectOption, setProjectOption] = useState('new') // 'new' | 'existing' | 'none'
   const [newProjectCode, setNewProjectCode] = useState('')
@@ -68,6 +81,8 @@ export default function CreateInvoiceModal({
     setIssueDate('')
     setDueDate('')
     setNewProjectCode(nextNumericProjectCode(projects))
+    setTermPercents(DEFAULT_TERM_PERCENTS)
+    setTermAmounts(['', '', ''])
     setError('')
     setNotice('')
     setSaving(false)
@@ -85,6 +100,18 @@ export default function CreateInvoiceModal({
   const taxAmount = includeTax ? Math.round(rawNominal * (taxRateNum / 100)) : 0
   const grandTotal = rawNominal + taxAmount
 
+  // Termin: hitung ulang saat grandTotal berubah, TANPA menimpa nominal
+  // yang sudah diisi manual. Term terakhir selalu menampung sisa agar
+  // sum(termin) === grandTotal.
+  const termRows = useMemo(
+    () => recalcTerms(grandTotal, termPercents.map((p, i) => ({ percent: p, amount: termAmounts[i] ?? '' }))),
+    [grandTotal, termPercents, termAmounts]
+  )
+  const termSum = termRows.reduce((acc, t) => acc + parseAmount(t.amount), 0)
+  const termsValid = validateTermSum(grandTotal, termRows).ok
+  // Teks siap kirim ke kolom payment_terms (max 120 char).
+  const termsPayload = useMemo(() => formatTermsForPayload(termRows), [termRows])
+
   if (!isOpen) return null
 
   function buildPayload() {
@@ -97,8 +124,10 @@ export default function CreateInvoiceModal({
       nominal: rawNominal,
       tax_rate: includeTax ? taxRateNum : 0,
       notes: notes.trim(),
-      // Termin TIDAK diisi default oleh UI: hanya dari input admin.
-      payment_terms: String(paymentTerms || '').trim(),
+      // Termin dikirim sebagai ringkasan terstruktur (persen + nominal).
+      // Nominal dihitung dari grand_total LOKAL; server tetap memvalidasi
+      // ulang — klien tidak dipercaya sebagai sumber angka.
+      payment_terms: termsPayload || String(paymentTerms || '').trim(),
       issue_date: issueDate,
       due_date: dueDate,
       // status TIDAK dikirim: draf selalu DRAFT (server menolak status lain)
@@ -121,6 +150,10 @@ export default function CreateInvoiceModal({
       }
     }
     if (projectOption === 'existing' && !selectedProjectId) return 'Pilih proyek existing yang akan ditautkan.'
+    if (rawNominal > 0 && !termsValid) {
+      const diff = termSum - grandTotal
+      return `Jumlah termin (Rp ${formatAmount(termSum)}) ${diff > 0 ? 'lebih besar' : 'lebih kecil'} dari total tagihan (Rp ${formatAmount(grandTotal)}). Perbaiki nominal termin.`
+    }
     return ''
   }
 
@@ -497,6 +530,62 @@ export default function CreateInvoiceModal({
                 />
                 <small>Tidak diisi otomatis: termin hanya dicetak bila admin mengisinya.</small>
               </div>
+              <div className="si-field" style={{ marginTop: '14px' }}>
+                <div className="si-terms-head">
+                  <label>Jadwal Termin</label>
+                  <span className="si-terms-sum">Jumlah termin: Rp {formatAmount(termSum)}</span>
+                </div>
+                <p className="si-terms-hint">
+                  Nominal dihitung otomatis dari total tagihan. Term terakhir selalu menampung sisa pembulatan
+                  sehingga jumlah termin tepat sama dengan total tagihan. Nominal yang Anda ubah sendiri tidak akan ditimpa.
+                </p>
+                <div className="si-terms-grid si-terms-head-row">
+                  <span>Termin</span>
+                  <span>Persen</span>
+                  <span>Nominal (IDR)</span>
+                </div>
+                {termRows.map((t, i) => (
+                  <div className="si-terms-grid si-terms-row" key={i}>
+                    <span className="si-terms-label">{t.label}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={termPercents[i]}
+                      onChange={e => {
+                        const next = [...termPercents]
+                        next[i] = e.target.value === '' ? '' : parseFloat(e.target.value)
+                        setTermPercents(next)
+                      }}
+                      disabled={saving}
+                      className={termsValid ? '' : 'input-error'}
+                    />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={t.isAuto ? 'otomatis (sisa)' : ''}
+                      value={termAmounts[i] ?? ''}
+                      onChange={e => {
+                        const next = [...termAmounts]
+                        next[i] = e.target.value
+                        setTermAmounts(next)
+                      }}
+                      disabled={saving}
+                      className={termsValid ? '' : 'input-error'}
+                    />
+                  </div>
+                ))}
+                <div className={`si-terms-check ${termsValid ? 'ok' : 'bad'}`}>
+                  {termsValid
+                    ? `✓ Jumlah termin sama dengan total tagihan (Rp ${formatAmount(grandTotal)}).`
+                    : `✗ Jumlah termin Rp ${formatAmount(termSum)} — selisih Rp ${formatAmount(Math.abs(termSum - grandTotal))} dari total tagihan Rp ${formatAmount(grandTotal)}. Simpan ditolak sampai cocok.`}
+                </div>
+                <small>
+                  Ringkasan yang akan dicetak: <b>{termsPayload || '—'}</b>
+                  {termsPayload.length > PAYMENT_TERMS_LIMIT - 10 && ` (${termsPayload.length}/${PAYMENT_TERMS_LIMIT} karakter)`}
+                </small>
+              </div>
             </div>
           </div>
 
@@ -611,6 +700,25 @@ export default function CreateInvoiceModal({
           font-weight: 700; color: #232720;
         }
         .si-grand-badge { font-size: 14px; color: #1b6348; font-weight: 800; }
+        .si-terms-head {
+          display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+        }
+        .si-terms-head label { display: block; font-size: 11.5px; font-weight: 600; color: #4b523a; }
+        .si-terms-sum { font-size: 12px; font-weight: 700; color: #1b6348; }
+        .si-terms-hint { font-size: 11px; color: #6b6f66; margin: 4px 0 10px; line-height: 1.5; }
+        .si-terms-grid {
+          display: grid; grid-template-columns: 70px 90px 1fr; gap: 10px;
+          align-items: center; margin-bottom: 6px;
+        }
+        .si-terms-head-row { font-size: 10.5px; font-weight: 700; color: #7a7e75; text-transform: uppercase; }
+        .si-terms-label { font-size: 12px; color: #3b4233; font-weight: 600; }
+        .si-terms-row input { width: 100%; }
+        .si-terms-check {
+          font-size: 11.5px; padding: 7px 10px; border-radius: 6px; margin-top: 4px;
+          border: 1px solid transparent;
+        }
+        .si-terms-check.ok { background: #eef4ea; color: #33502a; border-color: #cfe0c4; }
+        .si-terms-check.bad { background: #fde8e8; color: #b71c1c; border-color: #f5c6c6; }
         .si-modal-foot {
           padding: 14px 20px; background: #f7f8f5; border-top: 1px solid #e2e4de;
           display: flex; justify-content: flex-end; gap: 10px;

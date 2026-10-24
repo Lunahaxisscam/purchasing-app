@@ -298,10 +298,18 @@ export const modules = [
     // -> "Pagu belum diketahui" BUKAN "aman"; yang dibandingkan nilai dasar
     // baris (qty x harga), bukan grand total quotation yang sudah markup/PPN.
     // Detail: modules/rap-compare/README.md.
+    //
+    // t_4f37cdd1 (arahan DAT): modul ini DIHILANGKAN dari navigasi lewat
+    // kebijakan terpusat (RAP_COMPARE_MODULE_ENABLED di lib/constants.js).
+    // Entri manifest TETAP ada (bukan dihapus) supaya reversible tanpa
+    // menulis ulang registry — pola sama seperti Approval OFF / labor_stock
+    // / marketing. `enabled` dibaca dari kebijakan, bukan angka mati di file.
     id: 'rap_compare',
     label: 'Perbandingan RAB/RAP/Aktual',
     adminOnly: true,
     source: 'core',
+    enabled: false,
+    disabledBy: 'RAP_COMPARE_MODULE_ENABLED (lib/constants.js)',
     files: [
       'modules/rap-compare/view.jsx',
       'modules/rap-compare/logic.js',

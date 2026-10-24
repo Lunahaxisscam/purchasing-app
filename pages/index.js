@@ -1070,7 +1070,21 @@ export default function App() {
           // hidup di state komponen — tidak ada tabel/RPC/migrasi baru,
           // tidak ada localStorage, dan itu ditulis jelas di layar.
           // Guard admin sama seperti modul RAB & BOQ / Invoice.
-          role === 'admin' ? (
+          //
+          // t_4f37cdd1 (arahan DAT): modul ini DIHILANGKAN dari navigasi
+          // lewat kebijakan terpusat (RAP_COMPARE_MODULE_ENABLED). Guard
+          // fail-closed seperti labor_stock/marketing di atas: rute/
+          // bookmark lama tidak lagi membuka perbandingan, dan TIDAK ada
+          // data RAB/RAP/aktual yang dihapus. Perbandingan biaya riil vs
+          // kontrak terangkum di Project Finance. Mengaktifkan kembali =
+          // satu nilai RAP_COMPARE_MODULE_ENABLED di lib/constants.js.
+          isNavModuleDisabled('rap_compare') ? (
+            <div className="panel empty">
+              Halaman Perbandingan RAB/RAP/Aktual tidak tersedia. Perbandingan
+              biaya riil vs kontrak terangkum di Project Finance; tidak ada
+              data RAB, RAP, atau aktual yang dihapus.
+            </div>
+          ) : role === 'admin' ? (
             <RapCompareModule
               rows={rows}
               allProjects={rows.projects || []}

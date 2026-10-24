@@ -96,7 +96,12 @@ const HO = { id: 'h1', receiving_id: 'rec1', project_id: 'p1', project_name: '[1
 
 const LEDGER = {
   receivingEvents: [
-    { id: 'ev1', receiving_id: 'rec1', receiving_item_id: 'ri1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 6, qty_rusak: 2, tujuan_ws: 3, tujuan_tukang: 1, penerima_tukang: 'Pak Joko', retur_status: 'NONE', retur_qty: 0, discard_confirmed: false },
+    // ev1: rusak 2 DAN sudah diputuskan "Kembalikan ke supplier" → retur_qty 2.
+    // (Fixture run <190 memakai retur_qty 0 dengan rusak 2 — keadaan yang oleh
+    // RPC `return_create` DITOLAK `no_retur_balance`. Harness jadi hijau untuk
+    // alur yang di produksi berakhir dengan penolakan server; itu bug, bukan
+    // fixture. Kasus retur_qty 0 diuji terpisah di T5.)
+    { id: 'ev1', receiving_id: 'rec1', receiving_item_id: 'ri1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 6, qty_rusak: 2, tujuan_ws: 3, tujuan_tukang: 1, penerima_tukang: 'Pak Joko', retur_status: 'PENDING', retur_qty: 2, discard_confirmed: false },
     { id: 'ev2', receiving_id: 'rec1', receiving_item_id: 'ri2', pr_item_id: 'pi2', item_name: 'Cat Duco', unit: 'Kaleng', qty_datang: 2, qty_rusak: 0, tujuan_ws: 0, tujuan_tukang: 2, penerima_tukang: 'Pak Budi', retur_status: 'NONE', retur_qty: 0, discard_confirmed: false }
   ],
   handoverItems: [],
@@ -292,6 +297,69 @@ console.log('\n=== C. KONFIRMASI FISIK per item (confirmForm.jsx) ===\n')
 }
 
 // ============================================================
+console.log('\nC5. READY tanpa baris alokasi → tetap BISA dikonfirmasi (defect run 190)')
+// ============================================================
+// Defect: di mode READY dengan 0 baris, satu-satunya tombol submit membaca
+// `validation.ok` yang selalu false → tombol mati, tidak ada input header,
+// padahal teks di form menyuruh "konfirmasi header saja". Handover tanpa
+// alokasi tukang (termasuk data lama tanpa receiving_id) jadi MUSTAHIL
+// dikonfirmasi — padahal mode LEGACY bisa. Dua kasus nyata di bawah.
+{
+  const ConfirmForm = (await importDist('modules/handovers/confirmForm.mjs')).default
+
+  // C5a-C5d: handover TANPA receiving_id (data lama / orphan).
+  mock.__reset({ receivings: [], prItems: [], receivingItems: [], handovers: [{ ...HO, id: 'h-orphan', receiving_id: null }], ledger: LEDGER })
+  PM.resetPhysicalModal(); resetCapability()
+  const says1 = []
+  const { document: doc } = mount(
+    React.createElement(ConfirmForm, {
+      handover: { ...HO, id: 'h-orphan', receiving_id: null }, capability: { ready: true, returnReady: true, missing: [] },
+      say: (m) => says1.push(m), refresh: noop, close: noop
+    })
+  )
+  await tick(); await tick(); await tick()
+  check('C5a jalur konfirmasi tanpa rincian tersedia', !!tid(doc, 'handover-confirm-headeronly'))
+  check('C5b input nama penerima ada (wajib)', !!tid(doc, 'hc-header-penerima'))
+  // Nama penerima di-prefill dari dokumen (received_by) — bukan kosong.
+  check('C5b2 nama penerima terisi otomatis dari dokumen', /Pak Joko/.test(tid(doc, 'hc-header-penerima')?.value || ''), tid(doc, 'hc-header-penerima')?.value)
+  // Dikosongkan → tombol wajib nonaktif (nama penerima tidak boleh kosong).
+  typeInto(tid(doc, 'hc-header-penerima'), '')
+  await tick()
+  const btn = tid(doc, 'handover-confirm-headeronly-submit')
+  check('C5c tombol nonaktif saat nama kosong', btn?.disabled === true)
+  const inp = tid(doc, 'hc-header-penerima')
+  typeInto(inp, 'Pak Joko (Mandor)')
+  await tick()
+  check('C5d tombol aktif setelah nama diisi', tid(doc, 'handover-confirm-headeronly-submit')?.disabled === false)
+  click(tid(doc, 'handover-confirm-headeronly-submit'))
+  await tick(); await tick(); await tick()
+  const upd = mock.__callsOf('update', 'handovers')
+  check('C5e menulis header (CAS diserahkan_at), BUKAN RPC', upd.length === 1 && mock.__callsOf('rpc').length === 0, JSON.stringify({ upd: upd.length, rpc: mock.__callsOf('rpc').length }))
+  check('C5f nama penerima IKUT tersimpan (bukan field hiasan)', upd[0]?.data?.received_by === 'Pak Joko (Mandor)', JSON.stringify(upd[0]?.data))
+  check('C5g diserahkan_at + status CONFIRMED ditulis', !!upd[0]?.data?.diserahkan_at && upd[0]?.data?.status === 'CONFIRMED', JSON.stringify(upd[0]?.data))
+  check('C5h pesan jujur: rincian TIDAK ditulis', says1.some(m => /Rincian per barang tidak ditulis/i.test(m)), JSON.stringify(says1))
+}
+
+// C5i-C5j: handover dengan receiving, tapi tak ada event bertujuan_tukang.
+{
+  const ConfirmForm = (await importDist('modules/handovers/confirmForm.mjs')).default
+  mock.__reset({
+    receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [{ ...HO }],
+    ledger: { ...LEDGER, receivingEvents: [{ ...LEDGER.receivingEvents[0], tujuan_tukang: 0, tujuan_ws: 4 }] }
+  })
+  PM.resetPhysicalModal(); resetCapability()
+  const { document: doc } = mount(
+    React.createElement(ConfirmForm, {
+      handover: { ...HO }, capability: { ready: true, returnReady: true, missing: [] },
+      say: noop, refresh: noop, close: noop
+    })
+  )
+  await tick(); await tick(); await tick()
+  check('C5i panel "tidak ada alokasi tukang" tampil', /Tidak ada barang berstatus/i.test(tid(doc, 'handover-confirm-empty')?.textContent || ''))
+  check('C5j jalur keluar header-only tersedia (bukan jalan buntu)', !!tid(doc, 'handover-confirm-headeronly'))
+}
+
+// ============================================================
 console.log('\n=== T. RETUR tanpa ketik ulang (returnForm.jsx) ===\n')
 // ============================================================
 {
@@ -362,6 +430,77 @@ console.log('\n=== T. RETUR tanpa ketik ulang (returnForm.jsx) ===\n')
   check('T3a riwayat retur tak terbaca → baris TIDAK ditawarkan', !tid(doc2, 'return-line-ev1'))
   check('T3b alasan ditampilkan (bukan diam)', /Gagal memuat|Tidak bisa memeriksa/i.test(doc2.body?.textContent || doc2.documentElement.textContent || ''))
   check('T3c NOL panggilan RPC saat ragu', mock.__callsOf('rpc').length === 0)
+}
+
+// ============================================================
+console.log('\nT5. SALDO RETUR = retur_qty, bukan qty_rusak (defect run 190)')
+// ============================================================
+// Defect: modal menawarkan qty_rusak walaupun retur_qty 0 → RPC
+// `return_create` menolak `no_retur_balance`; admin melihat tombol aktif,
+// menekan Simpan, lalu gagal. Test di bawah mengunci DUA sisi:
+//   (a) baris tanpa saldo TIDAK ditawarkan, tetapi DILAPORKAN
+//   (b) baris dengan saldo < qty_rusak ditawarkan sebesar SALDO
+{
+  const ledgerNoSaldo = {
+    ...LEDGER,
+    receivingEvents: [
+      { id: 'ev1', receiving_id: 'rec1', receiving_item_id: 'ri1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 6, qty_rusak: 2, tujuan_ws: 3, tujuan_tukang: 1, penerima_tukang: 'Pak Joko', retur_status: 'NONE', retur_qty: 0, discard_confirmed: false },
+      LEDGER.receivingEvents[1]
+    ]
+  }
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: ledgerNoSaldo })
+  PM.resetPhysicalModal(); resetCapability()
+  const ReturnForm = (await importDist('modules/handovers/returnForm.mjs')).default
+  const { document: doc } = mount(
+    React.createElement(ReturnForm, {
+      receiving: REC, capability: { ready: true, returnReady: true, missing: [] },
+      say: noop, refresh: noop, close: noop
+    })
+  )
+  await tick(); await tick(); await tick()
+  check('T5a rusak tanpa saldo retur (retur_qty 0) TIDAK ditawarkan', !tid(doc, 'return-line-ev1'))
+  check('T5b barangnya tetap DILAPORKAN (bukan hilang diam-diam)', !!tid(doc, 'return-blocked-ev1'))
+  check('T5c pesan menyebut belum ditandai retur/dibuang', /belum ditandai retur/i.test(tid(doc, 'return-blocked')?.textContent || ''))
+  check('T5d tombol Simpan Retur tidak aktif', tid(doc, 'return-submit')?.disabled === true)
+}
+
+// Saldo lebih kecil dari qty_rusak (kontrak mengizinkan retur sebagian).
+{
+  const ledgerPartial = {
+    ...LEDGER,
+    receivingEvents: [
+      { id: 'ev1', receiving_id: 'rec1', receiving_item_id: 'ri1', pr_item_id: 'pi1', item_name: 'Triplek 9mm', unit: 'Lembar', qty_datang: 6, qty_rusak: 4, tujuan_ws: 2, tujuan_tukang: 0, retur_status: 'PENDING', retur_qty: 1, discard_confirmed: false },
+      LEDGER.receivingEvents[1]
+    ]
+  }
+  mock.__reset({ receivings: [REC], prItems: PR_ITEMS, receivingItems: RI, handovers: [HO], ledger: ledgerPartial })
+  PM.resetPhysicalModal(); resetCapability()
+  const ReturnForm = (await importDist('modules/handovers/returnForm.mjs')).default
+  const { document: doc } = mount(
+    React.createElement(ReturnForm, {
+      receiving: REC, capability: { ready: true, returnReady: true, missing: [] },
+      say: noop, refresh: noop, close: noop
+    })
+  )
+  await tick(); await tick(); await tick()
+  const lineTxt = tid(doc, 'return-line-ev1')?.textContent || ''
+  check('T5e saldo 1 dari rusak 4 → ditawarkan 1 (bukan 4)', /akan diretur\s*1/.test(lineTxt), lineTxt)
+  check('T5f saldo retur ikut ditampilkan', /saldo retur\s*1/.test(lineTxt), lineTxt)
+}
+
+// Logika murni: returPlan memisahkan lines vs blocked.
+{
+  const plan = ELOGIC.returPlan([
+    { id: 'a', qty_rusak: 2, retur_qty: 0, retur_status: 'NONE', item_name: 'A' },
+    { id: 'b', qty_rusak: 3, retur_qty: 3, retur_status: 'PENDING', item_name: 'B' },
+    { id: 'c', qty_rusak: 2, retur_qty: 2, retur_status: 'PENDING', item_name: 'C' }
+  ], { alreadyReturned: { c: 2 } })
+  check('T5g returPlan: tanpa saldo masuk blocked', plan.blocked.length === 1 && plan.blocked[0].receiving_event_id === 'a', JSON.stringify(plan.blocked))
+  check('T5h returPlan: bersaldo masuk lines', plan.lines.length === 1 && plan.lines[0].receiving_event_id === 'b', JSON.stringify(plan.lines))
+  check('T5i returPlan: yang sudah diretur penuh tidak muncul di keduanya', !plan.lines.some(l => l.receiving_event_id === 'c') && !plan.blocked.some(b => b.receiving_event_id === 'c'))
+  check('T5j returPlan: qty = saldo − sudah diretur', ELOGIC.returPlan([{ id: 'd', qty_rusak: 5, retur_qty: 5 }], { alreadyReturned: { d: 3 } }).lines[0].qty === 2)
+  // Data lama tanpa kolom retur_qty: fallback ke qty_rusak (tidak hilang).
+  check('T5k data tanpa retur_qty → fallback qty_rusak', ELOGIC.returPlan([{ id: 'e', qty_rusak: 4 }]).lines[0].qty === 4)
 }
 
 // ============================================================

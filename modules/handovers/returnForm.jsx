@@ -15,7 +15,7 @@
 // submit diblok dengan pesan jujur — tidak ada tulisan, tidak ada klaim.
 // ============================================================
 import React, { useEffect, useMemo, useState } from 'react'
-import { returLinesFromEvents } from '../receivings/receiptEventLogic'
+import { returPlan } from '../receivings/receiptEventLogic'
 import { loadReceivingEvents, loadReturnedByEvent, createReturnCase } from '../receivings/receiptEventSave'
 import { capabilityMessage } from '../receivings/receiptCapability'
 
@@ -40,6 +40,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
   const [loading, setLoading] = useState(ready)
   const [loadError, setLoadError] = useState('')
   const [rows, setRows] = useState([])
+  const [blocked, setBlocked] = useState([])
   const [picked, setPicked] = useState({})
   const [resolution, setResolution] = useState('RETURN')
   const [reason, setReason] = useState('')
@@ -62,14 +63,16 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
       if (!ret.ok) {
         setLoadError(`Tidak bisa memeriksa riwayat retur: ${ret.error}`)
         setRows([])
+        setBlocked([])
         setPicked({})
         setLoading(false)
         return
       }
-      const lines = returLinesFromEvents(ev.events || [], { alreadyReturned: ret.returned || {} })
-      setRows(lines)
+      const plan = returPlan(ev.events || [], { alreadyReturned: ret.returned || {} })
+      setRows(plan.lines)
+      setBlocked(plan.blocked)
       const init = {}
-      for (const l of lines) init[l.receiving_event_id] = true
+      for (const l of plan.lines) init[l.receiving_event_id] = true
       setPicked(init)
       setLoading(false)
     }
@@ -137,10 +140,32 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
 
         {!loading && !loadError && rows.length === 0 && (
           <div data-testid="return-empty" style={{ ...S.note, background: '#eef3f1', border: '1px solid #cbd8d4', color: '#1f3a34' }}>
-            Tidak ada barang rusak yang tercatat pada penerimaan ini.
+            {blocked.length
+              ? 'Ada barang rusak, tetapi belum ditandai untuk diretur — jadi belum ada saldo retur yang bisa dicatat.'
+              : 'Tidak ada barang rusak yang tercatat pada penerimaan ini.'}
             {ready
-              ? ' Catat dulu jumlah rusak di form Terima Barang.'
+              ? (blocked.length
+                ? ' Buka Terima Barang untuk barang yang sama dan pilih "Kembalikan ke supplier" atau "Dibuang" — setelah itu barisnya muncul di sini tanpa mengetik ulang.'
+                : ' Catat dulu jumlah rusak di form Terima Barang.')
               : ' (Pencatatan jumlah rusak per barang belum aktif — menunggu migrasi skema.)'}
+          </div>
+        )}
+
+        {/* Barang rusak yang BELUM punya saldo retur (retur_qty 0, biasanya
+            karena pilihan default "Tentukan nanti"). Ditampilkan sebagai
+            penjelasan, bukan disembunyikan: admin harus tahu barangnya ada dan
+            apa yang perlu dilakukan. Tidak bisa dicentang — RPC akan menolak
+            (reason `no_retur_balance`), jadi menawarkannya = janji palsu. */}
+        {!loading && !loadError && blocked.length > 0 && (
+          <div data-testid="return-blocked" style={{ ...S.note, background: '#fdf8ea', border: '1px solid #f0dcb4', color: '#7a4a08' }}>
+            <b>Belum bisa diretur ({blocked.length} barang rusak):</b>
+            <ul style={{ margin: '5px 0 0', paddingLeft: '18px' }}>
+              {blocked.map(b => (
+                <li key={b.receiving_event_id} data-testid={`return-blocked-${b.receiving_event_id}`}>
+                  {b.item_name} — rusak {b.qty_rusak}{b.satuan ? ` ${b.satuan}` : ''}, belum ditandai retur/dibuang.
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -174,6 +199,7 @@ export default function ReturnForm({ receiving, capability = null, say, refresh,
                   <span style={{ flex: 1 }}><b>{r.item_name}</b></span>
                   <span style={{ fontSize: '11.5px', color: '#556b65' }}>
                     rusak <b>{fmt(r.qty_rusak)}{r.satuan ? ` ${r.satuan}` : ''}</b>
+                    {' · '}saldo retur <b>{fmt(r.qty_saldo)}</b>
                     {r.qty_sudah_retur > 0 ? <> · sudah diretur {r.qty_sudah_retur}</> : null}
                     {' '}· akan diretur <b>{fmt(r.qty)}{r.satuan ? ` ${r.satuan}` : ''}</b>
                   </span>
