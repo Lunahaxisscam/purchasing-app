@@ -1,0 +1,735 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatusStyle } from '../lib/constants'
+import { targetBudget70 } from '../lib/money'
+import { WBS_ESTIMATE_LABEL, WBS_ESTIMATE_NOTE } from '../lib/laborSource'
+// t_da4a9ef8 (Tahap B): breakdown cost per proyek dari kontrak Tahap A
+// (nomor proyek sebagai identitas, alokasi per baris nota, upah = hak tercatat).
+import { buildCostBreakdown } from '../lib/projectCostBreakdown'
+import CompactRoot from './CompactRoot'
+
+// ============================================================
+// Modul PROJECT FINANCE — khusus role admin (READ-ONLY).
+// Monitoring keuangan PER PROYEK (on-going ATAU sudah selesai — pilih
+// lewat filter status di toolbar, t_57f6a3f9) dengan 3 komponen:
+//   💰 Revenue  — nilai kontrak proyek (sync REV PROJECT.xlsx via Drive)
+//   👷 Tukang   — estimasi upah dari modul Budgeting (project_plans)
+//   🧱 Material — cost material (sync REKAP COST 2026) + rincian pengadaan
+//                 internal (estimasi PR vs purchase riil dari nota)
+// Plus kartu ringkasan — Project Margin (Gross Profit) MURNI sesuai keputusan
+// brainstorm DAT:
+//   Gross Profit = Revenue − Actual Material − Estimasi Upah WBS.
+//   FN-EST_LABEL (REVIEW-03): komponen upah di margin ini adalah ESTIMASI
+//   WBS Budgeting (project_plans.labor_cost), bukan upah terbayar. Upah
+//   AKTUAL (tukang_projects) ditampilkan terpisah dan tidak dijumlahkan.
+//   Petty cash / operasional TIDAK lagi memotong margin proyek — pos itu
+//   dilaporkan sebagai Beban Operasional WS (pos umum) di modul Finance.
+// TIDAK ada input di modul ini — semua angka berasal dari sumbernya
+// (Google Drive sync & modul Budgeting). Jangan tambahkan form tulis di sini
+// tanpa permintaan eksplisit dari user.
+//
+// CATATAN KALKULASI (t_57f6a3f9): memilih proyek SELESAI (DONE) tidak
+// mengubah satu pun rumus. Revenue/Cost Material datang dari baris Drive
+// yang cocok dengan project.kode, upah dari project_plans.project_id, PR
+// dari purchase_requests.project_id — semuanya sudah terisi penuh saat
+// proyek ditutup, jadi angka proyek selesai justru biasanya lebih lengkap
+// daripada proyek yang masih jalan.
+// ============================================================
+
+function parseNominalFromNote(note) {
+  const s = String(note || '')
+  const m = s.match(/\[Nominal:\s*Rp\s*([\d.,]+)\s*\]/i)
+  if (!m) return null
+  const digits = m[1].replace(/[^\d]/g, '')
+  return digits ? Number(digits) : null
+}
+
+// ============================================================
+// FILTER STATUS PROYEK (t_57f6a3f9 — arahan DAT 22 Okt 2026)
+// ============================================================
+// Project Finance dulu HANYA menampilkan proyek on-going, jadi proyek
+// yang sudah selesai (status DONE / Past Project) tidak bisa dilihat
+// keuangannya. Sekarang ada tiga pilihan:
+//   'active' — hanya on-going (perilaku LAMA, tetap default)
+//   'done'   — hanya yang selesai (normalizeStatus === 'DONE')
+//   'all'    — semua proyek; dropdown dikelompokkan per status
+// PENTING: seluruh kalkulasi (Revenue, Cost Material, Upah, Margin)
+// tetap dihitung dari SATU `project` yang terpilih — filter hanya
+// mengubah daftar pilihan, tidak pernah menjumlahkan lintas proyek.
+const PROJECT_STATUS_FILTERS = [
+  { value: 'active', label: 'On-Going', emptyText: 'belum ada proyek on-going' },
+  { value: 'done', label: 'Selesai', emptyText: 'belum ada proyek selesai (status DONE)' },
+  { value: 'all', label: 'Semua Proyek', emptyText: 'belum ada proyek terdaftar' }
+]
+
+export default function ProjectFinance({ rows, initialDriveRows, initialPlans, initialView, initialStatusFilter }) {
+  const [projectId, setProjectId] = useState('')
+  const [view, setView] = useState(initialView || 'revenue')
+  // t_57f6a3f9: filter status proyek — 'active' | 'done' | 'all'.
+  // Default 'active' = perilaku lama (hanya on-going) supaya tidak ada
+  // kejutan bagi pemakai yang sudah terbiasa; proyek selesai tinggal
+  // dipilih lewat pill di toolbar.
+  const [statusFilter, setStatusFilter] = useState(
+    PROJECT_STATUS_FILTERS.some(f => f.value === initialStatusFilter) ? initialStatusFilter : 'active'
+  )
+  // Data dari tabel admin-only (RLS) — dimuat saat komponen dibuka.
+  // initial* props (opsional, dipakai SSR/test) mengisi data awal supaya kartu
+  // langsung terisi sebelum efek muat data berjalan; produksi memuat via load().
+  const [driveRows, setDriveRows] = useState(initialDriveRows || [])
+  const [plans, setPlans] = useState(initialPlans || [])
+  const [sync, setSync] = useState(null)
+  const [loading, setLoading] = useState(!initialDriveRows)
+  const [error, setError] = useState('')
+
+  // Semua proyek + daftar proyek selesai — dipakai toolbar (jumlah per pill)
+  // dan penghitungan daftar pilihan di bawah.
+  const allProjects = useMemo(() => rows.projects || [], [rows])
+  const activeProjects = useMemo(
+    () => allProjects.filter(p => normalizeStatus(p.status) !== 'DONE'),
+    [allProjects]
+  )
+  const doneProjects = useMemo(
+    () => allProjects.filter(p => normalizeStatus(p.status) === 'DONE'),
+    [allProjects]
+  )
+
+  // Daftar pilihan sesuai filter aktif. 'all' memakai SELURUH proyek;
+  // urutannya sama dengan urutan rows.projects (kode naik dari loadAll).
+  const visibleProjects = useMemo(() => {
+    if (statusFilter === 'done') return doneProjects
+    if (statusFilter === 'all') return allProjects
+    return activeProjects
+  }, [statusFilter, activeProjects, doneProjects, allProjects])
+  const activeFilter = PROJECT_STATUS_FILTERS.find(f => f.value === statusFilter) || PROJECT_STATUS_FILTERS[0]
+
+  // Pilih proyek pertama otomatis supaya halaman langsung terisi.
+  // Hanya auto-pilih bila pilihan lama sudah tidak ada lagi di daftar yang
+  // sedang tampil (mis. habis pindah filter) — kalau masih ada, jangan
+  // ganggu pilihan yang sedang dilihat user.
+  // (fallback di `project` di bawah membuat render pertama/SSR tanpa efek
+  // juga langsung menampilkan proyek pertama.)
+  useEffect(() => {
+    if (visibleProjects.some(p => p.id === projectId)) return
+    if (visibleProjects.length) setProjectId(visibleProjects[0].id)
+    else setProjectId('')
+  }, [visibleProjects, projectId])
+
+  const load = useCallback(async (silent = false) => {
+    if (!supabase) return
+    if (!silent) setLoading(true)
+    setError('')
+    try {
+      const [costRes, plansRes, syncRes] = await Promise.all([
+        supabase.from('project_cost_summary').select('*').order('project_no', { ascending: true }),
+        supabase.from('project_plans').select('*').order('created_at', { ascending: true }),
+        supabase.from('sync_status').select('*').eq('id', 'rekap_cost').maybeSingle()
+      ])
+      const errs = []
+      if (costRes.error) errs.push(costRes.error.message)
+      else setDriveRows(costRes.data || [])
+      if (plansRes.error) errs.push(plansRes.error.message)
+      else setPlans(plansRes.data || [])
+      if (!syncRes.error && syncRes.data) setSync(syncRes.data)
+      if (errs.length) setError(errs.join('; '))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const project = visibleProjects.find(p => p.id === projectId)
+    // SSR/render pertama: efek auto-select belum berjalan — fallback ke proyek
+    // pertama supaya kartu terisi langsung.
+    || visibleProjects[0]
+    || null
+
+  // Baris cost dari Drive yang cocok dengan kode proyek ini.
+  const drive = useMemo(() => {
+    if (!project) return null
+    const key = String(project.kode || '').trim()
+    if (!key) return null
+    return driveRows.find(d => String(d.project_no || '').trim() === key) || null
+  }, [project, driveRows])
+
+  // 👷 Tukang — item pekerjaan (WBS) proyek ini dari modul Budgeting.
+  // Memakai project?.id (bukan state projectId) supaya render pertama/SSR —
+  // saat efek auto-select belum jalan — tetap menampilkan angka proyek pertama.
+  const laborRows = useMemo(
+    () => plans.filter(pl => pl.project_id === (project?.id || projectId)),
+    [plans, project, projectId]
+  )
+  const laborTotal = useMemo(
+    () => laborRows.reduce((s, pl) => s + (Number(pl.labor_cost) || 0), 0),
+    [laborRows]
+  )
+
+  // 👷 AKTUAL upah — tukang_projects.total_upah hasil sync Google Sheets.
+  // SENGAJA dipisah dari estimasi WBS di atas: FN-EST_LABEL (REVIEW-03).
+  // null = belum ada catatan aktual untuk proyek ini (bukan Rp 0).
+  //
+  // t_da4a9ef8 (Tahap B/B1): penghubungnya NOMOR PROYEK (kontrak Tahap A),
+  // BUKAN kemiripan nama. `actualLaborForProject` yang lama mencocokkan
+  // `project.name` — pada data nyata itu gagal ("Proyek Josh - Mabes" vs
+  // "Josh - Mabes") dan membuat upah hilang tanpa jejak. Baris yang tidak
+  // punya nomor maupun alias terkonfirmasi TIDAK dipinjamkan ke proyek mirip;
+  // ia masuk ember "belum terhubung" yang ditampilkan terpisah.
+  const breakdown = useMemo(
+    () => buildCostBreakdown({
+      projects: rows.projects || [],
+      laborRows: rows.tukang_projects || [],
+      receivings: rows.receivings || [],
+      receivingItems: rows.receiving_items || [],
+      vendors: rows.vendors || [],
+      summaryRows: driveRows || []
+    }),
+    [rows, driveRows]
+  )
+  const breakdownProject = project && project.kode ? breakdown.forProject(project.kode) : null
+  const actualLabor = useMemo(() => {
+    const labor = breakdownProject && breakdownProject.labor
+    if (!labor || labor.entitlement === null) return null
+    return { actual: labor.entitlement, rows: labor.rows }
+  }, [breakdownProject])
+
+  // 🧱 Material — rincian pengadaan internal proyek ini: estimasi PR vs
+  // purchase riil (nominal dari nota penerimaan), per nomor PR.
+  const materialPrRows = useMemo(() => {
+    if (!project) return []
+    const prs = (rows.requests || []).filter(pr => pr.project_id === project.id)
+    const prItems = rows.pr_items || []
+    const receivings = rows.receivings || []
+    return prs.map(pr => {
+      const items = prItems.filter(it => it.pr_id === pr.id)
+      const est = items.reduce((sum, it) => {
+        const p = Number(it.estimated_price)
+        const q = Number(it.quantity)
+        if (!isFinite(p) || p <= 0) return sum
+        return sum + p * (isFinite(q) && q > 0 ? q : 1)
+      }, 0)
+      let real = null
+      for (const r of receivings.filter(r => r.purchase_request_id === pr.id)) {
+        const n = parseNominalFromNote(r.note)
+        if (n !== null) real = (real || 0) + n
+      }
+      return {
+        id: pr.id,
+        pr_number: pr.pr_number || '—',
+        title: pr.title || '—',
+        status: pr.status || '—',
+        est,
+        real,
+        diff: (real !== null && est > 0) ? real - est : null
+      }
+    }).sort((a, b) => String(a.pr_number).localeCompare(String(b.pr_number), 'id', { numeric: true }))
+  }, [rows, project])
+
+  const materialPrTotals = useMemo(() => {
+    const est = materialPrRows.reduce((s, p) => s + p.est, 0)
+    const real = materialPrRows.reduce((s, p) => s + (p.real || 0), 0)
+    return { est, real, count: materialPrRows.length }
+  }, [materialPrRows])
+
+  // Ringkasan margin — Project Margin (Gross Profit) murni sesuai keputusan
+  // brainstorm DAT:
+  //   Gross Profit = Revenue − Actual Material − Estimasi Upah WBS.
+  //   FN-EST_LABEL (REVIEW-03): upah di sini ESTIMASI WBS, bukan aktual.
+  //   Petty cash dikecualikan — operasional dilaporkan sebagai pos umum WS
+  //   di modul Finance (Net Margin Perusahaan).
+  const summary = useMemo(() => {
+    const revenue = Number(drive?.revenue) || 0
+    const material = Number(drive?.cumulative_cost) || 0
+    const labor = Math.round(laborTotal)
+    const total = material + labor
+    const margin = revenue - total
+    // FN-TARGET70 (REVIEW-03): target 70% dihitung di lib/money.js —
+    // revenue*7/10 lalu dibulatkan SEKALI ke rupiah utuh, supaya angka yang
+    // dibandingkan (HEMAT/OVER) sama persis dengan yang ditampilkan dan
+    // tidak menyisakan pecahan sen (lihat komentar modul + repro).
+    const target = targetBudget70(revenue)
+    return {
+      revenue, material, labor, total, margin,
+      marginPct: revenue > 0 ? (margin / revenue) * 100 : null,
+      target,
+      underBudget: revenue > 0 ? total <= target : null
+    }
+  }, [drive, laborTotal])
+
+  const hasDriveData = !!(drive && (summary.revenue > 0 || summary.material > 0))
+
+  return (
+    <CompactRoot className="project-finance-compact">
+      {/* Toolbar: filter status proyek + pilih proyek (t_57f6a3f9) */}
+      <div className="toolbar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div>
+          {/* Pill status — On-Going / Selesai / Semua Proyek (t_57f6a3f9) */}
+          <div className="filter-tabs" style={{ marginBottom: '8px' }}>
+            {PROJECT_STATUS_FILTERS.map(f => (
+              <button
+                key={f.value}
+                type="button"
+                className={`pill ${statusFilter === f.value ? 'active' : ''}`}
+                onClick={() => setStatusFilter(f.value)}
+              >
+                {f.label} ({f.value === 'done' ? doneProjects.length : f.value === 'all' ? allProjects.length : activeProjects.length})
+              </button>
+            ))}
+          </div>
+          <label style={{ display: 'grid', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#3d4435' }}>
+            {activeFilter.label} ({visibleProjects.length})
+            <select
+              value={projectId}
+              onChange={e => setProjectId(e.target.value)}
+              style={{ width: '100%', maxWidth: '360px', padding: '9px 13px', fontSize: '13px' }}
+            >
+              {visibleProjects.length === 0 && <option value="">— {activeFilter.emptyText} —</option>}
+              {statusFilter === 'all' ? (
+                // "Semua Proyek": dikelompokkan per status supaya proyek
+                // selesai dan on-going tidak tercampur dalam satu daftar.
+                <>
+                  <optgroup label={`On-Going (${activeProjects.length})`}>
+                    {activeProjects.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={`Selesai (${doneProjects.length})`}>
+                    {doneProjects.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                visibleProjects.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.kode ? `[${p.kode}] ` : ''}{p.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+          {project && (
+            <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="badge status-APPROVED" style={{ fontSize: '11px' }}>
+                {project.kode ? `[${project.kode}] ` : ''}{project.name}
+              </span>
+              <span className="badge status-DRAFT" style={{ fontSize: '11px' }}>{project.status || '—'}</span>
+              {normalizeStatus(project.status) === 'DONE' && (
+                <span className="badge" style={{ fontSize: '11px', background: '#e7f2ec', color: '#1b6348', border: '1px solid #bfdccd' }}>
+                  ✓ Proyek Selesai
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="toolbar-actions">
+          <button type="button" className="outline" onClick={() => load(false)} style={{ padding: '9px 14px', fontSize: '13px' }}>
+            ↻ Perbarui
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: 'var(--danger-border)', color: '#8a2425' }}>
+          Gagal memuat sebagian data: {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="panel empty">Memuat data keuangan proyek…</div>
+      ) : !project ? (
+        <div className="panel empty">
+          {statusFilter === 'done'
+            ? 'Belum ada proyek selesai (status DONE). Ubah status proyek di modul Projects → tab Selesai untuk melihatnya di sini.'
+            : statusFilter === 'all'
+              ? 'Belum ada proyek terdaftar. Tambahkan proyek dulu di modul Projects.'
+              : 'Belum ada proyek on-going. Tambahkan / aktifkan proyek dulu di modul Projects.'}
+        </div>
+      ) : (
+        <>
+          {/* Kartu ringkasan 4 komponen — urutan sesuai keputusan brainstorm
+              DAT: Revenue, Actual Material, Estimasi Upah WBS, Project Margin.
+              FN-EST_LABEL (REVIEW-03): komponen upah = ESTIMASI WBS, bukan
+              "Actual Tukang" — aktual dari tukang_projects ditulis terpisah
+              di kartu yang sama, tidak dijumlahkan.
+              Petty cash TIDAK menjadi bagian margin proyek (murni gross profit). */}
+          <div className="cards">
+            <div className="card" title="Nilai kontrak proyek — sumber: REV PROJECT.xlsx via sync Google Drive">
+              <span>💰 Revenue</span>
+              <strong style={{ fontSize: '22px' }}>{summary.revenue > 0 ? rupiah(summary.revenue) : '—'}</strong>
+            </div>
+            <div className="card" title="Cost material kumulatif — sumber: REKAP COST 2026 via sync Google Drive">
+              <span>🧱 Actual Material</span>
+              <strong style={{ fontSize: '22px' }}>{drive ? rupiah(summary.material) : '—'}</strong>
+            </div>
+            <div className="card" title={WBS_ESTIMATE_NOTE}>
+              <span>👷 {WBS_ESTIMATE_LABEL}</span>
+              <strong style={{ fontSize: '22px' }}>{laborRows.length ? rupiah(summary.labor) : '—'}</strong>
+              {/* FN-EST_LABEL (REVIEW-03): angka di atas adalah ESTIMASI dari
+                  WBS Budgeting (project_plans.labor_cost), bukan upah terbayar.
+                  Upah AKTUAL (tukang_projects.total_upah, hasil sync Google
+                  Sheets) ditampilkan terpisah di bawah ini dan TIDAK
+                  dijumlahkan ke estimasi. Bila belum ada catatan aktual,
+                  ditulis apa adanya — bukan Rp 0. */}
+              <small style={{ display: 'block', marginTop: '4px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                {actualLabor
+                  ? <>Aktual tersinkron: {rupiah(actualLabor.actual)} <span style={{ fontWeight: 500 }}>({actualLabor.rows} baris tukang_projects)</span></>
+                  : <>Aktual upah: belum ada catatan tersinkron</>}
+              </small>
+            </div>
+            <div className="card" title={`Project Margin (Gross Profit) = Revenue − Actual Material − ${WBS_ESTIMATE_LABEL} — murni, tanpa petty cash/operasional. Margin memakai ESTIMASI upah WBS, bukan upah terbayar: margin sebenarnya baru pasti setelah upah aktual tercatat di tukang_projects.`}>
+              <span>📈 Project Margin (Gross Profit)</span>
+              <strong style={{ fontSize: '22px', color: summary.marginPct === null ? 'var(--text-muted)' : (summary.margin < 0 ? 'var(--danger)' : 'var(--ok)') }}>
+                {summary.marginPct === null ? '—' : rupiah(summary.margin)}
+              </strong>
+              <small style={{ fontWeight: 700, color: summary.marginPct === null ? 'var(--text-muted)' : (summary.margin < 0 ? 'var(--danger)' : 'var(--ok)') }}>
+                {summary.marginPct === null ? '' : persen(summary.marginPct)}
+              </small>
+            </div>
+          </div>
+
+          {/* Tab 3 komponen */}
+          <div className="toolbar">
+            <div className="filter-tabs">
+              <button type="button" className={`pill ${view === 'revenue' ? 'active' : ''}`} onClick={() => setView('revenue')}>
+                💰 Revenue
+              </button>
+              <button type="button" className={`pill ${view === 'tukang' ? 'active' : ''}`} onClick={() => setView('tukang')}>
+                👷 Tukang ({laborRows.length})
+              </button>
+              <button type="button" className={`pill ${view === 'material' ? 'active' : ''}`} onClick={() => setView('material')}>
+                🧱 Material ({materialPrTotals.count})
+              </button>
+            </div>
+          </div>
+
+          {/* ---------------- TAB REVENUE ---------------- */}
+          {view === 'revenue' && (
+            <>
+              <div className="panel">
+                <h2>💰 Revenue — {project.kode ? `[${project.kode}] ` : ''}{project.name}</h2>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td style={{ fontWeight: 600, width: '240px' }}>Nilai Kontrak (Revenue)</td>
+                      <td style={{ fontWeight: 800, fontSize: '16px' }}>{summary.revenue > 0 ? rupiah(summary.revenue) : '—'}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>Budget Target (70%)</td>
+                      <td>
+                        {summary.revenue > 0 ? (
+                          <>
+                            <b>{rupiah(summary.target)}</b>
+                            <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 700, color: summary.underBudget ? 'var(--ok)' : 'var(--danger)' }}>
+                              {summary.underBudget ? '✓ HEMAT' : '⚠ OVER-BUDGET'}
+                            </span>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              total cost saat ini {rupiah(summary.total)} (Material + Tukang)
+                            </div>
+                          </>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>Sumber Data</td>
+                      <td className="muted">REV PROJECT.xlsx (Google Drive) — disinkronkan otomatis</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>Terakhir Sinkron</td>
+                      <td className="muted">
+                        {sync?.last_synced_at ? `${formatDateTime(sync.last_synced_at)} (${timeAgo(sync.last_synced_at)})` : '—'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>Status Proyek</td>
+                      <td><span className="badge status-DRAFT" style={{ fontSize: '11px' }}>{project.status || '—'}</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {!hasDriveData && (
+                <div className="notice" style={{ marginTop: '14px' }}>
+                  Data Drive untuk proyek ini belum tersedia. Pastikan kode proyek ({project.kode || '—'}) cocok dengan
+                  PROJECT NO di REKAP COST 2026 / REV PROJECT, lalu klik &quot;🔄 Refresh dari Drive&quot; di modul Finance → tab Cost Drive.
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ---------------- TAB TUKANG ---------------- */}
+          {view === 'tukang' && (
+            <>
+              {/* FN-EST_LABEL (REVIEW-03): tab ini menampilkan RENCANA upah
+                  (WBS Budgeting). Aktual upah dari tukang_projects dinyatakan
+                  terpisah di banner ini — tidak dicampur ke tabel rencana,
+                  dan tidak diklaim sebagai angka yang sudah terbayar. */}
+              <div className="notice" style={{ marginBottom: '12px' }}>
+                <b>Dua sumber upah yang berbeda.</b>{' '}
+                Tabel di bawah = <b>{WBS_ESTIMATE_LABEL}</b> (rencana, bisa berubah).
+                Upah terbayar = <b>aktual tukang_projects</b> hasil sync Google Sheets:{' '}
+                {actualLabor
+                  ? <b>{rupiah(actualLabor.actual)}</b>
+                  : <span>belum ada catatan tersinkron untuk proyek ini (bukan Rp 0).</span>}
+              </div>
+              <div className="panel table desktop-table-view">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Area</th>
+                      <th>Item Pekerjaan</th>
+                      <th>Pekerja (Tukang)</th>
+                      <th>Model Upah</th>
+                      <th style={{ textAlign: 'right' }}>Estimasi Upah (WBS)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {laborRows.length ? laborRows.map(pl => (
+                      <tr key={pl.id}>
+                        <td style={{ fontWeight: 600 }}>{pl.area || '—'}</td>
+                        <td style={{ whiteSpace: 'normal', maxWidth: '240px' }}>
+                          <div style={{ fontWeight: 600 }}>{pl.item_name || '—'}</div>
+                          {pl.spec && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{pl.spec}</div>}
+                        </td>
+                        <td>{pl.worker_name || '—'}</td>
+                        <td style={{ textTransform: 'capitalize' }}>{pl.worker_type || 'borongan'}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(pl.labor_cost || 0)}</td>
+                        <td>
+                          <span className="badge" style={{ fontSize: '11px', ...planningStatusStyle(pl.status) }}>
+                            {pl.status || 'Perencanaan'}
+                          </span>
+                          {Number(pl.progress) > 0 && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{pl.progress}%</div>
+                          )}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={6} className="empty">
+                        Belum ada item pekerjaan / upah tukang untuk proyek ini. Tambahkan di modul Budgeting.
+                      </td></tr>
+                    )}
+                  </tbody>
+                  {laborRows.length > 0 && (
+                    <tfoot>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
+                        <td colSpan={4} style={{ textAlign: 'right' }}>TOTAL ESTIMASI UPAH</td>
+                        <td style={{ textAlign: 'right' }}>{rupiah(summary.labor)}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+
+              {/* Kartu mobile */}
+              <div className="mobile-cards-view">
+                {laborRows.length ? laborRows.map(pl => (
+                  <div className="mobile-card" key={pl.id}>
+                    <div className="mobile-card-header">
+                      <div>
+                        <b className="mobile-card-title">{pl.item_name || '—'}</b>
+                        <div className="mobile-card-sub">{pl.area || '—'}</div>
+                      </div>
+                    </div>
+                    <div className="mobile-card-body">
+                      <div className="mobile-card-row"><span className="mobile-label">Pekerja:</span><span className="mobile-val">{pl.worker_name || '—'} ({pl.worker_type || 'borongan'})</span></div>
+                      <div className="mobile-card-row"><span className="mobile-label">Upah:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{rupiah(pl.labor_cost || 0)}</span></div>
+                      <div className="mobile-card-row"><span className="mobile-label">Status:</span><span className="mobile-val">{pl.status || 'Perencanaan'}{Number(pl.progress) > 0 ? ` · ${pl.progress}%` : ''}</span></div>
+                    </div>
+                  </div>
+                )) : <div className="panel empty">Belum ada item pekerjaan untuk proyek ini.</div>}
+                {laborRows.length > 0 && (
+                  <div className="panel" style={{ fontWeight: 800, textAlign: 'right' }}>
+                    Total estimasi upah: {rupiah(summary.labor)}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ---------------- TAB MATERIAL ---------------- */}
+          {view === 'material' && (
+            <>
+              <div className="panel" style={{ marginBottom: '16px' }}>
+                <h2>🧱 Cost Material — {project.kode ? `[${project.kode}] ` : ''}{project.name}</h2>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td style={{ fontWeight: 600, width: '240px' }}>Cost Material Kumulatif</td>
+                      <td style={{ fontWeight: 800, fontSize: '16px' }}>{drive ? rupiah(summary.material) : '—'}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>Pengeluaran Minggu Ini</td>
+                      <td>{drive ? rupiah(drive.current_week_expense || 0) : '—'}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600 }}>Sumber Data</td>
+                      <td className="muted">
+                        REKAP COST 2026 — tab PROJECT SUMMARY (Google Drive)
+                        {sync?.last_synced_at ? ` · terakhir sync ${timeAgo(sync.last_synced_at)}` : ''}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="panel table desktop-table-view">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No. PR</th>
+                      <th>Judul Kebutuhan</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Estimasi</th>
+                      <th style={{ textAlign: 'right' }}>Purchase Riil</th>
+                      <th style={{ textAlign: 'right' }}>Selisih</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {materialPrRows.length ? materialPrRows.map(p => (
+                      <tr key={p.id}>
+                        <td><b>{p.pr_number}</b></td>
+                        <td style={{ whiteSpace: 'normal', maxWidth: '220px' }}>{p.title}</td>
+                        <td><span className={`badge status-${p.status}`} style={{ fontSize: '11px' }}>{p.status}</span></td>
+                        <td style={{ textAlign: 'right' }}>{p.est > 0 ? rupiah(p.est) : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{p.real !== null ? rupiah(p.real) : '—'}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>
+                          {p.diff === null ? '—' : rupiah(p.diff)}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={6} className="empty">
+                        Belum ada Purchase Request untuk proyek ini. Rincian pengadaan muncul di sini setelah PR dibuat di modul Purchase Request.
+                      </td></tr>
+                    )}
+                  </tbody>
+                  {materialPrRows.length > 0 && (
+                    <tfoot>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
+                        <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL</td>
+                        <td style={{ textAlign: 'right' }}>{materialPrTotals.est > 0 ? rupiah(materialPrTotals.est) : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{materialPrTotals.real > 0 ? rupiah(materialPrTotals.real) : '—'}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+
+              {/* ============================================================
+                  RINCIAN COST AKTUAL PER NOTA (t_da4a9ef8 Tahap B/B2)
+                  ============================================================
+                  Sumber: receiving_items (nota belanja yang SUDAH DIBELI).
+                  - alokasi PER BARIS/qty, bukan total header ke semua proyek;
+                  - baris tanpa proyek / tanpa harga TIDAK dihitung sebagai
+                    biaya proyek ini (muncul di daftar celah di bawah);
+                  - upah = hak tercatat (tukang_projects), kasbon/pelunasan
+                    adalah pembayaran atas hak yang sama -> tidak dijumlahkan;
+                  - saldo upah per proyek = null (pembayaran di sumber bersifat
+                    per tukang) -> ditulis "belum teralokasi", bukan Rp 0;
+                  - revenue/rasio/margin TIDAK dihitung di sini (masih HOLD). */}
+              <div className="panel" style={{ marginTop: '16px' }}>
+                <h2>🧾 Rincian Cost Aktual — nota per proyek</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No. Nota</th>
+                      <th>Vendor</th>
+                      <th>Tanggal</th>
+                      <th>Baris</th>
+                      <th style={{ textAlign: 'right' }}>Alokasi proyek ini</th>
+                      <th style={{ textAlign: 'right' }}>Total nota</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {breakdownProject && breakdownProject.material.notes.length ? breakdownProject.material.notes.map((n, i) => (
+                      <tr key={`${n.noteId}-${i}`}>
+                        <td><b>{n.invoiceNo || '—'}</b></td>
+                        <td>{n.vendorName || '—'}</td>
+                        <td>{n.date || '—'}</td>
+                        <td>{n.itemCount}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{rupiah(n.allocated)}</td>
+                        <td style={{ textAlign: 'right' }}>{rupiah(n.noteTotal)}</td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={6} className="empty">
+                        Belum ada nota belanja yang teralokasi ke proyek ini. Angka ini tidak diisi 0 —
+                        artinya belum ada catatan nota (bukan "biaya nol").
+                      </td></tr>
+                    )}
+                  </tbody>
+                  {breakdownProject && breakdownProject.material.notes.length > 0 && (
+                    <tfoot>
+                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
+                        <td colSpan={4} style={{ textAlign: 'right' }}>TOTAL MATERIAL TERCATAT</td>
+                        <td style={{ textAlign: 'right' }}>{rupiah(breakdownProject.material.total || 0)}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+                {breakdownProject && (
+                  <div className="muted" style={{ fontSize: '12px', marginTop: '8px' }}>
+                    Upah hak tercatat proyek ini: {breakdownProject.labor.entitlement === null
+                      ? 'belum ada baris upah yang terhubung lewat nomor proyek'
+                      : `${rupiah(breakdownProject.labor.entitlement)} (${breakdownProject.labor.rows} baris)`}.
+                    {' '}Saldo upah (hak − kasbon − pelunasan): belum teralokasi per proyek — pembayaran di sumber
+                    dicatat per tukang, jadi tidak ditampilkan sebagai Rp 0.
+                  </div>
+                )}
+              </div>
+
+              {/* Celah data yang HARUS terlihat (tidak disamarkan sebagai 0) */}
+              <div className="panel" style={{ marginTop: '12px' }}>
+                <h2>⚠️ Celah data breakdown</h2>
+                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px' }}>
+                  {breakdown.gaps.filter(g => g.code !== 'revenue_ratio_hold').map(g => (
+                    <li key={g.code} style={{ marginBottom: '4px' }}>
+                      {g.message}
+                      {g.amount ? ` — ${rupiah(g.amount)}` : ''}
+                      {g.count ? ` (${g.count} baris)` : ''}
+                    </li>
+                  ))}
+                  <li>Revenue, rasio cost/revenue, dan margin final masih HOLD sesuai arahan DAT.</li>
+                </ul>
+              </div>
+
+              {/* Kartu mobile */}
+              <div className="mobile-cards-view">
+                <div className="panel">
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Cost Material (Drive):</span><b>{drive ? rupiah(summary.material) : '—'}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+                    <span>Minggu Ini:</span><span>{drive ? rupiah(drive.current_week_expense || 0) : '—'}</span>
+                  </div>
+                </div>
+                {materialPrRows.length ? materialPrRows.map(p => (
+                  <div className="mobile-card" key={p.id}>
+                    <div className="mobile-card-header">
+                      <div>
+                        <b className="mobile-card-title">{p.pr_number}</b>
+                        <div className="mobile-card-sub">{p.title}</div>
+                      </div>
+                    </div>
+                    <div className="mobile-card-body">
+                      <div className="mobile-card-row"><span className="mobile-label">Status:</span><span className="mobile-val">{p.status}</span></div>
+                      <div className="mobile-card-row"><span className="mobile-label">Estimasi:</span><span className="mobile-val">{p.est > 0 ? rupiah(p.est) : '—'}</span></div>
+                      <div className="mobile-card-row"><span className="mobile-label">Purchase Riil:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{p.real !== null ? rupiah(p.real) : '—'}</span></div>
+                      <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>{p.diff === null ? '—' : rupiah(p.diff)}</span></div>
+                    </div>
+                  </div>
+                )) : <div className="panel empty">Belum ada Purchase Request untuk proyek ini.</div>}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </CompactRoot>
+  )
+}

@@ -1,0 +1,132 @@
+{
+  "waktu": "2026-10-18T11:59:00.322Z",
+  "base_commit": "1d364e7 (integration HEAD) — audit S3 read-only",
+  "worktree": "/home/ubuntu/dev-workspaces/wt-s3-rap-recovery",
+  "catatan_tata_kelola": "S3 proposal-only; TIDAK mengubah kode aplikasi; TIDAK menyentuh DB/SQL produksi",
+  "cara_baca_hasil": "expect_defect yang lulus = cacat TERBUKTI ADA (bukan sistem sehat). expect_ok yang gagal = kapabilitas hilang. Skrip exit 0 karena semua probe dieksekusi penuh; temuan dilaporkan di sini, bukan disembunyikan lewat exit code.",
+  "total_probe": 22,
+  "assertion_terpenuhi": 22,
+  "assertion_tidak_terpenuhi": 0,
+  "cacat_terkonfirmasi": [
+    "N1.1",
+    "N1.2",
+    "N2.1",
+    "N3.1",
+    "N4.1",
+    "N4.1b",
+    "N7.1",
+    "N7.2",
+    "N8.2",
+    "N8.3",
+    "N9.1",
+    "N9.2",
+    "N9.3",
+    "N9.4"
+  ],
+  "kapabilitas_hilang": [],
+  "temuan": [
+    {
+      "id": "N1.1",
+      "nama": "Planning.js idiom !isNaN&&>0 TIDAK menahan Infinity",
+      "detail": "guardPlanning(\"1e999\")=Infinity — !isNaN(Infinity)===true dan Infinity>0===true → lolos guard",
+      "math": "FN-INF_GUARD TERKONFIRMASI untuk Planning.js saja (4 lokasi: L253, L277, L280, L283)"
+    },
+    {
+      "id": "N1.2",
+      "nama": "ProjectFinance/Finance idiom Number(x)||0 JUGA tidak menahan Infinity",
+      "detail": "guardOrZero(\"1e999\")=Infinity — Infinity truthy → lolos || 0",
+      "math": "FN-INF_GUARD berlaku untuk 3 file, TAPI idiom-nya beda dari klaim WIP"
+    },
+    {
+      "id": "N2.1",
+      "nama": "Infinity pada realisasi material → margin −Infinity (Planning & ProjectFinance)",
+      "detail": "margin Planning=-Infinity; margin ProjectFinance=-Infinity",
+      "math": "Konsekuensi FN-INF_GUARD: margin negatif tak-finite; tampilan bergantung format"
+    },
+    {
+      "id": "N3.1",
+      "nama": "Revenue Infinity → pagu material Infinity → isMaterialOver SELALU false",
+      "detail": "budgetMaterial=Math.round(Infinity*0.5)=Infinity; real(finite) > Infinity = false",
+      "math": "Kas tepi BARU: revenue tak-finite mematikan SELURUH deteksi over-budget secara senyap (false negative)"
+    },
+    {
+      "id": "N4.1",
+      "nama": "Nominal \"1.250.000\" → Number() = NaN (guard menyink jadi 0)",
+      "detail": "Number(\"1.250.000\")=NaN — 2 titik ditolak JS; guard → 0",
+      "math": "Kas tepi BARU (FN-RUPIAH_LOCALE): realisasi Rp 1.250.000 tampil sebagai Rp 0"
+    },
+    {
+      "id": "N4.1b",
+      "nama": "Nominal \"1.250\" → Number() = 1,25 (3 orde magnitudo hilang, tanpa error)",
+      "detail": "Number(\"1.250\")=1.25 — desimal JS vs maksud ribuan id-ID",
+      "math": "FN-RUPIAH_LOCALE lanjutan: satu titik dibaca desimal; penulis id-ID maksud ribuan"
+    },
+    {
+      "id": "N7.1",
+      "nama": "appliedPercentages.material=Infinity → budgetMaterial Infinity, real 45jt TIDAK over",
+      "detail": "budgetMaterial=Infinity isMaterialOver=false",
+      "math": "Kas tepi BARU: snapshot custom rusak mematikan deteksi over (45jt seharusnya > pagu 50jt → false negative)"
+    },
+    {
+      "id": "N7.2",
+      "nama": "appliedPercentages.material=NaN → budgetMaterial NaN, SEMUA flag false",
+      "detail": "budgetMaterial=NaN hasAnomaly=false",
+      "math": "Kas tepi BARU: NaN pagu membuat SEMUA deteksi anomali mati — dashboard tampak \"sehat\" palsu"
+    },
+    {
+      "id": "N8.2",
+      "nama": "\"+50\" (plus eksplisit) → VALID (Number menerima prefix +)",
+      "detail": "Number(\"+50\")=50",
+      "math": "Rendah: variasi penulisan diterima; tidak ada batasan format di UI"
+    },
+    {
+      "id": "N8.3",
+      "nama": "\"5e1\" (notasi ilmiah) → dibaca 50 → VALID",
+      "detail": "Number(\"5e1\")=50 total=100",
+      "math": "Rendah: notasi ilmiah diterima sebagai persen; tidak ada batasan format di UI"
+    },
+    {
+      "id": "N9.1",
+      "nama": "FN-EST_LABEL masih berlaku: ProjectFinance \"Actual Tukang\" ada di base integrasi",
+      "detail": "ditemukan di char 855 — ProjectFinance.js L228, title kartu \"Total estimasi upah tukang dari modul Budgeting\"",
+      "math": "FN-EST_LABEL TERKONFIRMASI di base integrasi (belum diperbaiki)"
+    },
+    {
+      "id": "N9.2",
+      "nama": "FN-EST_LABEL masih berlaku: Planning \"Pengeluaran Riil (WBS)\" ada di base integrasi",
+      "detail": "ditemukan di char 47273 — Planning.js L1066",
+      "math": "FN-EST_LABEL TERKONFIRMASI di base integrasi (belum diperbaiki)"
+    },
+    {
+      "id": "N9.3",
+      "nama": "FN-PRINTREF masih berlaku: label \"(1 − 5)\" ada di base integrasi",
+      "detail": "ditemukan di char 79509 — Finance.js L1526",
+      "math": "FN-PRINTREF TERKONFIRMASI di base integrasi (belum diperbaiki)"
+    },
+    {
+      "id": "N9.4",
+      "nama": "FN-TARGET70-DECIMAL masih berlaku: Math.round(revenue*70)/100 ada di base integrasi",
+      "detail": "ditemukan di char 6854 — ProjectFinance.js L156 (identik Finance.js L478)",
+      "math": "FN-TARGET70-DECIMAL TERKONFIRMASI di base integrasi (belum diperbaiki)"
+    }
+  ],
+  "klaim_wip_diverifikasi": {
+    "FN_INF_GUARD": "TERKONFIRMASI di 3 file; citation & idiom WIP perlu dikoreksi (ProjectFinance/Finance pakai Number(x)||0, bukan !isNaN&&>0) — lihat N1.1-N1.3",
+    "FN_EST_LABEL": "TERKONFIRMASI masih berlaku di base integrasi — lihat N9.1, N9.2",
+    "FN_PRINTREF": "TERKONFIRMASI masih berlaku di base integrasi — lihat N9.3",
+    "FN_TARGET70_DECIMAL": "TERKONFIRMASI masih berlaku di base integrasi — lihat N9.4",
+    "FN_PCT_LOCALE": "diuji ulang di harness utama R2 (dokumentasi perilaku, bukan crash)"
+  },
+  "temuan_baru_beyond_wip": [
+    "N3.1 — revenue tak-finite mematikan semua deteksi over-budget (false negative)",
+    "N7.1 — appliedPercentages Infinity → pagu Infinity → deteksi over mati",
+    "N7.2 — appliedPercentages NaN → SEMUA deteksi anomali mati, dashboard \"sehat\" palsu",
+    "N4.1/N4.1b — nominal bergaya id-ID (\"1.250.000\"/\"1.250\") salah baca (0 / 1,25)",
+    "N8.3 — notasi ilmiah \"5e1\" diterima sebagai persen"
+  ],
+  "batasan_reachability": [
+    "Reachability Infinity/NaN dari DB numeric BELUM terbukti: kolom numeric Postgres tidak menyimpan Infinity. Jalur nyata paling mungkin = payload JSON ekstrem atau nilai dari Sheets sebelum masuk DB. Tidak ada probe live DB di audit ini (read-only, tanpa kredensial).",
+    "Reachability FN-RUPIAH_LOCALE BELUM terbukti: realisasi Planning berasal dari kolom numeric DB (drive?.cumulative_cost), bukan string. Kasus string baru nyata jika ada importer/parser lokal mengisi string bergaya id-ID.",
+    "Audit ini statik + eksekusi fungsi ekstraksi; TIDAK melakukan render UI, TIDAK menyentuh DB, TIDAK mengubah kode aplikasi."
+  ]
+}

@@ -1,0 +1,7 @@
+record_id,external_ref,source_file_id,source_row,notes,project_code,name,status,customer_note
+,EXT-PRJ-001,,,"project baru — catatan customer teks bebas, FK customer menunggu skema (t_03b41644)",PRJ-0003,[CONTOH] Proyek Meja Kompor,DONE,Pak Andi 0813xxx
+,EXT-PRJ-002,,,status enum salah ditolak,PRJ-0004,[CONTOH] Proyek Salah Status,SELESAI,
+,EXT-PRJ-003,,,project_code wajib,,[CONTOH] Proyek Tanpa Kode,ON_GOING,
+,EXT-PRJ-004,,,duplicate project_code dalam batch ditolak,PRJ-0003,[CONTOH] Proyek Kode Dobel,ON_GOING,
+11111111-1111-1111-1111-111111111111,EXT-PRJ-005,,,UPDATE project existing nilai sama = SKIP_UNCHANGED,PRJ-0001,[CONTOH] Proyek Meja Kantor,ON_GOING,
+,EXT-PRJ-006,,,INSERT intent kode sudah ada di master = CONFLICT,PRJ-0001,[CONTOH] Proyek Dobel Master,ON_GOING,

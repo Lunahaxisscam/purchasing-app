@@ -1,0 +1,482 @@
+/* ============================================================
+   compact-ops.module.css — Precision Compact UI for Operations
+   NO HORIZONTAL SCROLL across all viewports (360px - 1440px)
+   ============================================================ */
+
+/* Container wrapper for operational views */
+.opsContainer {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Neutralize table container scrolling & hints */
+.opsContainer :global(.table-scroll-hint) {
+  display: none !important;
+}
+
+.opsContainer :global(.desktop-table-view) {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* Base table: fixed layout, exactly 100% width, no min-width overflow */
+.opsContainer :global(.desktop-table-view table),
+.opsContainer :global(.desktop-table-view table.requests-table),
+.opsContainer :global(.desktop-table-view table.approvals-table),
+.opsContainer :global(.desktop-table-view table.materials-table),
+.opsContainer :global(.desktop-table-view table.projects-table),
+.opsContainer :global(.desktop-table-view table.vendors-table),
+.opsContainer :global(.desktop-table-view table.handovers-table) {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  box-sizing: border-box !important;
+}
+
+/* Cell content text wrapping: prevent horizontal expansion */
+.opsContainer :global(.desktop-table-view table th),
+.opsContainer :global(.desktop-table-view table td) {
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+}
+
+/* ============================================================
+   1. PURCHASE REQUEST TABLE (requests-table) — 10 COLUMNS (100%)
+   ============================================================ */
+/* 1: Priority dot */
+.opsContainer :global(table.requests-table th:nth-child(1)),
+.opsContainer :global(table.requests-table td:nth-child(1)) {
+  width: 3.5% !important;
+  text-align: center !important;
+  padding: 8px 3px !important;
+}
+
+/* 2: NO. PR + Date */
+.opsContainer :global(table.requests-table th:nth-child(2)),
+.opsContainer :global(table.requests-table td:nth-child(2)) {
+  width: 10.5% !important;
+  padding: 8px 6px !important;
+}
+
+/* 3: Project */
+.opsContainer :global(table.requests-table th:nth-child(3)),
+.opsContainer :global(table.requests-table td:nth-child(3)) {
+  width: 14% !important;
+  padding: 8px 6px !important;
+}
+
+/* 4: Judul Kebutuhan */
+.opsContainer :global(table.requests-table th:nth-child(4)),
+.opsContainer :global(table.requests-table td:nth-child(4)) {
+  width: 14% !important;
+  padding: 8px 6px !important;
+}
+
+/* 5: Qty */
+.opsContainer :global(table.requests-table th:nth-child(5)),
+.opsContainer :global(table.requests-table td.pr-item-qty) {
+  width: 8.5% !important;
+  padding: 8px 6px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+
+/* 6: Item Material */
+.opsContainer :global(table.requests-table th:nth-child(6)),
+.opsContainer :global(table.requests-table td.pr-item-name) {
+  width: 20% !important;
+  min-width: 0 !important;
+  padding: 8px 6px !important;
+}
+
+/* 7: Rencana Toko (opsional) */
+.opsContainer :global(table.requests-table th:nth-child(7)),
+.opsContainer :global(table.requests-table td.pr-item-vendor) {
+  width: 9% !important;
+  min-width: 0 !important;
+  padding: 8px 6px !important;
+}
+
+/* 8: Estimasi Harga */
+.opsContainer :global(table.requests-table th:nth-child(8)),
+.opsContainer :global(table.requests-table td.pr-item-price) {
+  width: 11% !important;
+  padding: 8px 6px !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+/* 9: Status */
+.opsContainer :global(table.requests-table th:nth-child(9)),
+.opsContainer :global(table.requests-table td:nth-child(9)) {
+  width: 4.5% !important;
+  padding: 8px 3px !important;
+  text-align: center !important;
+}
+
+/* 10: Aksi */
+.opsContainer :global(table.requests-table th:nth-child(10)),
+.opsContainer :global(table.requests-table td:nth-child(10)) {
+  width: 5% !important;
+  padding: 8px 3px !important;
+  text-align: center !important;
+}
+
+/* Category header row spanning 4 item columns */
+.opsContainer :global(table.requests-table tr.pr-group-row td.pr-group-cell) {
+  background: #f4f7f5 !important;
+  color: #203c35 !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  padding: 5px 8px !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* PR Total Row */
+.opsContainer :global(table.requests-table tr.pr-est-total-row td) {
+  padding: 6px 8px !important;
+  font-size: 12px !important;
+}
+
+/* Action button icons in PR */
+.opsContainer :global(.pr-actions-cell) {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.opsContainer :global(.pr-actions-cell .icon-btn) {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 13px !important;
+}
+
+/* ============================================================
+   2. MATERIALS TABLE (7 COLUMNS — 100%)
+   ============================================================ */
+.opsContainer :global(table.materials-table th:nth-child(1)),
+.opsContainer :global(table.materials-table td:nth-child(1)) {
+  width: 30% !important;
+  max-width: none !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.materials-table th:nth-child(2)),
+.opsContainer :global(table.materials-table td:nth-child(2)) {
+  width: 20% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.materials-table th:nth-child(3)),
+.opsContainer :global(table.materials-table td:nth-child(3)) {
+  width: 10% !important;
+  text-align: right !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.materials-table th:nth-child(4)),
+.opsContainer :global(table.materials-table td:nth-child(4)) {
+  width: 10% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.materials-table th:nth-child(5)),
+.opsContainer :global(table.materials-table td:nth-child(5)) {
+  width: 11% !important;
+  text-align: right !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.materials-table th:nth-child(6)),
+.opsContainer :global(table.materials-table td:nth-child(6)) {
+  width: 11% !important;
+  text-align: right !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.materials-table th:nth-child(7)),
+.opsContainer :global(table.materials-table td:nth-child(7)) {
+  width: 8% !important;
+  text-align: center !important;
+  padding: 8px 6px !important;
+}
+
+/* ============================================================
+   3. APPROVALS TABLE (6 COLUMNS — 100%)
+   ============================================================ */
+.opsContainer :global(table.approvals-table th:nth-child(1)),
+.opsContainer :global(table.approvals-table td:nth-child(1)) {
+  width: 15% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.approvals-table th:nth-child(2)),
+.opsContainer :global(table.approvals-table td:nth-child(2)) {
+  width: 22% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.approvals-table th:nth-child(3)),
+.opsContainer :global(table.approvals-table td:nth-child(3)) {
+  width: 31% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.approvals-table th:nth-child(4)),
+.opsContainer :global(table.approvals-table td:nth-child(4)) {
+  width: 10% !important;
+  text-align: center !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.approvals-table th:nth-child(5)),
+.opsContainer :global(table.approvals-table td:nth-child(5)) {
+  width: 11% !important;
+  text-align: center !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.approvals-table th:nth-child(6)),
+.opsContainer :global(table.approvals-table td:nth-child(6)) {
+  width: 11% !important;
+  text-align: center !important;
+  padding: 8px 6px !important;
+}
+
+/* ============================================================
+   4. PROJECTS TABLE (5 COLUMNS — 100%)
+   ============================================================ */
+.opsContainer :global(table.projects-table th:nth-child(1)),
+.opsContainer :global(table.projects-table td:nth-child(1)) {
+  width: 14% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.projects-table th:nth-child(2)),
+.opsContainer :global(table.projects-table td:nth-child(2)) {
+  width: 44% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.projects-table th:nth-child(3)),
+.opsContainer :global(table.projects-table td:nth-child(3)) {
+  width: 15% !important;
+  text-align: center !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.projects-table th:nth-child(4)),
+.opsContainer :global(table.projects-table td:nth-child(4)) {
+  width: 15% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.projects-table th:nth-child(5)),
+.opsContainer :global(table.projects-table td:nth-child(5)) {
+  width: 12% !important;
+  text-align: center !important;
+  padding: 8px 6px !important;
+}
+
+/* ============================================================
+   5. VENDORS TABLE (5 COLUMNS — 100%)
+   ============================================================ */
+.opsContainer :global(table.vendors-table th:nth-child(1)),
+.opsContainer :global(table.vendors-table td:nth-child(1)) {
+  width: 28% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.vendors-table th:nth-child(2)),
+.opsContainer :global(table.vendors-table td:nth-child(2)) {
+  width: 18% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.vendors-table th:nth-child(3)),
+.opsContainer :global(table.vendors-table td:nth-child(3)) {
+  width: 22% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.vendors-table th:nth-child(4)),
+.opsContainer :global(table.vendors-table td:nth-child(4)) {
+  width: 24% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.vendors-table th:nth-child(5)),
+.opsContainer :global(table.vendors-table td:nth-child(5)) {
+  width: 8% !important;
+  text-align: center !important;
+  padding: 8px 6px !important;
+}
+
+/* ============================================================
+   6. HANDOVERS TABLE (8 COLUMNS — 100%)
+   ============================================================ */
+.opsContainer :global(table.handovers-table th:nth-child(1)),
+.opsContainer :global(table.handovers-table td:nth-child(1)) {
+  width: 16% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.handovers-table th:nth-child(2)),
+.opsContainer :global(table.handovers-table td:nth-child(2)) {
+  width: 22% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.handovers-table th:nth-child(3)),
+.opsContainer :global(table.handovers-table td:nth-child(3)) {
+  width: 12% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.handovers-table th:nth-child(4)),
+.opsContainer :global(table.handovers-table td:nth-child(4)) {
+  width: 14% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.handovers-table th:nth-child(5)),
+.opsContainer :global(table.handovers-table td:nth-child(5)) {
+  width: 10% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.handovers-table th:nth-child(6)),
+.opsContainer :global(table.handovers-table td:nth-child(6)) {
+  width: 11% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.handovers-table th:nth-child(7)),
+.opsContainer :global(table.handovers-table td:nth-child(7)) {
+  width: 10% !important;
+  padding: 8px 10px !important;
+}
+
+.opsContainer :global(table.handovers-table th:nth-child(8)),
+.opsContainer :global(table.handovers-table td:nth-child(8)) {
+  width: 5% !important;
+  text-align: center !important;
+  padding: 8px 6px !important;
+}
+
+/* ============================================================
+   7. TOOLBAR, FILTER PILLS & ACTIONS COMPACT LAYOUT
+   ============================================================ */
+.opsContainer :global(.toolbar) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: space-between !important;
+  align-items: flex-end !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
+  box-sizing: border-box !important;
+}
+
+.opsContainer :global(.filter-tabs) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  overflow-x: visible !important;
+  margin-top: 4px !important;
+  box-sizing: border-box !important;
+}
+
+.opsContainer :global(.filter-tabs .pill) {
+  padding: 4px 10px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+.opsContainer :global(.toolbar-actions) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+}
+
+.opsContainer :global(.search-input) {
+  min-width: 130px !important;
+  max-width: 190px !important;
+  padding: 6px 12px !important;
+  font-size: 12.5px !important;
+  height: 36px !important;
+  box-sizing: border-box !important;
+}
+
+.opsContainer :global(.btn-create-module) {
+  height: 36px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.opsContainer :global(.print-template-row) {
+  display: flex !important;
+  justify-content: flex-end !important;
+  margin-bottom: 4px !important;
+}
+
+.opsContainer :global(.btn-print-template) {
+  font-size: 11.5px !important;
+  padding: 4px 10px !important;
+  border-radius: 6px !important;
+}
+
+/* ============================================================
+   8. DIALOGS, MODALS & MOBILE SENSITIVITY
+   ============================================================ */
+.opsContainer :global(.modal),
+.opsModal {
+  overflow-x: hidden !important;
+}
+
+.opsContainer :global(.dialog),
+.opsDialog {
+  width: min(600px, 94vw) !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* Mobile inputs >= 16px to prevent iOS auto-zoom, touch targets >= 44px */
+@media (max-width: 768px) {
+  .opsContainer :global(.modal input:not([type='checkbox']):not([type='radio'])),
+  .opsContainer :global(.modal select),
+  .opsContainer :global(.modal textarea),
+  .opsContainer :global(.search-input) {
+    font-size: 16px !important;
+  }
+
+  .opsContainer :global(.filter-tabs .pill),
+  .opsContainer :global(.btn-create-module),
+  .opsContainer :global(.btn-print-template),
+  .opsContainer :global(.mobile-card-actions button) {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}

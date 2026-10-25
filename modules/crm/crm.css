@@ -1,0 +1,81 @@
+/* ============================================================
+   modules/crm/crm.css — gaya tabel Customer CRM
+   ============================================================
+   Mengapa file terpisah: tabel CRM memakai `purchase-table` (global) yang
+   aturannya `th, td { white-space: nowrap !important }`. Alamat panjang
+   karenanya meluber. Di sini alamat dibuat membungkus (wrap) HANYA di tabel
+   CRM, dan warna teks dikunci gelap supaya tidak tertimpa aturan global
+   `button { color: white }` (bug nyata: nama customer jadi putih di atas
+   latar putih sehingga hanya alamat yang terbaca).
+   ============================================================ */
+
+/* Nama customer: baris bisa diklik, tetapi BUKAN <button> supaya tidak
+   mewarisi warna putih global. Warna eksplisit gelap + hover jelas. */
+.crm-table .crm-name-toggle {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 12.8px;
+  color: #12211d;
+  cursor: pointer;
+  line-height: 1.3;
+  border-radius: 4px;
+  padding: 1px 2px;
+}
+.crm-table .crm-name-toggle:hover,
+.crm-table .crm-name-toggle:focus-visible {
+  color: #0b5c46;
+  background: #eef5f1;
+  outline: none;
+}
+.crm-table .crm-name-toggle .crm-caret {
+  color: #4a6b5f;
+  font-size: 11px;
+}
+
+/* Alamat: boleh membungkus, tidak boleh meluber ke kolom lain. */
+.crm-table td.crm-cell-alamat {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+  font-size: 12.2px;
+  color: #2f3f39;
+  min-width: 200px;
+}
+
+/* Proyek: angka + tooltip, jangan bungkus. */
+.crm-table td.crm-cell-project {
+  font-size: 12.2px;
+  color: #2f3f39;
+}
+
+/* Teks kosong: abu-abu yang masih terbaca (bukan putih). */
+.crm-table .crm-muted {
+  color: #7b8a84;
+}
+
+/* Tombol Hapus: merah, tetap terbaca di atas putih. */
+.crm-table .crm-btn-hapus,
+.mobile-cards-view .crm-btn-hapus {
+  color: #b3261e !important;
+  border-color: #e6b3ae !important;
+}
+.crm-table .crm-btn-hapus:hover:not(:disabled),
+.mobile-cards-view .crm-btn-hapus:hover:not(:disabled) {
+  background: #fdecea !important;
+  color: #8c1d18 !important;
+}
+
+/* Kolom Aksi: tombol outline kecil, teks gelap (bukan putih). */
+.crm-table td button.outline {
+  color: #12211d;
+  background: #fff;
+  border: 1px solid #cfdad5;
+  box-shadow: none;
+}
+.crm-table td button.outline:hover:not(:disabled) {
+  background: #f2f7f4;
+  color: #0b5c46;
+  transform: none;
+  box-shadow: none;
+}

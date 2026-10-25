@@ -1,0 +1,333 @@
+{
+  "stamp": "20261020-035706",
+  "repo": "/home/ubuntu/dev-workspaces/purchasing-lean-admin-purchases",
+  "commit": "91723e2252b843c4dffe4cee658988074a881f62",
+  "branch": "feat/lean-admin-purchases",
+  "e2e_base": null,
+  "results": [
+    {
+      "suite": "flow-logic-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 29,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.1
+    },
+    {
+      "suite": "fase2-save-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 56,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.1
+    },
+    {
+      "suite": "approval-queue-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 60,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.2
+    },
+    {
+      "suite": "approval-item-action-test",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "=== HASIL: 18 ok, 0 FAIL ===",
+      "seconds": 3.4
+    },
+    {
+      "suite": "purchase-flow-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 103,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.4
+    },
+    {
+      "suite": "pr-purchase-compact-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 130,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.6
+    },
+    {
+      "suite": "handover-compact-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 52,
+      "failed": 0,
+      "note": "",
+      "seconds": 4.3
+    },
+    {
+      "suite": "handover-flow-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 73,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.8
+    },
+    {
+      "suite": "material-acuan-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 96,
+      "failed": 0,
+      "note": "",
+      "seconds": 7.5
+    },
+    {
+      "suite": "material-export-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 46,
+      "failed": 0,
+      "note": "=== HASIL: 46 PASS, 0 FAIL ===",
+      "seconds": 2.9
+    },
+    {
+      "suite": "pr-estimator-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 14,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.2
+    },
+    {
+      "suite": "pr-group-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 59,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.5
+    },
+    {
+      "suite": "pr-print-template-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 20,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.0
+    },
+    {
+      "suite": "showmore-list-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 50,
+      "failed": 0,
+      "note": "",
+      "seconds": 7.6
+    },
+    {
+      "suite": "vendors-toolbar-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 25,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.2
+    },
+    {
+      "suite": "manual-input-staging-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 73,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.5
+    },
+    {
+      "suite": "rab-boq-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 20,
+      "failed": 0,
+      "note": "JS_TOTAL 74, FAIL 0 | JS_PDF_TOTAL 16, FAIL 0",
+      "seconds": 0.2
+    },
+    {
+      "suite": "rab-boq-render-test",
+      "exit": 1,
+      "parsed": true,
+      "passed": 70,
+      "failed": 2,
+      "note": "FAIL F1 heading sidebar font-weight >= 800 | expected=true actual=false | FAIL F2 heading sidebar pakai var(--ivory) (kontras tinggi) | expected=true actual=false | RENDER_TOTAL 70, FAIL 2 | STDERR: RENDFAIL F1 heading sidebar font-weight >= 800 | F2 heading sidebar pakai var(--ivory) (kontras tinggi) | [FAIL] NODE: sandbox render lulus semua cek JS — expected=True actual=False",
+      "seconds": 2.1
+    },
+    {
+      "suite": "ui-olive-tokens-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 35,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.1
+    },
+    {
+      "suite": "rap-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 50,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.6
+    },
+    {
+      "suite": "sales-invoice-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 93,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.0
+    },
+    {
+      "suite": "reminders-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 243,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.6
+    },
+    {
+      "suite": "marketing-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 263,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.4
+    },
+    {
+      "suite": "marketing-test/run_ui.py",
+      "exit": 0,
+      "parsed": true,
+      "passed": 102,
+      "failed": 0,
+      "note": "",
+      "seconds": 4.0
+    },
+    {
+      "suite": "fn-repro",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "=== HASIL: 46 ok, 0 FAIL ===",
+      "seconds": 2.0
+    },
+    {
+      "suite": "s7-compact-test",
+      "exit": 1,
+      "parsed": true,
+      "passed": 110,
+      "failed": 1,
+      "note": "FAIL tidak ada blok non-media yang identik & terduplikat  .notice x2, .btn-delete x2, .btn-delete:hover x2, .btn-file x2, .btn-file:hover x2, .status-kendala x2, .status-kendala:hover x2, .status-normal x2, .status-gudang x2, .status-gudang:hover x2, .material-picker-box x2, .badge x2, .vendor-cat-chips x2, .vendor-cat-row .vendor-cat-chips x2, .vendor-cat-chip x2, .vendor-cat-chips.vendor-cat-empty x2, .vendor-cat-checklist x2, .vendor-cat-checklist-label x2, .vendor-cat-checklist-hint x2, .vendor-cat-checklist .vendor-cat-option x2, .vendor-cat-checklist .vendor-cat-option:hover x2, .vendor-cat-checklist .vendor-cat-option.is-checked x2, .vendor-cat-checklist .vendor-cat-option input[type='checkbox'] x2, .vendor-cat-checklist .vendor-cat-option-mark x2, .vendor-card-footnote x2, .vendor-delete-link x2, .vendor-delete-link:hover x2, .btn-delete-muted x2, .btn-delete-muted:hover x2, .badge.status-APPROVED x2, .badge.status-DRAFT x2, .badge.status-PENDING x2, .badge.status-REJECTED x2, .badge.status-REVISI x2, .badge.badge-item-approved x2, .icon-btn x2, .btn-edit x2, .btn-edit:hover x2, .btn-delete.icon-btn x2, .btn-finish x2, .btn-finish:hover x2, .prio-dot x2, .prio-normal x2, .prio-urgent x2, .prio-header x2, .nav-divider x2, .table x2, table x2, table.materials-table th:nth-child(2), table.materials-table td:nth-child(2) x2, table.materials-table th:nth-child(3), table.materials-table td:nth-child(3) x2, table.requests-table th, table.requests-table td x2, table.requests-table tr.pr-item-row > td x2, table.requests-table tr.pr-item-row:last-child > td x2, table.requests-table td.pr-item-qty x2, table.requests-table td.pr-item-name x2, table.requests-table td.pr-item-vendor x2, table.requests-table .pr-title-cell x2, table.requests-table td.pr-item-price x2, th, td x2, .cell-ellip x2, .badge.badge-truncate x2, td .cell-name x2, .note-dot x2, .note-dot-on x2, .dialog-wide x2, .note-pop x2, textarea x2, .print-paper x2, .print-kop-brand x2, .print-logo x2, .print-company x2, .print-company-sub x2, .print-kop-line x2, .print-title x2, .print-title h1 x2, .print-title-no x2, .print-info x2, .print-info td x2, .print-table x2, .print-table th, .print-table td x2, .print-table th x2, .print-table small x2, .print-section-title x2, .print-notes-box x2, .print-sign x2, .print-sign-col x2, .print-sign-name x2, .print-footer x2, tbody tr.row-stok-menipis, tbody tr.row-stok-menipis:hover x2, tbody tr.row-stok-menipis > td x2, .budget-control-panel x2, .budget-control-panel.has-anomaly x2, .budget-pct-panel x2, .budget-pct-panel-head x2, .budget-pct-panel-title x2, .budget-pct-panel-hint x2, .budget-pct-grid x2, .budget-pct-field x2, .budget-pct-field-label x2, .custom-pct-input x2, .custom-pct-input:focus x2, .budget-pct-footer x2, .budget-pct-status x2, .budget-pct-warn x2, .budget-pct-pending x2, .budget-overview-strip x2, .budget-overview-item x2, .budget-overview-label x2, .budget-overview-val x2, .budget-overview-val small x2, .budget-anomaly-summary-banner x2, .anomaly-banner-top x2, .anomaly-banner-title x2, .anomaly-banner-subtitle x2, .anomaly-items-grid x2, .anomaly-item-card x2, .budget-cards-grid x2, .budget-card x2, .budget-card::before x2, .budget-card:hover x2, .budget-card.card-revenue::before x2, .budget-card.is-anomaly x2, .budget-card.is-on-track x2, .budget-card-header x2, .budget-card-title x2, .budget-card-nominal x2, .budget-card-sub x2, .budget-card-details x2, .budget-detail-row x2, .budget-detail-label x2, .budget-detail-val x2, .budget-progress-track x2, .budget-progress-fill x2, @keyframes pulse-red x2, .badge-anomaly-glow x2, .num-rupiah, .numeric-data, .budget-overview-val, .budget-card-nominal, .budget-detail-val, .card strong, td.col-nominal, td[data-numeric], .mobile-val[data-numeric] x2, td.col-nominal, td[data-numeric] x2, .rp-prefix x2, table td.cell-wrap, table td .cell-wrap x2, table th.col-num, table td.col-num x2, .actions-cell x2, .nav-group-label x2, .filter-tabs-wrapper::after x2, .brand-banner x2, .brand-banner .brand-banner-title x2, .brand-banner .brand-banner-sub x2, .brand-banner .rev-badge x2, .btn-olive x2, .btn-olive:hover:not(:disabled) x2, .btn-on-olive x2, :focus-visible x2, [style*=\"color: rgb(217, 119, 6)\"], [style*=\"color:#d97706\"] x2, [style*=\"color: rgb(180, 83, 9)\"], [style*=\"color:#b45309\"] x2, [style*=\"color: rgb(220, 38, 38)\"], [style*=\"color:#dc2626\"] x2, [style*=\"color: rgb(201, 59, 43)\"], [style*=\"color:#c93b2b\"] x2, table td.pr-item-price, table td.pr-item-qty, table.requests-table td:nth-child(5), table.materials-table td:nth-child(4), table.materials-table td:nth-child(6), table.materials-table td:nth-child(7), table.materials-table td:nth-child(8), table.upah-table td.num, table.upah-table td.nominal x2, [style*=\"background: rgb(19, 115, 51)\"], [style*=\"background:#137333\"] x2, [style*=\"background: rgb(26, 86, 196)\"], [style*=\"background:#1a56c4\"] x2, [style*=\"background: rgb(2, 132, 199)\"], [style*=\"background:#0284c7\"] x2, [style*=\"background: rgb(220, 38, 38)\"], [style*=\"background:#dc2626\"] x2, [style*=\"background: rgb(230, 244, 234)\"], [style*=\"background:#e6f4ea\"] x2, [style*=\"background: rgb(206, 234, 214)\"], [style*=\"background:#ceead6\"] x2, .list-show-more x2, .list-show-more .list-shown-indicator x2, .list-show-more-actions x2, .list-show-more-actions .outline x2, .print-template-row x2, .btn-print-template x2, .acuan-toggle x2, .acuan-toggle:hover x2, .cell-name-wrap x2, tr.acuan-expand-row > td x2, .acuan-table x2, .acuan-table th x2, .acuan-table td x2, .acuan-table td:nth-child(2) x2, .acuan-badge x2, .acuan-badge-historis x2, .acuan-badge-master x2, .acuan-badge-manual x2, .acuan-badge-estimate x2, .pr-picker-row-2 x2, .pr-picker-row-3 x2, tr.pr-group-row > td x2, td.pr-group-cell x2, span.pr-group-label x2, td.pr-group-cell .pr-group-label::before x2, table.approvals-table td.ap-item-name x2, .ap-group-heading x2, .mobile-group-label x2, .mobile-group-label::before x2, .pr-header-row x2, .app-sidebar nav button, nav button x2, .nav-ico x2, nav .active .nav-ico x2, .nav-ico-dot x2, .nav-label x2, .account-card x2, .account-avatar x2, .account-email x2, .account-role x2, .account-role.is-admin x2, .account-logout x2, .account-logout:hover x2, .cards x2, .card x2, .card-top x2, .card-label x2, .card-ico x2, .card.tone-warn .card-ico x2, .card.tone-ok .card-ico x2, .card-hint x2, .card-arrow x2, .panel-head x2, .badge-admin x2, .shortcut-grid x2, .shortcut x2, .shortcut:hover:not(:disabled) x2, .shortcut .card-ico x2, .shortcut-text x2, .shortcut-text b x2, .shortcut-text small x2, .shortcut-arrow x2, .login x2, .login-brand x2, .login-brand-inner x2, .login-brand-badge x2, .login-brand-name x2, .login-brand-head x2, .login-brand-sub x2, .login-brand-points x2, .login-brand-points li x2, .login-brand-points li::before x2, .login-brand-points li::after x2, .login-brand-glow x2, .login-panel x2, .login-form-col x2, .login-title x2, .field-label x2, .field-wrap x2, .field-ico x2, .field-wrap input x2, .field-toggle x2, .field-toggle:hover:not(:disabled) x2, .login-submit x2, .login-submit:hover:not(:disabled) x2, .login-foot x2",
+      "seconds": 3.0
+    },
+    {
+      "suite": "crm-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 88,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.6
+    },
+    {
+      "suite": "rap-compare-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 82,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.3
+    },
+    {
+      "suite": "stock-view-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 53,
+      "failed": 0,
+      "note": "",
+      "seconds": 1.8
+    },
+    {
+      "suite": "projects-merge-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 63,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.2
+    },
+    {
+      "suite": "labor-stock-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 99,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.5
+    },
+    {
+      "suite": "flow-gap-repro-test",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "",
+      "seconds": 0.1
+    },
+    {
+      "suite": "rap-audit",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "",
+      "seconds": 0.3
+    },
+    {
+      "suite": "sales-invoice-payment-test",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "",
+      "seconds": 0.6
+    },
+    {
+      "suite": "crossflow-regression-test",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "",
+      "seconds": 0.9
+    },
+    {
+      "suite": "growth-kpi-test",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "",
+      "seconds": 0.5
+    }
+  ]
+}

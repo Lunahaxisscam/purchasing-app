@@ -1,0 +1,2981 @@
+[
+  {
+    "kode": "PLY-0001",
+    "code": "PLY-0001",
+    "name": "BB Blockboard (DF - 18 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0002",
+    "code": "PLY-0002",
+    "name": "BB Blockboard (Polos - 15 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0003",
+    "code": "PLY-0003",
+    "name": "BB Blockboard (Polos - 18 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0004",
+    "code": "PLY-0004",
+    "name": "BB Blockboard (SF - 15mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0005",
+    "code": "PLY-0005",
+    "name": "BB Blockboard (SF - 18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0006",
+    "code": "PLY-0006",
+    "name": "HMR (Polos - 12 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0007",
+    "code": "PLY-0007",
+    "name": "HMR (Polos - 15 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0008",
+    "code": "PLY-0008",
+    "name": "HMR (Polos - 3 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0009",
+    "code": "PLY-0009",
+    "name": "HMR (Polos - 6 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0010",
+    "code": "PLY-0010",
+    "name": "HMR (Polos - 9 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0011",
+    "code": "PLY-0011",
+    "name": "HMR (Polos - n)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0012",
+    "code": "PLY-0012",
+    "name": "PVC Board (15mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0013",
+    "code": "PLY-0013",
+    "name": "PVC Board (18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0014",
+    "code": "PLY-0014",
+    "name": "Triplek (Bending - 9 mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0015",
+    "code": "PLY-0015",
+    "name": "Triplek (DF - 18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0016",
+    "code": "PLY-0016",
+    "name": "Triplek (Polos - 12mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0017",
+    "code": "PLY-0017",
+    "name": "Triplek (Polos - 15mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0018",
+    "code": "PLY-0018",
+    "name": "Triplek (Polos - 18mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0019",
+    "code": "PLY-0019",
+    "name": "Triplek (Polos - 3mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0020",
+    "code": "PLY-0020",
+    "name": "Triplek (Polos - 6mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0021",
+    "code": "PLY-0021",
+    "name": "Triplek (Polos - 9mm - BBCC)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0022",
+    "code": "PLY-0022",
+    "name": "Triplek (SF - 12mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0023",
+    "code": "PLY-0023",
+    "name": "Triplek (SF - 15mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0024",
+    "code": "PLY-0024",
+    "name": "Triplek (SF - 18mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0025",
+    "code": "PLY-0025",
+    "name": "Triplek (SF - 6mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0026",
+    "code": "PLY-0026",
+    "name": "Triplek (SF - 9mm)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0027",
+    "code": "PLY-0027",
+    "name": "Triplek ALBA BTR (18mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0028",
+    "code": "PLY-0028",
+    "name": "Triplek MC (12mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0029",
+    "code": "PLY-0029",
+    "name": "Triplek MC (15mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0030",
+    "code": "PLY-0030",
+    "name": "Triplek MC (18mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0031",
+    "code": "PLY-0031",
+    "name": "Triplek MC (9mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0032",
+    "code": "PLY-0032",
+    "name": "Triplek Max Happan (18mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0033",
+    "code": "PLY-0033",
+    "name": "Triplek Max Happan (9mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0034",
+    "code": "PLY-0034",
+    "name": "Triplek Meranti Uty (18mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0035",
+    "code": "PLY-0035",
+    "name": "Triplek Meranti Uty (9mm - Abadi Klender)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0036",
+    "code": "PLY-0036",
+    "name": "Triplek Uty (12mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0037",
+    "code": "PLY-0037",
+    "name": "Triplek Uty (15mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0038",
+    "code": "PLY-0038",
+    "name": "Triplek Uty (18mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0039",
+    "code": "PLY-0039",
+    "name": "Triplek Uty (9mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0040",
+    "code": "PLY-0040",
+    "name": "Triplek Uty A (12mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0041",
+    "code": "PLY-0041",
+    "name": "Triplek Uty A (15mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0042",
+    "code": "PLY-0042",
+    "name": "Triplek Uty A (18mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "PLY-0043",
+    "code": "PLY-0043",
+    "name": "Triplek Uty A (9mm - Tanjung Jayaprima Abadi)",
+    "category": "Plywood & Board",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0001",
+    "code": "HPL-0001",
+    "name": "Edging Pattern (Edg Taco - 4cm)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "HPL-0002",
+    "code": "HPL-0002",
+    "name": "Edging Solid (Edg Taco - 4cm)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "HPL-0003",
+    "code": "HPL-0003",
+    "name": "Edging Woodgrain (Edg Taco - 4cm)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "HPL-0004",
+    "code": "HPL-0004",
+    "name": "HPL PATTERN (TACO - FA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0005",
+    "code": "HPL-0005",
+    "name": "HPL SOLID (TACO - A)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0006",
+    "code": "HPL-0006",
+    "name": "HPL SOLID (TACO - AA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0007",
+    "code": "HPL-0007",
+    "name": "HPL SOLID (TACO - AB)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0008",
+    "code": "HPL-0008",
+    "name": "HPL SOLID (TACO - D)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0009",
+    "code": "HPL-0009",
+    "name": "HPL SOLID (TACO - DB)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0010",
+    "code": "HPL-0010",
+    "name": "HPL SOLID (TACO - G)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0011",
+    "code": "HPL-0011",
+    "name": "HPL SOLID (TACO - SA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0012",
+    "code": "HPL-0012",
+    "name": "HPL SOLID (TACO - SB)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0013",
+    "code": "HPL-0013",
+    "name": "HPL WOODGRAIN (TACO - AA)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0014",
+    "code": "HPL-0014",
+    "name": "HPL WOODGRAIN (TACO - AC)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0015",
+    "code": "HPL-0015",
+    "name": "HPL WOODGRAIN (TACO - B)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0016",
+    "code": "HPL-0016",
+    "name": "HPL WOODGRAIN (TACO - DP)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0017",
+    "code": "HPL-0017",
+    "name": "HPL WOODGRAIN (TACO - FC)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0018",
+    "code": "HPL-0018",
+    "name": "HPL WOODGRAIN (TACO - GL)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0019",
+    "code": "HPL-0019",
+    "name": "HPL WOODGRAIN (TACO - H)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0020",
+    "code": "HPL-0020",
+    "name": "HPL WOODGRAIN (TACO - J)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0021",
+    "code": "HPL-0021",
+    "name": "HPL WOODGRAIN (TACO - JG)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0022",
+    "code": "HPL-0022",
+    "name": "HPL WOODGRAIN (TACO - KM)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0023",
+    "code": "HPL-0023",
+    "name": "HPL WOODGRAIN (TACO - KY)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0024",
+    "code": "HPL-0024",
+    "name": "HPL WOODGRAIN (TACO - NT)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0025",
+    "code": "HPL-0025",
+    "name": "HPL WOODGRAIN (TACO - SL)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Lembar",
+    "unit": "Lembar"
+  },
+  {
+    "kode": "HPL-0026",
+    "code": "HPL-0026",
+    "name": "Tacosheet (Taco - P02)",
+    "category": "HPL & Edging",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "WPC-0001",
+    "code": "WPC-0001",
+    "name": "List Siku WPC (Abu Doff - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "WPC-0002",
+    "code": "WPC-0002",
+    "name": "WPC CAOSO (Abu Doff - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "WPC-0003",
+    "code": "WPC-0003",
+    "name": "WPC CAOSO (Capucino Serat - 10mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "WPC-0004",
+    "code": "WPC-0004",
+    "name": "WPC CAOSO (Capucino Serat - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "WPC-0005",
+    "code": "WPC-0005",
+    "name": "WPC CAOSO (Kayu Kuning Serat - 10mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "WPC-0006",
+    "code": "WPC-0006",
+    "name": "WPC CAOSO (Kayu Kuning Serat - 24mm)",
+    "category": "WPC & Panel",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "HWF-0001",
+    "code": "HWF-0001",
+    "name": "Bracket B9-19 (Cabang 3 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0002",
+    "code": "HWF-0002",
+    "name": "Bracket BP-16 (Oval - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0003",
+    "code": "HWF-0003",
+    "name": "Bracket BP-19 (Bulat - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0004",
+    "code": "HWF-0004",
+    "name": "Bracket BP-19 (Lurus - 1 inch - Baleno)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0005",
+    "code": "HWF-0005",
+    "name": "Bracket BP-19 (T - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0006",
+    "code": "HWF-0006",
+    "name": "Bracket Siku L (12 x 20cm - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0007",
+    "code": "HWF-0007",
+    "name": "Bracket Siku L (12 x 20cm - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0008",
+    "code": "HWF-0008",
+    "name": "DTNS DoubleTrack (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0009",
+    "code": "HWF-0009",
+    "name": "DTNS DoubleTrack (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0010",
+    "code": "HWF-0010",
+    "name": "DTNS DoubleTrack (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0011",
+    "code": "HWF-0011",
+    "name": "DTNS DoubleTrack (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0012",
+    "code": "HWF-0012",
+    "name": "DTNS DoubleTrack (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0013",
+    "code": "HWF-0013",
+    "name": "DTNS DoubleTrack (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0014",
+    "code": "HWF-0014",
+    "name": "DTNS DoubleTrack (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0015",
+    "code": "HWF-0015",
+    "name": "DTSM DoubleTrack (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0016",
+    "code": "HWF-0016",
+    "name": "DTSM DoubleTrack (30cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0017",
+    "code": "HWF-0017",
+    "name": "DTSM DoubleTrack (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0018",
+    "code": "HWF-0018",
+    "name": "DTSM DoubleTrack (35cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0019",
+    "code": "HWF-0019",
+    "name": "DTSM DoubleTrack (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0020",
+    "code": "HWF-0020",
+    "name": "DTSM DoubleTrack (40cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0021",
+    "code": "HWF-0021",
+    "name": "DTSM DoubleTrack (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0022",
+    "code": "HWF-0022",
+    "name": "DTSM DoubleTrack (45cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0023",
+    "code": "HWF-0023",
+    "name": "DTSM DoubleTrack (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0024",
+    "code": "HWF-0024",
+    "name": "DTSM DoubleTrack (50cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0025",
+    "code": "HWF-0025",
+    "name": "DTSM DoubleTrack (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0026",
+    "code": "HWF-0026",
+    "name": "DTSM DoubleTrack (55cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0027",
+    "code": "HWF-0027",
+    "name": "DTSM DoubleTrack (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0028",
+    "code": "HWF-0028",
+    "name": "DTSM DoubleTrack (60cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0029",
+    "code": "HWF-0029",
+    "name": "Door Closer (Hitam - Dekson)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0030",
+    "code": "HWF-0030",
+    "name": "Engsel (BKK - Hafele Econo)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0031",
+    "code": "HWF-0031",
+    "name": "Engsel (BKK - Knockers)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0032",
+    "code": "HWF-0032",
+    "name": "Engsel (BKK - Taco)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0033",
+    "code": "HWF-0033",
+    "name": "Engsel (Lurus - Hafele Econo)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0034",
+    "code": "HWF-0034",
+    "name": "Engsel (Lurus - Knockers)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0035",
+    "code": "HWF-0035",
+    "name": "Engsel (Lurus - Knockers Anti Karat)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0036",
+    "code": "HWF-0036",
+    "name": "Engsel (Lurus - Taco)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0037",
+    "code": "HWF-0037",
+    "name": "Engsel (Stgh BKK - Hafele Econo)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0038",
+    "code": "HWF-0038",
+    "name": "Engsel (Stgh BKK - Knockers)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0039",
+    "code": "HWF-0039",
+    "name": "Engsel (Stgh BKK - Taco)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0040",
+    "code": "HWF-0040",
+    "name": "Engsel Frame (EFA-0 Lurus - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0041",
+    "code": "HWF-0041",
+    "name": "Engsel Kupu-kupu (Hitam - Dekson)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0042",
+    "code": "HWF-0042",
+    "name": "Engsel Pivot Kaca (T86 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0043",
+    "code": "HWF-0043",
+    "name": "Engsel Robot (BKK - Femarg)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0044",
+    "code": "HWF-0044",
+    "name": "Engsel Robot (Lurus - Femarg)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0045",
+    "code": "HWF-0045",
+    "name": "Engsel Robot (StghBkk - Femarg)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0046",
+    "code": "HWF-0046",
+    "name": "Gas Spring (40N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0047",
+    "code": "HWF-0047",
+    "name": "Gas Spring (60N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0048",
+    "code": "HWF-0048",
+    "name": "Gas Spring (80N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0049",
+    "code": "HWF-0049",
+    "name": "Gas Srping (100N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0050",
+    "code": "HWF-0050",
+    "name": "Gas Srping (40N Mini - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0051",
+    "code": "HWF-0051",
+    "name": "Gas Srping (60N Mini - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0052",
+    "code": "HWF-0052",
+    "name": "Grendel (Hitam - Dekson)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0053",
+    "code": "HWF-0053",
+    "name": "Gromet 8x16 (Kotak - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0054",
+    "code": "HWF-0054",
+    "name": "Gromet 8x16 (Kotak - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0055",
+    "code": "HWF-0055",
+    "name": "Gromet Plastik (Bulat - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0056",
+    "code": "HWF-0056",
+    "name": "Gromet Plastik (Bulat - Coklat)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0057",
+    "code": "HWF-0057",
+    "name": "Gromet Plastik (Bulat - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0058",
+    "code": "HWF-0058",
+    "name": "Gromet Plastik (Bulat - Putih)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0059",
+    "code": "HWF-0059",
+    "name": "Gromet Stainles (Bulat - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0060",
+    "code": "HWF-0060",
+    "name": "Gromet stop kontak 20x12x8 (Kotak - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0061",
+    "code": "HWF-0061",
+    "name": "Handle (KNOB Bulat 1903 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0062",
+    "code": "HWF-0062",
+    "name": "Handle (KNOB TK82 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0063",
+    "code": "HWF-0063",
+    "name": "Handle (KNOB TK85 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0064",
+    "code": "HWF-0064",
+    "name": "Handle (Motif 15 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0065",
+    "code": "HWF-0065",
+    "name": "Handle (TA14-Hitam - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0066",
+    "code": "HWF-0066",
+    "name": "Handle (TA21-40cm - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0067",
+    "code": "HWF-0067",
+    "name": "Hanger 200-SM (Lifter Slow - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0068",
+    "code": "HWF-0068",
+    "name": "Hanger Stainless (Bulat - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "HWF-0069",
+    "code": "HWF-0069",
+    "name": "Hanger Stainless (Oval - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "HWF-0070",
+    "code": "HWF-0070",
+    "name": "Kaki Meja (Kotak - 20cm - Stainless)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0071",
+    "code": "HWF-0071",
+    "name": "Kaki Meja (Segitiga - 10cm - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0072",
+    "code": "HWF-0072",
+    "name": "Kapstock (4 Kait - 30cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0073",
+    "code": "HWF-0073",
+    "name": "Kunci Laci + Plat (HL138 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0074",
+    "code": "HWF-0074",
+    "name": "Lubang Hawa (5x15 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0075",
+    "code": "HWF-0075",
+    "name": "Lubang Hawa (5x15 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0076",
+    "code": "HWF-0076",
+    "name": "Lubang Hawa (5x20 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0077",
+    "code": "HWF-0077",
+    "name": "Lubang Hawa (5x20 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0078",
+    "code": "HWF-0078",
+    "name": "Lubang Hawa (8x15 - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0079",
+    "code": "HWF-0079",
+    "name": "Lubang Hawa (8x15 - Silver)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0080",
+    "code": "HWF-0080",
+    "name": "Lubang Hawa (Stainless - Bulat)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0081",
+    "code": "HWF-0081",
+    "name": "Push On (TO3-SS - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0082",
+    "code": "HWF-0082",
+    "name": "Push On (Twin)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0083",
+    "code": "HWF-0083",
+    "name": "Push On Besar (TO4-35N - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0084",
+    "code": "HWF-0084",
+    "name": "Push On Kaca (Double - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0085",
+    "code": "HWF-0085",
+    "name": "Push On Kaca (Single - Hitam)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0086",
+    "code": "HWF-0086",
+    "name": "Rak Panci (6kait - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0087",
+    "code": "HWF-0087",
+    "name": "Rak Piring (60cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0088",
+    "code": "HWF-0088",
+    "name": "Rak Piring (70cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0089",
+    "code": "HWF-0089",
+    "name": "Rak Piring (80cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0090",
+    "code": "HWF-0090",
+    "name": "Rak Piring (90cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0091",
+    "code": "HWF-0091",
+    "name": "Rak Piring Laci (30cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0092",
+    "code": "HWF-0092",
+    "name": "Rak Sendok (Uk. Pintu 30cm - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0093",
+    "code": "HWF-0093",
+    "name": "Rak Sendok (Uk. Pintu 40cm - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0094",
+    "code": "HWF-0094",
+    "name": "Rak Sendok (Uk. Pintu 50cm - Abu)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0095",
+    "code": "HWF-0095",
+    "name": "Rel Lemari (Pocket Door - 40cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0096",
+    "code": "HWF-0096",
+    "name": "Rel Lemari (Pocket Door - 50cm)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0097",
+    "code": "HWF-0097",
+    "name": "Rel Meja Tarik (8002 - Winston)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Set",
+    "unit": "Set"
+  },
+  {
+    "kode": "HWF-0098",
+    "code": "HWF-0098",
+    "name": "Rel Sliding Atas (SD 02 - U - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "HWF-0099",
+    "code": "HWF-0099",
+    "name": "Rel Sliding Atas (SD 452 - A - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "HWF-0100",
+    "code": "HWF-0100",
+    "name": "Rel Sliding Bawah (SD 02 - M - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "HWF-0101",
+    "code": "HWF-0101",
+    "name": "Rel Sliding Bawah (SD 452 - B - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "HWF-0102",
+    "code": "HWF-0102",
+    "name": "Roda Sliding (SD 3141 - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "HWF-0103",
+    "code": "HWF-0103",
+    "name": "Set Rel Sliding 452 SD (2Pintu - 2mtr - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "HWF-0104",
+    "code": "HWF-0104",
+    "name": "Set Rel Sliding 452 SD (2Pintu - 3mtr - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "HWF-0105",
+    "code": "HWF-0105",
+    "name": "Tandem (25cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0106",
+    "code": "HWF-0106",
+    "name": "Tandem (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0107",
+    "code": "HWF-0107",
+    "name": "Tandem (25cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0108",
+    "code": "HWF-0108",
+    "name": "Tandem (30cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0109",
+    "code": "HWF-0109",
+    "name": "Tandem (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0110",
+    "code": "HWF-0110",
+    "name": "Tandem (30cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0111",
+    "code": "HWF-0111",
+    "name": "Tandem (35cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0112",
+    "code": "HWF-0112",
+    "name": "Tandem (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0113",
+    "code": "HWF-0113",
+    "name": "Tandem (35cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0114",
+    "code": "HWF-0114",
+    "name": "Tandem (40cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0115",
+    "code": "HWF-0115",
+    "name": "Tandem (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0116",
+    "code": "HWF-0116",
+    "name": "Tandem (40cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0117",
+    "code": "HWF-0117",
+    "name": "Tandem (45cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0118",
+    "code": "HWF-0118",
+    "name": "Tandem (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0119",
+    "code": "HWF-0119",
+    "name": "Tandem (45cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0120",
+    "code": "HWF-0120",
+    "name": "Tandem (50cm - Hafele)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0121",
+    "code": "HWF-0121",
+    "name": "Tandem (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0122",
+    "code": "HWF-0122",
+    "name": "Tandem (50cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0123",
+    "code": "HWF-0123",
+    "name": "Tandem (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "HWF-0124",
+    "code": "HWF-0124",
+    "name": "Tandem (55cm - Huben)",
+    "category": "Hardware & Fitting",
+    "qty": "0",
+    "satuan": "Pasang",
+    "unit": "Pasang"
+  },
+  {
+    "kode": "KEL-0001",
+    "code": "KEL-0001",
+    "name": "Down - Lampu Downlight Mini (3w - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0002",
+    "code": "KEL-0002",
+    "name": "KB Kabel (2x0.75 - Lotusku)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "KEL-0003",
+    "code": "KEL-0003",
+    "name": "KB Kabel (2x1.5 - Lotusku)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "KEL-0004",
+    "code": "KEL-0004",
+    "name": "KB Kabel (3x1.5 - Lotusku)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "KEL-0005",
+    "code": "KEL-0005",
+    "name": "Kabel LED (2x14 - 80m)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "KEL-0006",
+    "code": "KEL-0006",
+    "name": "Kepala Colokan (S-28 Bulat - Uticon)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0007",
+    "code": "KEL-0007",
+    "name": "LED (3000K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0008",
+    "code": "KEL-0008",
+    "name": "LED (3000k WW - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0009",
+    "code": "KEL-0009",
+    "name": "LED (4000K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0010",
+    "code": "KEL-0010",
+    "name": "LED (4000k NW - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0011",
+    "code": "KEL-0011",
+    "name": "LED (6000K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0012",
+    "code": "KEL-0012",
+    "name": "LED (6000k W - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0013",
+    "code": "KEL-0013",
+    "name": "LED (6500K - Huben)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0014",
+    "code": "KEL-0014",
+    "name": "LED Selang (4000k NW - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0015",
+    "code": "KEL-0015",
+    "name": "RL (Non-Sayap - Hitam)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0016",
+    "code": "KEL-0016",
+    "name": "RL (Non-Sayap - Putih)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0017",
+    "code": "KEL-0017",
+    "name": "RL (Sayap - Hitam)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0018",
+    "code": "KEL-0018",
+    "name": "RL (Sayap - Putih)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "KEL-0019",
+    "code": "KEL-0019",
+    "name": "SK Stop Kontak (1gang - Morgen)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0020",
+    "code": "KEL-0020",
+    "name": "SK Stop Kontak (1gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0021",
+    "code": "KEL-0021",
+    "name": "SK Stop Kontak (2gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0022",
+    "code": "KEL-0022",
+    "name": "SK Stop Kontak (3gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0023",
+    "code": "KEL-0023",
+    "name": "SR Saklar (1gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0024",
+    "code": "KEL-0024",
+    "name": "SR Saklar (2gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0025",
+    "code": "KEL-0025",
+    "name": "SR Saklar (3gang - Schneider)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0026",
+    "code": "KEL-0026",
+    "name": "SR Saklar (Bulat - Hitam)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0027",
+    "code": "KEL-0027",
+    "name": "SR Saklar (Bulat - Putih)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0028",
+    "code": "KEL-0028",
+    "name": "Spotlight 4000k (3w - Inlite)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0029",
+    "code": "KEL-0029",
+    "name": "Spotlight 4000k (5w - Inlite)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0030",
+    "code": "KEL-0030",
+    "name": "Trafo (10A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0031",
+    "code": "KEL-0031",
+    "name": "Trafo (15A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0032",
+    "code": "KEL-0032",
+    "name": "Trafo (3A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "KEL-0033",
+    "code": "KEL-0033",
+    "name": "Trafo (5A - Yamasaki)",
+    "category": "Kelistrikan & Lampu",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "ALM-0001",
+    "code": "ALM-0001",
+    "name": "Edging Huben (EA 17 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0002",
+    "code": "ALM-0002",
+    "name": "Edging Huben (EA 19 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0003",
+    "code": "ALM-0003",
+    "name": "Frame Huben (FA 128 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0004",
+    "code": "ALM-0004",
+    "name": "Frame Huben (FA 21 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0005",
+    "code": "ALM-0005",
+    "name": "Frame Huben (GP 36 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0006",
+    "code": "ALM-0006",
+    "name": "Frame Huben (GP 37 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0007",
+    "code": "ALM-0007",
+    "name": "Frame Huben (LP 376 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0008",
+    "code": "ALM-0008",
+    "name": "Handle Huben (FHD 128 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0009",
+    "code": "ALM-0009",
+    "name": "Handle Huben (FHD 21 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0010",
+    "code": "ALM-0010",
+    "name": "Handle Huben (GP 37 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0011",
+    "code": "ALM-0011",
+    "name": "Handle Huben (LP 375 - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Meter",
+    "unit": "Meter"
+  },
+  {
+    "kode": "ALM-0012",
+    "code": "ALM-0012",
+    "name": "List L (2X2cm - Anodized)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "ALM-0013",
+    "code": "ALM-0013",
+    "name": "List T (8mm - Hitam)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "ALM-0014",
+    "code": "ALM-0014",
+    "name": "List T (8mm - SS)",
+    "category": "Aluminium & Profil",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "BHP-0001",
+    "code": "BHP-0001",
+    "name": "Amplas Bulat (Grid 100)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0002",
+    "code": "BHP-0002",
+    "name": "Amplas Bulat (Grid 80)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0003",
+    "code": "BHP-0003",
+    "name": "Amplas Gulung (Grid 100)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "BHP-0004",
+    "code": "BHP-0004",
+    "name": "Amplas Gulung (Grid 80)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Roll",
+    "unit": "Roll"
+  },
+  {
+    "kode": "BHP-0005",
+    "code": "BHP-0005",
+    "name": "Baut Frame (701)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0006",
+    "code": "BHP-0006",
+    "name": "Biji Ambalan (AKP 15 - SS)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0007",
+    "code": "BHP-0007",
+    "name": "Biji Ambalan (RH 21)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0008",
+    "code": "BHP-0008",
+    "name": "Cat Tusir (1/4)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Kaleng",
+    "unit": "Kaleng"
+  },
+  {
+    "kode": "BHP-0009",
+    "code": "BHP-0009",
+    "name": "Doubletape Foam (4m - Foam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0010",
+    "code": "BHP-0010",
+    "name": "Fisher (S6)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0011",
+    "code": "BHP-0011",
+    "name": "Fisher (S8 - Abu)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0012",
+    "code": "BHP-0012",
+    "name": "Isi Cutter",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Kotak",
+    "unit": "Kotak"
+  },
+  {
+    "kode": "BHP-0013",
+    "code": "BHP-0013",
+    "name": "Kabel Duckting (1m - TC5)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "BHP-0014",
+    "code": "BHP-0014",
+    "name": "Kabel Duckting (2m - 2cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "BHP-0015",
+    "code": "BHP-0015",
+    "name": "Kabel Duckting (2m - TC4)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "BHP-0016",
+    "code": "BHP-0016",
+    "name": "Kabel Ties",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "BHP-0017",
+    "code": "BHP-0017",
+    "name": "Kabel Tray (Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0018",
+    "code": "BHP-0018",
+    "name": "Kain Bal",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "BHP-0019",
+    "code": "BHP-0019",
+    "name": "Kepala Amplas",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0020",
+    "code": "BHP-0020",
+    "name": "Klem Kabel (10mm - Putih)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0021",
+    "code": "BHP-0021",
+    "name": "Kompon (1kg)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Kg",
+    "unit": "Kg"
+  },
+  {
+    "kode": "BHP-0022",
+    "code": "BHP-0022",
+    "name": "Kuas Cat (1 inch)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0023",
+    "code": "BHP-0023",
+    "name": "Kuas Rol (60 cm - Mini)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0024",
+    "code": "BHP-0024",
+    "name": "Kuas Rol (Supra - Besar)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0025",
+    "code": "BHP-0025",
+    "name": "Lakban Kertas",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0026",
+    "code": "BHP-0026",
+    "name": "Lasdop (1 mm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0027",
+    "code": "BHP-0027",
+    "name": "Lasdop (2 mm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0028",
+    "code": "BHP-0028",
+    "name": "Lem Alteco",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0029",
+    "code": "BHP-0029",
+    "name": "Lem Kuning",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Blek",
+    "unit": "Blek"
+  },
+  {
+    "kode": "BHP-0030",
+    "code": "BHP-0030",
+    "name": "Lem Milan",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Blek",
+    "unit": "Blek"
+  },
+  {
+    "kode": "BHP-0031",
+    "code": "BHP-0031",
+    "name": "Lem Putih",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "BHP-0032",
+    "code": "BHP-0032",
+    "name": "Magnet Pintu (40mm - Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0033",
+    "code": "BHP-0033",
+    "name": "Magnet Pintu (40mm - Silver)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0034",
+    "code": "BHP-0034",
+    "name": "Mata Bor Beton (8mm - VPR)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0035",
+    "code": "BHP-0035",
+    "name": "Mata Bor Gromet (80mm - Kugel)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0036",
+    "code": "BHP-0036",
+    "name": "Mata Bor Keramik (S6)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0037",
+    "code": "BHP-0037",
+    "name": "Mata Bor Obeng / Driver (6,5mm - VPR)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0038",
+    "code": "BHP-0038",
+    "name": "Mata Jig Saw",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0039",
+    "code": "BHP-0039",
+    "name": "Mata P. Gerinda",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0040",
+    "code": "BHP-0040",
+    "name": "Mata P. Keramik",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0041",
+    "code": "BHP-0041",
+    "name": "Mata Router (6 mm - Bearing)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0042",
+    "code": "BHP-0042",
+    "name": "Mata Router (6 mm - Non Bearing)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0043",
+    "code": "BHP-0043",
+    "name": "Maxbond (Kaca)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0044",
+    "code": "BHP-0044",
+    "name": "Mohair (Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0045",
+    "code": "BHP-0045",
+    "name": "Paku Beton (5 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0046",
+    "code": "BHP-0046",
+    "name": "Paku Beton (7 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0047",
+    "code": "BHP-0047",
+    "name": "Paku Tembak (F 15)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0048",
+    "code": "BHP-0048",
+    "name": "Paku Tembak (F 20)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0049",
+    "code": "BHP-0049",
+    "name": "Paku Tembak (F 30)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0050",
+    "code": "BHP-0050",
+    "name": "Pelurus Pintu (Felterre)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Batang",
+    "unit": "Batang"
+  },
+  {
+    "kode": "BHP-0051",
+    "code": "BHP-0051",
+    "name": "Pembersih Kaca",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "BHP-0052",
+    "code": "BHP-0052",
+    "name": "Pensil Tukang (18 cm - Makita)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0053",
+    "code": "BHP-0053",
+    "name": "Pledge",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "BHP-0054",
+    "code": "BHP-0054",
+    "name": "Roda (2 Inch - Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0055",
+    "code": "BHP-0055",
+    "name": "Roda Castrol (PU + Hidup lock - T - 7cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0056",
+    "code": "BHP-0056",
+    "name": "Roda Castrol (PU Mati - T - 7cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0057",
+    "code": "BHP-0057",
+    "name": "Roda Meja (1 inch - Type C)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0058",
+    "code": "BHP-0058",
+    "name": "Roda Peninggi Pintu (Hitam - 1,5 x 7,7mm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0059",
+    "code": "BHP-0059",
+    "name": "Roll Cat (Besar)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0060",
+    "code": "BHP-0060",
+    "name": "Roll Cat (Kecil)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0061",
+    "code": "BHP-0061",
+    "name": "Sealant (Abu Muda)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0062",
+    "code": "BHP-0062",
+    "name": "Sealant (Abu Tua)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0063",
+    "code": "BHP-0063",
+    "name": "Sealant (Cklt Muda)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0064",
+    "code": "BHP-0064",
+    "name": "Sealant (Cklt Tua)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0065",
+    "code": "BHP-0065",
+    "name": "Sealant (Clear)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0066",
+    "code": "BHP-0066",
+    "name": "Sealant (Hitam)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0067",
+    "code": "BHP-0067",
+    "name": "Sealant (Putih)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Botol",
+    "unit": "Botol"
+  },
+  {
+    "kode": "BHP-0068",
+    "code": "BHP-0068",
+    "name": "Sealtape (10 m - Onda)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0069",
+    "code": "BHP-0069",
+    "name": "Sekrup (2 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0070",
+    "code": "BHP-0070",
+    "name": "Sekrup (2,5 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0071",
+    "code": "BHP-0071",
+    "name": "Sekrup (3 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0072",
+    "code": "BHP-0072",
+    "name": "Sekrup (4 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0073",
+    "code": "BHP-0073",
+    "name": "Sekrup (5 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0074",
+    "code": "BHP-0074",
+    "name": "Sekrup (7 cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0075",
+    "code": "BHP-0075",
+    "name": "Sekrup Engsel",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0076",
+    "code": "BHP-0076",
+    "name": "Sekrup Gantung (Tanda Tanya - 5cm)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0077",
+    "code": "BHP-0077",
+    "name": "Siku Frame (AH-21 - Silver)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0078",
+    "code": "BHP-0078",
+    "name": "Siku Frame (AH-45 - Silver)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0079",
+    "code": "BHP-0079",
+    "name": "Solasi Listrik (17 yard - Goal Tape)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0080",
+    "code": "BHP-0080",
+    "name": "Staples Tembak",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Box",
+    "unit": "Box"
+  },
+  {
+    "kode": "BHP-0081",
+    "code": "BHP-0081",
+    "name": "Stop Kran (Blu - Cabang 1)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0082",
+    "code": "BHP-0082",
+    "name": "Tenol",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Pcs",
+    "unit": "Pcs"
+  },
+  {
+    "kode": "BHP-0083",
+    "code": "BHP-0083",
+    "name": "Thiner",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Liter",
+    "unit": "Liter"
+  },
+  {
+    "kode": "BHP-0084",
+    "code": "BHP-0084",
+    "name": "Tutup Sekrup (Abu)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  },
+  {
+    "kode": "BHP-0085",
+    "code": "BHP-0085",
+    "name": "Tutup Sekrup (Putih)",
+    "category": "Bahan Habis Pakai",
+    "qty": "0",
+    "satuan": "Bungkus",
+    "unit": "Bungkus"
+  }
+]

@@ -1,0 +1,15 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict'),Module=require('module')
+const root=process.cwd(),swc=require('next/dist/build/swc'),React=require('react'),{renderToStaticMarkup:render}=require('react-dom/server')
+const original=Module._extensions['.js'];let mockClient={from(){return {select(){return {order:async()=>({data:[],error:null})}}}}}
+for(const ext of ['.js','.jsx'])Module._extensions[ext]=function(mod,file){if(!file.startsWith(root+'/')||file.includes('/node_modules/'))return original(mod,file);if(file.endsWith('/lib/supabaseClient.js')){mod.exports={supabase:mockClient};return}const src=fs.readFileSync(file,'utf8');mod._compile(swc.transformSync(src,{filename:file,jsc:{parser:{syntax:'ecmascript',jsx:true},transform:{react:{runtime:'automatic'}}},module:{type:'commonjs'}}).code,file)}
+const view=require(root+'/modules/requests/compactView.jsx'),Handover=require(root+'/modules/handovers/compactPage.jsx'),Purchase=require(root+'/modules/receivings/page.jsx').default
+const pr={id:'p',status:'SUBMITTED',notes:'[Jalur: LEAN]',pr_number:'PR-01',project_name:'Mabes'},item={id:'i',pr_id:'p',quantity:5,unit:'pcs',estimated_price:100,item_name:'Engsel'},ctx={H:{prItemsForPr:()=>[item]},page:'requests',setEditRow(){},onFinishPr(){},onDelete(){}}
+let passed=0;function test(name,f){f();passed++;console.log('PASS',name)}
+test('PR submitted desktop hides edit and fulfilment',()=>{const h=render(React.createElement('table',null,React.createElement('tbody',null,view.compactDesktopRow(pr,ctx))));assert.match(h,/Terkunci/);assert.doesNotMatch(h,/>Edit<|Pemenuhan|Belum Dibeli/);assert.equal((h.match(/<td[ >]/g)||[]).length,7)})
+test('PR revision allows edit and resubmit',()=>{const h=render(React.createElement(view.RequestActions,{r:{...pr,status:'REVISI'},ctx}));assert.match(h,/>Edit</);assert.match(h,/Submit Ulang/)})
+test('PR mobile hides fulfilment',()=>assert.doesNotMatch(render(React.createElement('div',null,view.compactMobileCard(pr,ctx))),/Pemenuhan|Belum Dibeli/))
+const rows={requests:[pr],pr_items:[item],receivings:[{id:'r',status:'DIBELI',invoice_no:'N-1',project_id:'proj'}],receiving_items:[{id:'ri',receiving_id:'r',pr_item_id:'i',quantity_received:3,item_name:'Engsel',unit:'pcs',note:'[Harga: 110]'}],projects:[{id:'proj',name:'Mabes',status:'ON_GOING'}],materials:[]}
+test('purchase shows 5/3/2 and Beli Sisa',()=>{const h=render(React.createElement(Purchase,{rows}));assert.match(h,/Dibeli 3/);assert.match(h,/Sisa 2/);assert.match(h,/Beli Sisa/)})
+test('handover omits old queue and retains warehouse action',()=>{const h=render(React.createElement(Handover.default,{rows}));assert.doesNotMatch(h,/Antrean Distribusi Fisik|Prototype/);assert.match(h,/Ambil dari Gudang/);assert.match(h,/Engsel/)})
+test('handover without backend disables confirmation truthfully',()=>{const h=render(React.createElement(Handover.TransferDialog,{target:{source:'WAREHOUSE'},materials:[],projects:[],ready:false}));assert.match(h,/Backend belum aktif/);assert.match(h,/disabled=""[^>]*>Konfirmasi Serah Terima/)})
+console.log(JSON.stringify({passed}))

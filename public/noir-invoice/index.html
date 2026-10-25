@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Noir Invoice Generator — lokal</title>
+    <meta name="description" content="Generator invoice Noir: form, draft lokal, preview dan PDF A4." />
+    <script type="module" crossorigin src="./assets/index-BUznbiZp.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BXPsFftk.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img src="./assets/noir-logo-_pMmYlsc.jpg" alt="Noir" width="34" height="34" />
+        <div>
+          <strong>Noir Invoice Generator</strong>
+          <span class="brand-sub">lokal · tanpa server · tanpa akun</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="storage-status" class="pill pill-muted">memeriksa penyimpanan…</span>
+        <button type="button" id="btn-new" class="btn btn-ghost">Invoice baru</button>
+        <button type="button" id="btn-save" class="btn btn-primary">Simpan draft</button>
+      </div>
+    </header>
+
+    <div id="banner" class="banner" hidden></div>
+
+    <main class="workspace">
+      <section class="panel form-panel" aria-label="Form invoice">
+        <nav class="tabs" role="tablist">
+          <button type="button" class="tab is-active" data-tab="invoice" role="tab">Invoice</button>
+          <button type="button" class="tab" data-tab="items" role="tab">Baris &amp; termin</button>
+          <button type="button" class="tab" data-tab="issuer" role="tab">Penerbit &amp; pembayaran</button>
+          <button type="button" class="tab" data-tab="drafts" role="tab">Draft tersimpan <span id="draft-count" class="count">0</span></button>
+        </nav>
+
+        <!-- ---------------------------------------------------------- invoice -->
+        <div class="tabpane is-active" data-pane="invoice">
+          <div class="field-grid">
+            <label class="field">
+              <span>Nomor invoice <em>manual, disimpan apa adanya</em></span>
+              <input type="text" id="invoiceNo" placeholder="mis. NL26/005/02" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Tanggal invoice</span>
+              <input type="date" id="invoiceDate" />
+            </label>
+            <label class="field">
+              <span>Jatuh tempo <em>opsional</em></span>
+              <input type="date" id="dueDate" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Bill To</h3>
+          <div class="field-grid">
+            <label class="field">
+              <span>Project owner / penerima</span>
+              <input type="text" id="billTo.projectOwner" placeholder="nama penerima tagihan" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Alamat</span>
+              <input type="text" id="billTo.address" placeholder="alamat penerima" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Referensi proyek <em>tampil sebagai “for project …”</em></span>
+              <input type="text" id="billTo.projectRef" placeholder="nama proyek / lokasi" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Catatan</h3>
+          <label class="field">
+            <span>Catatan invoice <em>opsional, ikut tercetak</em></span>
+            <textarea id="notes" rows="3" placeholder="catatan pembayaran, syarat, dsb."></textarea>
+          </label>
+        </div>
+
+        <!-- ------------------------------------------------------------ items -->
+        <div class="tabpane" data-pane="items">
+          <div class="pane-head">
+            <h3 class="section-title">Baris invoice</h3>
+            <div class="pane-head-actions">
+              <button type="button" class="btn btn-ghost" id="btn-add-line">+ Baris</button>
+              <button type="button" class="btn btn-ghost" id="btn-add-adjustment">+ Adjustment</button>
+            </div>
+          </div>
+          <p class="hint">
+            Adjustment memakai nominal bertanda: isi harga negatif untuk potongan (mis. <code>-200.000</code>),
+            positif untuk tambahan. Baris kosong tidak dihitung.
+          </p>
+          <div class="lines-head" aria-hidden="true">
+            <span>Uraian</span><span>Qty</span><span>Satuan</span><span>Harga satuan</span><span>Jumlah</span><span></span>
+          </div>
+          <div id="lines" class="lines"></div>
+
+          <h3 class="section-title">Pajak <em>opsional, tanpa tarif default</em></h3>
+          <label class="check">
+            <input type="checkbox" id="tax.enabled" />
+            <span>Hitung pajak pada invoice ini</span>
+          </label>
+          <div id="tax-fields" class="field-grid tax-fields" hidden>
+            <label class="field">
+              <span>Mode</span>
+              <select id="tax.mode">
+                <option value="percent">Persentase</option>
+                <option value="amount">Nominal tetap</option>
+              </select>
+            </label>
+            <label class="field" data-tax-mode="percent">
+              <span>Tarif (%) <em>diisi sendiri</em></span>
+              <input type="text" id="tax.rate" inputmode="decimal" placeholder="mis. 2,5" autocomplete="off" />
+            </label>
+            <label class="field" data-tax-mode="amount" hidden>
+              <span>Nominal pajak</span>
+              <input type="text" id="tax.amount" inputmode="decimal" placeholder="mis. 55.000" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Label baris pajak <em>opsional</em></span>
+              <input type="text" id="tax.label" placeholder="mis. PPh 23" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Payment schedule <em>opsional, terpisah dari nominal invoice</em></h3>
+          <label class="check">
+            <input type="checkbox" id="paymentSchedule.enabled" />
+            <span>Tampilkan jadwal termin di invoice</span>
+          </label>
+          <div id="schedule-fields" hidden>
+            <label class="field">
+              <span>Total proyek <em>nilai kontrak, bukan bukti pembayaran</em></span>
+              <input type="text" id="paymentSchedule.totalProject" inputmode="decimal" placeholder="mis. 43.300.000" autocomplete="off" />
+            </label>
+            <div class="terms-head" aria-hidden="true"><span>Label</span><span>%</span><span>Nominal</span><span></span></div>
+            <div id="terms" class="terms"></div>
+            <button type="button" class="btn btn-ghost" id="btn-add-term">+ Termin</button>
+          </div>
+        </div>
+
+        <!-- ----------------------------------------------------------- issuer -->
+        <div class="tabpane" data-pane="issuer">
+          <h3 class="section-title">Penerbit</h3>
+          <p class="hint">Semua field kosong secara default — tidak ada nama legal, rekening, atau tanda tangan yang dikarang.</p>
+          <div class="field-grid">
+            <label class="field">
+              <span>Nama penerbit</span>
+              <input type="text" id="issuer.name" placeholder="nama usaha / studio" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Alamat penerbit</span>
+              <input type="text" id="issuer.address" placeholder="alamat" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Kontak</span>
+              <input type="text" id="issuer.contact" placeholder="email / telepon" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Pembayaran</h3>
+          <div class="field-grid">
+            <label class="field">
+              <span>Transfer via</span>
+              <input type="text" id="payment.transferVia" placeholder="mis. Bank - IDR" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Rekening <em>isi hanya nomor yang sudah terverifikasi</em></span>
+              <input type="text" id="payment.bankLines" placeholder="nomor rekening & atas nama" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Instruksi pembayaran</span>
+              <textarea id="payment.instructions" rows="2" placeholder="mis. cantumkan nomor invoice pada berita transfer"></textarea>
+            </label>
+          </div>
+
+          <h3 class="section-title">Penandatangan</h3>
+          <div class="field-grid">
+            <label class="field">
+              <span>Nama</span>
+              <input type="text" id="signature.signerName" placeholder="nama penandatangan" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Jabatan</span>
+              <input type="text" id="signature.signerTitle" placeholder="jabatan" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Backup JSON</h3>
+          <p class="hint">Ekspor/impor draft sebagai file JSON agar tidak hilang saat cache browser dibersihkan.</p>
+          <div class="button-row">
+            <button type="button" class="btn btn-ghost" id="btn-export">Ekspor JSON</button>
+            <label class="btn btn-ghost file-btn">
+              Impor JSON
+              <input type="file" id="import-file" accept="application/json,.json" hidden />
+            </label>
+          </div>
+        </div>
+
+        <!-- ----------------------------------------------------------- drafts -->
+        <div class="tabpane" data-pane="drafts">
+          <div class="pane-head">
+            <h3 class="section-title">Draft di penyimpanan lokal</h3>
+            <button type="button" class="btn btn-ghost" id="btn-refresh-drafts">Muat ulang daftar</button>
+          </div>
+          <p class="hint" id="storage-note"></p>
+          <div id="drafts" class="drafts"></div>
+        </div>
+      </section>
+
+      <section class="panel preview-panel" aria-label="Pratinjau invoice">
+        <div class="preview-head">
+          <div class="preview-title">
+            <strong>Pratinjau A4</strong>
+            <span id="draft-badge" class="pill pill-draft">DRAF</span>
+          </div>
+          <div class="preview-actions">
+            <button type="button" class="btn btn-primary" id="btn-pdf">Unduh PDF</button>
+          </div>
+        </div>
+
+        <div id="issues" class="issues" hidden></div>
+
+        <div class="preview-scroll">
+          <div class="paper" id="paper">
+            <div class="paper-band">
+              <img src="./assets/noir-logo-_pMmYlsc.jpg" alt="Noir" class="paper-logo" />
+              <div class="paper-band-right">
+                <div class="paper-title">INVOICE</div>
+                <div class="paper-issuer" id="pv-issuer"></div>
+              </div>
+            </div>
+            <div class="paper-status" id="pv-status">DRAF — BELUM DOKUMEN FINAL</div>
+            <div class="paper-meta">
+              <div class="paper-billto">
+                <h4>BILL TO</h4>
+                <div class="kv"><span>Project Owner:</span><strong id="pv-owner">—</strong></div>
+                <div class="kv"><span>Address:</span><span id="pv-address">—</span></div>
+              </div>
+              <div class="paper-invmeta">
+                <div class="kv right"><span>Invoice Date:</span><strong id="pv-date">—</strong></div>
+                <div class="kv right"><span>Invoice No:</span><strong id="pv-no">—</strong></div>
+                <div class="kv right" id="pv-due-row" hidden><span>Due Date:</span><strong id="pv-due">—</strong></div>
+              </div>
+            </div>
+
+            <table class="paper-table">
+              <thead>
+                <tr><th>No</th><th>Desc</th><th>Qty</th><th>Mea</th><th>Price</th><th>Amount</th></tr>
+              </thead>
+              <tbody id="pv-lines"></tbody>
+            </table>
+            <p class="paper-project" id="pv-project"></p>
+
+            <div class="paper-bottom">
+              <div class="paper-schedule" id="pv-schedule"></div>
+              <div class="paper-summary" id="pv-summary"></div>
+            </div>
+
+            <div class="paper-payment">
+              <div class="paper-chip">Transfer via</div>
+              <div class="paper-payment-body">
+                <div id="pv-via">—</div>
+                <div id="pv-bank" class="muted"></div>
+                <div id="pv-instructions" class="muted"></div>
+              </div>
+            </div>
+
+            <div class="paper-notes" id="pv-notes"></div>
+
+            <div class="paper-sign">
+              <div class="paper-sign-label">Your sincerely,</div>
+              <div class="paper-sign-line"></div>
+              <div class="paper-sign-name" id="pv-signer">(nama penandatangan belum diisi)</div>
+              <div class="paper-sign-title" id="pv-signer-title"></div>
+            </div>
+
+            <div class="paper-footer">
+              <span id="pv-footer-left"></span>
+              <span>Pratinjau HTML — PDF final dihasilkan pdf-lib</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </body>
+</html>

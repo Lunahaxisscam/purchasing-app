@@ -1,0 +1,351 @@
+{
+  "stamp": "20261018-050817",
+  "repo": "/home/ubuntu/dev-workspaces/purchasing-8h-integration",
+  "commit": "3d6b0a67c0876e2afd3c2c407f9bcb3fdbefc2ec",
+  "branch": "feat/integration-8h-18okt",
+  "e2e_base": "http://127.0.0.1:3014",
+  "results": [
+    {
+      "suite": "flow-logic-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 29,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.2
+    },
+    {
+      "suite": "fase2-save-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 56,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.1
+    },
+    {
+      "suite": "approval-queue-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 56,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.2
+    },
+    {
+      "suite": "purchase-flow-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 90,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.3
+    },
+    {
+      "suite": "pr-purchase-compact-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 130,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.6
+    },
+    {
+      "suite": "handover-compact-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 52,
+      "failed": 0,
+      "note": "",
+      "seconds": 4.4
+    },
+    {
+      "suite": "handover-flow-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 73,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.0
+    },
+    {
+      "suite": "material-acuan-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 96,
+      "failed": 0,
+      "note": "",
+      "seconds": 7.8
+    },
+    {
+      "suite": "material-export-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 46,
+      "failed": 0,
+      "note": "=== HASIL: 46 PASS, 0 FAIL ===",
+      "seconds": 2.7
+    },
+    {
+      "suite": "pr-estimator-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 14,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.3
+    },
+    {
+      "suite": "pr-group-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 54,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.5
+    },
+    {
+      "suite": "pr-print-template-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 20,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.2
+    },
+    {
+      "suite": "showmore-list-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 49,
+      "failed": 0,
+      "note": "",
+      "seconds": 7.9
+    },
+    {
+      "suite": "vendors-toolbar-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 25,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.1
+    },
+    {
+      "suite": "manual-input-staging-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 73,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.6
+    },
+    {
+      "suite": "rab-boq-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 20,
+      "failed": 0,
+      "note": "JS_TOTAL 74, FAIL 0 | JS_PDF_TOTAL 16, FAIL 0",
+      "seconds": 0.3
+    },
+    {
+      "suite": "rab-boq-render-test",
+      "exit": 1,
+      "parsed": true,
+      "passed": 70,
+      "failed": 2,
+      "note": "FAIL F1 heading sidebar font-weight >= 800 | expected=true actual=false | FAIL F2 heading sidebar pakai var(--ivory) (kontras tinggi) | expected=true actual=false | RENDER_TOTAL 70, FAIL 2 | STDERR: RENDFAIL F1 heading sidebar font-weight >= 800 | F2 heading sidebar pakai var(--ivory) (kontras tinggi) | [FAIL] NODE: sandbox render lulus semua cek JS — expected=True actual=False",
+      "seconds": 2.4
+    },
+    {
+      "suite": "ui-olive-tokens-test",
+      "exit": 1,
+      "parsed": true,
+      "passed": 34,
+      "failed": 1,
+      "note": "✗ Tidak ada font-weight ganjil (550/650/750/850) (ditemukan ['750', '750'])",
+      "seconds": 0.5
+    },
+    {
+      "suite": "rap-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 50,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.6
+    },
+    {
+      "suite": "sales-invoice-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 93,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.1
+    },
+    {
+      "suite": "reminders-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 243,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.7
+    },
+    {
+      "suite": "marketing-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 263,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.6
+    },
+    {
+      "suite": "crm-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 88,
+      "failed": 0,
+      "note": "",
+      "seconds": 4.8
+    },
+    {
+      "suite": "rap-compare-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 82,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.4
+    },
+    {
+      "suite": "stock-view-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 53,
+      "failed": 0,
+      "note": "",
+      "seconds": 1.8
+    },
+    {
+      "suite": "projects-merge-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 63,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.2
+    },
+    {
+      "suite": "labor-stock-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 99,
+      "failed": 0,
+      "note": "",
+      "seconds": 3.7
+    },
+    {
+      "suite": "flow-gap-repro-test",
+      "exit": 0,
+      "parsed": false,
+      "passed": null,
+      "failed": null,
+      "note": "",
+      "seconds": 0.1
+    },
+    {
+      "suite": "e2e:rap-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 50,
+      "failed": 0,
+      "note": "",
+      "seconds": 11.8
+    },
+    {
+      "suite": "e2e:sales-invoice-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 13,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.2
+    },
+    {
+      "suite": "e2e:reminders-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 36,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.3
+    },
+    {
+      "suite": "e2e:marketing-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 52,
+      "failed": 0,
+      "note": "",
+      "seconds": 2.2
+    },
+    {
+      "suite": "e2e:purchase-flow-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 45,
+      "failed": 0,
+      "note": "",
+      "seconds": 11.5
+    },
+    {
+      "suite": "e2e:handover-compact-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 35,
+      "failed": 0,
+      "note": "",
+      "seconds": 8.9
+    },
+    {
+      "suite": "e2e:handover-flow-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 43,
+      "failed": 0,
+      "note": "",
+      "seconds": 8.3
+    },
+    {
+      "suite": "e2e:pr-print-template-test",
+      "exit": 0,
+      "parsed": true,
+      "passed": 14,
+      "failed": 0,
+      "note": "",
+      "seconds": 6.7
+    },
+    {
+      "suite": "e2e:integration-security",
+      "exit": 0,
+      "parsed": true,
+      "passed": 13,
+      "failed": 0,
+      "note": "",
+      "seconds": 0.2
+    },
+    {
+      "suite": "e2e:integration-mobile-unified",
+      "exit": 0,
+      "parsed": true,
+      "passed": 20,
+      "failed": 0,
+      "note": "",
+      "seconds": 7.9
+    }
+  ]
+}

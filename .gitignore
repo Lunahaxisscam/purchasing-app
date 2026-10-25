@@ -1,0 +1,25 @@
+node_modules/
+.next/
+dist/
+scripts/simulasi-150-test/
+.env*.local
+.DS_Store
+scripts/*/dist/
+
+# Artefak kompilasi harness (SWC) — jangan pernah di-commit.
+*.compiled.mjs
+
+# ============================================================
+# KREDENSIAL — JANGAN PERNAH DI-COMMIT
+# ============================================================
+# File kredensial daemon drive_sync (Supabase key, URL, token Google).
+# File asli ada di /home/ubuntu/workspace/drive_sync/ (chmod 600).
+# Salinan di scripts/drive_sync/ tidak pernah menyertakan file-file ini.
+scripts/drive_sync/sb_key.txt
+scripts/drive_sync/sb_url.txt
+scripts/drive_sync/*_token*.txt
+scripts/drive_sync/google_token.json
+scripts/drive_sync/.env
+*.pyc
+__pycache__/
+.vercel

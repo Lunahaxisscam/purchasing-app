@@ -1,0 +1,10 @@
+record_id,external_ref,source_file_id,source_row,notes,kode,name,category,satuan,harga_acuan,current_stock,min_stock
+,EXT-M-001,DRV-notamaterial01,12,material baru dgn harga + evidence,,[CONTOH] MDF 9mm,Plywood & Board,Lembar,142.000,,
+,EXT-M-002,DRV-notamaterial01,15,material baru + kode sesuai format kategori,HWF-0002,[CONTOH] Rel Laci 45cm,Hardware & Fitting,Pcs,78000,,
+,EXT-M-003,,,kode salah prefix harus ditolak,PLY-9999,[CONTOH] Kayu Salah Kode,Hardware & Fitting,Pcs,50000,,
+,EXT-M-004,,,harga negatif ditolak eksplisit,,[CONTOH] Kayu Negatif,Plywood & Board,Lembar,-50000,,
+,EXT-M-005,,,harga moneter tanpa evidence ditolak,,[CONTOH] Kayu Tanpa Bukti,Plywood & Board,Lembar,90000,,
+,EXT-M-006,,,satuan wajib,,[CONTOH] Kayu Tanpa Satuan,Plywood & Board,,90000,,
+33333333-3333-3333-3333-333333333331,EXT-M-007,DRV-notamaterial01,20,satuan beda dgn master = warning tapi valid,PLY-0001,[CONTOH] Plywood 15mm,Plywood & Board,Pcs,185000,,
+,EXT-M-008,,,natural key duplikat dalam batch,,[CONTOH] MDF 9mm,Plywood & Board,Lembar,100000,,
+,EXT-M-009,,,INSERT intent tapi nama+kategori sudah di master = CONFLICT,,[CONTOH] Plywood 15mm,Plywood & Board,Lembar,185000,,

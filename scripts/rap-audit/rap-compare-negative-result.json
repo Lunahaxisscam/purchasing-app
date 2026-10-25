@@ -1,0 +1,23 @@
+{
+  "waktu": "2026-10-18T08:18:44.517Z",
+  "base_commit": "1d364e7 (integration HEAD) — audit S3 read-only",
+  "worktree": "/home/ubuntu/dev-workspaces/wt-s3-rap-recovery",
+  "modul": "modules/rap-compare/logic.js",
+  "catatan_tata_kelola": "S3 proposal-only; TIDAK mengubah kode aplikasi; TIDAK menyentuh DB/SQL produksi",
+  "cara_baca_hasil": "expect_defect yang lulus = cacat TERBUKTI ADA. expect_ok yang gagal = kapabilitas hilang.",
+  "total_probe": 19,
+  "assertion_terpenuhi": 19,
+  "assertion_tidak_terpenuhi": 0,
+  "cacat_terkonfirmasi": [],
+  "kapabilitas_hilang": [],
+  "temuan": [],
+  "kesimpulan_modul": "Modul rap-compare (integrasi) MEMENUHI kontrak kejujuran pada fixture negatif: pagu & harga tak-finite/negatif/NaN ditolak eksplisit (null), status \"none\"/\"unknown\" dipakai alih-alih mengarang angka, dan baris tanpa aktual ditandai null bukan 0.",
+  "temuan_lintas_modul": [
+    "FN-RUPIAH_LOCALE hanya ada di guard komponen lama (Planning/ProjectFinance/Finance). Modul rap-compare SUDAH memakai strip-digit yang benar — jadi perbaikannya adalah menyelaraskan, bukan menciptakan idiom baru.",
+    "FN-INF_GUARD juga hanya di komponen lama. rap-compare memakai Number.isFinite eksplisit di toRupiah."
+  ],
+  "batasan": [
+    "Audit ini menunjuk logika murni modules/rap-compare/logic.js; render view.jsx TIDAK diuji (tanpa DOM/React runtime di probe ini).",
+    "Tidak ada probe DB live; TIDAK ada penulisan data."
+  ]
+}

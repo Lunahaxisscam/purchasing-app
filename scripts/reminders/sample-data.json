@@ -1,0 +1,44 @@
+{
+  "_comment": "Data contoh untuk `node scripts/reminders/cli.mjs --offline`. Bentuknya SAMA dengan keluaran scripts/reminders/collect.js supaya aturan diuji apa adanya tanpa jaringan. Tanggal dipilih supaya setiap jenis reminder punya minimal satu temuan.",
+  "as_of_hint": "2026-10-18",
+  "sources": [
+    { "key": "purchase_requests", "table": "purchase_requests", "available": true, "row_count": 4, "fetched": 4, "truncated": false, "columns": ["id", "pr_number", "status", "created_at"], "error_code": null, "error_message": null },
+    { "key": "pr_items", "table": "pr_items", "available": true, "row_count": 3, "fetched": 3, "truncated": false, "columns": ["id", "pr_id", "status"], "error_code": null, "error_message": null },
+    { "key": "approval_steps", "table": "approval_steps", "available": true, "row_count": 1, "fetched": 1, "truncated": false, "columns": ["id", "purchase_request_id", "status"], "error_code": null, "error_message": null },
+    { "key": "receivings", "table": "receivings", "available": true, "row_count": 2, "fetched": 2, "truncated": false, "columns": ["id", "invoice_no"], "error_code": null, "error_message": null },
+    { "key": "receiving_items", "table": "receiving_items", "available": true, "row_count": 1, "fetched": 1, "truncated": false, "columns": ["id", "receiving_id"], "error_code": null, "error_message": null },
+    { "key": "handovers", "table": "handovers", "available": true, "row_count": 1, "fetched": 1, "truncated": false, "columns": ["id", "receiving_id"], "error_code": null, "error_message": null },
+    { "key": "projects", "table": "projects", "available": true, "row_count": 2, "fetched": 2, "truncated": false, "columns": ["id", "name"], "error_code": null, "error_message": null },
+    { "key": "sales_invoices", "table": "sales_invoices", "available": false, "row_count": 0, "fetched": 0, "truncated": false, "columns": [], "error_code": "SCHEMA_UNAVAILABLE", "error_message": "Could not find the table 'public.sales_invoices' in the schema cache" }
+  ],
+  "dataset": {
+    "projects": [
+      { "id": "p1", "name": "Josh - Mabes", "kode": "83" },
+      { "id": "p2", "name": "Baroni", "kode": "99" }
+    ],
+    "purchase_requests": [
+      { "id": "pr1", "pr_number": "PR-001", "project_id": "p1", "status": "SUBMITTED", "title": "Lemari & Credenza", "created_at": "2026-10-08T04:28:52Z" },
+      { "id": "pr2", "pr_number": "PR-002", "project_id": "p2", "status": "APPROVED", "title": "Finishing HPL", "created_at": "2026-10-01T02:00:00Z" },
+      { "id": "pr3", "pr_number": "PR-003", "project_id": "p1", "status": "DRAFT", "title": "Produksi", "created_at": "2026-10-02T06:45:30Z" }
+    ],
+    "approval_steps": [
+      { "id": "a1", "purchase_request_id": "pr1", "step_number": 1, "status": "PENDING", "created_at": "2026-10-08T04:30:00Z", "decided_at": null }
+    ],
+    "pr_items": [
+      { "id": "i1", "pr_id": "pr2", "status": "APPROVED", "item_name": "Triplek 9mm", "quantity": 4, "estimated_price": 120000 },
+      { "id": "i2", "pr_id": "pr2", "status": "APPROVED", "item_name": "Lem Fox", "quantity": 2, "estimated_price": 45000 },
+      { "id": "i3", "pr_id": "pr1", "status": "PENDING_APPROVAL", "item_name": "Sealant", "quantity": 1, "estimated_price": 95000 }
+    ],
+    "receivings": [
+      { "id": "rc1", "purchase_request_id": "pr2", "project_id": "p2", "status": "DIBELI", "invoice_no": "TB-88912", "received_date": "2026-10-05", "delivery_note": "Nota TB-88912", "note": "[Nominal: Rp 542.000] [Tahap: DIBELI] diambil sendiri", "created_at": "2026-10-05T03:00:00Z" },
+      { "id": "rc2", "purchase_request_id": "pr1", "project_id": "p1", "status": "NORMAL", "invoice_no": null, "received_date": null, "delivery_note": "PO PR-001 - Lemari & Credenza", "note": "Dibuat otomatis dari PR (barang disetujui).", "created_at": "2026-10-08T04:31:00Z" }
+    ],
+    "receiving_items": [
+      { "id": "ri1", "receiving_id": "rc1", "pr_item_id": "i1", "item_name": "Triplek 9mm", "quantity_received": 4 }
+    ],
+    "handovers": [
+      { "id": "h1", "receiving_id": "rc1", "project_id": "p2", "received_by": "Pak Joko (Mandor)", "handover_date": "2026-10-06", "status": "CONFIRMED", "diserahkan_at": null, "created_at": "2026-10-06T02:00:00Z" }
+    ],
+    "sales_invoices": []
+  }
+}

@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""
+Harness DB NYATA untuk ledger penerimaan (t_7bc6246b) — menutup gap run 101
+============================================================================
+Review run 101 memblok task ini karena jalur READY (RPC) hanya diuji terhadap
+MOCK. Skrip ini menjalankan RPC SUNGGUHAN pada cluster PostgreSQL terisolasi
+yang dimigrasikan paket schema owner (t_03b41644), dengan payload yang
+dibentuk modul aplikasi VERBATIM (hasil transform SWC).
+
+Alur:
+  1. buat database uji baru (additive, tidak menyentuh DB lain)
+  2. apply fixture baseline live-like + migrasi 00..04 milik t_03b41644
+  3. siapkan sandbox modul aplikasi (verbatim, tanpa mock supabaseClient —
+     RPC dipanggil lewat `pg` sehingga nama parameter & tipe benar2 diuji)
+  4. jalankan db_rpc_test.mjs
+
+Tanpa Supabase, tanpa jaringan, tanpa data produksi.
+
+Jalankan: python3 scripts/receipt-ledger-db-test/run.py
+  PGADMIN=postgresql://postgres@127.0.0.1:55434/postgres  (default)
+  MIGDIR=<workspace t_03b41644>                            (default di bawah)
+"""
+import os, re, shutil, subprocess, sys, urllib.parse
+
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+HERE = os.path.dirname(os.path.abspath(__file__))
+SB = '/tmp/receipt-ledger-app'
+DBNAME = 'receipt_ledger_t7bc'
+
+PGADMIN = os.environ.get('PGADMIN', 'postgresql://postgres@127.0.0.1:55434/postgres')
+MIGDIR = os.environ.get(
+    'MIGDIR',
+    '/home/ubuntu/.hermes/kanban/boards/purchasing-app/workspaces/t_03b41644'
+)
+
+u = urllib.parse.urlparse(PGADMIN)
+PGURL_DB = PGADMIN.rsplit('/', 1)[0] + '/' + DBNAME
+
+
+def run(cmd, **kw):
+    print('$', ' '.join(cmd) if isinstance(cmd, list) else cmd)
+    r = subprocess.run(cmd, **kw)
+    if r.returncode:
+        print(f'  -> exit {r.returncode}')
+    return r.returncode
+
+
+def psql(url, args):
+    return run(['psql', url, '-X', '-q', '-v', 'ON_ERROR_STOP=1'] + args,
+               stdout=subprocess.DEVNULL)
+
+
+# ---------------------------------------------------------------- 1. database
+print(f'\n=== 1. Database uji terisolasi: {DBNAME} ===')
+# drop via psql (bukan shell rm) supaya jelas & idempotent
+run(['psql', PGADMIN, '-X', '-q', '-c', f'drop database if exists {DBNAME}'],
+    stdout=subprocess.DEVNULL)
+rc = run(['psql', PGADMIN, '-X', '-q', '-c', f'create database {DBNAME}'], stdout=subprocess.DEVNULL)
+if rc:
+    print('GAGAL membuat database uji'); sys.exit(1)
+
+# ------------------------------------------------------- 2. fixture + migrasi
+print('\n=== 2. Fixture baseline + migrasi schema owner (00..04) ===')
+if not os.path.isdir(MIGDIR):
+    print(f'GAGAL: MIGDIR tidak ada: {MIGDIR}'); sys.exit(1)
+if psql(PGURL_DB, ['-f', os.path.join(MIGDIR, 'test', 'fixture_baseline.sql')]):
+    print('GAGAL apply fixture'); sys.exit(1)
+for f in ['00_migration_ledger', '01_ops_line_identity', '02_receiving_events_physical',
+          '03_return_layer', '04_master_refs']:
+    p = os.path.join(MIGDIR, 'migrations', 'final', f + '.sql')
+    if not os.path.isfile(p):
+        print(f'GAGAL: migrasi tidak ada: {p}'); sys.exit(1)
+    if psql(PGURL_DB, ['-f', p]):
+        print(f'GAGAL apply {f}'); sys.exit(1)
+    print(f'  apply {f} ok')
+
+# ------------------------------------------------------------- 3. sandbox app
+print('\n=== 3. Sandbox modul aplikasi (VERBATIM, tanpa mock DB) ===')
+if os.path.exists(SB):
+    shutil.rmtree(SB)
+
+REL_FILES = ["lib/constants.js", "lib/purchaseNote.js"]
+for root, dirs, files in os.walk(os.path.join(REPO, 'modules', 'receivings')):
+    dirs.sort()
+    for f in sorted(files):
+        if f.endswith(('.js', '.jsx')):
+            REL_FILES.append(os.path.relpath(os.path.join(root, f), REPO))
+
+
+def sb_rel(rel):
+    base, _ = os.path.splitext(rel)
+    return base + '.mjs'
+
+
+def resolve(rel_dir, spec):
+    for cand in (spec, spec + '.js', spec + '.jsx'):
+        p = os.path.normpath(os.path.join(rel_dir, cand))
+        if os.path.isfile(os.path.join(REPO, p)):
+            return p
+    return None
+
+
+for rel in REL_FILES:
+    src = open(os.path.join(REPO, rel), encoding='utf-8').read()
+
+    def _repl(m):
+        pre, spec, post = m.group(1), m.group(2), m.group(3)
+        resolved = resolve(os.path.dirname(rel), spec)
+        if resolved is None:
+            return m.group(0)
+        target = sb_rel(resolved)
+        new_spec = os.path.relpath(target, os.path.dirname(sb_rel(rel))).replace(os.sep, '/')
+        if not new_spec.startswith('.'):
+            new_spec = './' + new_spec
+        return f'{pre}{new_spec}{post}'
+
+    src = re.sub(r"(\bfrom\s+['\"])(\.[^'\"]+)(['\"])", _repl, src)
+    out = os.path.join(SB, sb_rel(rel))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    open(out, 'w', encoding='utf-8').write(src)
+
+# supabaseClient TIDAK dipakai (RPC lewat pg) — tetap disediakan supaya impor
+# modul tidak pecah, tetapi setiap pemakaian langsung gagal keras (bukan mock
+# yang bisa diam-diam "berhasil").
+open(os.path.join(SB, 'lib', 'supabaseClient.mjs'), 'w').write(
+    'export const supabase = null\n'
+    'export const __noMock = true\n'
+)
+os.symlink(os.path.join(REPO, 'node_modules'), os.path.join(SB, 'node_modules'))
+open(os.path.join(SB, 'package.json'), 'w').write('{ "type": "module" }')
+shutil.copy(os.path.join(REPO, 'scripts', 'vendors-toolbar-test', 'compile_sandbox.mjs'), SB)
+
+print(f'  sandbox: {SB}')
+rc = run(['node', 'compile_sandbox.mjs'], cwd=SB)
+if rc:
+    print('GAGAL kompilasi sandbox'); sys.exit(1)
+
+# ------------------------------------------------------------------ 4. jalankan
+print('\n=== 4. Uji RPC NYATA ===')
+env = dict(os.environ, PGURL=PGURL_DB)
+rc = run(['node', os.path.join(HERE, 'db_rpc_test.mjs')], cwd=REPO, env=env)
+
+# ------------------------------------------- 5. matriks retur (rantai penuh)
+# db_rpc_test membuktikan RPC-nya benar. Skrip ini membuktikan HAL YANG
+# BERBEDA: setiap baris yang DITAWARKAN modal retur benar-benar DITERIMA RPC.
+# Ditemukan defect run 190 justru di sambungan ini (UI menawarkan qty_rusak,
+# RPC memakai retur_qty) — jadi keduanya harus dijalankan.
+print('\n=== 5. Matriks retur: pilihan form → modal → RPC ===')
+rc2 = run(['node', os.path.join(HERE, 'probe_retur_matrix.mjs')], cwd=REPO, env=env)
+sys.exit(rc or rc2)

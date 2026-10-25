@@ -1,0 +1,36 @@
+SKENARIO VARIANCE S3 — t_18652eb1 — hasil eksekusi computeBudget (ekstraksi verbatim Planning.js main@18fb594)
+scenario,mode,revenue,real_material,real_labor,real_ops,real_margin,margin_pct,budget_mat,is_material_over,is_labor_over,is_ops_over,is_margin_thin,has_anomaly
+sehat,standard,100000000,45000000,20000000,8000000,27000000,27%,50000000,false,false,false,false,false
+material_over,standard,100000000,55000000,20000000,8000000,17000000,17%,50000000,true,false,false,false,true
+manpower_over,standard,100000000,45000000,30000000,8000000,17000000,17%,50000000,false,true,false,false,true
+ops_over,standard,100000000,45000000,20000000,12000000,23000000,23%,50000000,false,false,true,false,true
+margin_tipis,standard,100000000,45000000,32000000,8000000,15000000,15%,50000000,false,true,false,false,true
+semua_over,standard,100000000,55000000,30000000,12000000,3000000,3%,50000000,true,true,true,true,true
+pagu_edge_70pct,standard,43300000,30310000,0,0,12990000,30%,21650000,true,false,false,false,true
+custom_valid_40_30_12_18,custom,100000000,45000000,25000000,8000000,22000000,22%,40000000,true,false,false,false,true
+custom_draft110_ditolak,custom,100000000,45000000,20000,8000000,46980000,46.98%,50000000,false,false,false,false,false
+revenue_nol,standard,0,0,0,0,0,0%,0,false,false,false,false,false
+revenue_nan_neg_inf,standard,0,0,0,0,0,0%,0,false,false,false,false,false
+
+CATATAN:
+sehat: margin real=27000000, 27% dari revenue; anomali mat=false upah=false ops=false margin=false
+material_over: margin real=17000000, 17% dari revenue; anomali mat=true upah=false ops=false margin=false
+manpower_over: margin real=17000000, 17% dari revenue; anomali mat=false upah=true ops=false margin=false
+ops_over: margin real=23000000, 23% dari revenue; anomali mat=false upah=false ops=true margin=false
+margin_tipis: margin real=15000000, 15% dari revenue; anomali mat=false upah=true ops=false margin=false
+semua_over: margin real=3000000, 3% dari revenue; anomali mat=true upah=true ops=true margin=true
+pagu_edge_70pct: margin real=12990000, 30% dari revenue; anomali mat=true upah=false ops=false margin=false
+custom_valid_40_30_12_18: margin real=22000000, 22% dari revenue; anomali mat=true upah=false ops=false margin=false
+custom_draft110_ditolak: draft 70/20/10/10 invalid → applied pakai snapshot 50/25/10/15
+custom_draft110_ditolak: margin real=46980000, 46.98% dari revenue; anomali mat=false upah=false ops=false margin=false
+revenue_nol: margin real=0, 0% dari revenue; anomali mat=false upah=false ops=false margin=false
+revenue_nan_neg_inf: margin real=0, 0% dari revenue; anomali mat=false upah=false ops=false margin=false
+
+Kas custom persen yang ditolak (hasil eksekusi validatePercentDraft):
+  R2.1: draft=60/30/15/15 total=120 valid=false applied=TOLAK (applied tetap snapshot lama)
+  R2.2: draft=35,5/25/10/9.5 total=44.5 valid=false applied=TOLAK (applied tetap snapshot lama)
+  R2.3: draft=49.99/25/10/15 total=99.99 valid=true applied=custom-valid
+  R2.4: draft=50/25/10/15 total=100 valid=true applied=custom-valid
+  snapshot_stick: draft=70/20/10/10 total=110 valid=false applied=standar 50/25/10/15
+  R2.5: draft=1.234/25/10/15 total=51.23 valid=true applied=custom-valid
+  R2.5b: draft=35.5/25/10/9.5 total=80 valid=true applied=custom-valid

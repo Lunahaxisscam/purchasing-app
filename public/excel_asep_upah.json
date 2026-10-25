@@ -1,0 +1,743 @@
+{
+  "projects": [
+    {
+      "row": 3,
+      "no": 99.0,
+      "name": "Santi - Baroni Utara 1/87",
+      "total_upah": 10345000,
+      "status": ""
+    }
+  ],
+  "items": [
+    {
+      "row": 6,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Panel backdrop TV netto",
+      "ukuran": 2.6,
+      "harga_satuan": 350000.0,
+      "upah_rincian": 910000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 7,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Backing kayu WPC atas dan bawah",
+      "ukuran": 2.5,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 250000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 8,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan WPC atas dan bawah",
+      "ukuran": 2.5,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 250000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 9,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Kabinet TV pintu flip-down",
+      "ukuran": 1.0,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 450000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 10,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Ambalan atas backdrop TV",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 11,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan LED backdrop TV",
+      "ukuran": 1.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 75000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 12,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan stop kontak TV",
+      "ukuran": 1.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 50000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 13,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pintu dan rangka bawah tangga",
+      "ukuran": 1.5,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 675000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 14,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Kabinet kulkas full tinggi",
+      "ukuran": 2.8,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1260000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 15,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Kabinet galon",
+      "ukuran": 1.0,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 450000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 16,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "atas",
+      "ukuran": 3.7,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1665000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 17,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "tambahan lapis LD",
+      "ukuran": 3.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 300000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 18,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "bawah",
+      "ukuran": 2.9,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1305000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 19,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "lapis HMR",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 20,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "island",
+      "ukuran": 2.1,
+      "harga_satuan": 550000.0,
+      "upah_rincian": 1155000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 21,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "WPC",
+      "ukuran": 2.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 200000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 22,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan LED kitchen",
+      "ukuran": 2.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 150000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 23,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan stop kontak kitchen",
+      "ukuran": 6.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 300000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 24,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan pintu kaca kitchen",
+      "ukuran": 2.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 200000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 25,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan sink dan sambungan keran",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 26,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan keran galon dan",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 27,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan kompor",
+      "ukuran": 1.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 50000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 28,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan oven",
+      "ukuran": 1.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 50000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 29,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan cooker hood",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 30,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan tirai",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 31,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Subtotal sementara",
+      "ukuran": null,
+      "harga_satuan": null,
+      "upah_rincian": null,
+      "total_proyek": 10345000,
+      "catatan": ""
+    },
+    {
+      "row": 541,
+      "project": "Servisan 2",
+      "pekerjaan": "Total Servisan 2",
+      "ukuran": null,
+      "harga_satuan": null,
+      "upah_rincian": null,
+      "total_proyek": 0,
+      "catatan": "Subtotal proyek"
+    },
+    {
+      "row": 542,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Divan dengan laci",
+      "ukuran": 3.2,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1440000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 543,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Headboard",
+      "ukuran": 1.7,
+      "harga_satuan": 350000.0,
+      "upah_rincian": 595000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 544,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Panel samping divan",
+      "ukuran": 2.1,
+      "harga_satuan": 350000.0,
+      "upah_rincian": 500000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 545,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Pemindahan stop kontak",
+      "ukuran": 1.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 50000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 546,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Instalasi LED divan + saklar",
+      "ukuran": 1.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 75000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 547,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Kabinet TV kamar",
+      "ukuran": 1.5,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 675000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 548,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Wardrobe",
+      "ukuran": 3.6,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1620000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 549,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Kabinet atas meja",
+      "ukuran": 1.8,
+      "harga_satuan": 550000.0,
+      "upah_rincian": 990000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 550,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Meja + laci terintegrasi",
+      "ukuran": 1.5,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 675000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 551,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Wallpanel atas meja",
+      "ukuran": 1.5,
+      "harga_satuan": 350000.0,
+      "upah_rincian": 525000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 552,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Pasang cermin dalam pintu",
+      "ukuran": 2.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 553,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Stop kontak pada wallpanel",
+      "ukuran": 3.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 150000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 554,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Instalasi LED lemari/meja",
+      "ukuran": 1.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 75000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 555,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Kabinet TV ruang tamu",
+      "ukuran": 1.8,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 810000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 556,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Pemindahan stop kontak TV",
+      "ukuran": 2.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 557,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Instalasi LED TV + saklar",
+      "ukuran": 1.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 75000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 558,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Kabinet toilet HMR",
+      "ukuran": 1.0,
+      "harga_satuan": 550000.0,
+      "upah_rincian": 550000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 559,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Cermin toilet + backing",
+      "ukuran": 1.0,
+      "harga_satuan": 150000.0,
+      "upah_rincian": 150000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 560,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Instalasi LED cermin + saklar",
+      "ukuran": 1.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 75000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 561,
+      "project": "Proyek Josh - Mabes",
+      "pekerjaan": "Total Proyek Josh - Mabes",
+      "ukuran": null,
+      "harga_satuan": null,
+      "upah_rincian": null,
+      "total_proyek": 9230000,
+      "catatan": ""
+    },
+    {
+      "row": 562,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Panel backdrop TV netto",
+      "ukuran": 2.6,
+      "harga_satuan": 350000.0,
+      "upah_rincian": 910000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: A1.Backdrop tv-rev 1.pdf"
+    },
+    {
+      "row": 563,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Backing kayu WPC atas dan bawah",
+      "ukuran": 2.5,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 250000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: A1.Backdrop tv-rev 1.pdf"
+    },
+    {
+      "row": 564,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan WPC atas dan bawah",
+      "ukuran": 2.5,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 250000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: A1.Backdrop tv-rev 1.pdf"
+    },
+    {
+      "row": 565,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Kabinet TV pintu flip-down",
+      "ukuran": 1.0,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 450000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: A1.Backdrop tv-rev 1.pdf"
+    },
+    {
+      "row": 566,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Ambalan atas backdrop TV",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: A1.Backdrop tv-rev 1.pdf"
+    },
+    {
+      "row": 567,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan LED backdrop TV",
+      "ukuran": 1.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 75000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: A1.Backdrop tv-rev 1.pdf"
+    },
+    {
+      "row": 568,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan stop kontak TV",
+      "ukuran": 1.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 50000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: A1.Backdrop tv-rev 1.pdf"
+    },
+    {
+      "row": 569,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pintu dan rangka bawah tangga",
+      "ukuran": 1.5,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 675000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: B1.Tangga-rev1.pdf"
+    },
+    {
+      "row": 570,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Kabinet kulkas full tinggi",
+      "ukuran": 2.8,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1260000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 571,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Kabinet galon",
+      "ukuran": 1.0,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 450000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 572,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "atas",
+      "ukuran": 3.7,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1665000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 573,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "tambahan lapis LD",
+      "ukuran": 3.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 300000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 574,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "bawah",
+      "ukuran": 2.9,
+      "harga_satuan": 450000.0,
+      "upah_rincian": 1305000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 575,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "lapis HMR",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 576,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "island",
+      "ukuran": 2.1,
+      "harga_satuan": 550000.0,
+      "upah_rincian": 1155000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 577,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "WPC",
+      "ukuran": 2.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 200000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 578,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan LED kitchen",
+      "ukuran": 2.0,
+      "harga_satuan": 75000.0,
+      "upah_rincian": 150000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 579,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan stop kontak kitchen",
+      "ukuran": 6.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 300000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 580,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan pintu kaca kitchen",
+      "ukuran": 2.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 200000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 581,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan sink dan sambungan keran",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 582,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan keran galon dan",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 583,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan kompor",
+      "ukuran": 1.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 50000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 584,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan oven",
+      "ukuran": 1.0,
+      "harga_satuan": 50000.0,
+      "upah_rincian": 50000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 585,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan cooker hood",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": "Sumber: C.Kitchenset-rev1.pdf"
+    },
+    {
+      "row": 586,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Pemasangan tirai",
+      "ukuran": 1.0,
+      "harga_satuan": 100000.0,
+      "upah_rincian": 100000.0,
+      "total_proyek": null,
+      "catatan": ""
+    },
+    {
+      "row": 587,
+      "project": "Santi - Baroni Utara 1/87",
+      "pekerjaan": "Subtotal sementara",
+      "ukuran": null,
+      "harga_satuan": null,
+      "upah_rincian": null,
+      "total_proyek": 10345000,
+      "catatan": ""
+    }
+  ]
+}

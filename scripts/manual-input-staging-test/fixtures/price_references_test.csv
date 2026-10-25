@@ -1,0 +1,8 @@
+record_id,external_ref,source_file_id,source_row,notes,material_kode,price,price_date,vendor_name
+,EXT-P-001,DRV-notaharga02,8,acuan harga valid dgn evidence + vendor resolve,PLY-0001,175000,2026-09-30,[CONTOH] Toko Kayu Jaya
+,EXT-P-002,,,material tidak ada di master wajib ditolak,HWF-9999,50000,2026-09-30,
+,EXT-P-003,,,: harga tanpa evidence ditolak,PLY-0001,160000,2026-09-28,
+,EXT-P-004,DRV-notaharga02,9,tanggal bukan ISO ditolak,PLY-0001,155000,30/09/2026,
+,EXT-P-005,DRV-notaharga02,10,vendor referensi tidak dikenal ditolak,PLY-0001,150000,2026-09-27,[CONTOH] Vendor Misterius
+,EXT-P-001,DRV-notaharga02,11,duplikat external_ref,PLY-0001,150000,2026-09-26,
+,EXT-P-007,DRV-notaharga02,12,duplikat natural key material+tanggal,PLY-0001,149000,2026-09-30,

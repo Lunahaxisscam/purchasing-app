@@ -1,0 +1,344 @@
+﻿kode,name,category,satuan,unit,current_stock,min_stock,harga_acuan,code,qty,id,created_at
+ALM-0001,Edging Huben (EA 17 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0001,0,071609cc-086f-44fe-ae77-c625ae790909,2026-10-06T16:39:51.046715+00:00
+ALM-0002,Edging Huben (EA 19 - Hitam),Aluminium & Profil,Meter,Meter,0,0,18780.0,ALM-0002,0,4e60bab8-1fbe-4064-8d9c-9a3e82e1e7c3,2026-10-06T16:39:51.046715+00:00
+ALM-0003,Frame Huben (FA 128 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0003,0,ad8599c9-6685-424a-8f50-dc0e1e23acc3,2026-10-06T16:39:51.046715+00:00
+ALM-0004,Frame Huben (FA 21 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0004,0,39f71b6f-0645-45f5-995d-116ce41aa695,2026-10-06T16:39:51.046715+00:00
+ALM-0005,Frame Huben (GP 36 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0005,0,8c23c33f-21a0-4d70-82be-e5d165c582d7,2026-10-06T16:39:51.046715+00:00
+ALM-0006,Frame Huben (GP 37 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0006,0,f4ea8e41-bb14-46b1-822f-d16bd1e281db,2026-10-06T16:39:51.046715+00:00
+ALM-0007,Frame Huben (LP 376 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0007,0,9ce60ef6-aade-48c2-8c10-a0ee65154479,2026-10-06T16:39:51.046715+00:00
+ALM-0008,Handle Huben (FHD 128 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0008,0,b1c8074d-c5cb-41c0-a517-66c2cd9aa15d,2026-10-06T16:39:51.046715+00:00
+ALM-0009,Handle Huben (FHD 21 - Hitam),Aluminium & Profil,Meter,Meter,0,0,68333.33333,ALM-0009,0,e436916c-fb5a-4d42-ad65-8489ad2f07bc,2026-10-06T16:39:51.046715+00:00
+ALM-0010,Handle Huben (GP 37 - Hitam),Aluminium & Profil,Meter,Meter,0,0,,ALM-0010,0,ce942711-c4e2-401a-a6fc-b94fab802504,2026-10-06T16:39:51.046715+00:00
+ALM-0011,Handle Huben (LP 375 - Hitam),Aluminium & Profil,Meter,Meter,0,0,41666.66667,ALM-0011,0,0df424f5-9299-4994-9826-42fe0fb8af45,2026-10-06T16:39:51.046715+00:00
+ALM-0012,List L (2X2cm - Anodized),Aluminium & Profil,Batang,Batang,0,0,,ALM-0012,0,b38cd9d0-8a9f-4f02-9c6f-6ba6a474c733,2026-10-06T16:39:51.046715+00:00
+ALM-0013,List T (8mm - Hitam),Aluminium & Profil,Batang,Batang,0,0,,ALM-0013,0,7064c78e-5ffe-4633-8f2f-5725d07e6e76,2026-10-06T16:39:51.046715+00:00
+ALM-0014,List T (8mm - SS),Aluminium & Profil,Batang,Batang,0,0,,ALM-0014,0,ebe1214b-3825-47af-8588-c9e7868aa994,2026-10-06T16:39:51.046715+00:00
+ALM-0015,Frame Baleno (FA 128 - Brown Hairline),Aluminium & Profil,Meter,Meter,0,0,,ALM-0015,0,f7b6423b-446f-4806-abcd-4a1a773f8184,2026-10-12T10:10:52.927476+00:00
+ALM-0016,Handle Baleno (FHD 128 - Brown Hairline),Aluminium & Profil,Meter,Meter,0,0,,ALM-0016,0,70d713be-4a1e-4430-bcc4-baa6369641f1,2026-10-12T10:13:34.511432+00:00
+BHP-0001,Amplas Bulat (Grid 100),Bahan Habis Pakai,Box,Box,0,0,320.0,BHP-0001,0,55edee6d-4ce0-4ca8-9f18-b5d005bcac82,2026-10-06T16:39:51.046715+00:00
+BHP-0002,Amplas Bulat (Grid 80),Bahan Habis Pakai,Box,Box,0,0,320.0,BHP-0002,0,8d5091d3-1de8-461e-aa7e-42e65a2c97e8,2026-10-06T16:39:51.046715+00:00
+BHP-0003,Amplas Gulung (Grid 100),Bahan Habis Pakai,Roll,Roll,0,0,320.0,BHP-0003,0,4c79b575-6c18-40d2-b12e-e8c426161b26,2026-10-06T16:39:51.046715+00:00
+BHP-0004,Amplas Gulung (Grid 80),Bahan Habis Pakai,Roll,Roll,0,0,320.0,BHP-0004,0,cc3cd054-a525-4436-b739-b416bb09be8d,2026-10-06T16:39:51.046715+00:00
+BHP-0005,Baut Frame (701),Bahan Habis Pakai,Pcs,Pcs,0,0,100.0,BHP-0005,0,e91cae0c-669d-4c8d-b29a-1b85d1bc6d1d,2026-10-06T16:39:51.688337+00:00
+BHP-0006,Biji Ambalan (AKP 15 - SS),Bahan Habis Pakai,Pcs,Pcs,0,0,280.0,BHP-0006,0,eb52df6f-363a-4274-8a62-7d6e91e952e3,2026-10-06T16:39:51.688337+00:00
+BHP-0007,Biji Ambalan (RH 21),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0007,0,b3c6ee2e-7ee2-44bd-9ea5-2e0c74348bdf,2026-10-06T16:39:51.688337+00:00
+BHP-0008,Cat Tusir (1/4),Bahan Habis Pakai,Kaleng,Kaleng,0,0,,BHP-0008,0,d889b36e-30a6-4dcc-8b4e-09db76e32fff,2026-10-06T16:39:51.688337+00:00
+BHP-0009,Doubletape Foam (4m - Foam),Bahan Habis Pakai,Pcs,Pcs,0,0,5000.0,BHP-0009,0,a744f008-f607-4666-9081-83a37242b94e,2026-10-06T16:39:51.688337+00:00
+BHP-0010,Fisher (S6),Bahan Habis Pakai,Box,Box,0,0,6500.0,BHP-0010,0,c09be46e-6862-4abc-b6c8-9bd19e7815c0,2026-10-06T16:39:51.688337+00:00
+BHP-0011,Fisher (S8 - Abu),Bahan Habis Pakai,Box,Box,0,0,,BHP-0011,0,32e35bec-6c48-4874-8e08-4c8672895db5,2026-10-06T16:39:51.688337+00:00
+BHP-0012,Isi Cutter,Bahan Habis Pakai,Kotak,Kotak,0,0,4500.0,BHP-0012,0,2e284955-32ad-497c-8136-c29e7b14c4a4,2026-10-06T16:39:51.688337+00:00
+BHP-0013,Kabel Duckting (1m - TC5),Bahan Habis Pakai,Batang,Batang,0,0,,BHP-0013,0,b9423a9f-d816-4a9e-ad26-1c17533ccd7c,2026-10-06T16:39:51.688337+00:00
+BHP-0014,Kabel Duckting (2m - 2cm),Bahan Habis Pakai,Batang,Batang,0,0,,BHP-0014,0,68660680-b0fe-48a2-bcd5-615c835ca26c,2026-10-06T16:39:51.688337+00:00
+BHP-0015,Kabel Duckting (2m - TC4),Bahan Habis Pakai,Batang,Batang,0,0,,BHP-0015,0,3fca5c8b-a481-4f51-bd4f-7898bcf41851,2026-10-06T16:39:51.688337+00:00
+BHP-0016,Kabel Ties,Bahan Habis Pakai,Bungkus,Bungkus,0,0,,BHP-0016,0,f87ea264-cb69-4018-bde8-0e2f7cc47589,2026-10-06T16:39:51.688337+00:00
+BHP-0017,Kabel Tray (Hitam),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0017,0,34ea0d3d-0235-44cc-858c-d269039888aa,2026-10-06T16:39:51.688337+00:00
+BHP-0018,Kain Bal,Bahan Habis Pakai,Bungkus,Bungkus,0,0,12500.0,BHP-0018,0,c8f9fabf-6d7c-4e19-9b4c-95ff4fe9d455,2026-10-06T16:39:51.688337+00:00
+BHP-0019,Kepala Amplas,Bahan Habis Pakai,Pcs,Pcs,0,0,3500.0,BHP-0019,0,9eeb5adc-192e-4a46-88f7-40c695948386,2026-10-06T16:39:51.688337+00:00
+BHP-0020,Klem Kabel (10mm - Putih),Bahan Habis Pakai,Pcs,Pcs,0,0,8500.0,BHP-0020,0,590d5b74-2ea2-4489-a1c1-5fbecf560bbe,2026-10-06T16:39:51.688337+00:00
+BHP-0021,Kompon (1kg),Bahan Habis Pakai,Kg,Kg,0,0,5000.0,BHP-0021,0,1a80fccb-bf41-49c6-ba76-5c9fb59c7569,2026-10-06T16:39:51.688337+00:00
+BHP-0022,Kuas Cat (1 inch),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0022,0,e974da34-fbd3-4290-af04-b7e57c4ba431,2026-10-06T16:39:51.688337+00:00
+BHP-0023,Kuas Rol (60 cm - Mini),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0023,0,3737f7a9-3544-4bc5-844a-e659563b5b7c,2026-10-06T16:39:51.688337+00:00
+BHP-0024,Kuas Rol (Supra - Besar),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0024,0,7ca6fc45-3abf-4aae-aa10-22b433b6e2d3,2026-10-06T16:39:51.688337+00:00
+BHP-0025,Lakban Kertas,Bahan Habis Pakai,Pcs,Pcs,0,0,4000.0,BHP-0025,0,23c191da-f311-418a-b8d3-f45665268211,2026-10-06T16:39:51.688337+00:00
+BHP-0026,Lasdop (1 mm),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0026,0,1429779f-fe21-4126-8d99-1613f20b85f9,2026-10-06T16:39:51.688337+00:00
+BHP-0027,Lasdop (2 mm),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0027,0,d668c8fb-abe2-431a-b0e3-4cbfb8657530,2026-10-06T16:39:51.688337+00:00
+BHP-0028,Lem Alteco,Bahan Habis Pakai,Pcs,Pcs,0,0,5000.0,BHP-0028,0,8c598ebe-cae4-469f-a196-9de431799878,2026-10-06T16:39:51.688337+00:00
+BHP-0029,Lem Kuning,Bahan Habis Pakai,Blek,Blek,0,0,5000.0,BHP-0029,0,3a086281-e2e8-445d-a524-e5ccc6c606bf,2026-10-06T16:39:51.688337+00:00
+BHP-0030,Lem Milan,Bahan Habis Pakai,Blek,Blek,0,0,,BHP-0030,0,53bd5cdc-d001-434a-b9f4-fa203ffb8c0b,2026-10-06T16:39:51.688337+00:00
+BHP-0031,Lem Putih,Bahan Habis Pakai,Bungkus,Bungkus,0,0,5000.0,BHP-0031,0,6d5e42b1-d75e-41cd-a98d-a04918459c9b,2026-10-06T16:39:51.688337+00:00
+BHP-0032,Magnet Pintu (40mm - Hitam),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0032,0,68051894-934f-4c04-97e3-bcc3fc629606,2026-10-06T16:39:51.688337+00:00
+BHP-0033,Magnet Pintu (40mm - Silver),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0033,0,3d2e9520-df08-4e5a-ac87-f517fc1b5f05,2026-10-06T16:39:51.688337+00:00
+BHP-0034,Mata Bor Beton (8mm - VPR),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0034,0,1aa1d1b4-92c7-4d4a-9115-6d4cf1df4a75,2026-10-06T16:39:51.688337+00:00
+BHP-0035,Mata Bor Gromet (80mm - Kugel),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0035,0,e91b6ee6-41a7-4337-996e-22288c0a79b9,2026-10-06T16:39:51.688337+00:00
+BHP-0036,Mata Bor Keramik (S6),Bahan Habis Pakai,Pcs,Pcs,0,0,30000.0,BHP-0036,0,16d29d7a-057b-496e-bc92-c4089cdb7623,2026-10-06T16:39:51.688337+00:00
+BHP-0037,"Mata Bor Obeng / Driver (6,5mm - VPR)",Bahan Habis Pakai,Pcs,Pcs,0,0,1600.0,BHP-0037,0,8b013001-0d41-47fc-9233-748a69b081b9,2026-10-06T16:39:51.688337+00:00
+BHP-0038,Mata Jig Saw,Bahan Habis Pakai,Pcs,Pcs,0,0,11199.0,BHP-0038,0,7a750d7e-c3cc-42c5-b0bb-df493e196ef5,2026-10-06T16:39:51.688337+00:00
+BHP-0039,Mata P. Gerinda,Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0039,0,f78153df-c36d-4571-9178-6058634ecd06,2026-10-06T16:39:51.688337+00:00
+BHP-0040,Mata P. Keramik,Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0040,0,a1603ba7-3da6-4acb-b20f-c04e832762f8,2026-10-06T16:39:51.688337+00:00
+BHP-0041,Mata Router (6 mm - Bearing),Bahan Habis Pakai,Pcs,Pcs,0,0,24899.0,BHP-0041,0,e603c32b-ea5b-4217-9cc7-29162c07b17f,2026-10-06T16:39:51.688337+00:00
+BHP-0042,Mata Router (6 mm - Non Bearing),Bahan Habis Pakai,Pcs,Pcs,0,0,10399.0,BHP-0042,0,4254ffb9-7af5-403b-82f7-63e5c96f3bd9,2026-10-06T16:39:51.688337+00:00
+BHP-0043,Maxbond (Kaca),Bahan Habis Pakai,Botol,Botol,0,0,,BHP-0043,0,f98b2550-1930-4c0f-9ff5-f410a8b0327b,2026-10-06T16:39:51.688337+00:00
+BHP-0044,Mohair (Hitam),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0044,0,d818a424-2a41-4c12-ad6b-71615d8d9fc4,2026-10-06T16:39:51.688337+00:00
+BHP-0045,Paku Beton (5 cm),Bahan Habis Pakai,Box,Box,0,0,,BHP-0045,0,f3a7da54-3764-486a-99d2-c4c96f0c8dde,2026-10-06T16:39:51.688337+00:00
+BHP-0046,Paku Beton (7 cm),Bahan Habis Pakai,Box,Box,0,0,,BHP-0046,0,c816acac-7499-4cfd-8de9-d4be6e1c1f66,2026-10-06T16:39:51.688337+00:00
+BHP-0047,Paku Tembak (F 15),Bahan Habis Pakai,Box,Box,0,0,17000.0,BHP-0047,0,fadf2de7-c7f6-4be2-8e9c-28a7cba9a5e0,2026-10-06T16:39:51.688337+00:00
+BHP-0048,Paku Tembak (F 20),Bahan Habis Pakai,Box,Box,0,0,20000.0,BHP-0048,0,4e00d5f4-d293-4a34-bafe-2003821bfc44,2026-10-06T16:39:51.688337+00:00
+BHP-0049,Paku Tembak (F 30),Bahan Habis Pakai,Box,Box,0,0,28000.0,BHP-0049,0,e7688bc5-58ba-4562-9e29-523ac6e2857b,2026-10-06T16:39:51.688337+00:00
+BHP-0050,Pelurus Pintu (Felterre),Bahan Habis Pakai,Batang,Batang,0,0,125000.0,BHP-0050,0,d5fe78cc-ebeb-4d88-868c-0d42a79b73e8,2026-10-06T16:39:51.688337+00:00
+BHP-0051,Pembersih Kaca,Bahan Habis Pakai,Bungkus,Bungkus,0,0,,BHP-0051,0,22f4e8ba-a49c-4908-8728-4255dd468caf,2026-10-06T16:39:51.688337+00:00
+BHP-0052,Pensil Tukang (18 cm - Makita),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0052,0,4987d6f7-4bab-47a8-b913-ddfae3ce4bf7,2026-10-06T16:39:51.688337+00:00
+BHP-0053,Pledge,Bahan Habis Pakai,Bungkus,Bungkus,0,0,,BHP-0053,0,6f0f6467-b8aa-40ff-9a6c-394833549298,2026-10-06T16:39:51.688337+00:00
+BHP-0054,Roda (2 Inch - Hitam),Bahan Habis Pakai,Pcs,Pcs,0,0,26550.0,BHP-0054,0,609b1ff1-ca4e-4fc5-91e9-6853fc390b56,2026-10-06T16:39:51.688337+00:00
+BHP-0055,Roda Castrol (PU + Hidup lock - T - 7cm),Bahan Habis Pakai,Pcs,Pcs,0,0,15000.0,BHP-0055,0,c73e78ae-0b7f-42e2-bb6b-da6cba83b966,2026-10-06T16:39:51.925459+00:00
+BHP-0056,Roda Castrol (PU Mati - T - 7cm),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0056,0,b472260b-468a-4274-b009-29d02c302905,2026-10-06T16:39:51.925459+00:00
+BHP-0057,Roda Meja (1 inch - Type C),Bahan Habis Pakai,Pcs,Pcs,0,0,4700.0,BHP-0057,0,382f69cf-328e-40bc-a77a-66be9f805598,2026-10-06T16:39:51.925459+00:00
+BHP-0058,"Roda Peninggi Pintu (Hitam - 1,5 x 7,7mm)",Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0058,0,5d037649-f36e-4478-8f8a-883d996d475a,2026-10-06T16:39:51.925459+00:00
+BHP-0059,Roll Cat (Besar),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0059,0,f9378a31-e507-49a6-bae3-530402a86ba6,2026-10-06T16:39:51.925459+00:00
+BHP-0060,Roll Cat (Kecil),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0060,0,98bdd868-0ed2-428a-af39-f16ec159e069,2026-10-06T16:39:51.925459+00:00
+BHP-0061,Sealant (Abu Muda),Bahan Habis Pakai,Botol,Botol,0,0,,BHP-0061,0,a2fd9b6c-90d7-46bf-84ec-6349d57b1dc9,2026-10-06T16:39:51.925459+00:00
+BHP-0062,Sealant (Abu Tua),Bahan Habis Pakai,Botol,Botol,0,0,25000.0,BHP-0062,0,e1a86bcf-0eea-4f3e-bec0-0a1b5f2d758c,2026-10-06T16:39:51.925459+00:00
+BHP-0063,Sealant (Cklt Muda),Bahan Habis Pakai,Botol,Botol,0,0,,BHP-0063,0,9975bca4-c2de-4af1-b401-6163d0bb367a,2026-10-06T16:39:51.925459+00:00
+BHP-0064,Sealant (Cklt Tua),Bahan Habis Pakai,Botol,Botol,0,0,25000.0,BHP-0064,0,446e10ca-7eb1-49c0-ab7d-044233966a8d,2026-10-06T16:39:51.925459+00:00
+BHP-0065,Sealant (Clear),Bahan Habis Pakai,Botol,Botol,0,0,25000.0,BHP-0065,0,125f1537-c303-47f1-80c7-ccbdfb194a57,2026-10-06T16:39:51.925459+00:00
+BHP-0066,Sealant (Hitam),Bahan Habis Pakai,Botol,Botol,0,0,25000.0,BHP-0066,0,4786b2a0-ce86-4644-b39c-a0459f82262b,2026-10-06T16:39:51.925459+00:00
+BHP-0067,Sealant (Putih),Bahan Habis Pakai,Botol,Botol,0,0,25000.0,BHP-0067,0,7ea67d90-6d31-4731-bbb9-7ad3e54bf00a,2026-10-06T16:39:51.925459+00:00
+BHP-0068,Sealtape (10 m - Onda),Bahan Habis Pakai,Pcs,Pcs,0,0,1150.0,BHP-0068,0,31e6ed45-cf5d-4a64-ad53-58c5bb2c375e,2026-10-06T16:39:51.925459+00:00
+BHP-0069,Sekrup (2 cm),Bahan Habis Pakai,Box,Box,0,0,8125.0,BHP-0069,0,1c47fc70-511a-4e46-b37b-7682dbc68c2b,2026-10-06T16:39:51.925459+00:00
+BHP-0070,"Sekrup (2,5 cm)",Bahan Habis Pakai,Box,Box,0,0,8125.0,BHP-0070,0,cb8714d6-a63d-4ced-a70c-f94fcae4c078,2026-10-06T16:39:51.925459+00:00
+BHP-0071,Sekrup (3 cm),Bahan Habis Pakai,Box,Box,0,0,8125.0,BHP-0071,0,104dae0b-9b5a-4a39-b3b8-ed78ddbe0f6d,2026-10-06T16:39:51.925459+00:00
+BHP-0072,Sekrup (4 cm),Bahan Habis Pakai,Box,Box,0,0,8125.0,BHP-0072,0,c94f55b1-bb53-4867-a1cc-7a111d8db640,2026-10-06T16:39:51.925459+00:00
+BHP-0073,Sekrup (5 cm),Bahan Habis Pakai,Box,Box,0,0,8125.0,BHP-0073,0,54be3635-9fbe-4913-947d-801ec40819b8,2026-10-06T16:39:51.925459+00:00
+BHP-0074,Sekrup (7 cm),Bahan Habis Pakai,Box,Box,0,0,,BHP-0074,0,21b11295-c172-4a50-a110-45a20c0a3ba7,2026-10-06T16:39:51.925459+00:00
+BHP-0075,Sekrup Engsel,Bahan Habis Pakai,Box,Box,0,0,1780.0,BHP-0075,0,553c14aa-8e8e-4a9f-96fe-186851908996,2026-10-06T16:39:51.925459+00:00
+BHP-0076,Sekrup Gantung (Tanda Tanya - 5cm),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0076,0,2079cec9-2f39-4239-a91c-95df22026e53,2026-10-06T16:39:51.925459+00:00
+BHP-0077,Siku Frame (AH-21 - Silver),Bahan Habis Pakai,Pcs,Pcs,0,0,1500.0,BHP-0077,0,21e351df-5ac4-4b05-a32a-475485016aa9,2026-10-06T16:39:51.925459+00:00
+BHP-0078,Siku Frame (AH-45 - Silver),Bahan Habis Pakai,Pcs,Pcs,0,0,100.0,BHP-0078,0,db7b5ee9-2af9-45bf-893a-17890a7ca655,2026-10-06T16:39:51.925459+00:00
+BHP-0079,Solasi Listrik (17 yard - Goal Tape),Bahan Habis Pakai,Pcs,Pcs,0,0,4500.0,BHP-0079,0,52b3360a-9b47-473a-82d4-f61dbd89599a,2026-10-06T16:39:51.925459+00:00
+BHP-0080,Staples Tembak,Bahan Habis Pakai,Box,Box,0,0,16500.0,BHP-0080,0,8fdb9b37-9f02-4c8d-b562-f4e578f726db,2026-10-06T16:39:51.925459+00:00
+BHP-0081,Stop Kran (Blu - Cabang 1),Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0081,0,88a09b4d-9fff-43ae-8e63-02811c33b143,2026-10-06T16:39:51.925459+00:00
+BHP-0082,Tenol,Bahan Habis Pakai,Pcs,Pcs,0,0,,BHP-0082,0,355c37a1-2a1f-4ff4-b4c7-fdb6c3c63862,2026-10-06T16:39:51.925459+00:00
+BHP-0083,Thiner,Bahan Habis Pakai,Liter,Liter,0,0,249999.0,BHP-0083,0,59d2c418-a205-48b0-b7da-b8660dcf38dd,2026-10-06T16:39:51.925459+00:00
+BHP-0084,Tutup Sekrup (Abu),Bahan Habis Pakai,Bungkus,Bungkus,0,0,900.0,BHP-0084,0,f9d29f7f-35fe-405b-b40a-c7a20b4dc7d7,2026-10-06T16:39:51.925459+00:00
+BHP-0085,Tutup Sekrup (Putih),Bahan Habis Pakai,Bungkus,Bungkus,0,0,900.0,BHP-0085,0,b2c9f4d7-4a7c-4c1f-ad9d-3a7805b294f6,2026-10-06T16:39:51.925459+00:00
+BHP-0086,Lem Kuning Superbond,Bahan Habis Pakai,Botol,Botol,0,0,5000,BHP-0086,0,beadfa9c-f86b-42cf-a8f9-f305512bf300,2026-10-17T07:15:48.751527+00:00
+BHP-0087,Mata Bor Beton S6 VPR,Bahan Habis Pakai,Pcs,Pcs,0,0,5700,BHP-0087,0,1a17e105-baec-4269-8f95-6a39a75c7ba8,2026-10-17T07:15:48.751527+00:00
+BHP-0088,Maxbond,Bahan Habis Pakai,Pcs,Pcs,0,0,11199,BHP-0088,0,70b34068-e61e-4954-ada2-0158c880aa79,2026-10-17T07:15:48.751527+00:00
+BHP-0089,Semen,Bahan Habis Pakai,Sak,Sak,0,0,1780,BHP-0089,0,4c74132d-c1d6-4329-ba1e-e24783061d08,2026-10-17T07:15:48.751527+00:00
+HPL-0001,Edging Pattern (Edg Taco - 4cm),HPL & Edging,Meter,Meter,0,0,5500.0,HPL-0001,0,7a59e856-5ea9-4375-9809-6b16c69fcf11,2026-10-06T16:39:49.259854+00:00
+HPL-0002,Edging Solid (Edg Taco - 4cm),HPL & Edging,Meter,Meter,0,0,5500.0,HPL-0002,0,a431fcde-bc79-4fe6-8c7e-28c832d5c0aa,2026-10-06T16:39:49.259854+00:00
+HPL-0003,Edging Woodgrain (Edg Taco - 4cm),HPL & Edging,Meter,Meter,0,0,5500.0,HPL-0003,0,deaea0ea-ff98-4cd3-8f9f-a00947717ed5,2026-10-06T16:39:49.259854+00:00
+HPL-0004,HPL PATTERN (TACO - FA),HPL & Edging,Lembar,Lembar,0,0,299000.0,HPL-0004,0,8018b74c-711b-47af-b74c-c4c30e8aec68,2026-10-06T16:39:49.259854+00:00
+HPL-0005,HPL SOLID (TACO - A),HPL & Edging,Lembar,Lembar,0,0,,HPL-0005,0,f0c436d4-f6b6-4a2c-93a9-457d5464a259,2026-10-06T16:39:49.259854+00:00
+HPL-0006,HPL SOLID (TACO - AA),HPL & Edging,Lembar,Lembar,0,0,185500.0,HPL-0006,0,8088aff3-3fda-4ee5-b45f-7b08831f8bec,2026-10-06T16:39:49.259854+00:00
+HPL-0007,HPL SOLID (TACO - AB),HPL & Edging,Lembar,Lembar,0,0,160000.0,HPL-0007,0,229e4446-38fb-4ca9-86ef-a6b1a1e51fe4,2026-10-06T16:39:49.259854+00:00
+HPL-0008,HPL SOLID (TACO - D),HPL & Edging,Lembar,Lembar,0,0,197000.0,HPL-0008,0,f83111bd-9edd-4daf-b9f9-ed1f46281c64,2026-10-06T16:39:49.960278+00:00
+HPL-0009,HPL SOLID (TACO - DB),HPL & Edging,Lembar,Lembar,0,0,,HPL-0009,0,d6b2e1fe-58c7-4efc-b087-e437a19d6a99,2026-10-06T16:39:49.960278+00:00
+HPL-0010,HPL SOLID (TACO - G),HPL & Edging,Lembar,Lembar,0,0,,HPL-0010,0,916a3c9f-eaaf-4c7f-853e-9d7ebd000de8,2026-10-06T16:39:49.960278+00:00
+HPL-0011,HPL SOLID (TACO - SA),HPL & Edging,Lembar,Lembar,0,0,160000.0,HPL-0011,0,441d076b-9312-4795-aba0-7ce212c63658,2026-10-06T16:39:49.960278+00:00
+HPL-0012,HPL SOLID (TACO - SB),HPL & Edging,Lembar,Lembar,0,0,,HPL-0012,0,1df70d74-f59f-41b1-825b-b94ff1ae3c67,2026-10-06T16:39:49.960278+00:00
+HPL-0013,HPL WOODGRAIN (TACO - AA),HPL & Edging,Lembar,Lembar,0,0,185500.0,HPL-0013,0,0ab7c521-6d98-402c-a587-928f20c02caf,2026-10-06T16:39:49.960278+00:00
+HPL-0014,HPL WOODGRAIN (TACO - AC),HPL & Edging,Lembar,Lembar,0,0,185500.0,HPL-0014,0,48778154-ddfc-42b6-a0a2-638f1e48713a,2026-10-06T16:39:49.960278+00:00
+HPL-0015,HPL WOODGRAIN (TACO - B),HPL & Edging,Lembar,Lembar,0,0,,HPL-0015,0,c87acdc2-0060-438c-9c36-bfb8092f093e,2026-10-06T16:39:49.960278+00:00
+HPL-0016,HPL WOODGRAIN (TACO - DP),HPL & Edging,Lembar,Lembar,0,0,257500.0,HPL-0016,0,a11cfcea-4a35-4705-9eb8-cdebd1fe9762,2026-10-06T16:39:49.960278+00:00
+HPL-0017,HPL WOODGRAIN (TACO - FC),HPL & Edging,Lembar,Lembar,0,0,216500.0,HPL-0017,0,521bb213-eec0-4c42-888c-927a5ec86080,2026-10-06T16:39:49.960278+00:00
+HPL-0018,HPL WOODGRAIN (TACO - GL),HPL & Edging,Lembar,Lembar,0,0,,HPL-0018,0,65a9e7c2-c389-4ffd-aaaa-c44bd6c0186c,2026-10-06T16:39:49.960278+00:00
+HPL-0019,HPL WOODGRAIN (TACO - H),HPL & Edging,Lembar,Lembar,0,0,185500.0,HPL-0019,0,bc59493a-b929-4203-b494-fe63961fcabe,2026-10-06T16:39:49.960278+00:00
+HPL-0020,HPL WOODGRAIN (TACO - J),HPL & Edging,Lembar,Lembar,0,0,216500.0,HPL-0020,0,efe6d10a-0e91-4c97-86b4-83201b78baa1,2026-10-06T16:39:49.960278+00:00
+HPL-0021,HPL WOODGRAIN (TACO - JG),HPL & Edging,Lembar,Lembar,0,0,257500.0,HPL-0021,0,87244439-fdbd-489e-b265-b79ae8680e9d,2026-10-06T16:39:49.960278+00:00
+HPL-0022,HPL WOODGRAIN (TACO - KM),HPL & Edging,Lembar,Lembar,0,0,,HPL-0022,0,5e6cad91-a2b1-4946-afb4-b0d92882850d,2026-10-06T16:39:49.960278+00:00
+HPL-0023,HPL WOODGRAIN (TACO - KY),HPL & Edging,Lembar,Lembar,0,0,299000.0,HPL-0023,0,ae607258-5700-4857-9e25-86caa9c42a8e,2026-10-06T16:39:49.960278+00:00
+HPL-0024,HPL WOODGRAIN (TACO - NT),HPL & Edging,Lembar,Lembar,0,0,216500.0,HPL-0024,0,5d6b7072-5768-4bc9-976c-eff6f42af0be,2026-10-06T16:39:49.960278+00:00
+HPL-0025,HPL WOODGRAIN (TACO - SL),HPL & Edging,Lembar,Lembar,0,0,,HPL-0025,0,eee9cf02-8535-4d68-bb68-08f032c73ddf,2026-10-06T16:39:49.960278+00:00
+HPL-0026,Tacosheet (Taco - P02),HPL & Edging,Meter,Meter,0,0,38000.0,HPL-0026,0,abb4c831-dc8e-40a5-8cd8-0cfb4c6cb0e5,2026-10-06T16:39:49.960278+00:00
+HPL-0027,HPL WOODGRAIN TACO FA,HPL & Edging,Lembar,Lembar,0,0,299000,HPL-0027,0,951b5b60-6e90-419b-8710-798ec77a1356,2026-10-17T07:15:48.751527+00:00
+HWF-0001,Bracket B9-19 (Cabang 3 - Huben),Hardware & Fitting,Pcs,Pcs,0,0,33900.0,HWF-0001,0,e069be53-578b-47cd-a3f9-6ff77d041f0b,2026-10-06T16:39:49.960278+00:00
+HWF-0002,Bracket BP-16 (Oval - Huben),Hardware & Fitting,Pcs,Pcs,0,0,5000.0,HWF-0002,0,f01db6f9-7a5a-454f-a08d-689428ad9103,2026-10-06T16:39:49.960278+00:00
+HWF-0003,Bracket BP-19 (Bulat - Huben),Hardware & Fitting,Pcs,Pcs,0,0,3000.0,HWF-0003,0,8553fbfb-b903-44f2-a9c5-1e05a81983a3,2026-10-06T16:39:49.960278+00:00
+HWF-0004,Bracket BP-19 (Lurus - 1 inch - Baleno),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0004,0,ef5e5787-315e-445b-869f-9bcad205e137,2026-10-06T16:39:49.960278+00:00
+HWF-0005,Bracket BP-19 (T - Huben),Hardware & Fitting,Pcs,Pcs,0,0,33900.0,HWF-0005,0,614936a1-0f16-4e99-9c91-717c42711b51,2026-10-06T16:39:49.960278+00:00
+HWF-0006,Bracket Siku L (12 x 20cm - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,17000.0,HWF-0006,0,71e1dfd1-e94a-4b57-825d-9150aa0c9344,2026-10-06T16:39:49.960278+00:00
+HWF-0007,Bracket Siku L (12 x 20cm - Silver),Hardware & Fitting,Pcs,Pcs,0,0,17000.0,HWF-0007,0,ca1b0894-9add-45f7-926a-9ca217282380,2026-10-06T16:39:49.960278+00:00
+HWF-0008,DTNS DoubleTrack (25cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,25788.0,HWF-0008,0,a46a2cd1-155b-4b09-a53e-936d133421ad,2026-10-06T16:39:49.960278+00:00
+HWF-0009,DTNS DoubleTrack (30cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0009,0,e9f519a3-a8e1-4333-bf37-17940dfabb22,2026-10-06T16:39:49.960278+00:00
+HWF-0010,DTNS DoubleTrack (35cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0010,0,b643edf4-a4a5-43ca-8029-7e928a055c77,2026-10-06T16:39:49.960278+00:00
+HWF-0011,DTNS DoubleTrack (40cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0011,0,c4c3b800-e975-458a-9d01-cc3314384258,2026-10-06T16:39:49.960278+00:00
+HWF-0012,DTNS DoubleTrack (45cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0012,0,64e5344f-e9de-43d2-bcde-59ff0879c15a,2026-10-06T16:39:49.960278+00:00
+HWF-0013,DTNS DoubleTrack (50cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,52140.0,HWF-0013,0,05390970-2bd5-434a-9791-c9a1c0317201,2026-10-06T16:39:49.960278+00:00
+HWF-0014,DTNS DoubleTrack (55cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0014,0,2900ca8e-d54a-4da5-899d-88ada1732bb6,2026-10-06T16:39:49.960278+00:00
+HWF-0015,DTSM DoubleTrack (25cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,36000.0,HWF-0015,0,a6f33ab3-9676-4dea-9955-c1e723285b99,2026-10-06T16:39:49.960278+00:00
+HWF-0016,DTSM DoubleTrack (30cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,98000.0,HWF-0016,0,7a6db537-e379-4fb0-80cf-0f1a0fd544ac,2026-10-06T16:39:49.960278+00:00
+HWF-0017,DTSM DoubleTrack (30cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,40000.0,HWF-0017,0,cf1bf054-a665-4ab6-830c-705b1c346ba3,2026-10-06T16:39:49.960278+00:00
+HWF-0018,DTSM DoubleTrack (35cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,108000.0,HWF-0018,0,461cde66-8b44-4401-8f2d-0d55f7264c28,2026-10-06T16:39:49.960278+00:00
+HWF-0019,DTSM DoubleTrack (35cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,43500.0,HWF-0019,0,b2d8e9c9-6ed7-49c7-bfc2-fe023ee03d75,2026-10-06T16:39:49.960278+00:00
+HWF-0020,DTSM DoubleTrack (40cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0020,0,b26434fb-7db8-412c-96a2-f2ee164bc823,2026-10-06T16:39:49.960278+00:00
+HWF-0021,DTSM DoubleTrack (40cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,47500.0,HWF-0021,0,ccebae05-4ccc-4279-86e2-8dc9ec6f020c,2026-10-06T16:39:49.960278+00:00
+HWF-0022,DTSM DoubleTrack (45cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,128000.0,HWF-0022,0,a20ec622-f35f-4167-9921-1c5bb4efd455,2026-10-06T16:39:49.960278+00:00
+HWF-0023,DTSM DoubleTrack (45cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,51500.0,HWF-0023,0,3cc078a7-ae86-4ba0-9d9d-00a2dacb6f29,2026-10-06T16:39:49.960278+00:00
+HWF-0024,DTSM DoubleTrack (50cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,139000.0,HWF-0024,0,bcbb0254-e211-4a2c-907e-9e476dc61776,2026-10-06T16:39:49.960278+00:00
+HWF-0025,DTSM DoubleTrack (50cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,55500.0,HWF-0025,0,f88fa68f-3af4-45e0-9d1d-1de753cde8b8,2026-10-06T16:39:49.960278+00:00
+HWF-0026,DTSM DoubleTrack (55cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0026,0,e6b9cfbf-f9a8-418a-a25b-21420e5f8b18,2026-10-06T16:39:50.215224+00:00
+HWF-0027,DTSM DoubleTrack (55cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0027,0,ce602b94-a329-4bc9-9602-3ef85d0c0db0,2026-10-06T16:39:50.215224+00:00
+HWF-0028,DTSM DoubleTrack (60cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0028,0,4cdc8b70-7867-4b3e-9a4e-43886547e570,2026-10-06T16:39:50.215224+00:00
+HWF-0029,Door Closer (Hitam - Dekson),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0029,0,95877d0c-bd4c-4941-97f5-0a863b7d652b,2026-10-06T16:39:50.215224+00:00
+HWF-0030,Engsel (BKK - Hafele Econo),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0030,0,90ce0d3d-47c7-42f8-aef4-31b3924edcf7,2026-10-06T16:39:50.215224+00:00
+HWF-0031,Engsel (BKK - Knockers),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0031,0,8fe42c94-e3a4-47e9-85ea-7c134458bf79,2026-10-06T16:39:50.215224+00:00
+HWF-0032,Engsel (BKK - Taco),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0032,0,3bf34466-9cc4-4f8c-8037-407bd911db7a,2026-10-06T16:39:50.215224+00:00
+HWF-0033,Engsel (Lurus - Hafele Econo),Hardware & Fitting,Pcs,Pcs,0,0,12250.0,HWF-0033,0,8cd23ed3-a918-4033-87f4-a328383d3939,2026-10-06T16:39:50.215224+00:00
+HWF-0034,Engsel (Lurus - Knockers),Hardware & Fitting,Pcs,Pcs,0,0,23976.0,HWF-0034,0,4df30f1f-ccf4-4360-ab1d-d2d258e8b74d,2026-10-06T16:39:50.215224+00:00
+HWF-0035,Engsel (Lurus - Knockers Anti Karat),Hardware & Fitting,Pcs,Pcs,0,0,23976.0,HWF-0035,0,67755496-183e-4b75-a381-e59f59f41be3,2026-10-06T16:39:50.215224+00:00
+HWF-0036,Engsel (Lurus - Taco),Hardware & Fitting,Pcs,Pcs,0,0,7750.0,HWF-0036,0,188f98a5-0824-471a-bcad-fe5c84a599c5,2026-10-06T16:39:50.215224+00:00
+HWF-0037,Engsel (Stgh BKK - Hafele Econo),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0037,0,67ee4bc5-52f5-40aa-ab43-5e73237bdf25,2026-10-06T16:39:50.215224+00:00
+HWF-0038,Engsel (Stgh BKK - Knockers),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0038,0,8fed5931-05cc-408a-acf0-5b85f69b09b0,2026-10-06T16:39:50.215224+00:00
+HWF-0039,Engsel (Stgh BKK - Taco),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0039,0,3a218e29-5633-4992-bbbc-b18ad8dc0607,2026-10-06T16:39:50.215224+00:00
+HWF-0040,Engsel Frame (EFA-0 Lurus - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0040,0,49f10c14-4c7b-4e90-925f-f5a3fca2e87d,2026-10-06T16:39:50.215224+00:00
+HWF-0041,Engsel Kupu-kupu (Hitam - Dekson),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0041,0,e0192c04-5b6b-4e4f-978c-ad028a9471e6,2026-10-06T16:39:50.215224+00:00
+HWF-0042,Engsel Pivot Kaca (T86 - Silver),Hardware & Fitting,Pasang,Pasang,0,0,3400.0,HWF-0042,0,df42eaa9-04bc-4f74-91a8-70d9b75133ef,2026-10-06T16:39:50.215224+00:00
+HWF-0043,Engsel Robot (BKK - Femarg),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0043,0,a14f09bc-d2af-42b4-b0bd-b637eb491109,2026-10-06T16:39:50.215224+00:00
+HWF-0044,Engsel Robot (Lurus - Femarg),Hardware & Fitting,Pcs,Pcs,0,0,36650.0,HWF-0044,0,6c7f1bdb-2987-484c-a063-9bb2401e9e71,2026-10-06T16:39:50.215224+00:00
+HWF-0045,Engsel Robot (StghBkk - Femarg),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0045,0,0cc5e3d1-2ec5-4c72-a588-078275ae2b54,2026-10-06T16:39:50.215224+00:00
+HWF-0046,Gas Spring (40N - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0046,0,edd4da5b-16c8-47a6-b280-78221d898d00,2026-10-06T16:39:50.215224+00:00
+HWF-0047,Gas Spring (60N - Huben),Hardware & Fitting,Pcs,Pcs,0,0,7750.0,HWF-0047,0,c81a3320-5e83-40ca-875a-b21f39cb256f,2026-10-06T16:39:50.215224+00:00
+HWF-0048,Gas Spring (80N - Huben),Hardware & Fitting,Pcs,Pcs,0,0,7750.0,HWF-0048,0,0eb47d46-25df-4133-bb89-391637434d1a,2026-10-06T16:39:50.215224+00:00
+HWF-0049,Gas Srping (100N - Huben),Hardware & Fitting,Pcs,Pcs,0,0,10600.0,HWF-0049,0,55361209-2ee7-42ef-bd2f-82349fe85684,2026-10-06T16:39:50.215224+00:00
+HWF-0050,Gas Srping (40N Mini - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0050,0,78f76bb0-a582-42a2-9c02-59e36f64e8a1,2026-10-06T16:39:50.215224+00:00
+HWF-0051,Gas Srping (60N Mini - Huben),Hardware & Fitting,Pcs,Pcs,0,0,7750.0,HWF-0051,0,d057e5cd-adfe-43c8-b044-c668d683e368,2026-10-06T16:39:50.215224+00:00
+HWF-0052,Grendel (Hitam - Dekson),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0052,0,95c9c0e0-76fd-43dd-86ad-0975de76aeb0,2026-10-06T16:39:50.215224+00:00
+HWF-0053,Gromet 8x16 (Kotak - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0053,0,318027b9-54d3-49eb-a162-740069580237,2026-10-06T16:39:50.215224+00:00
+HWF-0054,Gromet 8x16 (Kotak - Silver),Hardware & Fitting,Pcs,Pcs,0,0,17800.0,HWF-0054,0,123cda7a-99b2-46f0-9605-3cd935386b82,2026-10-06T16:39:50.215224+00:00
+HWF-0055,Gromet Plastik (Bulat - Abu),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0055,0,3312b3bb-a2c5-43e6-b5a0-47ccbf9055e1,2026-10-06T16:39:50.215224+00:00
+HWF-0056,Gromet Plastik (Bulat - Coklat),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0056,0,2a63cb9b-1e65-40f1-9b13-b803df9c25b8,2026-10-06T16:39:50.215224+00:00
+HWF-0057,Gromet Plastik (Bulat - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,2500.0,HWF-0057,0,8e36bec5-b5af-451f-bd03-eff8af3ff837,2026-10-06T16:39:50.215224+00:00
+HWF-0058,Gromet Plastik (Bulat - Putih),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0058,0,57acbe5d-5723-4828-83d4-f1c1e359ac3b,2026-10-06T16:39:50.215224+00:00
+HWF-0059,Gromet Stainles (Bulat - Silver),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0059,0,9d4a292b-c3a2-459d-8efa-53197bf0bde1,2026-10-06T16:39:50.215224+00:00
+HWF-0060,Gromet stop kontak 20x12x8 (Kotak - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,17800.0,HWF-0060,0,6ee3cdda-52c3-4ebe-9649-c2d86ecbb023,2026-10-06T16:39:50.215224+00:00
+HWF-0061,Handle (KNOB Bulat 1903 - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0061,0,ecb0afc8-8a1e-44ae-8cde-2a016865287c,2026-10-06T16:39:50.215224+00:00
+HWF-0062,Handle (KNOB TK82 - Huben),Hardware & Fitting,Pcs,Pcs,0,0,8750.0,HWF-0062,0,e1c40a79-f10c-4a51-9342-be3c33681c2d,2026-10-06T16:39:50.215224+00:00
+HWF-0063,Handle (KNOB TK85 - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0063,0,0f0466a3-5e6d-4b2b-a77d-97f95b62b722,2026-10-06T16:39:50.215224+00:00
+HWF-0064,Handle (Motif 15 - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0064,0,9f61c3e0-1735-4253-a142-a0c108e3155e,2026-10-06T16:39:50.215224+00:00
+HWF-0065,Handle (TA14-Hitam - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0065,0,843136c3-e1d3-4c30-b3f1-ae7b49443f49,2026-10-06T16:39:50.215224+00:00
+HWF-0066,Handle (TA21-40cm - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0066,0,0824cb35-f4c1-43de-88fa-2f47b38533ef,2026-10-06T16:39:50.215224+00:00
+HWF-0067,Hanger 200-SM (Lifter Slow - Huben),Hardware & Fitting,Pcs,Pcs,0,0,520000.0,HWF-0067,0,1d5cacc3-ae99-4a97-aa7d-e225132418fb,2026-10-06T16:39:50.215224+00:00
+HWF-0068,Hanger Stainless (Bulat - Huben),Hardware & Fitting,Meter,Meter,0,0,20000.0,HWF-0068,0,682eca8f-29b2-4dd2-a915-20a8eaeaff97,2026-10-06T16:39:50.215224+00:00
+HWF-0069,Hanger Stainless (Oval - Huben),Hardware & Fitting,Meter,Meter,0,0,21666.66667,HWF-0069,0,82787073-8371-4118-8bfb-356860094d75,2026-10-06T16:39:50.215224+00:00
+HWF-0070,Kaki Meja (Kotak - 20cm - Stainless),Hardware & Fitting,Pcs,Pcs,0,0,25988.0,HWF-0070,0,d8fcb64d-c25c-47ee-a229-b7fd10d9637e,2026-10-06T16:39:50.215224+00:00
+HWF-0071,Kaki Meja (Segitiga - 10cm - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,11880.0,HWF-0071,0,c3de4673-9b84-4977-991d-e2d3b610780a,2026-10-06T16:39:50.215224+00:00
+HWF-0072,Kapstock (4 Kait - 30cm),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0072,0,f29852bd-f143-4bcd-afc1-423e6ebcac99,2026-10-06T16:39:50.215224+00:00
+HWF-0073,Kunci Laci + Plat (HL138 - Huben),Hardware & Fitting,Pcs,Pcs,0,0,8500.0,HWF-0073,0,df512d89-a607-44b5-ad2e-7cf09735919c,2026-10-06T16:39:50.215224+00:00
+HWF-0074,Lubang Hawa (5x15 - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,6885.0,HWF-0074,0,232f497c-7eef-479b-af7c-8c4edb6614a6,2026-10-06T16:39:50.215224+00:00
+HWF-0075,Lubang Hawa (5x15 - Silver),Hardware & Fitting,Pcs,Pcs,0,0,6885.0,HWF-0075,0,cb38523e-1702-4629-8361-21ba315be915,2026-10-06T16:39:50.215224+00:00
+HWF-0076,Lubang Hawa (5x20 - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0076,0,2324cf29-aac5-4101-bb5c-5cc0820b10ba,2026-10-06T16:39:50.436826+00:00
+HWF-0077,Lubang Hawa (5x20 - Silver),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0077,0,134b4cd5-d173-460a-be91-7f85b06f161c,2026-10-06T16:39:50.436826+00:00
+HWF-0078,Lubang Hawa (8x15 - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0078,0,5847db82-6702-4f3d-bc8e-911861e0b0e2,2026-10-06T16:39:50.436826+00:00
+HWF-0079,Lubang Hawa (8x15 - Silver),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0079,0,3fa656a7-8857-4ef3-a0f0-077802a0ca99,2026-10-06T16:39:50.436826+00:00
+HWF-0080,Lubang Hawa (Stainless - Bulat),Hardware & Fitting,Pcs,Pcs,0,0,2500.0,HWF-0080,0,8f2b107a-62af-47f4-800b-6832d78ebd4b,2026-10-06T16:39:50.436826+00:00
+HWF-0081,Push On (TO3-SS - Huben),Hardware & Fitting,Pcs,Pcs,0,0,6350.0,HWF-0081,0,1c88e12e-2937-428b-83c4-e7f346a1c473,2026-10-06T16:39:50.436826+00:00
+HWF-0082,Push On (Twin),Hardware & Fitting,Pcs,Pcs,0,0,9000.0,HWF-0082,0,0658cc63-9c2b-4da0-a293-196eb8bc7d76,2026-10-06T16:39:50.436826+00:00
+HWF-0083,Push On Besar (TO4-35N - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0083,0,560a1dbd-75a8-425b-b981-0d7dd89e843f,2026-10-06T16:39:50.436826+00:00
+HWF-0084,Push On Kaca (Double - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0084,0,e971d6c2-4011-46f3-8811-6e86093f9a59,2026-10-06T16:39:50.436826+00:00
+HWF-0085,Push On Kaca (Single - Hitam),Hardware & Fitting,Pcs,Pcs,0,0,8000.0,HWF-0085,0,7a8da55c-8b99-489c-96f6-e2ec6052ad46,2026-10-06T16:39:50.436826+00:00
+HWF-0086,Rak Panci (6kait - Hafele),Hardware & Fitting,Pcs,Pcs,0,0,412000.0,HWF-0086,0,58338749-046a-4aee-b478-867acfa13b3d,2026-10-06T16:39:50.436826+00:00
+HWF-0087,Rak Piring (60cm - Huben),Hardware & Fitting,Pcs,Pcs,0,0,147500.0,HWF-0087,0,41211d4a-306f-42e2-b29f-96a057a54c61,2026-10-06T16:39:50.436826+00:00
+HWF-0088,Rak Piring (70cm - Huben),Hardware & Fitting,Pcs,Pcs,0,0,182500.0,HWF-0088,0,d230f341-5dc9-401f-baca-c570c8dbae94,2026-10-06T16:39:50.436826+00:00
+HWF-0089,Rak Piring (80cm - Huben),Hardware & Fitting,Pcs,Pcs,0,0,187000.0,HWF-0089,0,7091c4ba-3c07-43dd-85f0-e28f16423e63,2026-10-06T16:39:50.436826+00:00
+HWF-0090,Rak Piring (90cm - Huben),Hardware & Fitting,Pcs,Pcs,0,0,204600.0,HWF-0090,0,8c6f8cd4-e5e3-4934-b959-ee003cbcf61b,2026-10-06T16:39:50.436826+00:00
+HWF-0091,Rak Piring Laci (30cm),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0091,0,69899c56-9605-48ce-976f-cee9bf79bde1,2026-10-06T16:39:50.436826+00:00
+HWF-0092,Rak Sendok (Uk. Pintu 30cm - Abu),Hardware & Fitting,Pcs,Pcs,0,0,94400.0,HWF-0092,0,f5475594-bcfe-4f35-8135-fe1f357e329a,2026-10-06T16:39:50.436826+00:00
+HWF-0093,Rak Sendok (Uk. Pintu 40cm - Abu),Hardware & Fitting,Pcs,Pcs,0,0,94400.0,HWF-0093,0,6d0c63b1-2ee7-4506-a1fb-88e9839d2df6,2026-10-06T16:39:50.436826+00:00
+HWF-0094,Rak Sendok (Uk. Pintu 50cm - Abu),Hardware & Fitting,Pcs,Pcs,0,0,94400.0,HWF-0094,0,68e987d3-de33-4596-8163-5e0a28cc02a8,2026-10-06T16:39:50.436826+00:00
+HWF-0095,Rel Lemari (Pocket Door - 40cm),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0095,0,b71cd22f-f915-4c06-9668-8c19b82986c2,2026-10-06T16:39:50.436826+00:00
+HWF-0096,Rel Lemari (Pocket Door - 50cm),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0096,0,e3952f66-b1bf-4171-b345-add84570e625,2026-10-06T16:39:50.436826+00:00
+HWF-0097,Rel Meja Tarik (8002 - Winston),Hardware & Fitting,Set,Set,0,0,,HWF-0097,0,e792c72f-fdbd-4289-a463-47babe5116f9,2026-10-06T16:39:50.436826+00:00
+HWF-0098,Rel Sliding Atas (SD 02 - U - Huben),Hardware & Fitting,Batang,Batang,0,0,,HWF-0098,0,4fdc2e95-ef31-4f1a-b847-951b716c6333,2026-10-06T16:39:50.436826+00:00
+HWF-0099,Rel Sliding Atas (SD 452 - A - Huben),Hardware & Fitting,Batang,Batang,0,0,,HWF-0099,0,9859eb9a-1ad4-4c0e-9178-f5f8f98399b6,2026-10-06T16:39:50.436826+00:00
+HWF-0100,Rel Sliding Bawah (SD 02 - M - Huben),Hardware & Fitting,Batang,Batang,0,0,,HWF-0100,0,cdd54b7c-521f-4dab-b43d-2ebc128327ed,2026-10-06T16:39:50.436826+00:00
+HWF-0101,Rel Sliding Bawah (SD 452 - B - Huben),Hardware & Fitting,Batang,Batang,0,0,,HWF-0101,0,cd834258-7e34-4a05-a0cf-9d757ac541b2,2026-10-06T16:39:50.436826+00:00
+HWF-0102,Roda Sliding (SD 3141 - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0102,0,77a5f62b-4d24-4052-b46a-cdf648ce5695,2026-10-06T16:39:50.436826+00:00
+HWF-0103,Set Rel Sliding 452 SD (2Pintu - 2mtr - Huben),Hardware & Fitting,Box,Box,0,0,,HWF-0103,0,e8e8e0c1-a7cc-4f49-8d07-8ba3536bfd13,2026-10-06T16:39:50.436826+00:00
+HWF-0104,Set Rel Sliding 452 SD (2Pintu - 3mtr - Huben),Hardware & Fitting,Box,Box,0,0,,HWF-0104,0,7514a160-ab55-4010-a759-bf8cf6f385df,2026-10-06T16:39:50.436826+00:00
+HWF-0105,Tandem (25cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0105,0,a2aff077-4210-4c4a-ab5a-0d7ac52e065d,2026-10-06T16:39:50.436826+00:00
+HWF-0106,Tandem (25cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0106,0,4537849b-4f96-491b-b3dc-7c755d2bb8f5,2026-10-06T16:39:50.436826+00:00
+HWF-0107,Tandem (25cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0107,0,b9f5fa7b-18da-4e7b-bddc-e1e31fb8d87f,2026-10-06T16:39:50.436826+00:00
+HWF-0108,Tandem (30cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0108,0,2f112c8a-2559-4f61-884b-42b67a980e5c,2026-10-06T16:39:50.436826+00:00
+HWF-0109,Tandem (30cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,77000.0,HWF-0109,0,b3d09150-6355-4145-abb9-d34190683352,2026-10-06T16:39:50.436826+00:00
+HWF-0110,Tandem (30cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,77000.0,HWF-0110,0,590cbfb4-0792-4afa-a567-81073ce45712,2026-10-06T16:39:50.436826+00:00
+HWF-0111,Tandem (35cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0111,0,b2ffe197-b518-4f7d-bdf3-58f2558f222e,2026-10-06T16:39:50.436826+00:00
+HWF-0112,Tandem (35cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0112,0,1a29ce2f-cdd2-4a56-ba3d-b2a7e02f573e,2026-10-06T16:39:50.436826+00:00
+HWF-0113,Tandem (35cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0113,0,02d2c140-f2fb-4d5b-a366-84ede2007b95,2026-10-06T16:39:50.436826+00:00
+HWF-0114,Tandem (40cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0114,0,621e5810-b3ed-4562-b70a-188e86397f78,2026-10-06T16:39:50.436826+00:00
+HWF-0115,Tandem (40cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,86500.0,HWF-0115,0,5daa2b98-f854-413a-b216-0e549e1df820,2026-10-06T16:39:50.436826+00:00
+HWF-0116,Tandem (40cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,86500.0,HWF-0116,0,4836e418-aa17-456c-8d42-ca29b08cef2c,2026-10-06T16:39:50.436826+00:00
+HWF-0117,Tandem (45cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0117,0,ab698871-27ad-4d03-80a7-8649c5f91ae1,2026-10-06T16:39:50.436826+00:00
+HWF-0118,Tandem (45cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,91500.0,HWF-0118,0,ac369614-6a3f-476d-9856-c288c8571ae8,2026-10-06T16:39:50.436826+00:00
+HWF-0119,Tandem (45cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,91500.0,HWF-0119,0,3e55bad9-b439-4ef9-a2dd-4eda5f9c738f,2026-10-06T16:39:50.436826+00:00
+HWF-0120,Tandem (50cm - Hafele),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0120,0,55c5a046-3339-48ca-9521-997c9bb4216e,2026-10-06T16:39:50.436826+00:00
+HWF-0121,Tandem (50cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,97500.0,HWF-0121,0,913995da-24de-45dc-91bf-161dd85eccd6,2026-10-06T16:39:50.436826+00:00
+HWF-0122,Tandem (50cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,97500.0,HWF-0122,0,9446a21b-c7c5-44aa-ab9d-980ba174f03c,2026-10-06T16:39:50.436826+00:00
+HWF-0123,Tandem (55cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0123,0,9f8edb92-a429-45b3-9303-e905a7683ebf,2026-10-06T16:39:50.436826+00:00
+HWF-0124,Tandem (55cm - Huben),Hardware & Fitting,Pasang,Pasang,0,0,,HWF-0124,0,dbef748c-3367-4129-8473-c5ec31e94b6d,2026-10-06T16:39:50.436826+00:00
+HWF-0125,Rak Sendok (Uk. Pintu 70cm - Abu),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0125,0,956e3d14-de72-4515-99af-860c1aaa4f25,2026-10-12T08:39:35.612268+00:00
+HWF-0126,Rak Piring (100cm - Huben),Hardware & Fitting,Pcs,Pcs,0,0,,HWF-0126,0,8bb3e2c3-7d70-4003-8d9e-364c7f796a2a,2026-10-12T09:29:42.485459+00:00
+HWF-0127,Gromet 8x20 Kotak Hitam,Hardware & Fitting,Pcs,Pcs,0,0,17800,HWF-0127,0,60f53966-4c28-48b9-be9f-cefd74d84ddf,2026-10-17T07:15:48.751527+00:00
+KEL-0001,Down - Lampu Downlight Mini (3w - Yamasaki),Kelistrikan & Lampu,Pcs,Pcs,0,0,35000.0,KEL-0001,0,2f980af6-e022-4671-8934-7dfaeeb5ff96,2026-10-06T16:39:50.436826+00:00
+KEL-0002,KB Kabel (2x0.75 - Lotusku),Kelistrikan & Lampu,Meter,Meter,0,0,4190.0,KEL-0002,0,3c458aca-026c-4412-8a5c-e10d0b24b4f3,2026-10-06T16:39:51.046715+00:00
+KEL-0003,KB Kabel (2x1.5 - Lotusku),Kelistrikan & Lampu,Meter,Meter,0,0,,KEL-0003,0,3c07df96-b463-4987-a02e-67248c8aeb03,2026-10-06T16:39:51.046715+00:00
+KEL-0004,KB Kabel (3x1.5 - Lotusku),Kelistrikan & Lampu,Meter,Meter,0,0,9815.0,KEL-0004,0,3114c1a6-ed1d-4d38-97f4-7224f27112dd,2026-10-06T16:39:51.046715+00:00
+KEL-0005,Kabel LED (2x14 - 80m),Kelistrikan & Lampu,Meter,Meter,0,0,994.0,KEL-0005,0,7b6a03c1-b218-4200-9c06-a443dafb914e,2026-10-06T16:39:51.046715+00:00
+KEL-0006,Kepala Colokan (S-28 Bulat - Uticon),Kelistrikan & Lampu,Pcs,Pcs,0,0,9976.0,KEL-0006,0,7b785717-ad94-461d-865a-b6ba07185cfb,2026-10-06T16:39:51.046715+00:00
+KEL-0007,LED (3000K - Huben),Kelistrikan & Lampu,Meter,Meter,0,0,,KEL-0007,0,ee2e21fd-241f-457b-b282-8b2836020cab,2026-10-06T16:39:51.046715+00:00
+KEL-0008,LED (3000k WW - Yamasaki),Kelistrikan & Lampu,Meter,Meter,0,0,,KEL-0008,0,4480b5db-cb77-48df-9387-b426e816e27c,2026-10-06T16:39:51.046715+00:00
+KEL-0009,LED (4000K - Huben),Kelistrikan & Lampu,Meter,Meter,0,0,,KEL-0009,0,ead9e50a-6cb8-46f8-af03-9943d58cdfcb,2026-10-06T16:39:51.046715+00:00
+KEL-0010,LED (4000k NW - Yamasaki),Kelistrikan & Lampu,Meter,Meter,0,0,11500.0,KEL-0010,0,6224577b-fc7c-408f-bea8-420515b9d2aa,2026-10-06T16:39:51.046715+00:00
+KEL-0011,LED (6000K - Huben),Kelistrikan & Lampu,Meter,Meter,0,0,11500.0,KEL-0011,0,fde5a6cb-a825-4438-8ffb-9b04ba22926d,2026-10-06T16:39:51.046715+00:00
+KEL-0012,LED (6000k W - Yamasaki),Kelistrikan & Lampu,Meter,Meter,0,0,11500.0,KEL-0012,0,6374de13-8c88-4363-889d-1fe249a47d66,2026-10-06T16:39:51.046715+00:00
+KEL-0013,LED (6500K - Huben),Kelistrikan & Lampu,Meter,Meter,0,0,,KEL-0013,0,0aa48613-692c-4d65-b921-cbeac1014120,2026-10-06T16:39:51.046715+00:00
+KEL-0014,LED Selang (4000k NW - Yamasaki),Kelistrikan & Lampu,Meter,Meter,0,0,13500.0,KEL-0014,0,949fcafe-549c-4951-9dbd-f3fd6765b836,2026-10-06T16:39:51.046715+00:00
+KEL-0015,RL (Non-Sayap - Hitam),Kelistrikan & Lampu,Meter,Meter,0,0,16666.66667,KEL-0015,0,b64198b6-540d-4057-9f65-64d57a5ec36a,2026-10-06T16:39:51.046715+00:00
+KEL-0016,RL (Non-Sayap - Putih),Kelistrikan & Lampu,Meter,Meter,0,0,,KEL-0016,0,383c4e20-b73c-434b-95f3-0cc5e67b678e,2026-10-06T16:39:51.046715+00:00
+KEL-0017,RL (Sayap - Hitam),Kelistrikan & Lampu,Meter,Meter,0,0,16666.66667,KEL-0017,0,3b58f72a-d987-46ca-bcb6-52aa37b99b71,2026-10-06T16:39:51.046715+00:00
+KEL-0018,RL (Sayap - Putih),Kelistrikan & Lampu,Meter,Meter,0,0,16666.66667,KEL-0018,0,b79dd1af-240f-4fba-8577-3e37c13829a3,2026-10-06T16:39:51.046715+00:00
+KEL-0019,SK Stop Kontak (1gang - Morgen),Kelistrikan & Lampu,Pcs,Pcs,0,0,5825.0,KEL-0019,0,5101f320-d843-4b71-913e-d4fa05d732ef,2026-10-06T16:39:51.046715+00:00
+KEL-0020,SK Stop Kontak (1gang - Schneider),Kelistrikan & Lampu,Pcs,Pcs,0,0,18570.0,KEL-0020,0,d2613b3a-31f6-40d5-9df0-31ab372a1fba,2026-10-06T16:39:51.046715+00:00
+KEL-0021,SK Stop Kontak (2gang - Schneider),Kelistrikan & Lampu,Pcs,Pcs,0,0,53457.0,KEL-0021,0,fad975ac-56aa-4308-abd5-bcc6ca6cd283,2026-10-06T16:39:51.046715+00:00
+KEL-0022,SK Stop Kontak (3gang - Schneider),Kelistrikan & Lampu,Pcs,Pcs,0,0,,KEL-0022,0,e70b1750-03e7-4210-bf21-6a199e29ee2f,2026-10-06T16:39:51.046715+00:00
+KEL-0023,SR Saklar (1gang - Schneider),Kelistrikan & Lampu,Pcs,Pcs,0,0,18570.0,KEL-0023,0,417cab17-994e-4417-baf4-5297f43ca809,2026-10-06T16:39:51.046715+00:00
+KEL-0024,SR Saklar (2gang - Schneider),Kelistrikan & Lampu,Pcs,Pcs,0,0,22830.0,KEL-0024,0,68a95b2e-29cf-4cb7-9417-d75b51d4b4ff,2026-10-06T16:39:51.046715+00:00
+KEL-0025,SR Saklar (3gang - Schneider),Kelistrikan & Lampu,Pcs,Pcs,0,0,,KEL-0025,0,3b371b60-6a7b-4805-b8c2-1a00f2e5f74c,2026-10-06T16:39:51.046715+00:00
+KEL-0026,SR Saklar (Bulat - Hitam),Kelistrikan & Lampu,Pcs,Pcs,0,0,5350.0,KEL-0026,0,e01d8792-8955-4a24-88eb-eebb34f996df,2026-10-06T16:39:51.046715+00:00
+KEL-0027,SR Saklar (Bulat - Putih),Kelistrikan & Lampu,Pcs,Pcs,0,0,5350.0,KEL-0027,0,92b42ab3-d227-453f-874f-91e38d67c8fd,2026-10-06T16:39:51.046715+00:00
+KEL-0028,Spotlight 4000k (3w - Inlite),Kelistrikan & Lampu,Pcs,Pcs,0,0,,KEL-0028,0,b67d0e26-96f0-48b0-8253-b9e3c673c67f,2026-10-06T16:39:51.046715+00:00
+KEL-0029,Spotlight 4000k (5w - Inlite),Kelistrikan & Lampu,Pcs,Pcs,0,0,38547.0,KEL-0029,0,801b71a9-2042-43ad-bec9-8cabd0c850db,2026-10-06T16:39:51.046715+00:00
+KEL-0030,Trafo (10A - Yamasaki),Kelistrikan & Lampu,Pcs,Pcs,0,0,120000.0,KEL-0030,0,90ae5c8d-1659-4eef-b3c4-2807c4f3d94a,2026-10-06T16:39:51.046715+00:00
+KEL-0031,Trafo (15A - Yamasaki),Kelistrikan & Lampu,Pcs,Pcs,0,0,,KEL-0031,0,8159a233-e7a3-48c1-8fdf-1d08a5b011ee,2026-10-06T16:39:51.046715+00:00
+KEL-0032,Trafo (3A - Yamasaki),Kelistrikan & Lampu,Pcs,Pcs,0,0,55000.0,KEL-0032,0,10f2732c-038e-4848-9905-592717557540,2026-10-06T16:39:51.046715+00:00
+KEL-0033,Trafo (5A - Yamasaki),Kelistrikan & Lampu,Pcs,Pcs,0,0,75000.0,KEL-0033,0,2da2b9fe-1e09-44d4-b3fa-e9a9aab15b17,2026-10-06T16:39:51.046715+00:00
+PLY-0001,BB Blockboard (DF - 18 mm),Plywood & Board,Lembar,Lembar,0,0,308000.0,PLY-0001,0,35de8352-ae48-43e5-aebc-a452f1c7a982,2026-10-06T16:39:49.259854+00:00
+PLY-0002,BB Blockboard (Polos - 15 mm),Plywood & Board,Lembar,Lembar,0,0,185000.0,PLY-0002,0,01811357-8bb4-42d1-8d47-e862a85ed857,2026-10-06T16:39:49.259854+00:00
+PLY-0003,BB Blockboard (Polos - 18 mm),Plywood & Board,Lembar,Lembar,0,0,185000.0,PLY-0003,0,8065881f-5c26-46e8-8cc0-409c1eb5b025,2026-10-06T16:39:49.259854+00:00
+PLY-0004,BB Blockboard (SF - 15mm),Plywood & Board,Lembar,Lembar,0,0,243000.0,PLY-0004,0,2009d48a-11a9-4088-889f-95bf35d16afe,2026-10-06T16:39:49.259854+00:00
+PLY-0005,BB Blockboard (SF - 18mm),Plywood & Board,Lembar,Lembar,0,0,243000.0,PLY-0005,0,b6b9df4e-584f-43ce-9744-ef441b5872e4,2026-10-06T16:39:49.259854+00:00
+PLY-0006,HMR (Polos - 12 mm),Plywood & Board,Lembar,Lembar,0,0,,PLY-0006,0,d72d94ee-a8af-4cdf-b83b-c010a8fd7fd0,2026-10-06T16:39:49.259854+00:00
+PLY-0007,HMR (Polos - 15 mm),Plywood & Board,Lembar,Lembar,0,0,,PLY-0007,0,b100d632-2ff3-45b8-beea-518be697536d,2026-10-06T16:39:49.259854+00:00
+PLY-0008,HMR (Polos - 3 mm),Plywood & Board,Lembar,Lembar,0,0,56000.0,PLY-0008,0,0574fe36-8780-4cd2-9a33-d3d59ed343fe,2026-10-06T16:39:49.259854+00:00
+PLY-0009,HMR (Polos - 6 mm),Plywood & Board,Lembar,Lembar,0,0,107000.0,PLY-0009,0,41e3aaed-3a77-4f93-8a42-9dae0fa845be,2026-10-06T16:39:49.259854+00:00
+PLY-0010,HMR (Polos - 9 mm),Plywood & Board,Lembar,Lembar,0,0,170000.0,PLY-0010,0,2e3cac32-d53e-4752-9040-33a223951913,2026-10-06T16:39:49.259854+00:00
+PLY-0011,HMR (Polos - n),Plywood & Board,Lembar,Lembar,0,0,,PLY-0011,0,9ec7fdf3-313e-4159-8c4c-81f713cf2255,2026-10-06T16:39:49.259854+00:00
+PLY-0012,PVC Board (15mm),Plywood & Board,Lembar,Lembar,0,0,562500.0,PLY-0012,0,386d9c27-c133-4bb3-9b4d-41869dfd8bf0,2026-10-06T16:39:49.259854+00:00
+PLY-0013,PVC Board (18mm),Plywood & Board,Lembar,Lembar,0,0,,PLY-0013,0,0e37c2fb-f3de-4690-80ea-cf5e6b78002e,2026-10-06T16:39:49.259854+00:00
+PLY-0014,Triplek (Bending - 9 mm),Plywood & Board,Lembar,Lembar,0,0,,PLY-0014,0,75c96e36-9525-4348-8f2a-0600ca3c03b5,2026-10-06T16:39:49.259854+00:00
+PLY-0015,Triplek (DF - 18mm),Plywood & Board,Lembar,Lembar,0,0,345000.0,PLY-0015,0,e9fabc4f-f7f0-4753-8a10-c43c10951547,2026-10-06T16:39:49.259854+00:00
+PLY-0016,Triplek (Polos - 12mm - BBCC),Plywood & Board,Lembar,Lembar,0,0,164000.0,PLY-0016,0,746c23c5-567b-49af-b61d-57995ccc7fa0,2026-10-06T16:39:49.259854+00:00
+PLY-0017,Triplek (Polos - 15mm - BBCC),Plywood & Board,Lembar,Lembar,0,0,191000.0,PLY-0017,0,4b8ab305-fe7b-49ae-8504-adab40c6985f,2026-10-06T16:39:49.259854+00:00
+PLY-0018,Triplek (Polos - 18mm - BBCC),Plywood & Board,Lembar,Lembar,0,0,221000.0,PLY-0018,0,5f61851c-57ae-4110-97fa-cd3fa0afd056,2026-10-06T16:39:49.259854+00:00
+PLY-0019,Triplek (Polos - 3mm - BBCC),Plywood & Board,Lembar,Lembar,0,0,,PLY-0019,0,c1b85cec-cec7-4d5a-8e52-d2d47cbee8ad,2026-10-06T16:39:49.259854+00:00
+PLY-0020,Triplek (Polos - 6mm - BBCC),Plywood & Board,Lembar,Lembar,0,0,85000.0,PLY-0020,0,32546962-e5da-49a6-bb02-8bd9d187afd0,2026-10-06T16:39:49.259854+00:00
+PLY-0021,Triplek (Polos - 9mm - BBCC),Plywood & Board,Lembar,Lembar,0,0,135000.0,PLY-0021,0,ede7481e-983b-4b58-9652-b9d195669e78,2026-10-06T16:39:49.259854+00:00
+PLY-0022,Triplek (SF - 12mm),Plywood & Board,Lembar,Lembar,0,0,209000.0,PLY-0022,0,b97b35d6-102c-469d-8bdb-fa4469c84d76,2026-10-06T16:39:49.259854+00:00
+PLY-0023,Triplek (SF - 15mm),Plywood & Board,Lembar,Lembar,0,0,,PLY-0023,0,995711a0-1cd9-4e57-ac18-d72ccec3adcd,2026-10-06T16:39:49.259854+00:00
+PLY-0024,Triplek (SF - 18mm),Plywood & Board,Lembar,Lembar,0,0,275000.0,PLY-0024,0,1d06526e-d6c8-4327-b695-65f220ea3753,2026-10-06T16:39:49.259854+00:00
+PLY-0025,Triplek (SF - 6mm),Plywood & Board,Lembar,Lembar,0,0,143000.0,PLY-0025,0,ed76ee86-d3ac-41f0-8166-bb152c60904c,2026-10-06T16:39:49.259854+00:00
+PLY-0026,Triplek (SF - 9mm),Plywood & Board,Lembar,Lembar,0,0,170000.0,PLY-0026,0,24e40b79-c864-41a2-b6e0-625d5e22ef4d,2026-10-06T16:39:49.259854+00:00
+PLY-0027,Triplek ALBA BTR (18mm - Abadi Klender),Plywood & Board,Lembar,Lembar,0,0,,PLY-0027,0,8152eebe-f567-4046-863c-98fe07ce8993,2026-10-06T16:39:49.259854+00:00
+PLY-0028,Triplek MC (12mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0028,0,ab315117-573b-4c5c-99ee-1416cb599c32,2026-10-06T16:39:49.259854+00:00
+PLY-0029,Triplek MC (15mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0029,0,24520385-41a9-4d57-8e39-6baa08b3322c,2026-10-06T16:39:49.259854+00:00
+PLY-0030,Triplek MC (18mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0030,0,2e943d17-1bcf-4088-9882-91f1038f09d9,2026-10-06T16:39:49.259854+00:00
+PLY-0031,Triplek MC (9mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0031,0,68adb102-3ae8-4b7a-be9b-ba3d2fe1d308,2026-10-06T16:39:49.259854+00:00
+PLY-0032,Triplek Max Happan (18mm - Abadi Klender),Plywood & Board,Lembar,Lembar,0,0,,PLY-0032,0,dd0ea37e-0578-4e3e-8424-0720cf16e9b8,2026-10-06T16:39:49.259854+00:00
+PLY-0033,Triplek Max Happan (9mm - Abadi Klender),Plywood & Board,Lembar,Lembar,0,0,,PLY-0033,0,df72e4ad-e033-458b-8751-daf5e5540ced,2026-10-06T16:39:49.259854+00:00
+PLY-0034,Triplek Meranti Uty (18mm - Abadi Klender),Plywood & Board,Lembar,Lembar,0,0,,PLY-0034,0,d8d08f58-d2a3-4633-b107-c77a21d8ecd9,2026-10-06T16:39:49.259854+00:00
+PLY-0035,Triplek Meranti Uty (9mm - Abadi Klender),Plywood & Board,Lembar,Lembar,0,0,,PLY-0035,0,ffaa06d9-fb87-406b-af52-f0cca4504de1,2026-10-06T16:39:49.259854+00:00
+PLY-0036,Triplek Uty (12mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0036,0,6632271f-ea29-40f4-a1ef-ce73a09f6376,2026-10-06T16:39:49.259854+00:00
+PLY-0037,Triplek Uty (15mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0037,0,948d4d8b-96a0-4241-84c7-67a09db554a0,2026-10-06T16:39:49.259854+00:00
+PLY-0038,Triplek Uty (18mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0038,0,889762d1-bc56-42e0-aa27-a1a37e176dc5,2026-10-06T16:39:49.259854+00:00
+PLY-0039,Triplek Uty (9mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0039,0,1552a0c8-8963-4d8c-9faa-298a94c4958d,2026-10-06T16:39:49.259854+00:00
+PLY-0040,Triplek Uty A (12mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0040,0,6dc577a8-dcde-41a4-9d4b-015870493f53,2026-10-06T16:39:49.259854+00:00
+PLY-0041,Triplek Uty A (15mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0041,0,41002c02-74d5-4b90-af28-26436cff1810,2026-10-06T16:39:49.259854+00:00
+PLY-0042,Triplek Uty A (18mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0042,0,6c5eb4a8-8aeb-45f1-9d08-8b962b5ba4b3,2026-10-06T16:39:49.259854+00:00
+PLY-0043,Triplek Uty A (9mm - Tanjung Jayaprima Abadi),Plywood & Board,Lembar,Lembar,0,0,,PLY-0043,0,f340c4ab-f6f5-42a9-a371-26678364763f,2026-10-06T16:39:49.259854+00:00
+WPC-0001,List Siku WPC (Abu Doff - 24mm),WPC & Panel,Meter,Meter,0,0,,WPC-0001,0,9f946641-e7ab-4294-8c34-6e3769e5d9eb,2026-10-06T16:39:49.960278+00:00
+WPC-0002,WPC CAOSO (Abu Doff - 24mm),WPC & Panel,Meter,Meter,0,0,,WPC-0002,0,fd3bbde0-5765-42c5-8d9c-b41b5e4189af,2026-10-06T16:39:49.960278+00:00
+WPC-0003,WPC CAOSO (Capucino Serat - 10mm),WPC & Panel,Meter,Meter,0,0,,WPC-0003,0,a9871dc0-bc8b-4d06-97b3-d9d1478cc23f,2026-10-06T16:39:49.960278+00:00
+WPC-0004,WPC CAOSO (Capucino Serat - 24mm),WPC & Panel,Meter,Meter,0,0,,WPC-0004,0,4506a921-9fc2-4b41-af79-3285e31e2c5b,2026-10-06T16:39:49.960278+00:00
+WPC-0005,WPC CAOSO (Kayu Kuning Serat - 10mm),WPC & Panel,Meter,Meter,0,0,,WPC-0005,0,bd4c9351-33f7-4974-9029-f12cb3bd4ae5,2026-10-06T16:39:49.960278+00:00
+WPC-0006,WPC CAOSO (Kayu Kuning Serat - 24mm),WPC & Panel,Meter,Meter,0,0,109900.0,WPC-0006,0,7377ea11-dd22-41af-8c84-c476061cc616,2026-10-06T16:39:49.960278+00:00
+WPC-0007,WPC CAOSO Kayu Coklat 10mm,WPC & Panel,Meter,Meter,0,0,99900,WPC-0007,0,0c32a62c-8ac0-4484-bec2-cf401304cbc4,2026-10-17T07:15:48.751527+00:00
+WPC-0008,WPC CAOSO Kayu Coklat Tua 10mm,WPC & Panel,Meter,Meter,0,0,99900,WPC-0008,0,5d33b5db-0ea3-4e65-8c43-e5bc67295e93,2026-10-17T07:15:48.751527+00:00

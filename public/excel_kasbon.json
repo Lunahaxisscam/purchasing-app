@@ -1,0 +1,1086 @@
+{
+  "asep": [
+    {
+      "row": 6,
+      "tanggal": "2026-09-19",
+      "jenis": "Kasbon",
+      "deskripsi": "Kasbon 19 Sept untuk tukang Asep (Transfer BCA ke rekening Andini, BRI)",
+      "metode": "BCA (BI-FAST)",
+      "nominal": 2000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 7,
+      "tanggal": "2026-09-26",
+      "jenis": "Kasbon",
+      "deskripsi": "Kasbon 26 Sept untuk tukang Asep (Transfer blu by BCA Digital ke rekening Andini, BRI)",
+      "metode": "blu by BCA Digital (BI-FAST)",
+      "nominal": 3500000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 8,
+      "tanggal": "2026-10-04",
+      "jenis": "Kasbon mingguan",
+      "deskripsi": "Kasbon mingguan untuk tukang Asep (Transfer ke rekening Andini, BRI)",
+      "metode": "Blibli / PAPER",
+      "nominal": 2000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 9,
+      "tanggal": "2026-10-10",
+      "jenis": "Kasbon mingguan",
+      "deskripsi": "Kasbon mingguan - kasbon 10 Oct (Transfer BCA ke rekening Andini, BRI)",
+      "metode": "BCA (BI-FAST)",
+      "nominal": 2000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 10,
+      "tanggal": "2026-10-12",
+      "jenis": "Kasbon totalan",
+      "deskripsi": "Kasbon totalan - kasbon asep 12 Oct (Transfer BCA BI-FAST ke rekening Andini, BRI)",
+      "metode": "BCA (BI-FAST)",
+      "nominal": 2845000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 11,
+      "tanggal": "2026-10-17",
+      "jenis": "Kasbon mingguan",
+      "deskripsi": "Kasbon mingguan - kasbon 17 Oct (Transfer BCA BI-FAST ke rekening Andini, BRI)",
+      "metode": "BCA (BI-FAST)",
+      "nominal": 2500000,
+      "bukti": "Bukti Kasbon.jpg"
+    }
+  ],
+  "pujon": [
+    {
+      "row": 6,
+      "tanggal": "2024-12-07",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 7,
+      "tanggal": "2024-12-14",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 8,
+      "tanggal": "2024-12-21",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 9,
+      "tanggal": "2024-12-24",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 10,
+      "tanggal": "2024-12-28",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 12,
+      "tanggal": "2025-01-02",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 1000000,
+      "bukti": ""
+    },
+    {
+      "row": 13,
+      "tanggal": "2025-01-11",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2500000,
+      "bukti": ""
+    },
+    {
+      "row": 14,
+      "tanggal": "2025-01-18",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2500000,
+      "bukti": ""
+    },
+    {
+      "row": 15,
+      "tanggal": "2025-01-25",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2000000,
+      "bukti": ""
+    },
+    {
+      "row": 17,
+      "tanggal": "2025-02-01",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2850000,
+      "bukti": ""
+    },
+    {
+      "row": 18,
+      "tanggal": "2025-02-08",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 19,
+      "tanggal": "2025-02-15",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 20,
+      "tanggal": "2025-02-22",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2500000,
+      "bukti": ""
+    },
+    {
+      "row": 22,
+      "tanggal": "2025-03-01",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2000000,
+      "bukti": ""
+    },
+    {
+      "row": 23,
+      "tanggal": "2025-03-08",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2500000,
+      "bukti": ""
+    },
+    {
+      "row": 24,
+      "tanggal": "2025-03-15",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2500000,
+      "bukti": ""
+    },
+    {
+      "row": 25,
+      "tanggal": "2025-03-22",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 2500000,
+      "bukti": ""
+    },
+    {
+      "row": 26,
+      "tanggal": "2025-03-27",
+      "jenis": "Kasbon",
+      "deskripsi": "Kasbon totalan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 27,
+      "tanggal": "2025-03-29",
+      "jenis": "Kasbon",
+      "deskripsi": "Kasbon totalan",
+      "metode": "",
+      "nominal": 7000000,
+      "bukti": ""
+    },
+    {
+      "row": 29,
+      "tanggal": "2025-04-12",
+      "jenis": "Kasbon",
+      "deskripsi": "Kasbon totalan",
+      "metode": "",
+      "nominal": 5459000,
+      "bukti": ""
+    },
+    {
+      "row": 30,
+      "tanggal": "2025-04-19",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 31,
+      "tanggal": "2025-04-26",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 33,
+      "tanggal": "2025-05-03",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 34,
+      "tanggal": "2025-05-10",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 35,
+      "tanggal": "2025-05-17",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 36,
+      "tanggal": "2025-05-24",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 37,
+      "tanggal": "2025-05-31",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 39,
+      "tanggal": "2025-06-07",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 40,
+      "tanggal": "2025-06-14",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 41,
+      "tanggal": "2025-06-21",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 6000000,
+      "bukti": ""
+    },
+    {
+      "row": 42,
+      "tanggal": "2025-06-28",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 44,
+      "tanggal": "2025-07-06",
+      "jenis": "Pelunasan Lama",
+      "deskripsi": "Pelunasan",
+      "metode": "paper",
+      "nominal": 10000000,
+      "bukti": ""
+    },
+    {
+      "row": 45,
+      "tanggal": "2025-07-12",
+      "jenis": "Pelunasan Lama",
+      "deskripsi": "Pelunasan",
+      "metode": "trf",
+      "nominal": 6000000,
+      "bukti": ""
+    },
+    {
+      "row": 46,
+      "tanggal": "2025-07-19",
+      "jenis": "Pelunasan Lama",
+      "deskripsi": "Pelunasan",
+      "metode": "paper",
+      "nominal": 8000000,
+      "bukti": ""
+    },
+    {
+      "row": 47,
+      "tanggal": "2025-07-26",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "paper",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 49,
+      "tanggal": "2025-08-02",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "paper",
+      "nominal": 4500000,
+      "bukti": ""
+    },
+    {
+      "row": 50,
+      "tanggal": "2025-08-09",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 51,
+      "tanggal": "2025-08-16",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 52,
+      "tanggal": "2025-08-23",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "paper",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 53,
+      "tanggal": "2025-08-30",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "paper",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 55,
+      "tanggal": "2025-09-06",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 56,
+      "tanggal": "2025-09-13",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 57,
+      "tanggal": "2025-09-20",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 58,
+      "tanggal": "2025-09-27",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "paper + trf (3+1)",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 60,
+      "tanggal": "2025-10-04",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 61,
+      "tanggal": "2025-10-12",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 62,
+      "tanggal": "2025-10-14",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon pelunasan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 63,
+      "tanggal": "2025-10-18",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 64,
+      "tanggal": "2025-10-25",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 65,
+      "tanggal": "2025-10-25",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon pelunasan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 67,
+      "tanggal": "2025-11-01",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 68,
+      "tanggal": "2025-11-01",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon pelunasan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 69,
+      "tanggal": "2025-11-08",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 70,
+      "tanggal": "2025-11-15",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 71,
+      "tanggal": "2025-11-22",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 72,
+      "tanggal": "2025-11-29",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 74,
+      "tanggal": "2025-12-06",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 75,
+      "tanggal": "2025-12-13",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 76,
+      "tanggal": "2025-12-20",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 77,
+      "tanggal": "2025-12-27",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 6000000,
+      "bukti": ""
+    },
+    {
+      "row": 79,
+      "tanggal": "2026-01-03",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 80,
+      "tanggal": "2026-01-10",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 81,
+      "tanggal": "2026-01-17",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 82,
+      "tanggal": "2026-01-24",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 83,
+      "tanggal": "2026-01-31",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "paper",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 84,
+      "tanggal": "2026-01-31",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 625000,
+      "bukti": ""
+    },
+    {
+      "row": 86,
+      "tanggal": "2026-02-02",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 87,
+      "tanggal": "2026-02-07",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 88,
+      "tanggal": "2026-02-14",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 89,
+      "tanggal": "2026-02-21",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 90,
+      "tanggal": "2026-02-28",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 92,
+      "tanggal": "2026-03-07",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "paper",
+      "nominal": 3000000,
+      "bukti": ""
+    },
+    {
+      "row": 93,
+      "tanggal": "2026-03-07",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "trf",
+      "nominal": 1000000,
+      "bukti": ""
+    },
+    {
+      "row": 94,
+      "tanggal": "2026-03-14",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 95,
+      "tanggal": "2026-03-18",
+      "jenis": "Kasbon",
+      "deskripsi": "Kasbon pulang",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 97,
+      "tanggal": "2026-03-19",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon pulang",
+      "metode": "",
+      "nominal": 15000000,
+      "bukti": ""
+    },
+    {
+      "row": 99,
+      "tanggal": "2026-04-02",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 101,
+      "tanggal": "2026-04-11",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 102,
+      "tanggal": "2026-04-18",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 103,
+      "tanggal": "2026-04-25",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 104,
+      "tanggal": "2026-04-28",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon totalan",
+      "metode": "paper",
+      "nominal": 8000000,
+      "bukti": ""
+    },
+    {
+      "row": 106,
+      "tanggal": "2026-05-02",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 107,
+      "tanggal": "2026-05-03",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon totalan",
+      "metode": "",
+      "nominal": 3774000,
+      "bukti": ""
+    },
+    {
+      "row": 108,
+      "tanggal": "2026-05-09",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 109,
+      "tanggal": "2026-05-16",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 110,
+      "tanggal": "2026-05-23",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 7000000,
+      "bukti": ""
+    },
+    {
+      "row": 111,
+      "tanggal": "2026-05-30",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 113,
+      "tanggal": "2026-06-06",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4500000,
+      "bukti": ""
+    },
+    {
+      "row": 114,
+      "tanggal": "2026-06-13",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4500000,
+      "bukti": ""
+    },
+    {
+      "row": 115,
+      "tanggal": "2026-06-20",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 116,
+      "tanggal": "2026-06-27",
+      "jenis": "Kasbon",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4500000,
+      "bukti": ""
+    },
+    {
+      "row": 118,
+      "tanggal": "2026-07-05",
+      "jenis": "Pelunasan Lama",
+      "deskripsi": "Totalan trf",
+      "metode": "",
+      "nominal": 2178000,
+      "bukti": ""
+    },
+    {
+      "row": 119,
+      "tanggal": "2026-07-05",
+      "jenis": "Pelunasan Lama",
+      "deskripsi": "Totalan paper",
+      "metode": "",
+      "nominal": 13000000,
+      "bukti": ""
+    },
+    {
+      "row": 120,
+      "tanggal": "2026-07-12",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 121,
+      "tanggal": "2026-07-12",
+      "jenis": "",
+      "deskripsi": "kasbon totalan",
+      "metode": "",
+      "nominal": 5197000,
+      "bukti": ""
+    },
+    {
+      "row": 122,
+      "tanggal": "2026-07-19",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 6000000,
+      "bukti": ""
+    },
+    {
+      "row": 123,
+      "tanggal": "2026-07-26",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 6000000,
+      "bukti": ""
+    },
+    {
+      "row": 125,
+      "tanggal": "2026-08-01",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 7000000,
+      "bukti": ""
+    },
+    {
+      "row": 126,
+      "tanggal": "2026-08-08",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 7000000,
+      "bukti": ""
+    },
+    {
+      "row": 127,
+      "tanggal": "2026-08-16",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 128,
+      "tanggal": "2026-08-16",
+      "jenis": "",
+      "deskripsi": "Uang Motor",
+      "metode": "",
+      "nominal": 5500000,
+      "bukti": ""
+    },
+    {
+      "row": 129,
+      "tanggal": "2026-08-22",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 130,
+      "tanggal": "2026-08-29",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5500000,
+      "bukti": ""
+    },
+    {
+      "row": 132,
+      "tanggal": "2026-09-05",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 133,
+      "tanggal": "2026-09-05",
+      "jenis": "",
+      "deskripsi": "kasbon totalan",
+      "metode": "",
+      "nominal": 7000000,
+      "bukti": ""
+    },
+    {
+      "row": 134,
+      "tanggal": "2026-09-12",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5000000,
+      "bukti": ""
+    },
+    {
+      "row": 135,
+      "tanggal": "2026-09-19",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 5500000,
+      "bukti": ""
+    },
+    {
+      "row": 136,
+      "tanggal": "2026-09-26",
+      "jenis": "",
+      "deskripsi": "kasbon mingguan",
+      "metode": "",
+      "nominal": 4000000,
+      "bukti": ""
+    },
+    {
+      "row": 137,
+      "tanggal": "2026-10-04",
+      "jenis": "Kasbon mingguan",
+      "deskripsi": "Kasbon mingguan 4 Oct (transfer BCA ke rekening Pujianto)",
+      "metode": "Transfer BCA",
+      "nominal": 4000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 138,
+      "tanggal": "2026-10-04",
+      "jenis": "Kasbon totalan",
+      "deskripsi": "Kasbon totalan 4 Oct (transfer BCA ke rekening Pujianto)",
+      "metode": "Transfer BCA",
+      "nominal": 6000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 139,
+      "tanggal": "2026-10-10",
+      "jenis": "Kasbon mingguan",
+      "deskripsi": "Kasbon mingguan - kasbon 10 Oct (Transfer BCA ke rekening Pujianto)",
+      "metode": "Transfer BCA",
+      "nominal": 3000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 140,
+      "tanggal": "2026-10-10",
+      "jenis": "Kasbon totalan",
+      "deskripsi": "Kasbon totalan - kasbon 10 Oct (Transfer BCA ke rekening Pujianto)",
+      "metode": "Transfer BCA",
+      "nominal": 5000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 141,
+      "tanggal": "2026-10-18",
+      "jenis": "Kasbon totalan",
+      "deskripsi": "Kasbon totalan - kasbon 18 Oct (Transfer BCA ke rekening Pujianto)",
+      "metode": "Transfer BCA",
+      "nominal": 8000000,
+      "bukti": "Bukti Kasbon.jpg"
+    },
+    {
+      "row": 142,
+      "tanggal": "2026-10-17",
+      "jenis": "Kasbon mingguan",
+      "deskripsi": "Kasbon mingguan - kasbon 17 Oct (Transfer BCA ke rekening Pujianto)",
+      "metode": "Transfer BCA",
+      "nominal": 3000000,
+      "bukti": "Bukti Kasbon.jpg"
+    }
+  ]
+}
