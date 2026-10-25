@@ -14,7 +14,6 @@ import Settings from '../components/Settings'
 import Module from '../components/ModuleView'
 import BoqModule from '../modules/rab-boq/view'
 import SalesInvoiceModule from '../modules/sales-invoice/view'
-import RapModule from '../modules/rap/view'
 // t_02e5f5fd: modul "Stok Workshop" — halaman source:'core' (read-only,
 // dirender langsung di sini), pola sama dengan RAB & BOQ / Invoice Penjualan.
 import StockModule from '../modules/stock/view'
@@ -840,7 +839,7 @@ export default function App() {
               Resolusi konflik port Marketing (7ce9414): daftar HEAD dipertahankan
               UTUH (termasuk 'rap' yang ditambahkan integrasi S3) dan 'marketing'
               ditambahkan — jangan sampai port modul baru menghapus rute lain. */}
-          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap', 'rap_compare', 'crm', 'labor_stock', 'marketing', 'settings', 'upah_kasbon'].includes(page) && (
+          {!['planning', 'project_finance', 'finance', 'tukang_upah', 'rab_boq', 'sales_invoice', 'rap_compare', 'crm', 'labor_stock', 'marketing', 'settings', 'upah_kasbon'].includes(page) && (
             <button className="outline" onClick={loadAll}>↻ Perbarui</button>
           )}
         </header>
@@ -1045,22 +1044,6 @@ export default function App() {
           )
         ) : page === 'settings' ? (
           <Settings role={role} session={session} />
-        ) : page === 'rap' ? (
-          // RAP (t_71d95cfe) — rencana anggaran PELAKSANAAN internal,
-          // admin-only (pola guard 3 lapis yang sama dengan RAB & BOQ).
-          // Modul ini DRAFT-ONLY: tidak ada tabel RAP dan tidak ada tulisan
-          // DB dari halaman ini (lihat docs/rap-contract.md). Guard render
-          // di sini mencegah non-admin yang memaksa page='rap'.
-          role === 'admin' ? (
-            <RapModule
-              projects={rows.projects || []}
-              say={setNotice}
-              setPage={setPage}
-              session={session}
-            />
-          ) : (
-            <div className="panel empty">Halaman ini khusus administrator.</div>
-          )
         ) : page === 'rap_compare' ? (
           // ============================================================
           // MODUL PERBANDINGAN RAB vs RAP vs AKTUAL (t_a5ba5f73)

@@ -71,10 +71,10 @@ export default function Dashboard({ rows, activeProjects, pastProjects, setPage,
   const adminCards = role === 'admin' ? [
     ['rab_boq', 'RAB & BOQ', 'Kalkulator', 'tone-neutral'],
     ['sales_invoice', 'Invoice Penjualan', 'Baru', 'tone-neutral'],
-    // t_35cd0354 (integrasi): modul baru WAJIB bisa DIBUKA dari UI, bukan
-    // stub yang hanya hidup lewat manipulasi state. Semua rute di bawah
-    // dirender pages/index.js (source:'core') dengan guard admin.
-    ['rap', 'RAP (Rencana Pelaksanaan)', 'DRAFT_ONLY', 'tone-neutral'],
+    // t_ff6ef6da (arahan DAT): kartu pintasan RAP DIHAPUS dari dashboard —
+    // modulnya dilepas dari aplikasi (registry, label, route, komponen).
+    // Pola sama seperti labor_stock/marketing: kartunya memang tidak lagi
+    // dimasukkan ke daftar (bukan disembunyikan lewat CSS).
     // t_4f37cdd1 (arahan DAT): kartu pintasan Perbandingan RAB/RAP/Aktual
     // HILANG dari dashboard — pola sama seperti labor_stock/marketing di
     // atas: memang tidak dimasukkan ke daftar (bukan CSS-hidden). Data

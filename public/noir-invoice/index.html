@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Noir Invoice Generator — lokal</title>
     <meta name="description" content="Generator invoice Noir: form, draft lokal, preview dan PDF A4." />
-    <script type="module" crossorigin src="./assets/index-BUznbiZp.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BXPsFftk.css">
+    <script type="module" crossorigin src="./assets/index-BEKA5rK2.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DKVcs14_.css">
   </head>
   <body>
     <header class="topbar">
@@ -39,8 +39,8 @@
         <div class="tabpane is-active" data-pane="invoice">
           <div class="field-grid">
             <label class="field">
-              <span>Nomor invoice <em>manual, disimpan apa adanya</em></span>
-              <input type="text" id="invoiceNo" placeholder="mis. NL26/005/02" autocomplete="off" />
+              <span>Nomor invoice <em class="auto-tag">otomatis — boleh diubah bila perlu</em></span>
+              <input type="text" id="invoiceNo" placeholder="mis. NL26/001/10" autocomplete="off" />
             </label>
             <label class="field">
               <span>Tanggal invoice</span>
@@ -54,6 +54,11 @@
 
           <h3 class="section-title">Bill To</h3>
           <div class="field-grid">
+            <div class="field field-wide crm-picker" id="crm-picker" hidden>
+              <span>Pilih dari CRM <em>opsional — owner &amp; alamat terisi otomatis</em></span>
+              <select id="crmSelect" aria-label="Pilih customer dari CRM"></select>
+            </div>
+            <p class="crm-note field-wide" id="crm-note" hidden></p>
             <label class="field">
               <span>Project owner / penerima</span>
               <input type="text" id="billTo.projectOwner" placeholder="nama penerima tagihan" autocomplete="off" />
@@ -93,10 +98,16 @@
           </div>
           <div id="lines" class="lines"></div>
 
-          <h3 class="section-title">Pajak <em>opsional, tanpa tarif default</em></h3>
-          <label class="check">
-            <input type="checkbox" id="tax.enabled" />
-            <span>Hitung pajak pada invoice ini</span>
+          <h3 class="section-title">Pajak <em>opsional — bisa ada atau tidak</em></h3>
+          <label class="switch-row" id="tax-switch-row">
+            <span class="switch">
+              <input type="checkbox" id="tax.enabled" role="switch" aria-controls="tax-fields" />
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            </span>
+            <span class="switch-text">
+              <b>Pakai pajak</b>
+              <em id="tax-switch-hint">mati — tanpa baris pajak di preview &amp; PDF</em>
+            </span>
           </label>
           <div id="tax-fields" class="field-grid tax-fields" hidden>
             <label class="field">
@@ -162,7 +173,7 @@
               <input type="text" id="payment.transferVia" placeholder="mis. Bank - IDR" autocomplete="off" />
             </label>
             <label class="field field-wide">
-              <span>Rekening <em>isi hanya nomor yang sudah terverifikasi</em></span>
+              <span>Rekening</span>
               <input type="text" id="payment.bankLines" placeholder="nomor rekening & atas nama" autocomplete="off" />
             </label>
             <label class="field field-wide">
@@ -180,16 +191,6 @@
             <label class="field">
               <span>Jabatan</span>
               <input type="text" id="signature.signerTitle" placeholder="jabatan" autocomplete="off" />
-            </label>
-          </div>
-
-          <h3 class="section-title">Backup JSON</h3>
-          <p class="hint">Ekspor/impor draft sebagai file JSON agar tidak hilang saat cache browser dibersihkan.</p>
-          <div class="button-row">
-            <button type="button" class="btn btn-ghost" id="btn-export">Ekspor JSON</button>
-            <label class="btn btn-ghost file-btn">
-              Impor JSON
-              <input type="file" id="import-file" accept="application/json,.json" hidden />
             </label>
           </div>
         </div>

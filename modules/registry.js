@@ -242,28 +242,6 @@ export const modules = [
     ]
   },
   {
-    // RAP — Rencana Anggaran Pelaksana (t_71d95cfe). Rencana internal tim
-    // pelaksana yang DITURUNKAN dari RAB: qty & harga satuan versi sendiri,
-    // label versi + status, dan perbandingan RAB vs RAP. Halaman
-    // source:'core' (dirender pages/index.js, bukan tabel ModuleView).
-    // TIDAK ADA tabel DB (freeze migrasi) -> mode DRAFT_ONLY: draft hidup di
-    // sesi + backup JSON manual, dan UI menyatakan "belum tersimpan di
-    // server". Lihat docs/rap-contract.md.
-    id: 'rap',
-    label: 'RAP (Rencana Pelaksanaan)',
-    adminOnly: true,
-    source: 'core',
-    files: [
-      'modules/rap/view.jsx',
-      'modules/rap/model.js',
-      'modules/rap/budgetingBridge.js',
-      'modules/rap/store.js',
-      'modules/rap/README.md',
-      'docs/rap-contract.md',
-      'scripts/rap-test/run.py'
-    ]
-  },
-  {
     // Modul "Stok Workshop" (t_02e5f5fd) — READ-ONLY, admin-only.
     // Halaman sendiri (source:'core', dirender pages/index.js) seperti
     // RAB & BOQ & Invoice Penjualan: tampilannya kumpulan kartu ringkas,

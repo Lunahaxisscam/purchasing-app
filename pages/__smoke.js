@@ -7,7 +7,6 @@ import React from 'react'
 import Module from '../components/ModuleView'
 import Create from '../components/CreateModal'
 import PurchasePage from '../modules/receivings/page'
-import RapModule from '../modules/rap/view'
 import SalesInvoiceModule from '../modules/sales-invoice/view'
 // t_35cd0354 (integrasi): modul Bit Dev yang kini ter-wire — dirender di
 // smoke build supaya error render tertangkap saat build, bukan saat dibuka
@@ -187,16 +186,6 @@ export default function SmokePage() {
           }}
           refresh={noop}
           say={noop}
-        />
-      </section>
-      {/* Modul RAP (t_71d95cfe): halaman sendiri, DRAFT_ONLY (tanpa tabel DB).
-          Dirender di smoke build supaya error render tertangkap saat build. */}
-      <section id="mod-rap">
-        <RapModule
-          projects={mock.projects}
-          say={noop}
-          setPage={noop}
-          session={null}
         />
       </section>
       {/* Modul Invoice Penjualan (t_22865fc4): halaman sendiri. Dirender dengan

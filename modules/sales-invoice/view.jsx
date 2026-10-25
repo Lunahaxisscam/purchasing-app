@@ -18,9 +18,9 @@
 //     untuk file JSON yang hilang saat deploy.
 // ============================================================
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import CompactRoot from '../../components/CompactRoot'
-import CreateInvoiceModal from './CreateInvoiceModal'
+import { supabase } from '../../lib/supabaseClient'
 import { buildSalesInvoicePdf, downloadPdf, missingPaymentFields, missingIssuerFields } from './pdf'
 // Template RESMI (hasil gabungan generator invoice): layout A4 Noir dengan
 // termin, tabel item, dan tanda tangan. Dipakai sebagai PDF utama.
@@ -112,12 +112,88 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   const [loadError, setLoadError] = useState('')
   const [filterStatus, setFilterStatus] = useState('ALL')
   const [search, setSearch] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  // (legacy modal create dihapus — tombol "+ Buat" kini membuka view Generator)
   const [busyId, setBusyId] = useState(null)
   const [dialog, setDialog] = useState(null) // { type, invoice }
   const [salesView, setSalesView] = useState('daftar') // 'daftar' | 'generator' — holder isolasi (t_32990a92), tanpa fetch Supabase
   const [actionError, setActionError] = useState('')
   const [notice, setNotice] = useState('')
+
+  // ---------------------------------------------------------------------
+  // CRM → Generator (t_78f581e0)
+  // Parent mengambil daftar customer SEKALI saat mount, lalu menaruhnya di
+  // window.__NOIR_CRM__ (array biasa: {id, nama, alamat, proyek}) dan
+  // memanggil __noirCrmUpdate() milik iframe. Iframe TIDAK memegang
+  // kredensial/Supabase — hanya menerima nama & alamat (baca saja).
+  // Gagal RLS/network → status 'error', generator menampilkan catatan
+  // "Data CRM tidak termuat — isi manual" dan form tetap normal.
+  // ---------------------------------------------------------------------
+  const generatorRef = useRef(null)
+  const crmRef = useRef({ status: 'loading', items: [], message: '' })
+  const projectsRef = useRef(projects)
+  // Sumber proyek sama dengan effectiveProjects (allProjects diutamakan)
+  // supaya nama proyek untuk "Referensi proyek" konsisten dengan tabel.
+  projectsRef.current = (allProjects && allProjects.length > 0) ? allProjects : (projects || [])
+
+  const pushCrmToFrame = useCallback(() => {
+    const payload = crmRef.current || { status: 'error', items: [], message: '' }
+    try {
+      if (typeof window !== 'undefined') {
+        window.__NOIR_CRM__ = payload.items
+        window.__NOIR_CRM_STATE__ = { status: payload.status, message: payload.message || '' }
+      }
+    } catch (e) { /* window tidak tersedia (SSR) — abaikan */ }
+    try {
+      const frame = generatorRef.current
+      const fn = frame && frame.contentWindow && frame.contentWindow.__noirCrmUpdate
+      if (typeof fn === 'function') {
+        fn({ items: payload.items, status: payload.status, message: payload.message || '' })
+      }
+    } catch (e) { /* iframe belum siap / lintas origin — generator tetap manual */ }
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    const fail = (message) => {
+      if (!alive) return
+      crmRef.current = { status: 'error', items: [], message: message || 'Data CRM tidak termuat — isi manual' }
+      pushCrmToFrame()
+    }
+    async function loadCustomers() {
+      if (!supabase) { fail('Data CRM tidak termuat — isi manual'); return }
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id,nama,alamat,status')
+          .order('nama', { ascending: true })
+        if (!alive) return
+        if (error) { fail('Data CRM tidak termuat — isi manual'); return }
+        // Nama proyek pertama milik customer (opsional, untuk Referensi proyek).
+        const byCustomer = new Map()
+        for (const p of projectsRef.current || []) {
+          const cid = p && p.customer_id != null ? String(p.customer_id) : ''
+          if (!cid || byCustomer.has(cid)) continue
+          const label = String((p && (p.name || p.project_name || p.nama)) || '').trim()
+          if (label) byCustomer.set(cid, label)
+        }
+        const list = (data || [])
+          .map((c) => ({
+            id: c && c.id != null ? String(c.id) : '',
+            nama: String((c && c.nama) || '').trim(),
+            alamat: String((c && c.alamat) || '').trim(),
+            proyek: byCustomer.get(String(c && c.id)) || ''
+          }))
+          .filter((c) => c.nama)
+        if (!alive) return
+        crmRef.current = { status: list.length ? 'ok' : 'empty', items: list, message: '' }
+        pushCrmToFrame()
+      } catch (e) {
+        fail('Data CRM tidak termuat — isi manual')
+      }
+    }
+    loadCustomers()
+    return () => { alive = false }
+  }, [pushCrmToFrame])
 
   const effectiveProjects = useMemo(() => {
     return (allProjects && allProjects.length > 0) ? allProjects : (projects || [])
@@ -243,7 +319,17 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   const filtered = useMemo(() => {
     return items.filter(inv => {
       if (filterStatus !== 'ALL') {
-        if (String(inv.status || '').toUpperCase() !== filterStatus) return false
+        const st = String(inv.status || '').toUpperCase()
+        if (filterStatus === 'DRAFT') {
+          // Draft = status DRAFT saja
+          if (st !== 'DRAFT') return false
+        } else if (filterStatus === 'TERBIT') {
+          // Terbit = semua yang sudah lewat dari draft (TERBIT/TERKIRIM/DISETUJUI/DITOLAK/LUNAS)
+          if (st === 'DRAFT' || st === 'BATAL' || st === 'VOID') return false
+        } else if (filterStatus === 'VOID') {
+          // Void = invoice yang sudah dibatalkan (voidInvoice menyimpan status 'BATAL')
+          if (st !== 'BATAL' && st !== 'VOID') return false
+        }
       }
       if (search.trim()) {
         const q = search.trim().toLowerCase()
@@ -300,13 +386,9 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
       <div className="si-intro">
         <div className="si-intro-copy">
           <strong>Invoice Penjualan</strong>
-          <span>
-            Alur bisnis: CRM (identitas customer) &rarr; RAB final yang disetujui
-            customer &rarr; Invoice &rarr; penerbitan nomor Master Project.
-          </span>
         </div>
         <div className="si-header-actions">
-          <button type="button" className="si-btn-create" onClick={() => setIsModalOpen(true)}>
+          <button type="button" className="si-btn-create" onClick={() => setSalesView('generator')} title="Buka Noir Invoice Generator">
             + Buat Invoice Penjualan
           </button>
         </div>
@@ -326,23 +408,16 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
 
       {loadError && <div className="si-alert si-alert-err">{loadError}</div>}
 
-      {/* SUB-NAV ISOLASI — Daftar vs Generator (zero-coupling, t_32990a92 review t_c3ba9830).
-          Generator mount = iframe public/noir-invoice/index.html — tanpa Supabase,
-          tanpa baca rows/projects, tanpa share tabel/RPC. */}
-      <div className="si-subnav" role="tablist" aria-label="Sub-view Invoice Penjualan" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '0 0 14px', flexWrap: 'wrap' }}>
-        <button type="button" role="tab" aria-selected={salesView === 'daftar'} className={`si-subnav-btn ${salesView === 'daftar' ? 'is-on' : ''}`} onClick={() => setSalesView('daftar')} style={{ background: salesView === 'daftar' ? '#4b523a' : '#f4f5f1', color: salesView === 'daftar' ? '#fff' : '#555', border: '1px solid ' + (salesView === 'daftar' ? '#4b523a' : '#dcdfd6'), borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: salesView === 'daftar' ? 700 : 500, cursor: 'pointer' }}>Daftar Invoice</button>
-        <button type="button" role="tab" aria-selected={salesView === 'generator'} className={`si-subnav-btn ${salesView === 'generator' ? 'is-on' : ''}`} onClick={() => setSalesView('generator')} style={{ background: salesView === 'generator' ? '#4b523a' : '#f4f5f1', color: salesView === 'generator' ? '#fff' : '#555', border: '1px solid ' + (salesView === 'generator' ? '#4b523a' : '#dcdfd6'), borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: salesView === 'generator' ? 700 : 500, cursor: 'pointer' }}>Generator</button>
-        <span className="si-subnav-note" style={{ fontSize: 11, color: '#6b705c', marginLeft: 6 }}>Generator = Noir Invoice (standalone, localStorage per-origin, tanpa data purchasing)</span>
-      </div>
-
       {salesView === 'generator' ? (
         <div className="si-generator-holder" data-testid="sales-invoice-generator" style={{ background: '#fff', border: '1px solid #e0e2db', borderRadius: 12, overflow: 'hidden', margin: '0 0 16px' }}>
           <div className="si-generator-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fcfdfb', borderBottom: '1px solid #e0e2db', flexWrap: 'wrap' }}>
-            <span className="si-generator-label" style={{ fontSize: 11.5, color: '#4b523a', lineHeight: 1.5, maxWidth: 720 }}>Noir Invoice Generator — lokal di dalam halaman sales_invoice (isolasi). Standalone: localStorage per-origin, PDF A4. Toggle “Tampilkan jadwal termin” → isi Total Project → termin 50/40/10 dari Grand Total (sisa ke Term 3).</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button type="button" className="si-generator-back" onClick={() => setSalesView('daftar')} style={{ background: '#f4f5f1', color: '#4b523a', border: '1px solid #dcdfd6', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>← Kembali ke Daftar</button>
+            </div>
             <a className="si-generator-open" href="/noir-invoice/index.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: '#4b523a', textDecoration: 'underline', whiteSpace: 'nowrap' }}>Buka di tab baru ↗</a>
           </div>
-          <iframe title="Noir Invoice Generator (isolated)" src="/noir-invoice/index.html" className="si-generator-frame" loading="lazy" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups" referrerPolicy="no-referrer" style={{ width: '100%', height: '78vh', minHeight: 620, border: 0, display: 'block', background: '#fff' }} />
-          <p className="si-generator-footnote" style={{ margin: 0, padding: '8px 14px', fontSize: 11, color: '#6b705c', background: '#f7f8f5', borderTop: '1px solid #e0e2db', lineHeight: 1.5 }}>Catatan isolasi: iframe ini TIDAK fetch Supabase purchasing, tidak baca rows/projects, tidak share tabel/RPC. Payment Schedule 50/40/10 otomatis dari Grand Total bila schedule enabled &amp; Grand Total&gt;0 — lihat noir-invoice/src/lib/model.js:applyDefaultTermSchedule. Bank placeholder di form: “mis. Bank - IDR” (bukan BCA hard-coded); PDF “— (belum diisi)” bila bank kosong.</p>
+          <iframe ref={generatorRef} onLoad={pushCrmToFrame} title="Noir Invoice Generator (isolated)" src="/noir-invoice/index.html" className="si-generator-frame" loading="lazy" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups" referrerPolicy="no-referrer" style={{ width: '100%', height: '78vh', minHeight: 620, border: 0, display: 'block', background: '#fff' }} />
+          <p className="si-generator-footnote" style={{ margin: 0, padding: '8px 14px', fontSize: 11, color: '#6b705c', background: '#f7f8f5', borderTop: '1px solid #e0e2db', lineHeight: 1.5 }}>Catatan isolasi: iframe ini TIDAK fetch Supabase sendiri — daftar customer CRM dibaca parent sekali saat mount lalu diinjeksikan sebagai window.__NOIR_CRM__ (baca saja: nama &amp; alamat, tanpa kredensial di iframe). Nomor invoice otomatis memakai counter per tahun di localStorage generator (noir-invoice-generator/v1:seq:&lt;tahun&gt;). Payment Schedule 50/40/10 otomatis dari Grand Total bila schedule enabled &amp; Grand Total&gt;0 — lihat noir-invoice/src/lib/model.js:applyDefaultTermSchedule. Bank placeholder di form: “mis. Bank - IDR” (bukan BCA hard-coded); PDF “— (belum diisi)” bila bank kosong.</p>
         </div>
       ) : (
       <>
@@ -384,10 +459,9 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         <div className="si-filter-tabs">
           {[
             { id: 'ALL', label: 'Semua' },
-            { id: 'DRAFT', label: 'Draf' },
+            { id: 'DRAFT', label: 'Draft' },
             { id: 'TERBIT', label: 'Terbit' },
-            { id: 'TERKIRIM', label: 'Terkirim' },
-            { id: 'LUNAS', label: 'Lunas' }
+            { id: 'VOID', label: 'Void' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -565,12 +639,9 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
               baru terbit saat Anda menekan Terbitkan.
             </p>
             <div className="si-empty-action">
-              <button type="button" className="si-btn-create" onClick={() => setIsModalOpen(true)}>
+              <button type="button" className="si-btn-create" onClick={() => setSalesView('generator')}>
                 + Buat Invoice Penjualan Pertama
               </button>
-            </div>
-            <div className="si-empty-note">
-              <b>Alur Bisnis:</b> CRM (Customer) &rarr; RAB Disetujui &rarr; Sales Invoice &rarr; Penerbitan Nomor Master Project.
             </div>
           </div>
         )}
@@ -647,15 +718,9 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         </div>
       )}
 
-      {/* MODAL BUAT INVOICE */}
-      <CreateInvoiceModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); fetchInvoices() }}
-        onSaved={replaceItem}
-        projects={effectiveProjects}
-        existingInvoices={items}
-        say={say}
-      />
+      {/* MODAL BUAT INVOICE — tidak lagi dipicu tombol "+ Buat Invoice Penjualan"
+          (tombol itu sekarang membuka view Generator). Kode modal dipertahankan
+          sebagai nonaktif; tidak dirender. */}
 
       </> /*salesView daftar*/ )}
       <style>{`

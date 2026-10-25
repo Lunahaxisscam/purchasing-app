@@ -1021,11 +1021,12 @@ function renderTotalanForm(){
   const kbBox = document.getElementById('tKasbon')
   const prevK = new Set([...kbBox.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value))
   const sudahAlokasi = alokasiKasbon(d).perKasbon
-  const tglT = document.getElementById('tTanggal').value || todayISO()
   const daftarK = d.kasbon.filter(k => k.jenis === 'Kasbon' && !sudahAlokasi.has(k.id))
     .sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)))
   kbBox.innerHTML = daftarK.length ? daftarK.map(k => {
-    const on = kasbonPickTouched ? prevK.has(k.id) : String(k.tanggal) <= tglT
+    /* Default (belum disentuh): TIDAK ada kasbon tercentang — user mencentang manual.
+     * Setelah disentuh, pilihan mengikuti state user (prevK) seperti sebelumnya. */
+    const on = kasbonPickTouched ? prevK.has(k.id) : false
     return '<label><input type="checkbox" value="' + k.id + '"' + (on ? ' checked' : '') + '> ' + fmtTgl(k.tanggal) + ' — ' + esc(k.deskripsi || 'kasbon') + '<span class="amt">' + fmtRp(k.nominal) + '</span></label>'
   }).join('') : '<span class="note">Tidak ada kasbon yang belum terpotong.</span>'
   updatePreview()

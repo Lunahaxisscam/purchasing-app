@@ -34,6 +34,36 @@ import CreateProjectModal from './CreateProjectModal'
 
 const clone = (v) => JSON.parse(JSON.stringify(v))
 
+// ============================================================
+// t_f14a71ac poin 5 — arahan DAT "Satuannya dibuat hanya 1 digit dibelakang
+// koma". Angka SATUAN/kuantitas (Volume, P, L, P×L, QTY pada baris item dan
+// "Unit cost breakdown") ditampilkan MAKSIMAL 1 desimal (1,01 -> 1 ; 2,55 ->
+// 2,6). Hanya TAMPILAN yang dibulatkan: nilai di state tetap penuh (input
+// masih menerima 1,01) dan rumus internal (calcItem/calcCostPart/calcTotals)
+// TIDAK diubah. Format uang (Unit Price, Amount, subtotal, TOTAL) tetap
+// memakai thousand()/rupiahFromK() apa adanya — itu bukan "satuan".
+// ============================================================
+const fmt1 = (v) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 }).format(Math.round(num(v) * 10) / 10)
+// Varian untuk value <input type="number"> — pemisah desimal wajib titik.
+const fmt1Input = (v) => String(Math.round(num(v) * 10) / 10)
+
+// Input angka satuan. Saat TIDAK difokus, tampilan dibulatkan ke maksimal 1
+// desimal; begitu difokus, nilai penuh dari state muncul lagi supaya bisa
+// diedit presisi. State tidak pernah dibulatkan di sini.
+function UnitInput({ value, onValue, ...rest }) {
+  const [editing, setEditing] = useState(false)
+  return (
+    <input
+      {...rest}
+      type="number"
+      value={editing ? String(num(value)) : fmt1Input(value)}
+      onFocus={() => setEditing(true)}
+      onBlur={() => setEditing(false)}
+      onChange={e => onValue(e.target.value)}
+    />
+  )
+}
+
 function initialMeta() {
   return {
     boqReff: 'BOQ-001',
@@ -503,99 +533,18 @@ export default function BoqModule({ projects = [], refresh }) {
     Download template / Export CSV DIHAPUS dari toolbar beserta helper-nya.
     DATA-LOSS RISIKO dijelaskan eksplisit di bawah (tidak ada autosave/server);
     backup JSON masih mungkin via tautan kecil di baris status (bukan toolbar)
-    agar tombol toolbar bersih sesuai arahan DAT tanpa memutus jalur pemulihan. ===== */}
+    agar tombol toolbar bersih sesuai arahan DAT tanpa memutus jalur pemulihan.
+
+    t_4bc5e333 (arahan DAT): blok copy header dua baris (judul + subteks
+    ajakan menyusun BOQ) DIHAPUS. Div .boq-utility-copy hanya berisi dua teks
+    itu sehingga ikut dihapus — wrapper .boq-utility tetap dipertahankan
+    (margin-bottom + titik jangkar toolbar Export PDF), dan .boq-utility kini
+    justify-content:flex-end agar tombol tetap rata kanan tanpa copy di kiri. ===== */}
       <div className="boq-utility">
-        <div className="boq-utility-copy">
-          <strong>Quotation sheet</strong>
-          <span>Build your BOQ and calculate costs on one page.</span>
-        </div>
         <div className="boq-header-tools">
           <div className="boq-header-actions">
             <button type="button" className="boq-btn boq-btn-primary" onClick={exportPdf}>Export PDF</button>
           </div>
-        </div>
-      </div>
-
-      {/* ===== Status penawaran (run 58 — feedback DAT): alur bisnis
-          Belum dikirim -> Terkirim -> Disetujui/Ditolak. EXPORT PDF BUKAN bukti
-          terkirim: 'Tandai terkirim' dicatat admin EKSPLISIT setelah pengiriman
-          nyata (email/WA di luar sistem) — tidak ada kirim otomatis. Keputusan
-          mencatat tanggal + siapa (eksternal bila ada) + catatan alasan;
-          Disetujui mengunci versi (revisi lanjut = versi baru, riwayat versi
-          terkirim tidak ditimpa). PROTOTYPE: status hanya di memori halaman —
-          snapshot/status BUTUH dukungan DB (freeze migrasi; usulan spec minimal
-          di README modul). Tidak ada klaim tersimpan/autosave. ===== */}
-      <div className="boq-offer-status" data-testid="boq-offer-status">
-        <div className="boq-offer-status-head">
-          <strong>Status penawaran</strong>
-          <span className={'boq-status-badge boq-status-' + (offerStatus.status || 'DRAFT')}>
-            {offerStatus.status === 'TERKIRIM' ? 'Terkirim' : offerStatus.status === 'DISETUJUI' ? 'Disetujui' : offerStatus.status === 'DITOLAK' ? 'Ditolak' : 'Belum dikirim'}
-          </span>
-        </div>
-        <div className="boq-status-meta">
-          {offerStatus.status === 'DRAFT' && <span>Belum dikirim — penawaran masih draft lokal. Ekspor PDF, kirim manual, lalu catat statusnya di sini.</span>}
-          {offerStatus.status === 'TERKIRIM' && (
-            <span>
-              Dikirim {offerStatus.sentAt || '—'} oleh {offerStatus.sentBy || '—'} · versi {offerStatus.version?.revision || meta.revisionNumber}
-              {offerStatus.version?.grand ? ` · total ${offerStatus.version.grand}` : ''} · menunggu keputusan klien.
-            </span>
-          )}
-          {offerStatus.status === 'DISETUJUI' && (
-            <span>
-              ✓ Disetujui {offerStatus.decidedAt || '—'}{offerStatus.decidedBy ? ` oleh (eksternal): ${offerStatus.decidedBy}` : ''} · versi terkunci {offerStatus.version?.revision || meta.revisionNumber} — revisi lanjut dibuat sebagai versi baru, riwayat tidak ditimpa. Status ini TIDAK otomatis membuat PR/Budgeting/Revenue (RAB final existing tetap sumber finance).
-            </span>
-          )}
-          {offerStatus.status === 'DITOLAK' && (
-            <span>
-              ✗ Ditolak {offerStatus.decidedAt || '—'}{offerStatus.decidedBy ? ` oleh (eksternal): ${offerStatus.decidedBy}` : ''}{offerStatus.note ? ` · alasan: ${offerStatus.note}` : ''} · buat revisi/versi baru lalu kirim ulang.
-            </span>
-          )}
-        </div>
-        <div className="boq-status-actions">
-          {offerStatus.status === 'DRAFT' && (
-            <button type="button" className="boq-btn" onClick={markSent}>Tandai terkirim</button>
-          )}
-          {offerStatus.status === 'TERKIRIM' && (
-            <>
-              <button type="button" className="boq-btn boq-btn-primary" onClick={() => setShowDecisionForm(v => !v)}>Catat keputusan</button>
-              <button type="button" className="boq-btn boq-btn-ghost" onClick={backToDraft}>Batalkan (kembali draft)</button>
-            </>
-          )}
-          {(offerStatus.status === 'DISETUJUI' || offerStatus.status === 'DITOLAK') && (
-            <button type="button" className="boq-btn boq-btn-ghost" onClick={backToDraft} title="Prototype: reset status — implementasi final butuh tabel status di DB (freeze migrasi)">Reset status (prototype)</button>
-          )}
-        </div>
-        {showDecisionForm && offerStatus.status === 'TERKIRIM' && (
-          <div className="boq-decision-form">
-            <div className="boq-control-row">
-              <div className="boq-compact-field">
-                <label htmlFor="boq-decision">Keputusan</label>
-                <select id="boq-decision" value={decisionResult} onChange={e => setDecisionResult(e.target.value)}>
-                  <option value="DISETUJUI">Disetujui</option>
-                  <option value="DITOLAK">Ditolak</option>
-                </select>
-              </div>
-              <div className="boq-compact-field">
-                <label htmlFor="boq-decidedBy">Disetujui/ditolak oleh (eksternal)</label>
-                <input id="boq-decidedBy" value={decisionBy} onChange={e => setDecisionBy(e.target.value)} placeholder="Nama klien/pihak eksternal (opsional)" autoComplete="off" />
-              </div>
-            </div>
-            <div className="boq-compact-field">
-              <label htmlFor="boq-decisionNote">{decisionResult === 'DITOLAK' ? 'Alasan penolakan' : 'Catatan keputusan'}</label>
-              <textarea id="boq-decisionNote" value={decisionNote} onChange={e => setDecisionNote(e.target.value)} rows={2} />
-            </div>
-            <div className="boq-decision-actions">
-              <button type="button" className="boq-btn boq-btn-primary" onClick={saveDecision}>Simpan keputusan</button>
-              <button type="button" className="boq-btn boq-btn-ghost" onClick={() => setShowDecisionForm(false)}>Batal</button>
-            </div>
-          </div>
-        )}
-        <div className="boq-status-persist">
-          <span>
-            Data BOQ &amp; status ada di halaman ini saja — <b>TIDAK tersimpan di server</b> (belum ada dukungan DB; freeze migrasi){sentVersions.length > 0 ? ` · riwayat versi terkirim sesi ini: ${sentVersions.length}` : ''}. Backup manual:
-          </span>
-          <button type="button" className="boq-quiet-link" onClick={saveDraft} title="Unduh seluruh isi BOQ (termasuk status penawaran prototype) sebagai file JSON">⬇ Backup JSON</button>
-          <button type="button" className="boq-quiet-link" onClick={() => fileRef.current && fileRef.current.click()} title="Pulihkan dari file JSON hasil Backup">⬆ Pulihkan JSON</button>
         </div>
       </div>
 
@@ -630,25 +579,42 @@ export default function BoqModule({ projects = [], refresh }) {
               <input id="boq-pname" value={meta.projectName} onChange={e => setMetaField('projectName', e.target.value)} autoComplete="off" /></div>
             {/* t_18564dce run 58 (feedback DAT screenshot 1792153939917): Project
                 Reff No terikat Master Project — readonly, computed PRJ-<kode master>.
-                Tidak ada free text/dummy; pilih master via panel di bawah ini. */}
+                Tidak ada free text/dummy; pilih master via picker.
+                t_f14a71ac poin 2 (arahan DAT "hapus ini"): dua kontrol berteks
+                sama (input placeholder "Pilih master project" + tombol toggle
+                "⌄ Pilih master project…") DIGABUNG jadi satu: input readonly
+                yang sama sekarang juga membuka picker. */}
             <div className="boq-field boq-field-reff">
               <label htmlFor="boq-prjreff">Project Reff No</label>
-              <input id="boq-prjreff" value={meta.projectReffNo} readOnly aria-readonly="true" aria-live="polite" placeholder="Pilih master project" />
-              <div className="boq-reff-link">
-                {selectedProject ? (
-                  <>
-                    <span className="boq-reff-linked" title={`Master Project ${selectedProject.kode ?? selectedProject.code ?? ''} — ${selectedProject.name || ''}`}>
-                      ⧉ Master {String(selectedProject.kode ?? selectedProject.code ?? '')} · {selectedProject.name || ''}
-                    </span>
-                    <button type="button" className="boq-link-btn" onClick={() => setShowProjectPicker(v => !v)}>Ganti</button>
-                    <button type="button" className="boq-link-btn" onClick={clearProjectLink}>Lepas</button>
-                  </>
-                ) : (
-                  <button type="button" className="boq-link-btn" onClick={() => setShowProjectPicker(v => !v)} aria-expanded={showProjectPicker}>
-                    {showProjectPicker ? 'Tutup' : '⌄ Pilih master project…'}
-                  </button>
-                )}
-              </div>
+              {/* t_f14a71ac poin 2 (arahan DAT "hapus ini"): SATU kontrol.
+                  Input readonly ini sekaligus pemicu picker (klik / Enter /
+                  Space) — placeholder "Pilih master project" hanya muncul
+                  SEKALI di sini, tombol toggle duplikat di bawahnya dihapus.
+                  Saat sudah terhubung, input menampilkan PRJ-<kode> dan baris
+                  tautan Master + Ganti/Lepas muncul di bawahnya. */}
+              <input
+                id="boq-prjreff"
+                className="boq-reff-trigger"
+                value={meta.projectReffNo}
+                readOnly
+                aria-readonly="true"
+                aria-live="polite"
+                placeholder="Pilih master project"
+                aria-haspopup="listbox"
+                aria-expanded={showProjectPicker ? 'true' : 'false'}
+                onClick={() => setShowProjectPicker(v => !v)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowProjectPicker(v => !v) } }}
+                title="Klik untuk memilih master project"
+              />
+              {selectedProject && (
+                <div className="boq-reff-link">
+                  <span className="boq-reff-linked" title={`Master Project ${selectedProject.kode ?? selectedProject.code ?? ''} — ${selectedProject.name || ''}`}>
+                    ⧉ Master {String(selectedProject.kode ?? selectedProject.code ?? '')} · {selectedProject.name || ''}
+                  </span>
+                  <button type="button" className="boq-link-btn" onClick={() => setShowProjectPicker(v => !v)}>Ganti</button>
+                  <button type="button" className="boq-link-btn" onClick={clearProjectLink}>Lepas</button>
+                </div>
+              )}
             </div>
             <div className="boq-field"><label htmlFor="boq-reff">BOQ Reff</label>
               <input id="boq-reff" value={meta.boqReff} readOnly aria-readonly="true" /></div>
@@ -711,7 +677,9 @@ export default function BoqModule({ projects = [], refresh }) {
 
           {plainPanelVisible && (
             <div className="boq-plain-choices show">
-              <p className="boq-choice-heading">Choose {selectedTemplate} work items to add to the BOQ</p>
+              {/* t_f14a71ac poin 3 (arahan DAT "hapus"): heading
+                  "Choose {template} work items to add to the BOQ" dihapus.
+                  Grid pilihan item di bawahnya tetap utuh. */}
               <div className="boq-choice-grid">
                 {plainChoices.map(choice => (
                   <label className="boq-choice-card" key={choice.id}>
@@ -724,7 +692,13 @@ export default function BoqModule({ projects = [], refresh }) {
                     <span>{choice.name}</span>
                   </label>
                 ))}
-                <button type="button" className="boq-choice-add" onClick={() => setPlainAdding(true)}>＋ Add item</button>
+                {/* t_f14a71ac poin 4 (arahan DAT "hapus"): tombol dashed
+                    "＋ Add item" di akhir daftar pilihan template DIHAPUS.
+                    CATATAN: tombol itu satu-satunya pemicu setPlainAdding(true),
+                    jadi form "Custom item name" di bawah kini tidak bisa dibuka
+                    dari UI (dibiarkan sebagai kode mati sampai DAT memutuskan).
+                    Penambah baris item utama (className boq-add-row, onClick
+                    addItem) TETAP ADA di bawah tabel. */}
                 {plainAdding && (
                   <div className="boq-choice-form show">
                     <input
@@ -942,6 +916,92 @@ export default function BoqModule({ projects = [], refresh }) {
         </aside>
       </div>
 
+      {/* t_f14a71ac poin 1 (arahan DAT "pindahkan ke bagian bawah"): kartu
+          STATUS PENAWARAN dipindah ke bawah konten utama BOQ. Isi, tombol,
+          alur status, dan Backup/Pulihkan JSON TIDAK berubah — hanya posisi. */}
+      {/* ===== Status penawaran (run 58 — feedback DAT): alur bisnis
+          Belum dikirim -> Terkirim -> Disetujui/Ditolak. EXPORT PDF BUKAN bukti
+          terkirim: 'Tandai terkirim' dicatat admin EKSPLISIT setelah pengiriman
+          nyata (email/WA di luar sistem) — tidak ada kirim otomatis. Keputusan
+          mencatat tanggal + siapa (eksternal bila ada) + catatan alasan;
+          Disetujui mengunci versi (revisi lanjut = versi baru, riwayat versi
+          terkirim tidak ditimpa). PROTOTYPE: status hanya di memori halaman —
+          snapshot/status BUTUH dukungan DB (freeze migrasi; usulan spec minimal
+          di README modul). Tidak ada klaim tersimpan/autosave. ===== */}
+      <div className="boq-offer-status" data-testid="boq-offer-status">
+        <div className="boq-offer-status-head">
+          <strong>Status penawaran</strong>
+          <span className={'boq-status-badge boq-status-' + (offerStatus.status || 'DRAFT')}>
+            {offerStatus.status === 'TERKIRIM' ? 'Terkirim' : offerStatus.status === 'DISETUJUI' ? 'Disetujui' : offerStatus.status === 'DITOLAK' ? 'Ditolak' : 'Belum dikirim'}
+          </span>
+        </div>
+        <div className="boq-status-meta">
+          {offerStatus.status === 'DRAFT' && <span>Belum dikirim — penawaran masih draft lokal. Ekspor PDF, kirim manual, lalu catat statusnya di sini.</span>}
+          {offerStatus.status === 'TERKIRIM' && (
+            <span>
+              Dikirim {offerStatus.sentAt || '—'} oleh {offerStatus.sentBy || '—'} · versi {offerStatus.version?.revision || meta.revisionNumber}
+              {offerStatus.version?.grand ? ` · total ${offerStatus.version.grand}` : ''} · menunggu keputusan klien.
+            </span>
+          )}
+          {offerStatus.status === 'DISETUJUI' && (
+            <span>
+              ✓ Disetujui {offerStatus.decidedAt || '—'}{offerStatus.decidedBy ? ` oleh (eksternal): ${offerStatus.decidedBy}` : ''} · versi terkunci {offerStatus.version?.revision || meta.revisionNumber} — revisi lanjut dibuat sebagai versi baru, riwayat tidak ditimpa. Status ini TIDAK otomatis membuat PR/Budgeting/Revenue (RAB final existing tetap sumber finance).
+            </span>
+          )}
+          {offerStatus.status === 'DITOLAK' && (
+            <span>
+              ✗ Ditolak {offerStatus.decidedAt || '—'}{offerStatus.decidedBy ? ` oleh (eksternal): ${offerStatus.decidedBy}` : ''}{offerStatus.note ? ` · alasan: ${offerStatus.note}` : ''} · buat revisi/versi baru lalu kirim ulang.
+            </span>
+          )}
+        </div>
+        <div className="boq-status-actions">
+          {offerStatus.status === 'DRAFT' && (
+            <button type="button" className="boq-btn" onClick={markSent}>Tandai terkirim</button>
+          )}
+          {offerStatus.status === 'TERKIRIM' && (
+            <>
+              <button type="button" className="boq-btn boq-btn-primary" onClick={() => setShowDecisionForm(v => !v)}>Catat keputusan</button>
+              <button type="button" className="boq-btn boq-btn-ghost" onClick={backToDraft}>Batalkan (kembali draft)</button>
+            </>
+          )}
+          {(offerStatus.status === 'DISETUJUI' || offerStatus.status === 'DITOLAK') && (
+            <button type="button" className="boq-btn boq-btn-ghost" onClick={backToDraft} title="Prototype: reset status — implementasi final butuh tabel status di DB (freeze migrasi)">Reset status (prototype)</button>
+          )}
+        </div>
+        {showDecisionForm && offerStatus.status === 'TERKIRIM' && (
+          <div className="boq-decision-form">
+            <div className="boq-control-row">
+              <div className="boq-compact-field">
+                <label htmlFor="boq-decision">Keputusan</label>
+                <select id="boq-decision" value={decisionResult} onChange={e => setDecisionResult(e.target.value)}>
+                  <option value="DISETUJUI">Disetujui</option>
+                  <option value="DITOLAK">Ditolak</option>
+                </select>
+              </div>
+              <div className="boq-compact-field">
+                <label htmlFor="boq-decidedBy">Disetujui/ditolak oleh (eksternal)</label>
+                <input id="boq-decidedBy" value={decisionBy} onChange={e => setDecisionBy(e.target.value)} placeholder="Nama klien/pihak eksternal (opsional)" autoComplete="off" />
+              </div>
+            </div>
+            <div className="boq-compact-field">
+              <label htmlFor="boq-decisionNote">{decisionResult === 'DITOLAK' ? 'Alasan penolakan' : 'Catatan keputusan'}</label>
+              <textarea id="boq-decisionNote" value={decisionNote} onChange={e => setDecisionNote(e.target.value)} rows={2} />
+            </div>
+            <div className="boq-decision-actions">
+              <button type="button" className="boq-btn boq-btn-primary" onClick={saveDecision}>Simpan keputusan</button>
+              <button type="button" className="boq-btn boq-btn-ghost" onClick={() => setShowDecisionForm(false)}>Batal</button>
+            </div>
+          </div>
+        )}
+        <div className="boq-status-persist">
+          <span>
+            Data BOQ &amp; status ada di halaman ini saja — <b>TIDAK tersimpan di server</b> (belum ada dukungan DB; freeze migrasi){sentVersions.length > 0 ? ` · riwayat versi terkirim sesi ini: ${sentVersions.length}` : ''}. Backup manual:
+          </span>
+          <button type="button" className="boq-quiet-link" onClick={saveDraft} title="Unduh seluruh isi BOQ (termasuk status penawaran prototype) sebagai file JSON">⬇ Backup JSON</button>
+          <button type="button" className="boq-quiet-link" onClick={() => fileRef.current && fileRef.current.click()} title="Pulihkan dari file JSON hasil Backup">⬆ Pulihkan JSON</button>
+        </div>
+      </div>
+
       <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={onImportFile} />
       <div className={'boq-toast' + (toast ? ' show' : '')} role="status" aria-live="polite">{toast}</div>
 
@@ -1001,7 +1061,7 @@ function ItemRow({ item, index, availableItems, useManual, pricePlaceholder, uni
         </td>
         <td data-label="Area"><input value={item.area} onChange={e => onField(index, 'area', e.target.value)} placeholder="Area" aria-label="Area" /></td>
         <td data-label="General specs."><input value={item.specs} onChange={e => onField(index, 'specs', e.target.value)} placeholder="Material / specifications" aria-label="General specs" /></td>
-        <td data-label="Vol"><input className="boq-num" type="number" min="0" step="0.01" value={item.qty} onChange={e => onField(index, 'qty', e.target.value)} aria-label="Volume" /></td>
+        <td data-label="Vol"><UnitInput className="boq-num" min="0" step="0.01" value={item.qty} onValue={v => onField(index, 'qty', v)} aria-label="Volume" /></td>
         <td data-label="MEA">
           <select value={item.unit} onChange={e => onField(index, 'unit', e.target.value)} aria-label="Unit">
             {units.map(u => <option key={u} value={u}>{u}</option>)}
@@ -1046,14 +1106,14 @@ function ItemRow({ item, index, availableItems, useManual, pricePlaceholder, uni
                       <input value={part.name} onChange={e => onCostField(index, partIndex, 'name', e.target.value)} aria-label="Cost component name" />
                     </div>
                     <div className="boq-cost-cell" data-label="P">
-                      <input className="boq-cost-number" type="number" min="0" step="0.01" value={part.length} onChange={e => onCostField(index, partIndex, 'length', e.target.value)} aria-label="Length" />
+                      <UnitInput className="boq-cost-number" min="0" step="0.01" value={part.length} onValue={v => onCostField(index, partIndex, 'length', v)} aria-label="Length" />
                     </div>
                     <div className="boq-cost-cell" data-label="L">
-                      <input className="boq-cost-number" type="number" min="0" step="0.01" value={part.width} onChange={e => onCostField(index, partIndex, 'width', e.target.value)} aria-label="Width" />
+                      <UnitInput className="boq-cost-number" min="0" step="0.01" value={part.width} onValue={v => onCostField(index, partIndex, 'width', v)} aria-label="Width" />
                     </div>
-                    <div className="boq-cost-cell boq-cost-area" data-label="P×L">{thousand(calcCostArea(part))}</div>
+                    <div className="boq-cost-cell boq-cost-area" data-label="P×L">{fmt1(calcCostArea(part))}</div>
                     <div className="boq-cost-cell" data-label="Qty">
-                      <input className="boq-cost-number" type="number" min="0" step="0.01" value={part.qty} onChange={e => onCostField(index, partIndex, 'qty', e.target.value)} aria-label="Component quantity" />
+                      <UnitInput className="boq-cost-number" min="0" step="0.01" value={part.qty} onValue={v => onCostField(index, partIndex, 'qty', v)} aria-label="Component quantity" />
                     </div>
                     <div className="boq-cost-cell" data-label="Unit Price (000)">
                       <input className="boq-cost-number" type="number" min="0" step="1" value={part.unitPrice} onChange={e => onCostField(index, partIndex, 'unitPrice', e.target.value)} aria-label="Unit price in thousand IDR" />
@@ -1102,7 +1162,11 @@ const boqScopedCss = `
    Status: badge berwarna jelas (Belum dikirim/Terkirim/Disetujui/Ditolak),
    aksi eksplisit di blok sendiri (bukan di toolbar export), persistensi
    dijelaskan jujur + backup/pulih JSON kecil (pemulihan data tetap ada). */
-.boq-offer-status { margin:0 0 14px; padding:12px 15px; border:1px solid var(--boq-line); border-left:4px solid var(--boq-brand-dark); border-radius:10px; background:var(--boq-surface-2); }
+/* t_f14a71ac poin 1: kartu status penawaran kini di BAWAH konten utama BOQ
+   (dipindah dari atas workspace) — margin atas menggantikan margin bawah lama
+   supaya jarak ke tabel/sidebar di atasnya tetap 14px dan tidak ada gap
+   menggantung di dasar halaman. */
+.boq-offer-status { margin:14px 0 0; padding:12px 15px; border:1px solid var(--boq-line); border-left:4px solid var(--boq-brand-dark); border-radius:10px; background:var(--boq-surface-2); }
 .boq-offer-status-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .boq-offer-status-head strong { font-size:12px; font-weight:700; color:var(--boq-ink); letter-spacing:.02em; text-transform:uppercase; }
 .boq-status-badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
@@ -1118,9 +1182,7 @@ const boqScopedCss = `
 .boq-quiet-link { min-height:24px; padding:2px 8px; border:0; border-radius:6px; background:transparent; color:var(--boq-brand-dark); font-size:10.5px; font-weight:700; text-decoration:underline; text-underline-offset:2px; }
 .boq-quiet-link:hover { color:var(--boq-brand-deep); background:var(--boq-brand-soft); }
 .boq-quiet-link:focus-visible { outline:2px solid var(--boq-focus); outline-offset:1px; }
-.boq-utility { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:14px; }
-.boq-utility-copy strong { display:block; font-weight:700; font-size:17px; letter-spacing:-.01em; }
-.boq-utility-copy span { color:var(--text-muted); font-size:12px; }
+.boq-utility { display:flex; align-items:center; justify-content:flex-end; gap:18px; margin-bottom:14px; }
 .boq-header-tools { display:grid; gap:5px; justify-items:end; }
 .boq-header-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 .boq-draft-note { margin:0; color:var(--text-muted); font-size:10px; text-align:right; }
@@ -1154,6 +1216,11 @@ const boqScopedCss = `
 /* t_18564dce run 58: baris tautan Master Project di bawah input Project Reff No.
    (grid 6 kolom existing dipertahankan — baris link tumbuh ke bawah, bukan
    menambah kolom, sehingga tidak merusak layout rapat milik source). */
+/* t_f14a71ac poin 2: input Project Reff No kini SATU-SATUNYA kontrol pemilih
+   master project (klik / Enter / Space membuka picker) — beri affordance klik
+   tanpa menambah teks/tombol duplikat. */
+.boq-field-reff .boq-reff-trigger { cursor:pointer; }
+.boq-field-reff .boq-reff-trigger:hover { border-bottom-color:var(--boq-line-strong); }
 .boq-field-reff .boq-reff-link { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
 .boq-field-reff .boq-reff-linked { font-size:10px; font-weight:700; color:var(--boq-brand-dark); letter-spacing:.02em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
 .boq-link-btn { min-height:24px; padding:2px 8px; border:1px solid var(--boq-line-strong); border-radius:6px; background:var(--boq-surface); color:var(--boq-brand-dark); font-size:10px; font-weight:700; }
@@ -1193,13 +1260,14 @@ const boqScopedCss = `
 .boq-template-pill.active { background:#3d4435; border-color:#3d4435; color:#ffffff; }
 .boq-template-pill.active:hover { background:#60664d; border-color:#60664d; color:#ffffff; }
 .boq-plain-choices { padding:14px 15px; border-bottom:1px solid var(--boq-line); background:var(--boq-paper); }
-.boq-choice-heading { margin:0 0 10px; color:var(--text-muted); font-size:10px; font-weight:700; letter-spacing:.045em; text-transform:uppercase; }
+/* t_f14a71ac poin 3: rule heading pilihan template dihapus (elemen heading-nya
+   sudah tidak dirender; grid kartu pilihan tetap). */
 .boq-choice-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
 .boq-choice-card { position:relative; display:flex; align-items:center; gap:9px; min-height:52px; padding:10px 11px; border:1px solid var(--boq-line); border-radius:8px; background:var(--boq-surface); cursor:pointer; font-size:11px; font-weight:700; line-height:1.3; }
 .boq-choice-card:has(input:checked) { border-color:var(--boq-brand-dark); background:var(--boq-brand-soft); color:var(--boq-brand-deep); }
 .boq-choice-card input { width:17px; height:17px; flex:0 0 auto; accent-color:var(--boq-brand-dark); }
-.boq-choice-add { min-height:52px; padding:10px 11px; border:1px dashed var(--boq-line-strong); border-radius:8px; background:transparent; color:var(--boq-brand-dark); font-size:11px; font-weight:700; }
-.boq-choice-add:hover { border-color:var(--boq-brand-dark); background:var(--boq-brand-soft); }
+/* t_f14a71ac poin 4: rule tombol dashed "+ Add item" di daftar pilihan
+   template (+ :hover) dihapus — tombolnya sudah tidak dirender. */
 .boq-choice-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px; grid-column:1 / -1; }
 .boq-choice-form input { min-height:38px; }
 .boq-choice-form .boq-btn { min-height:38px; }
