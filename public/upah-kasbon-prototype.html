@@ -127,13 +127,20 @@
   <section class="panel" id="tab-proyek">
     <h2>List Proyek — <span class="tkName">Tukang</span></h2>
     <form class="grid" id="formProyek">
-      <label class="f wide">Nama Proyek
+      <label class="f wide">Nama Proyek (snapshot historis)
         <input id="pName" required placeholder="cth: Project Intercon">
       </label>
       <label class="f">Status Proyek
         <select id="pStatus"><option value="On Going">On Going</option><option value="Selesai">Done</option></select>
       </label>
-      <div class="formbtns"><button type="submit" class="primary">+ Tambah Proyek</button></div>
+      <label class="f wide">Project ID — master Projects
+        <select id="pProjectId"></select>
+      </label>
+      <div class="note" id="pProjectHint" style="grid-column:1/-1"></div>
+      <div class="formbtns">
+        <button type="submit" class="primary" id="pSubmit">+ Tambah Proyek</button>
+        <button type="button" id="pCancel" style="display:none">Batal Edit</button>
+      </div>
     </form>
     <div id="proyekTableWrap"></div>
   </section>
@@ -574,6 +581,13 @@ const LS_KEY_V1 = 'modulUpahKasbon.v1'
 let state = loadState()
 let editUpahId = null, editKasbonId = null, slipTotalanId = null, rincianDirty = false
 let detailProjectId = null, rincianFormOpen = false, kasbonPickTouched = false
+/* Project ID (master public.projects) — RELASI utama proyek upah.
+ * `masterProjects` hanya untuk DAFTAR PILIHAN (read-only). Bila daftar gagal
+ * dimuat, tautan yang sudah tersimpan tetap dipakai apa adanya; tidak ada
+ * pencocokan/penebakan lewat nama. */
+let editProjectId = null
+let masterProjects = []
+let masterProjectsError = null
 
 function blankDataset(key, name, unit){
   return { key, name: name || 'Tukang', unit: unit || 'Noir Living',
@@ -674,7 +688,26 @@ async function persistNow(){
     clearTimeout(MASTER.timer); MASTER.timer = setTimeout(persistNow, 5000)
   }finally{ MASTER.busy = false }
 }
+/* Daftar master Projects untuk mode LEGACY / uji tanpa Supabase:
+ *   window.__UPAH_MASTER_PROJECTS__ = [{ id, kode, name, status }]
+ * Di mode database daftar ini diisi dari tabel `projects` (read-only). */
+function loadMasterProjectsFromWindow(){
+  try{
+    const list = window.__UPAH_MASTER_PROJECTS__
+    if(!Array.isArray(list)) return false
+    masterProjects = list.filter(p => p && p.id).map(p => ({
+      id: p.id,
+      kode: p.kode == null ? '' : String(p.kode),
+      code: p.code == null ? '' : String(p.code),
+      name: p.name == null ? '' : String(p.name),
+      status: p.status == null ? '' : String(p.status)
+    }))
+    masterProjectsError = null
+    return true
+  }catch(e){ return false }
+}
 async function bootMaster(){
+  loadMasterProjectsFromWindow()
   let sbClient = getParentSb()
   for (let i = 0; i < 20 && !sbClient; i++) {
     await new Promise(r => setTimeout(r, 50))
@@ -686,6 +719,13 @@ async function bootMaster(){
   try{
     const fresh = await UP.fetchAll(MASTER.client)
     state = UP.stateFromDb(fresh)
+    // Daftar pilihan Project ID dari master `projects` (READ-ONLY). Gagal di
+    // sini TIDAK memblokir modul: tautan lama tetap dipakai apa adanya.
+    if(typeof UP.fetchMasterProjects === 'function'){
+      const mp = await UP.fetchMasterProjects(MASTER.client)
+      if(mp.ok){ masterProjects = mp.projects; masterProjectsError = null }
+      else { masterProjects = []; masterProjectsError = (mp.error && (mp.error.message || mp.error.code)) || 'tidak diketahui' }
+    }
     MASTER.ok = true
     MASTER.last = UP.clone(state)
     // tombol yang MENGGANTI data master dinonaktifkan di mode database
@@ -721,6 +761,86 @@ function projectStatusSelect(project, disabled){
     '<option value="Selesai"' + (status === 'Selesai' ? ' selected' : '') + '>Done</option>' +
     '</select>'
 }
+/* ================================================================
+   PROJECT ID — tautan proyek upah ke master `projects`
+   Aturan (arahan DAT 25 Okt 2026):
+   - `project_id` = relasi utama; `project_name` tetap snapshot historis.
+   - Nama TIDAK pernah dipakai untuk mencocokkan proyek.
+   - Proyek lama tanpa project_id ditandai "Belum terhubung" dan TIDAK
+     ditebak otomatis, walau namanya mirip proyek master.
+   - Daftar master boleh gagal dimuat; tautan tersimpan tidak hilang.
+   ================================================================ */
+function masterProjectById(id){
+  if(!id) return null
+  return (masterProjects || []).find(x => x && x.id === id) || null
+}
+function masterProjectKode(p){
+  if(!p) return ''
+  const kode = String(p.kode == null ? '' : p.kode).trim()
+  if(kode) return kode
+  const code = String(p.code == null ? '' : p.code).trim()
+  if(code) return code
+  return String(p.id || '').slice(0, 8)
+}
+function masterStatusLabel(status){
+  const u = String(status == null ? '' : status).trim().toUpperCase()
+  if(u === 'DONE' || u === 'SELESAI' || u === 'LUNAS' || u === 'ARSIP') return 'Done'
+  if(u === 'NOT_START' || u === 'NOT START' || u === 'BELUM MULAI') return 'Belum mulai'
+  if(u === 'ON_GOING' || u === 'ON GOING') return 'On Going'
+  return u || 'Status tidak diketahui'
+}
+function masterProjectOptionLabel(p){
+  return '[' + masterProjectKode(p) + '] ' + (p.name || '(tanpa nama)') + ' — ' + masterStatusLabel(p.status)
+}
+function renderProjectOptions(selectedId){
+  const sel = document.getElementById('pProjectId')
+  if(!sel) return
+  // undefined = pertahankan pilihan yang sedang ada di form (render ulang
+  // karena hal lain tidak boleh menghapus pilihan yang belum disimpan).
+  const current = selectedId === undefined ? (sel.value || '') : (selectedId || '')
+  let html = '<option value="">— Belum terhubung —</option>'
+  for(const p of masterProjects || []){
+    html += '<option value="' + esc(p.id) + '"' + (p.id === current ? ' selected' : '') + '>' + esc(masterProjectOptionLabel(p)) + '</option>'
+  }
+  // Tautan tersimpan yang tidak ada di daftar (mis. master gagal dimuat /
+  // baris master sudah dihapus) tetap ditampilkan — JANGAN dihapus diam-diam.
+  if(current && !masterProjectById(current)){
+    html += '<option value="' + esc(current) + '" selected>[id ' + esc(String(current).slice(0, 8)) + '] — tidak ada di daftar master</option>'
+  }
+  sel.innerHTML = html
+  updateProjectHint()
+}
+function updateProjectHint(){
+  const el = document.getElementById('pProjectHint')
+  if(!el) return
+  if(masterProjectsError){
+    el.innerHTML = 'Daftar master Projects gagal dimuat (' + esc(masterProjectsError) + '). Tautan yang sudah tersimpan tetap dipakai apa adanya.'
+    return
+  }
+  const sel = document.getElementById('pProjectId')
+  const id = sel ? sel.value : ''
+  if(!id){
+    el.innerHTML = 'Tanpa Project ID, proyek ditandai <b>Belum terhubung</b>. Data lama tidak ditebak otomatis dari nama — pilih manual bila yakin.'
+    return
+  }
+  const mp = masterProjectById(id)
+  el.innerHTML = mp
+    ? ('ID master: <code>' + esc(mp.id) + '</code> · status master: <b>' + esc(masterStatusLabel(mp.status)) + '</b>')
+    : ('ID tersimpan: <code>' + esc(id) + '</code> — tidak ada di daftar master yang termuat (tautan TIDAK diubah).')
+}
+/* Sel tabel: kode/ID + nama + status master, atau "Belum terhubung". */
+function projectLinkCell(p){
+  if(!p || !p.projectId) return '<span class="badge cek">Belum terhubung</span>'
+  const mp = masterProjectById(p.projectId)
+  if(!mp) return '<span class="badge grey" title="' + esc(p.projectId) + '">Terhubung — master tidak termuat</span>'
+  return '<span class="badge lunas" title="ID master: ' + esc(mp.id) + '">[' + esc(masterProjectKode(mp)) + '] ' + esc(mp.name) + ' · ' + esc(masterStatusLabel(mp.status)) + '</span>'
+}
+function projectLinkDetail(p){
+  if(!p || !p.projectId) return '<span class="badge cek">Belum terhubung</span>'
+  const mp = masterProjectById(p.projectId)
+  if(!mp) return '<span class="badge grey" title="' + esc(p.projectId) + '">Terhubung — master tidak termuat</span>'
+  return '[' + esc(masterProjectKode(mp)) + '] ' + esc(mp.name) + ' <span class="badge grey">' + esc(masterStatusLabel(mp.status)) + '</span>'
+}
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 function todayISO(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
 function fmtTgl(iso){ if(!iso) return '-'; const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; const p = String(iso).split('-'); return p.length === 3 ? (+p[2]) + ' ' + bln[(+p[1]) - 1] + ' ' + p[0] : iso }
@@ -747,6 +867,7 @@ function render(){
   const ra = ringkasanArsip(d)
   document.getElementById('cardHakSub').textContent = ra.jumlah ? ('Sudah lunas & masuk arsip: ' + ra.jumlah + ' proyek · ' + fmtRp(ra.total) + ' — tidak di-carry over') : 'Belum ada proyek yang lunas / masuk arsip'
   renderProyekList(); renderProyekDetail(); renderKasbon(); renderTotalanForm(); renderTotalans(); renderSlip()
+  renderProjectOptions() // pertahankan pilihan yang sedang ada di form
   saveState()
 }
 
@@ -766,23 +887,28 @@ function renderProyekList(){
   const sudahDipakai = new Set(); hitungTotalans(d).forEach(t => (t.projectIds || []).forEach(pid => sudahDipakai.add(pid)))
   const aktif = d.projects.filter(p => !isProyekArsip(p, lunas))
   const arsip = d.projects.filter(p => isProyekArsip(p, lunas))
-  let html = '<table><tr><th>Proyek Aktif (klik untuk rincian)</th><th>Status</th><th class="num">Item Pekerjaan</th><th class="num">Total Upah</th><th></th></tr>'
+  const belumTerhubung = d.projects.filter(p => !p.projectId).length
+  let html = ''
+  if(belumTerhubung){
+    html += '<div class="note" style="margin-bottom:8px"><b>' + belumTerhubung + ' proyek Belum terhubung</b> ke master Projects. Buka <b>Edit</b> pada baris proyek untuk memilih Project ID — tidak ada penebakan otomatis dari nama.</div>'
+  }
+  html += '<table><tr><th>Proyek Aktif (klik untuk rincian)</th><th>Status</th><th>Project ID (master)</th><th class="num">Item Pekerjaan</th><th class="num">Total Upah</th><th></th></tr>'
   let grand = 0
-  if(!aktif.length) html += '<tr><td colspan="5" style="color:var(--muted)">Tidak ada proyek aktif — semua sudah lunas / diarsipkan.</td></tr>'
+  if(!aktif.length) html += '<tr><td colspan="6" style="color:var(--muted)">Tidak ada proyek aktif — semua sudah lunas / diarsipkan.</td></tr>'
   for(const p of aktif){
     const r = ring.find(x => x.projectId === p.id); grand += r.total
     const terkunci = finalLocks.projects.has(p.id)
-    const actions = '<button class="small" data-open-proyek="' + p.id + '">Rincian →</button>' + (terkunci || lunas.has(p.id) ? '' : ' <button class="small" data-arsip-proyek="' + p.id + '">Arsipkan</button> <button class="small danger" data-del-proyek="' + p.id + '">Hapus</button>')
-    html += '<tr class="clickable" data-open-proyek="' + p.id + '" title="Klik untuk melihat rincian upah"><td><b>' + esc(p.name) + '</b>' + (terkunci ? ' <span class="badge grey">totalan final — dikunci</span>' : (sudahDipakai.has(p.id) ? ' <span class="badge cek">sudah ditotal — belum lunas</span>' : '')) + (lunas.has(p.id) ? ' <span class="badge lunas">lunas — ditahan aktif</span>' : '') + '</td><td>' + projectStatusSelect(p, terkunci) + '</td><td class="num">' + r.jumlahItem + '</td><td class="num"><b>' + fmtRp(r.total) + '</b></td><td style="white-space:nowrap">' + actions + '</td></tr>'
+    const actions = '<button class="small" data-open-proyek="' + p.id + '">Rincian →</button>' + (terkunci ? '' : ' <button class="small" data-edit-proyek="' + p.id + '">Edit</button>') + (terkunci || lunas.has(p.id) ? '' : ' <button class="small" data-arsip-proyek="' + p.id + '">Arsipkan</button> <button class="small danger" data-del-proyek="' + p.id + '">Hapus</button>')
+    html += '<tr class="clickable" data-open-proyek="' + p.id + '" title="Klik untuk melihat rincian upah"><td><b>' + esc(p.name) + '</b>' + (terkunci ? ' <span class="badge grey">totalan final — dikunci</span>' : (sudahDipakai.has(p.id) ? ' <span class="badge cek">sudah ditotal — belum lunas</span>' : '')) + (lunas.has(p.id) ? ' <span class="badge lunas">lunas — ditahan aktif</span>' : '') + '</td><td>' + projectStatusSelect(p, terkunci) + '</td><td>' + projectLinkCell(p) + '</td><td class="num">' + r.jumlahItem + '</td><td class="num"><b>' + fmtRp(r.total) + '</b></td><td style="white-space:nowrap">' + actions + '</td></tr>'
   }
-  html += '<tr class="grand"><td colspan="3">TOTAL PROYEK AKTIF</td><td class="num">' + fmtRp(grand) + '</td><td></td></tr></table>'
+  html += '<tr class="grand"><td colspan="4">TOTAL PROYEK AKTIF</td><td class="num">' + fmtRp(grand) + '</td><td></td></tr></table>'
   if(arsip.length){
     html += '<h2 style="margin-top:22px">Arsip — Proyek Lunas / Ditutup (' + arsip.length + ')</h2><div class="note">Proyek di sini tidak muncul di pilihan totalan dan tidak di-carry over ke periode berikutnya. Totalnya tetap tercatat di riwayat dashboard.</div>'
-    html += '<table><tr><th>Proyek Arsip</th><th>Tanda</th><th class="num">Item</th><th class="num">Total Upah</th><th></th></tr>'
+    html += '<table><tr><th>Proyek Arsip</th><th>Project ID (master)</th><th>Tanda</th><th class="num">Item</th><th class="num">Total Upah</th><th></th></tr>'
     for(const p of arsip){
       const r = ring.find(x => x.projectId === p.id)
       const terkunci = finalLocks.projects.has(p.id)
-      html += '<tr><td><b>' + esc(p.name) + '</b></td><td>' + (terkunci ? '<span class="badge grey">Totalan final — dikunci</span>' : (lunas.has(p.id) ? '<span class="badge lunas">Lunas</span>' : '<span class="badge grey">Arsip manual</span>')) + '</td><td class="num">' + r.jumlahItem + '</td><td class="num">' + fmtRp(r.total) + '</td><td style="white-space:nowrap"><button class="small" data-open-proyek="' + p.id + '">Rincian →</button>' + (terkunci ? '' : ' <button class="small" data-aktifkan-proyek="' + p.id + '">Aktifkan Lagi</button>') + '</td></tr>'
+      html += '<tr><td><b>' + esc(p.name) + '</b></td><td>' + projectLinkCell(p) + '</td><td>' + (terkunci ? '<span class="badge grey">Totalan final — dikunci</span>' : (lunas.has(p.id) ? '<span class="badge lunas">Lunas</span>' : '<span class="badge grey">Arsip manual</span>')) + '</td><td class="num">' + r.jumlahItem + '</td><td class="num">' + fmtRp(r.total) + '</td><td style="white-space:nowrap"><button class="small" data-open-proyek="' + p.id + '">Rincian →</button>' + (terkunci ? '' : ' <button class="small" data-edit-proyek="' + p.id + '">Edit</button> <button class="small" data-aktifkan-proyek="' + p.id + '">Aktifkan Lagi</button>') + '</td></tr>'
     }
     html += '</table>'
   }
@@ -811,6 +937,7 @@ function renderProyekDetail(){
   const r = ringkasanProyek([p], d.upahItems, d.projectOverrides)[0]
   let html = '<div class="detailbox"><h2 style="margin:0 0 10px">Rincian Upah — ' + esc(p.name) + '</h2>'
   html += '<div class="detailstats"><div class="ds"><div class="lbl">Status</div><div class="val" style="font-size:14px">' + esc(p.status || 'On Going') + '</div></div>'
+  html += '<div class="ds"><div class="lbl">Project ID (master)</div><div class="val" style="font-size:13px">' + projectLinkDetail(p) + '</div></div>'
   html += '<div class="ds"><div class="lbl">Item Pekerjaan</div><div class="val">' + rows.length + '</div></div>'
   html += '<div class="ds"><div class="lbl">Jumlah Rincian</div><div class="val">' + fmtRp(r.sumRincian) + '</div></div>'
   html += '<div class="ds"><div class="lbl">Total Manual (opsional)</div><div class="val">' + (terkunciFinal ? '<span class="badge grey">Dikunci setelah totalan final</span>' : '<input data-override="' + p.id + '" inputmode="numeric" style="width:140px;text-align:right;padding:5px 7px;border:1px solid var(--line);border-radius:7px;font:inherit" placeholder="—" value="' + (r.override != null ? r.override.toLocaleString('id-ID') : '') + '">') + '</div></div>'
@@ -914,12 +1041,17 @@ function renderTotalans(){
   const d = D(); const wrap = document.getElementById('totalanTableWrap')
   const tots = hitungTotalans(d)
   if(!tots.length){ wrap.innerHTML = '<div class="empty">Belum ada totalan untuk tukang ini.</div>'; return }
-  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px"><b>Daftar Riwayat Totalan (' + tots.length + ')</b><button type="button" class="small danger" id="btnClearTotalanTukang">Hapus Semua Totalan &amp; Slip</button></div>'
+  // Dokumen tutup buku (final) tidak boleh dihapus dari UI — samakan dengan
+  // kunci proyek/rincian/kasbon sumbernya (assertFinalHistoryImmutable).
+  const adaFinal = tots.some(t => t.final === true)
+  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px"><b>Daftar Riwayat Totalan (' + tots.length + ')</b>' + (adaFinal
+    ? '<button type="button" class="small danger" id="btnClearTotalanTukang" disabled title="Ada totalan final (tutup buku) — riwayat tidak boleh dihapus massal">Hapus Semua Totalan &amp; Slip</button>'
+    : '<button type="button" class="small danger" id="btnClearTotalanTukang">Hapus Semua Totalan &amp; Slip</button>') + '</div>'
   html += '<table><tr><th>No. Totalan</th><th>Tanggal</th><th>Proyek</th><th class="num">Total Upah</th><th class="num">Kasbon Dipotong</th><th class="num">Hak Bersih</th><th class="num">Pembayaran Aktual</th><th class="num">Saldo Akhir</th><th>Status</th><th></th></tr>'
   for(const t of tots){
     const names = (t.projectIds || []).map(projectName).join(', ')
     const badge = t.status === 'Lunas' ? 'lunas' : (t.status === 'Nomor duplikat' ? 'dup' : 'cek')
-    html += '<tr><td>' + esc(t.no) + '</td><td>' + fmtTgl(t.tanggal) + '</td><td>' + esc(names) + '</td><td class="num">' + fmtRp(t.totalUpah) + '</td><td class="num">' + fmtRp(t.kasbonDipotong) + '</td><td class="num">' + fmtRp(t.hakBersih) + '</td><td class="num">' + fmtRp(t.pembayaranAktual) + '</td><td class="num">' + fmtRp(t.saldoAkhir) + '</td><td><span class="badge ' + badge + '">' + esc(t.status) + '</span></td><td style="white-space:nowrap"><button class="small" data-slip="' + t.id + '">Slip</button> <button class="small danger" data-del-totalan="' + t.id + '">Hapus</button></td></tr>'
+    html += '<tr><td>' + esc(t.no) + '</td><td>' + fmtTgl(t.tanggal) + '</td><td>' + esc(names) + '</td><td class="num">' + fmtRp(t.totalUpah) + '</td><td class="num">' + fmtRp(t.kasbonDipotong) + '</td><td class="num">' + fmtRp(t.hakBersih) + '</td><td class="num">' + fmtRp(t.pembayaranAktual) + '</td><td class="num">' + fmtRp(t.saldoAkhir) + '</td><td><span class="badge ' + badge + '">' + esc(t.status) + '</span></td><td style="white-space:nowrap"><button class="small" data-slip="' + t.id + '">Slip</button> ' + (t.final ? '<span class="badge grey">Dikunci — totalan final</span>' : '<button class="small danger" data-del-totalan="' + t.id + '">Hapus</button>') + '</td></tr>'
     if(t.potonganDetail && t.potonganDetail.length){
       html += '<tr><td colspan="10" style="font-size:12px;color:var(--muted);padding-left:18px">Kasbon terpotong di totalan ini: ' + t.potonganDetail.map(x => fmtTgl(x.tanggal) + ' · ' + esc(x.deskripsi || 'kasbon') + ' · ' + fmtRp(x.nominal)).join(' &nbsp;|&nbsp; ') + '</td></tr>'
     } else {
@@ -967,7 +1099,7 @@ document.querySelectorAll('nav.tabs button').forEach(b => {
 document.getElementById('tukangSwitch').addEventListener('change', e => {
   state.activeKey = e.target.value
   detailProjectId = null; kasbonPickTouched = false; slipTotalanId = null; editUpahId = null; editKasbonId = null
-  resetFormUpah(); resetFormKasbon()
+  resetFormUpah(); resetFormKasbon(); resetFormProyek()
   document.getElementById('tNo').value = ''; document.getElementById('tBayar').value = ''
   render(); notice('Tukang aktif: ' + D().name + '. Semua angka & daftar sekarang milik tukang ini.')
 })
@@ -991,13 +1123,34 @@ document.getElementById('btnDelTukang').addEventListener('click', () => {
 })
 
 /* ---------- Events: MODUL LIST PROYEK ---------- */
+function resetFormProyek(){
+  editProjectId = null
+  const f = document.getElementById('formProyek'); if(f) f.reset()
+  const sub = document.getElementById('pSubmit'); if(sub) sub.textContent = '+ Tambah Proyek'
+  const cancel = document.getElementById('pCancel'); if(cancel) cancel.style.display = 'none'
+  renderProjectOptions('')
+}
+document.getElementById('pCancel').addEventListener('click', resetFormProyek)
 document.getElementById('formProyek').addEventListener('submit', e => {
   e.preventDefault(); const d = D()
   const name = document.getElementById('pName').value.trim(); if(!name) return
-  if(d.projects.some(p => p.name.toLowerCase() === name.toLowerCase()) &&
-     !confirm('Sudah ada proyek bernama "' + name + '" untuk tukang ini (di file asli memang ada nama proyek yang berulang). Tetap tambah sebagai proyek terpisah?')) return
-  d.projects.push({ id: nextId('p'), name, status: document.getElementById('pStatus').value })
-  e.target.reset(); render(); notice('Proyek ditambah: ' + name)
+  const projectId = document.getElementById('pProjectId').value || null
+  const status = document.getElementById('pStatus').value
+  const mp = masterProjectById(projectId)
+  const linkNote = projectId ? (' — terhubung ke master [' + masterProjectKode(mp) + ']') : ' — Belum terhubung'
+  if(editProjectId){
+    const p = d.projects.find(x => x.id === editProjectId)
+    if(!p){ resetFormProyek(); return }
+    if(totalanFinalLocks(d).projects.has(p.id)){ notice('Proyek sudah masuk totalan final — data historis terkunci.', true); resetFormProyek(); return }
+    Object.assign(p, { name, status, projectId })
+    notice('Proyek diperbarui: ' + name + linkNote)
+  } else {
+    if(d.projects.some(p => p.name.toLowerCase() === name.toLowerCase()) &&
+       !confirm('Sudah ada proyek bernama "' + name + '" untuk tukang ini (di file asli memang ada nama proyek yang berulang). Tetap tambah sebagai proyek terpisah?')) return
+    d.projects.push({ id: nextId('p'), name, status, projectId })
+    notice('Proyek ditambah: ' + name + linkNote)
+  }
+  resetFormProyek(); render()
 })
 
 /* ---------- Events: MODUL RINCIAN UPAH (proyek terpilih = detailProjectId) ---------- */
@@ -1098,6 +1251,21 @@ document.addEventListener('click', e => {
   const dt = e.target.closest('[data-del-totalan]'), sl = e.target.closest('[data-slip]'), dp = e.target.closest('[data-del-proyek]')
   const d = D()
   const ar = e.target.closest('[data-arsip-proyek]'), ak = e.target.closest('[data-aktifkan-proyek]')
+  const ep = e.target.closest('[data-edit-proyek]')
+  if(ep){
+    const p = d.projects.find(x => x.id === ep.dataset.editProyek); if(!p) return
+    if(totalanFinalLocks(d).projects.has(p.id)){ notice('Proyek sudah masuk totalan final — data historis terkunci.', true); return }
+    editProjectId = p.id
+    document.getElementById('pName').value = p.name || ''
+    document.getElementById('pStatus').value = projectStatusState(p) === 'Selesai' ? 'Selesai' : 'On Going'
+    renderProjectOptions(p.projectId || '')
+    document.getElementById('pSubmit').textContent = 'Simpan Perubahan'
+    document.getElementById('pCancel').style.display = 'inline-block'
+    switchTab('proyek')
+    const f = document.getElementById('formProyek'); if(f.scrollIntoView) f.scrollIntoView({ behavior: 'smooth' })
+    notice('Mode edit: ' + p.name + '. Pilih Project ID (master) lalu Simpan Perubahan.')
+    return
+  }
   if(ar){ const p = d.projects.find(x => x.id === ar.dataset.arsipProyek); if(p){ p.arsipManual = true; render(); notice('Proyek "' + p.name + '" diarsipkan — tidak muncul di pilihan totalan berikutnya.') } return }
   if(ak){ const p = d.projects.find(x => x.id === ak.dataset.aktifkanProyek); if(p){ p.arsipManual = false; render(); notice('Proyek "' + p.name + '" diaktifkan lagi (ditahan aktif walau sudah lunas).') } return }
   const openRincianForm = e.target.closest('[data-open-rincian-form]')
@@ -1146,6 +1314,7 @@ document.addEventListener('click', e => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   if(e.target && e.target.id === 'btnClearTotalanTukang'){
+    if((d.totalans || []).some(t => t.final === true)){ notice('Ada totalan final (tutup buku) — hapus massal dibatalkan. Hapus totalan non-final satu per satu.', true); return }
     if(confirm('Hapus SEMUA riwayat totalan & slip untuk tukang "' + d.name + '"?')){
       d.totalans = []
       slipTotalanId = null
@@ -1155,15 +1324,30 @@ document.addEventListener('click', e => {
     return
   }
   if(dk && confirm('Hapus kasbon ini?')){ d.kasbon = d.kasbon.filter(x => x.id !== dk.dataset.delKasbon); render() }
-  if(dt && confirm('Hapus totalan ini? Potongan kasbon totalan lain akan dihitung ulang.')){ d.totalans = d.totalans.filter(x => x.id !== dt.dataset.delTotalan); if(slipTotalanId === dt.dataset.delTotalan) slipTotalanId = null; render() }
+  if(dt){
+    const t = (d.totalans || []).find(x => x.id === dt.dataset.delTotalan)
+    if(t && t.final === true){ notice('Totalan final (tutup buku) terkunci — tidak bisa dihapus.', true); return }
+    if(confirm('Hapus totalan ini? Potongan kasbon totalan lain akan dihitung ulang.')){ d.totalans = d.totalans.filter(x => x.id !== dt.dataset.delTotalan); if(slipTotalanId === dt.dataset.delTotalan) slipTotalanId = null; render() }
+  }
   if(sl){ slipTotalanId = sl.dataset.slip; renderSlip(); document.getElementById('slipWrap').scrollIntoView({ behavior: 'smooth' }) }
   if(dp){
     const p = d.projects.find(x => x.id === dp.dataset.delProyek); if(!p) return
     if(d.upahItems.some(it => it.projectId === p.id) && !confirm('Proyek ini punya rincian upah. Hapus proyeknya? Rincian akan yatim dan tidak dihitung.')) return
-    if(confirm('Hapus proyek "' + p.name + '" dari tukang ' + d.name + '?')){ d.projects = d.projects.filter(x => x.id !== p.id); delete d.projectOverrides[p.id]; if(detailProjectId === p.id) detailProjectId = null; kasbonPickTouched = false; render() }
+    if(confirm('Hapus proyek "' + p.name + '" dari tukang ' + d.name + '?')){ d.projects = d.projects.filter(x => x.id !== p.id); delete d.projectOverrides[p.id]; if(detailProjectId === p.id) detailProjectId = null; if(editProjectId === p.id) resetFormProyek(); kasbonPickTouched = false; render() }
   }
 })
 document.addEventListener('change', e => {
+  if(e.target && e.target.id === 'pProjectId'){
+    updateProjectHint()
+    // Tambah proyek baru: isi nama dari master HANYA bila nama masih kosong.
+    // Ini kemudahan input — nama tetap snapshot historis yang bisa diubah.
+    if(!editProjectId){
+      const mp = masterProjectById(e.target.value)
+      const nm = document.getElementById('pName')
+      if(mp && nm && !nm.value.trim()) nm.value = mp.name || ''
+    }
+    return
+  }
   const statusEl = e.target.closest('[data-project-status]')
   if(statusEl){
     const d = D(); const p = d.projects.find(x => x.id === statusEl.dataset.projectStatus)
@@ -1220,19 +1404,23 @@ document.getElementById('btnDemo')?.addEventListener('click', () => {
   if(state.tukangs.some(t => t.projects.length || t.kasbon.length) && !confirm('Isi data contoh akan MENGGANTI semua data sekarang dengan data asli Asep + Pujon. Lanjut?')) return
   state = { version: 2, activeKey: 'pujon', tukangs: [buildDatasetAsep(), buildDatasetPujon()] }
   detailProjectId = null; kasbonPickTouched = false; slipTotalanId = null; editUpahId = null; editKasbonId = null
+  resetFormProyek()
   render()
   notice('Data contoh dimuat: 2 tukang. Aktif: Pak Pujon (54 proyek, 524 rincian, 92 kasbon — total hak dihitung live Rp407.535.500). Ganti tukang lewat pemilih di atas untuk melihat data Asep.')
 })
 document.getElementById('btnReset')?.addEventListener('click', () => {
   if(!confirm('Reset akan MENGHAPUS semua data modul (semua tukang) di browser ini. Lanjut?')) return
-  state = blankState(); detailProjectId = null; kasbonPickTouched = false; editUpahId = editKasbonId = slipTotalanId = null; resetFormUpah(); resetFormKasbon(); render(); notice('Data direset.')
+  state = blankState(); detailProjectId = null; kasbonPickTouched = false; editUpahId = editKasbonId = slipTotalanId = null; resetFormUpah(); resetFormKasbon(); resetFormProyek(); render(); notice('Data direset.')
 })
 document.getElementById('btnExportJson')?.addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'upah-kasbon-semua-tukang.json'; a.click(); URL.revokeObjectURL(a.href)
 })
-document.getElementById('btnImportJson')?.addEventListener('click', () => document.getElementById('fileImport').click())
-document.getElementById('fileImport').addEventListener('change', e => {
+document.getElementById('btnImportJson')?.addEventListener('click', () => document.getElementById('fileImport')?.click())
+// Header demo/ekspor/impor tidak dirender saat modul ditanam di app; tanpa
+// guard ini script berhenti sebelum bootMaster() dan modul tidak pernah boot
+// saat dibuka standalone / diuji jsdom.
+document.getElementById('fileImport')?.addEventListener('change', e => {
   const f = e.target.files[0]; if(!f) return
   const rd = new FileReader()
   rd.onload = () => { try{ const s = JSON.parse(rd.result); if(!Array.isArray(s.tukangs)) throw new Error('format v2 tidak dikenal'); state = Object.assign(blankState(), s); if(!state.tukangs.some(t => t.key === state.activeKey)) state.activeKey = state.tukangs[0].key; detailProjectId = null; kasbonPickTouched = false; render(); notice('Impor berhasil: ' + state.tukangs.length + ' tukang.') }catch(err){ notice('Gagal impor: ' + err.message, true) } }

@@ -27,7 +27,7 @@
 //   { version:2, activeKey,
 //     tukangs: [ dataset, ... ] }
 //   dataset = { key, name, unit,
-//     projects:[{id,name,status,arsipManual}],  // arsipManual: true=paksa arsip, false=tahan aktif, kosong=otomatis dari totalan lunas
+//     projects:[{id,name,projectId,status,arsipManual}],  // projectId = relasi ke master projects(id); name = snapshot historis; arsipManual: true=paksa arsip, false=tahan aktif, kosong=otomatis dari totalan lunas
 //     upahItems:[{id,projectId,pekerjaan,ukuran,satuanUkuran,hargaSatuan,upahRincian,catatan}],
 //     kasbon:[{id,tanggal,jenis,deskripsi,metode,nominal,bukti}],
 //     totalans:[{id,no,tanggal,seq,projectIds,pembayaranAktual,kasbonIds}],  // kasbonIds = entri kasbon yg dipilih utk dipotong di totalan itu

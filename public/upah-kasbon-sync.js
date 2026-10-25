@@ -14,6 +14,15 @@
 //
 // Murni & bisa diuji: planPersist / executeOps / stateFromDb /
 // applyIdMap tidak menyentuh localStorage dan tidak membuat klien.
+//
+// TAUTAN MASTER PROJECT (25 Okt 2026):
+//   upah_projects.project_id  <->  state.projects[].projectId
+//   - `project_id` = RELASI utama ke public.projects(id) (UUID master).
+//   - `project_name` / state.projects[].name = snapshot historis, TIDAK
+//     dipakai untuk mencocokkan proyek.
+//   - Data lama tanpa project_id -> projectId null = "Belum terhubung".
+//     Tidak ada penebakan otomatis dari nama.
+//   - Daftar pilihan dibaca read-only lewat fetchMasterProjects().
 // ============================================================
 (function (root, factory) {
   const api = factory()
@@ -72,7 +81,11 @@
       const d = dsByTukangId[p.tukang_id]; if (!d) return
       projName[p.id] = p.project_name
       projStatus[p.id] = p.status
-      d.projects.push({ id: p.id, name: p.project_name, status: statusToState(p.status), arsipManual: p.arsip_manual === null ? undefined : !!p.arsip_manual, dbId: p.id })
+      // projectId = RELASI ke master public.projects(id). `name` tetap snapshot
+      // historis (project_name). Kolom project_id boleh belum ada (database
+      // yang belum menjalankan migrasi draft) -> undefined -> null = "Belum
+      // terhubung"; TIDAK ada penebakan dari nama.
+      d.projects.push({ id: p.id, name: p.project_name, projectId: p.project_id || null, status: statusToState(p.status), arsipManual: p.arsip_manual === null ? undefined : !!p.arsip_manual, dbId: p.id })
       if (p.total_manual !== null && p.total_manual !== undefined) d.projectOverrides[p.id] = Number(p.total_manual)
       d.idCounter = Math.max(d.idCounter, 0)
     })
@@ -135,11 +148,16 @@
   ]
 
   function rowProject(p, tukangId) {
-    return {
+    const row = {
       tukang_id: tukangId, project_name: p.name, status: statusToDb(p.status),
       arsip_manual: p.arsipManual === undefined ? null : !!p.arsipManual,
       total_manual: null, sort_order: 0
     }
+    // project_id hanya dikirim bila ada tautan. Baris lama tanpa tautan tetap
+    // bisa disimpan pada database yang belum menjalankan migrasi draft
+    // (kolom project_id belum ada) — perilaku lama tidak berubah.
+    if (p.projectId) row.project_id = p.projectId
+    return row
   }
   function rowItem(u, projectId) {
     return {
@@ -171,7 +189,7 @@
   function assertFinalHistoryImmutable(prevState, nextState) {
     const nextByKey = {}
     ;((nextState && nextState.tukangs) || []).forEach(d => { nextByKey[d.key] = d })
-    const projectFields = ['id', 'name', 'status', 'arsipManual']
+    const projectFields = ['id', 'name', 'status', 'arsipManual', 'projectId']
     const itemFields = ['id', 'projectId', 'pekerjaan', 'ukuran', 'satuanUkuran', 'hargaSatuan', 'upahRincian', 'catatan']
     const kasbonFields = ['id', 'tanggal', 'jenis', 'deskripsi', 'metode', 'nominal', 'bukti']
     const totalanFields = ['id', 'no', 'tanggal', 'seq', 'projectIds', 'kasbonIds', 'pembayaranAktual', 'final', 'snapshot']
@@ -268,13 +286,21 @@
               row = rowProject(r, tid)
               row.total_manual = Object.prototype.hasOwnProperty.call(nd.projectOverrides || {}, r.id)
                 ? nOr(nd.projectOverrides[r.id]) : null
+              // Tautan dilepas secara eksplisit (ada -> kosong): tulis NULL.
+              // Tanpa ini, rowProject menghilangkan project_id dan tautan lama
+              // akan tetap tertinggal di database.
+              if (o.projectId && !r.projectId) row.project_id = null
             } else if (spec.table === 'upah_items') row = rowItem(r, r.projectId)
             else if (spec.table === 'upah_kasbon') row = rowKasbon(r, tid)
             else if (spec.table === 'upah_totalan') {
               row = rowTotalan(r, tid, snap(r, nd))
               pushJunctions(ops, r, nd, true) // junction totalan di-rebuild
             }
-            const changed = Object.keys(row).filter(k => !FK.test(k))
+            // FK yang masih berupa id SEMENTARA tidak boleh dibandingkan
+            // (baru di-resolve saat executeOps). `upah_projects.project_id`
+            // BUKAN id sementara — ia UUID master projects — jadi WAJIB
+            // dibandingkan, kalau tidak perubahan tautan tidak pernah tersimpan.
+            const changed = Object.keys(row).filter(k => !PROVISIONAL_FK.has(spec.table + ':' + k))
               .some(k => !same(row[k], mappedOld(spec.table, k, o, pd)))
             if (changed) ops.push({ kind: 'update', table: spec.table, row, id: r.id })
           }
@@ -307,6 +333,7 @@
       case 'upah_projects:project_name': return o.name
       // pembanding memakai nilai DB (row baru juga nilai DB) -> normalisasi ke DB
       case 'upah_projects:status': return statusToDb(o.status)
+      case 'upah_projects:project_id': return o.projectId || null
       case 'upah_projects:arsip_manual': return o.arsipManual === undefined ? null : !!o.arsipManual
       case 'upah_projects:total_manual': return Object.prototype.hasOwnProperty.call((pd && pd.projectOverrides) || {}, o.id) ? nOr(pd.projectOverrides[o.id]) : null
       case 'upah_projects:sort_order': return 0
@@ -350,6 +377,17 @@
 
   // ---------- 3. EKSEKUSI operasi terhadap klien supabase ----------
   const FK = /_id$/
+  // FK yang nilainya masih id SEMENTARA di state (proyek/tukang baru) dan baru
+  // di-resolve lewat idMap saat eksekusi. Selain ini, kolom ber-akhiran _id
+  // (mis. upah_projects.project_id -> master projects) berisi UUID asli dan
+  // TIDAK boleh di-resolve/dibandingkan sebagai id sementara.
+  const PROVISIONAL_FK = new Set([
+    'upah_projects:tukang_id',
+    'upah_items:project_id',
+    'upah_kasbon:tukang_id',
+    'upah_totalan:tukang_id'
+  ])
+  const MASTER_LINK = 'upah_projects:project_id'
   async function executeOps(ops, client, opts) {
     opts = opts || {}
     const idMap = opts.idMap || {}
@@ -359,7 +397,7 @@
         const t = client.from(op.table)
         if (op.kind === 'insert') {
           const row = Object.assign({}, op.row)
-          Object.keys(row).forEach(k => { if (FK.test(k)) row[k] = resolve(row[k]) })
+          Object.keys(row).forEach(k => { if (FK.test(k) && (op.table + ':' + k) !== MASTER_LINK) row[k] = resolve(row[k]) })
           if (op.provId) {
             const { data, error } = await t.insert(row).select('id')
             if (error) return { ok: false, error, op }
@@ -370,7 +408,7 @@
           }
         } else if (op.kind === 'update') {
           const row = Object.assign({}, op.row)
-          Object.keys(row).forEach(k => { if (FK.test(k)) row[k] = resolve(row[k]) })
+          Object.keys(row).forEach(k => { if (FK.test(k) && (op.table + ':' + k) !== MASTER_LINK) row[k] = resolve(row[k]) })
           const { error } = await t.update(row).eq('id', resolve(op.id))
           if (error) return { ok: false, error, op }
         } else if (op.kind === 'delete') {
@@ -419,5 +457,40 @@
     }
   }
 
-  return { stateFromDb, planPersist, executeOps, applyIdMap, fetchAll, statusToState, statusToDb, toNum, clone }
+  // ---------- 6. MASTER PROJECTS (read-only, untuk selector Project ID) ----------
+  // Sumber: tabel `projects` milik aplikasi (bukan upah_*). Hanya membaca —
+  // modul Upah & Kasbon TIDAK pernah menulis ke master Projects.
+  // Gagal membaca (RLS/tabel belum ada) TIDAK melempar: modul tetap jalan dan
+  // tautan lama ditampilkan apa adanya (fail-soft untuk daftar pilihan,
+  // fail-closed untuk penyimpanan data modul).
+  async function fetchMasterProjects(client) {
+    if (!client || typeof client.from !== 'function') {
+      return { ok: false, projects: [], error: new Error('klien database tidak tersedia') }
+    }
+    try {
+      const { data, error } = await client.from('projects').select('*')
+      if (error) return { ok: false, projects: [], error }
+      const projects = (data || [])
+        .filter(p => p && p.id)
+        .map(p => ({
+          id: p.id,
+          kode: p.kode == null ? '' : String(p.kode),
+          code: p.code == null ? '' : String(p.code),
+          name: p.name == null ? '' : String(p.name),
+          status: p.status == null ? '' : String(p.status)
+        }))
+      // urut nomor proyek (83 < 100), lalu kode teks, lalu nama
+      projects.sort((a, b) => {
+        const na = parseInt(a.kode, 10), nb = parseInt(b.kode, 10)
+        if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb
+        const k = (a.kode || '').localeCompare(b.kode || '')
+        return k !== 0 ? k : (a.name || '').localeCompare(b.name || '')
+      })
+      return { ok: true, projects, error: null }
+    } catch (e) {
+      return { ok: false, projects: [], error: e }
+    }
+  }
+
+  return { stateFromDb, planPersist, executeOps, applyIdMap, fetchAll, fetchMasterProjects, statusToState, statusToDb, toNum, clone }
 })
