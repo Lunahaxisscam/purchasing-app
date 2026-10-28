@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
+const root=process.env.UPAH_REPO||require('node:path').resolve(__dirname,'../..');
+const html=fs.readFileSync(root+'/public/upah-kasbon-prototype.html','utf8'),main=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/bootMaster\(\)\s*$/,'');
+const nodes=new Map(); const element=()=>({value:'',textContent:'',style:{},classList:{toggle(){}},addEventListener(){},querySelectorAll(){return[]},reset(){},insertAdjacentHTML(){}});
+const c={window:{UpahSync:require(root+'/public/upah-kasbon-sync.js')},document:{getElementById(id){if(!nodes.has(id))nodes.set(id,element());return nodes.get(id)},querySelectorAll(){return[]},addEventListener(){}},console,localStorage:{getItem(){throw Error('must not load local business cache')},setItem(){throw Error('must not write local business cache')}},setTimeout(){return 0},clearTimeout(){},Map,Set};vm.createContext(c);vm.runInContext(fs.readFileSync(root+'/public/upah-penyesuaian.js','utf8'),c);vm.runInContext(main,c);
+let d={projects:[{id:'p',name:'P',status:'Selesai'}],upahItems:[{id:'i',projectId:'p',upahRincian:1000000}],kasbon:[],totalans:[{id:'t',projectIds:['p'],kasbonIds:[],no:'TOT3',openingAdjustment:-97700,pembayaranAktual:900000}]};
+assert.equal(c.hitungTotalans(d)[0].hakBersih,902300);assert.equal(c.hitungTotalans(d)[0].saldoAkhir,2300);
+d.totalans[0].carriedResidual=2300;assert.equal(c.hitungTotalans(d)[0].saldoAkhir,0);
+d.totalans[0].final=true;d.totalans[0].snapshot={total_upah:11,kasbon_dipotong:2,hak_bersih:9,saldo_akhir:0,status:'Lunas'};assert.equal(c.hitungTotalans(d)[0].hakBersih,9);
+console.log('PASS actual prototype runtime: signed opening, carry-to-zero, preserved final snapshot, no local cache access');

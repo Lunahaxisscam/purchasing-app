@@ -155,8 +155,8 @@ export function hitungTotalans(state) {
     const totalUpah = (t.projectIds || []).reduce((s, pid) => s + toNum(totals[pid]), 0)
     const potonganDetail = perTotalan.get(t.id) || []
     const kasbonDipotong = potonganDetail.reduce((s, x) => s + x.nominal, 0)
-    const hakBersih = totalUpah - kasbonDipotong
-    const saldoAkhir = hakBersih - toNum(t.pembayaranAktual)
+    const hakBersih = totalUpah - kasbonDipotong + toNum(t.openingAdjustment)
+    const saldoAkhir = hakBersih - toNum(t.pembayaranAktual) - toNum(t.carriedResidual)
     const duplikat = seen.has(String(t.no || '').trim())
     if (t.no) seen.add(String(t.no).trim())
     const status = duplikat ? 'Nomor duplikat' : saldoAkhir === 0 ? 'Lunas' : 'Perlu cek'

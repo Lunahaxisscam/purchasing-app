@@ -69,7 +69,7 @@
       tukangById[t.id] = t
       return {
         key: t.kode, dbId: t.id, name: displayName(t), unit: t.unit_bisnis || 'Noir Living',
-        projects: [], upahItems: [], kasbon: [], totalans: [], projectOverrides: {},
+        projects: [], upahItems: [], kasbon: [], totalans: [], adjustments: [], projectOverrides: {},
         seq: 0, idCounter: 0
       }
     })
@@ -111,6 +111,9 @@
         id: t.id, no: t.no_totalan, tanggal: t.tanggal, seq: t.seq || 0,
         projectIds: (jpByTotalan[t.id] || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)).map(j => j.project_id),
         pembayaranAktual: Number(t.pembayaran_aktual || 0),
+        openingAdjustment: Number(t.opening_adjustment || 0),
+        carriedResidual: Number(t.carried_residual || 0),
+        residualBeforeCarry: Number(t.residual_before_carry || 0),
         kasbonIds: (jkByTotalan[t.id] || []).map(j => j.kasbon_id),
         // KUNCI HISTORIS (keputusan DAT 24 Okt 2026): totalan ber-`final` adalah
         // dokumen tutup buku — angkanya diambil apa adanya dari DB (hasil sheet),
@@ -125,6 +128,9 @@
         } : null
       })
       d.seq = Math.max(d.seq, t.seq || 0)
+    })
+    ;(db.adjustments || []).forEach(a => {
+      const d=dsByTukangId[a.tukang_id]; if(d) d.adjustments.push(a)
     })
     if (!tukangs.length) {
       // RLS menolak / belum login / DB kosong -> dataset kosong, jangan crash
@@ -179,7 +185,10 @@
       tukang_id: tukangId, no_totalan: t.no, tanggal: t.tanggal, seq: t.seq || 0,
       kasbon_dipotong: s.kasbon_dipotong || 0, total_upah: s.total_upah || 0,
       hak_bersih: s.hak_bersih || 0, pembayaran_aktual: nOr(t.pembayaranAktual) || 0,
-      saldo_akhir: s.saldo_akhir || 0, status: s.status || null
+      saldo_akhir: s.saldo_akhir || 0, status: s.status || null,
+      opening_adjustment: Number(t.openingAdjustment || 0),
+      carried_residual: Number(t.carriedResidual || 0),
+      residual_before_carry: Number(t.residualBeforeCarry || 0)
     }
   }
 
@@ -192,7 +201,7 @@
     const projectFields = ['id', 'name', 'status', 'arsipManual', 'projectId']
     const itemFields = ['id', 'projectId', 'pekerjaan', 'ukuran', 'satuanUkuran', 'hargaSatuan', 'upahRincian', 'catatan']
     const kasbonFields = ['id', 'tanggal', 'jenis', 'deskripsi', 'metode', 'nominal', 'bukti']
-    const totalanFields = ['id', 'no', 'tanggal', 'seq', 'projectIds', 'kasbonIds', 'pembayaranAktual', 'final', 'snapshot']
+    const totalanFields = ['id', 'no', 'tanggal', 'seq', 'projectIds', 'kasbonIds', 'pembayaranAktual', 'final', 'snapshot', 'openingAdjustment', 'carriedResidual', 'residualBeforeCarry']
     const sameRows = (before, after, fields) => {
       if (before.length !== after.length) return false
       const afterById = new Map(after.map(r => [r.id, r]))
@@ -246,6 +255,7 @@
   }
 
   function planPersist(prevState, nextState, opts) {
+    if (same(prevState,nextState)) return []
     opts = opts || {}
     const snap = opts.snapshotTotalan || function () { return {} }
     assertFinalHistoryImmutable(prevState, nextState)
@@ -255,6 +265,7 @@
 
     ;((nextState && nextState.tukangs) || []).forEach(nd => {
       const pd = prevBy[nd.key]
+      if (pd && same(pd,nd)) return // Never rewrite another worker's accounting on a UI navigation.
       const tid = nd.dbId || (pd && pd.dbId)
       if (!pd) {
         // tukang baru (dbId akan terisi setelah insert via idMap)
@@ -272,6 +283,7 @@
         // inserts + updates
         nextArr.forEach(r => {
           const o = prevMap[r.id]
+          if (spec.table === 'upah_totalan' && o && o.final) return
           if (!o) {
             if (spec.table === 'upah_projects') ops.push({ kind: 'insert', table: spec.table, row: rowProject(r, tid), provId: r.id })
             else if (spec.table === 'upah_items') ops.push({ kind: 'insert', table: spec.table, row: rowItem(r, r.projectId), provId: r.id })
@@ -353,6 +365,9 @@
       case 'upah_totalan:tanggal': return o.tanggal
       case 'upah_totalan:seq': return o.seq || 0
       case 'upah_totalan:pembayaran_aktual': return nOr(o.pembayaranAktual) || 0
+      case 'upah_totalan:opening_adjustment': return Number(o.openingAdjustment || 0)
+      case 'upah_totalan:carried_residual': return Number(o.carriedResidual || 0)
+      case 'upah_totalan:residual_before_carry': return Number(o.residualBeforeCarry || 0)
       case 'upah_tukang:nama': return o.name
       case 'upah_tukang:unit_bisnis': return o.unit || 'Noir Living'
       default: return undefined // snapshot & FK tidak dibandingkan (snapshot dari callback)
@@ -441,7 +456,7 @@
 
   // ---------- 5. FETCH semua tabel (pemanggilan nyata via klien) ----------
   async function fetchAll(client) {
-    const tables = ['upah_tukang', 'upah_projects', 'upah_items', 'upah_kasbon', 'upah_totalan', 'upah_totalan_projects', 'upah_totalan_kasbon']
+    const tables = ['upah_tukang', 'upah_projects', 'upah_items', 'upah_kasbon', 'upah_totalan', 'upah_totalan_projects', 'upah_totalan_kasbon', 'upah_penyesuaian']
     const results = await Promise.all(tables.map(t => client.from(t).select('*')))
     for (let i = 0; i < results.length; i++) {
       if (results[i].error) {
@@ -453,7 +468,7 @@
     return {
       tukangs: results[0].data || [], projects: results[1].data || [], items: results[2].data || [],
       kasbon: results[3].data || [], totalans: results[4].data || [],
-      totalanProjects: results[5].data || [], totalanKasbon: results[6].data || []
+      totalanProjects: results[5].data || [], totalanKasbon: results[6].data || [], adjustments: results[7].data || []
     }
   }
 
