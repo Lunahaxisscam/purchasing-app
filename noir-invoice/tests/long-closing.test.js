@@ -1,0 +1,20 @@
+import { it,expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createEmptyInvoice } from '../src/lib/model.js';
+import { buildInvoicePdf } from '../src/pdf/invoicePdf.js';
+it('paginates oversized optional terms, bank instructions and notes above footer',async()=>{
+ const a=createEmptyInvoice(); a.templateId='kabineku';a.invoiceNo='SYNTHETIC TEST';a.lines[0].desc='SYNTHETIC TEST';a.lines[0].unitPrice='100.000';
+ a.paymentSchedule.enabled=true;a.paymentSchedule.terms=Array.from({length:40},(_,i)=>({label:`SYNTHETIC TERM ${i}`,percent:'1',amount:'1.000'}));
+ a.payment.instructions=('Synthetic payment instructions '.repeat(400))+' PAYMENT END';a.notes=('Synthetic optional notes '.repeat(400))+' NOTES END';
+ const get=n=>fs.readFileSync(new URL('../src/assets/fonts/'+n,import.meta.url));
+ const out=await buildInvoicePdf({invoice:a,fontRegular:get('Carlito-Regular.ttf'),fontBold:get('Carlito-Bold.ttf'),mode:'sample',watermark:'SYNTHETIC TEST'});
+ const report=process.env.INVOICE_TEST_REPORT_DIR || '/home/ubuntu/reports/invoice-kabineku-staging';fs.mkdirSync(report,{recursive:true});
+ const file=path.join(report,'kabineku-long-closing.pdf');fs.writeFileSync(file,out.bytes);
+ const bbox=execFileSync('pdftotext',['-bbox',file,'-'],{encoding:'utf8'});
+ const words=[...bbox.matchAll(/<word xMin="([\d.-]+)" yMin="([\d.-]+)" xMax="([\d.-]+)" yMax="([\d.-]+)">([^<]*)<\/word>/g)];
+ expect(out.pageCount).toBeGreaterThan(2);
+ expect(words.some(w=>w[5]==='PAYMENT')).toBe(true);expect(words.some(w=>w[5]==='NOTES')).toBe(true);
+ expect(words.filter(w=>Number(w[2])>810 || Number(w[2])<0).map(w=>w[5])).toEqual([]);
+},30000);

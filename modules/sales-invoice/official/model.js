@@ -17,6 +17,16 @@ import {
 
 export const SCHEMA_VERSION = 1;
 
+/** Theme identity is an allowlist, never an asset path or arbitrary CSS. */
+export function templateIdentity(raw = {}) {
+  return { templateId: raw.templateId === 'kabineku' ? 'kabineku' : 'noir', templateVersion: 1 };
+}
+
+/** Change presentation only; retain every business field verbatim. */
+export function selectTemplate(invoice, templateId) {
+  return { ...invoice, ...templateIdentity({ templateId }) };
+}
+
 export function newId(prefix = 'id') {
   const rand = Math.random().toString(36).slice(2, 8);
   return `${prefix}_${Date.now().toString(36)}${rand}`;
@@ -61,6 +71,7 @@ export function createEmptyInvoice(now = new Date()) {
   const iso = todayIso(now);
   return {
     schemaVersion: SCHEMA_VERSION,
+    ...templateIdentity(),
     id: newId('inv'),
     createdAt: new Date(now).toISOString(),
     updatedAt: new Date(now).toISOString(),
@@ -118,6 +129,7 @@ export function normalizeInvoice(raw) {
   if (!raw || typeof raw !== 'object') return base;
   const out = {
     ...base,
+    ...templateIdentity(raw),
     id: str(raw.id, base.id),
     createdAt: str(raw.createdAt, base.createdAt),
     updatedAt: str(raw.updatedAt, base.updatedAt),

@@ -1,0 +1,32 @@
+/* Presentation-only tokens; no content or bank defaults. */
+[hidden] { display: none !important; }
+.template-picker { padding:20px 16px 14px; }
+.template-picker h2 { margin:0 0 5px; font-size:21px; letter-spacing:-.5px; }
+.template-picker p { margin:0 0 14px; color:var(--ink-soft); font-size:12px; }
+.template-picker small { display:block; margin-top:9px; font-size:10px; color:var(--ink-mute); }
+.template-cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.template-cards button { position:relative; text-align:left; padding:13px 12px 13px 21px; background:white; border:1px solid #dcdcd4; border-radius:8px; font:inherit; cursor:pointer; min-height:68px; }
+.template-cards button::before { content:''; position:absolute; left:9px; top:14px; bottom:14px; width:4px; background:#959676; border-radius:3px; }
+.template-cards button[data-template='kabineku']::before { background:#F8B810; }
+.template-cards button[aria-pressed='true'] { border-color:#959676; box-shadow:0 0 0 1px #959676; background:#f1f2ec; }
+.template-cards button[data-template='kabineku'][aria-pressed='true'] { border-color:#F8B810; box-shadow:0 0 0 1px #F8B810; background:#FFF7E0; }
+.template-cards strong,.template-cards span { display:block; }
+.template-cards span { font-size:11px; color:var(--ink-soft); margin-top:4px; }
+.template-cards button:focus-visible { outline:3px solid #202935; outline-offset:3px; }
+.paper[data-template='kabineku'] { color:#202935; border-top:6px solid #F8B810; }
+.paper[data-template='kabineku'] .paper-band { background:white; color:#202935; padding-top:18px; padding-bottom:16px; }
+.kabineku-logo { width:130px; }
+.kabineku-logo>strong { display:block; font-size:28px; line-height:1; letter-spacing:-1px; }
+.kabineku-logo b { display:inline-block; padding:1px 5px; background:#F8B810; font-size:21px; line-height:1.2; margin:3px 3px 3px 0; }
+.kabineku-logo b+b { background:#7CA64E; }
+.kabineku-logo small { display:block; font-size:7px; }
+.paper[data-template='kabineku'] .paper-table thead { background:#FFF7E0; color:#202935; }
+.paper[data-template='kabineku'] .paper-table th { background:#FFF7E0; color:#202935; border-color:#e5dfcc; }
+.paper[data-template='kabineku'] .paper-meta { border-top:1px solid #e4e5e3; padding-top:15px; margin-bottom:15px; }
+.paper[data-template='kabineku'] .paper-invmeta { border-left:1px solid #e4e5e3; padding-left:10px; }
+.paper[data-template='kabineku'] .paper-summary .is-strong { color:#A95333; }
+.paper[data-template='kabineku'] .paper-payment { background:#F8B810; padding:10px; border-radius:4px; }
+.paper[data-template='kabineku'] .paper-chip { background:transparent; color:#202935; padding-left:0; }
+.paper[data-template='kabineku'] .paper-status { background:#FFF7E0; color:#202935; }
+@media (min-width:1000px) { .workspace { grid-template-columns:minmax(420px,1fr) minmax(440px,1.05fr); } }
+@media (max-width:600px) { .template-picker h2 { font-size:19px; } .topbar { position:static; padding:10px; flex-wrap:wrap; } .workspace { padding:10px; } .paper { min-width:540px; font-size:9px; } .preview-scroll { max-height:none; } }

@@ -1,0 +1,27 @@
+import { it, expect } from 'vitest';
+import { JSDOM } from 'jsdom';
+import fs from 'node:fs';
+import { createEmptyInvoice, selectTemplate, computeTotals } from '../src/lib/model.js';
+import { renderPreview, renderLines, renderTerms, writeInvoiceToForm, readInvoiceFromForm } from '../src/ui/render.js';
+import { saveDraft, loadDraft, exportJson, importJson } from '../src/lib/storage.js';
+it('switch preserves all manual data, calculations, draft and JSON while preview brand changes', () => {
+ const dom = new JSDOM(fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),{url:'http://localhost'});
+ const root=dom.window.document;
+ const a=createEmptyInvoice(); a.invoiceNo='SYNTHETIC TEST / literal'; a.issuer.name='SYNTHETIC TEST';
+ a.lines[0]={...a.lines[0],desc:'Synthetic furniture',qty:'1,25',unitPrice:'100.000'};
+ a.lines.push({...a.lines[0],id:'discount',kind:'adjustment',desc:'Synthetic discount',qty:'1',unitPrice:'-5.000'});
+ a.payment.bankLines='TEST ONLY — NO ACCOUNT'; a.tax={...a.tax,enabled:true,rate:'2,5'};
+ writeInvoiceToForm(root,a); renderLines(root,a,computeTotals(a)); renderTerms(root,a);
+ const b=selectTemplate(readInvoiceFromForm(root,a),'kabineku');
+ expect({...b,templateId:a.templateId}).toEqual(a);
+ expect(computeTotals(b)).toEqual(computeTotals(a));
+ renderPreview(root,b,computeTotals(b));
+ expect(root.querySelector('#paper').dataset.template).toBe('kabineku');
+ expect(root.querySelector('#pv-kabineku-logo').hidden).toBe(false);
+ expect(root.querySelector('[data-template="kabineku"]').getAttribute('aria-pressed')).toBe('true');
+ const store=dom.window.localStorage; saveDraft(store,b);
+ expect(loadDraft(store,b.id).invoice.templateId).toBe('kabineku');
+ expect(importJson(store,exportJson(store,b.id)).invoice).toMatchObject({templateId:'kabineku',templateVersion:1,payment:b.payment});
+ renderPreview(root,selectTemplate(b,'noir'),computeTotals(b));
+ expect(root.querySelector('#pv-kabineku-logo').hidden).toBe(true);
+});

@@ -1,0 +1,2 @@
+# Generated pdf-lib/fontkit bundles include intentional PDF string whitespace.
+public/noir-invoice/assets/*.js -whitespace

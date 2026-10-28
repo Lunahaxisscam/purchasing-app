@@ -18,9 +18,8 @@
 //     untuk file JSON yang hilang saat deploy.
 // ============================================================
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import CompactRoot from '../../components/CompactRoot'
-import { supabase } from '../../lib/supabaseClient'
 import { buildSalesInvoicePdf, downloadPdf, missingPaymentFields, missingIssuerFields } from './pdf'
 // Template RESMI (hasil gabungan generator invoice): layout A4 Noir dengan
 // termin, tabel item, dan tanda tangan. Dipakai sebagai PDF utama.
@@ -119,81 +118,7 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   const [actionError, setActionError] = useState('')
   const [notice, setNotice] = useState('')
 
-  // ---------------------------------------------------------------------
-  // CRM → Generator (t_78f581e0)
-  // Parent mengambil daftar customer SEKALI saat mount, lalu menaruhnya di
-  // window.__NOIR_CRM__ (array biasa: {id, nama, alamat, proyek}) dan
-  // memanggil __noirCrmUpdate() milik iframe. Iframe TIDAK memegang
-  // kredensial/Supabase — hanya menerima nama & alamat (baca saja).
-  // Gagal RLS/network → status 'error', generator menampilkan catatan
-  // "Data CRM tidak termuat — isi manual" dan form tetap normal.
-  // ---------------------------------------------------------------------
-  const generatorRef = useRef(null)
-  const crmRef = useRef({ status: 'loading', items: [], message: '' })
-  const projectsRef = useRef(projects)
-  // Sumber proyek sama dengan effectiveProjects (allProjects diutamakan)
-  // supaya nama proyek untuk "Referensi proyek" konsisten dengan tabel.
-  projectsRef.current = (allProjects && allProjects.length > 0) ? allProjects : (projects || [])
-
-  const pushCrmToFrame = useCallback(() => {
-    const payload = crmRef.current || { status: 'error', items: [], message: '' }
-    try {
-      if (typeof window !== 'undefined') {
-        window.__NOIR_CRM__ = payload.items
-        window.__NOIR_CRM_STATE__ = { status: payload.status, message: payload.message || '' }
-      }
-    } catch (e) { /* window tidak tersedia (SSR) — abaikan */ }
-    try {
-      const frame = generatorRef.current
-      const fn = frame && frame.contentWindow && frame.contentWindow.__noirCrmUpdate
-      if (typeof fn === 'function') {
-        fn({ items: payload.items, status: payload.status, message: payload.message || '' })
-      }
-    } catch (e) { /* iframe belum siap / lintas origin — generator tetap manual */ }
-  }, [])
-
-  useEffect(() => {
-    let alive = true
-    const fail = (message) => {
-      if (!alive) return
-      crmRef.current = { status: 'error', items: [], message: message || 'Data CRM tidak termuat — isi manual' }
-      pushCrmToFrame()
-    }
-    async function loadCustomers() {
-      if (!supabase) { fail('Data CRM tidak termuat — isi manual'); return }
-      try {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('id,nama,alamat,status')
-          .order('nama', { ascending: true })
-        if (!alive) return
-        if (error) { fail('Data CRM tidak termuat — isi manual'); return }
-        // Nama proyek pertama milik customer (opsional, untuk Referensi proyek).
-        const byCustomer = new Map()
-        for (const p of projectsRef.current || []) {
-          const cid = p && p.customer_id != null ? String(p.customer_id) : ''
-          if (!cid || byCustomer.has(cid)) continue
-          const label = String((p && (p.name || p.project_name || p.nama)) || '').trim()
-          if (label) byCustomer.set(cid, label)
-        }
-        const list = (data || [])
-          .map((c) => ({
-            id: c && c.id != null ? String(c.id) : '',
-            nama: String((c && c.nama) || '').trim(),
-            alamat: String((c && c.alamat) || '').trim(),
-            proyek: byCustomer.get(String(c && c.id)) || ''
-          }))
-          .filter((c) => c.nama)
-        if (!alive) return
-        crmRef.current = { status: list.length ? 'ok' : 'empty', items: list, message: '' }
-        pushCrmToFrame()
-      } catch (e) {
-        fail('Data CRM tidak termuat — isi manual')
-      }
-    }
-    loadCustomers()
-    return () => { alive = false }
-  }, [pushCrmToFrame])
+  // Generator is manual-only. No CRM lookup, project autofill or parent push.
 
   const effectiveProjects = useMemo(() => {
     return (allProjects && allProjects.length > 0) ? allProjects : (projects || [])
@@ -416,8 +341,8 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
             </div>
             <a className="si-generator-open" href="/noir-invoice/index.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: '#4b523a', textDecoration: 'underline', whiteSpace: 'nowrap' }}>Buka di tab baru ↗</a>
           </div>
-          <iframe ref={generatorRef} onLoad={pushCrmToFrame} title="Noir Invoice Generator (isolated)" src="/noir-invoice/index.html" className="si-generator-frame" loading="lazy" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups" referrerPolicy="no-referrer" style={{ width: '100%', height: '78vh', minHeight: 620, border: 0, display: 'block', background: '#fff' }} />
-          <p className="si-generator-footnote" style={{ margin: 0, padding: '8px 14px', fontSize: 11, color: '#6b705c', background: '#f7f8f5', borderTop: '1px solid #e0e2db', lineHeight: 1.5 }}>Catatan isolasi: iframe ini TIDAK fetch Supabase sendiri — daftar customer CRM dibaca parent sekali saat mount lalu diinjeksikan sebagai window.__NOIR_CRM__ (baca saja: nama &amp; alamat, tanpa kredensial di iframe). Nomor invoice otomatis memakai counter per tahun di localStorage generator (noir-invoice-generator/v1:seq:&lt;tahun&gt;). Payment Schedule 50/40/10 otomatis dari Grand Total bila schedule enabled &amp; Grand Total&gt;0 — lihat noir-invoice/src/lib/model.js:applyDefaultTermSchedule. Bank placeholder di form: “mis. Bank - IDR” (bukan BCA hard-coded); PDF “— (belum diisi)” bila bank kosong.</p>
+          <iframe title="Noir Invoice Generator (isolated)" src="/noir-invoice/index.html" className="si-generator-frame" loading="lazy" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups" referrerPolicy="no-referrer" style={{ width: '100%', height: '78vh', minHeight: 620, border: 0, display: 'block', background: '#fff' }} />
+          <p className="si-generator-footnote" style={{ margin: 0, padding: '8px 14px', fontSize: 11, color: '#6b705c', background: '#f7f8f5', borderTop: '1px solid #e0e2db', lineHeight: 1.5 }}>Generator manual lokal: isi form, pilih Noir / Kabineku, lalu unduh PDF A4. Tidak terhubung ke CRM, proyek, RAB atau database. Nomor dan referensi proyek diisi manual. Draft / JSON lokal opsional, bukan penerbitan transaksi.</p>
         </div>
       ) : (
       <>

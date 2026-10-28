@@ -1,0 +1,25 @@
+import { it, expect, vi } from 'vitest';
+import React from 'react';
+import { act as legacyAct } from 'react-dom/test-utils';
+import { createRoot } from 'react-dom/client';
+const act = React.act || legacyAct;
+import { JSDOM } from 'jsdom';
+const calls=vi.hoisted(()=>({crm:vi.fn(()=>({select:()=>({order:async()=>({data:[]})})})),list:vi.fn(async()=>({invoices:[]}))}));
+vi.mock('../../lib/supabaseClient',()=>({supabase:{from:calls.crm}}));
+vi.mock('../../components/CompactRoot',()=>({default:({children})=><div>{children}</div>}));
+vi.mock('../../modules/sales-invoice/pdf',()=>({buildSalesInvoicePdf:vi.fn(),downloadPdf:vi.fn(),missingPaymentFields:()=>[],missingIssuerFields:()=>[]}));
+vi.mock('../../modules/sales-invoice/official',()=>({buildOfficialInvoicePdf:vi.fn(),downloadBytes:vi.fn()}));
+vi.mock('../../modules/sales-invoice/apiClient',()=>({getAccessToken:async()=>null,listInvoices:calls.list,issueInvoice:vi.fn(),markPaid:vi.fn(),markSent:vi.fn(),voidInvoice:vi.fn()}));
+import Module from '../../modules/sales-invoice/view.jsx';
+it('opens manual generator without CRM/project fetch, injection or new business calls',async()=>{
+ const dom=new JSDOM('<div id="app"></div>',{url:'http://localhost'});global.window=dom.window;global.document=dom.window.document;global.IS_REACT_ACT_ENVIRONMENT=true;
+ const root=createRoot(document.querySelector('#app'));
+ await act(async()=>root.render(<Module invoices={[]} />));
+ expect(calls.crm).not.toHaveBeenCalled();
+ const button=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('+ Buat'));
+ expect(button).toBeTruthy();
+ await act(async()=>button.click());
+ const iframe=document.querySelector('iframe');expect(iframe.getAttribute('src')).toBe('/noir-invoice/index.html');
+ expect(window.__NOIR_CRM__).toBeUndefined();expect(calls.list).not.toHaveBeenCalled();
+ await act(async()=>root.unmount());
+});

@@ -3,7 +3,7 @@
  * plain data, so they can be exercised in jsdom without a real browser.
  */
 
-import { computeTotals, formatDateShort, validateForFinal } from '../lib/model.js';
+import { computeTotals, formatDateShort, validateForFinal, templateIdentity } from '../lib/model.js';
 import { formatQty, formatRupiah } from '../lib/money.js';
 
 /** Escape an id for use in a CSS selector (jsdom does not ship CSS.escape). */
@@ -223,6 +223,14 @@ export function renderTerms(root, invoice, { onRemove } = {}) {
 }
 
 export function renderPreview(root, invoice, totals) {
+  const { templateId } = templateIdentity(invoice);
+  const kabineku = templateId === 'kabineku';
+  root.querySelector('#paper').dataset.template = templateId;
+  root.querySelector('#pv-noir-logo').hidden = kabineku;
+  root.querySelector('#pv-kabineku-logo').hidden = !kabineku;
+  root.querySelectorAll('.template-cards [data-template]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.template === templateId));
+  });
   const text = (id, value) => {
     const el = root.querySelector(idSelector(id));
     if (el) el.textContent = value;

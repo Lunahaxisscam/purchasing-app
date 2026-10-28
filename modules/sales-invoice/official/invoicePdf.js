@@ -65,6 +65,8 @@ export async function buildInvoicePdf({
   if (!invoice) throw new Error('invoice wajib diisi');
   if (!fontRegular || !fontBold) throw new Error('font PDF tidak tersedia');
 
+  const kabineku = invoice.templateId === 'kabineku';
+  const templateName = kabineku ? 'Kabineku' : 'Noir';
   const totals = computeTotals(invoice);
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
@@ -76,8 +78,11 @@ export async function buildInvoicePdf({
   const mark = watermark ?? (mode === 'draft' ? 'DRAF' : mode === 'sample' ? 'CONTOH' : null);
   const warnings = [];
 
-  const brand = color(PALETTE.brand);
-  const ink = color(PALETTE.ink);
+  const brand = kabineku ? rgb(248/255,184/255,16/255) : color(PALETTE.brand);
+  const cream = rgb(1,247/255,224/255);
+  const green = rgb(124/255,166/255,78/255);
+  const accent = rgb(169/255,83/255,51/255);
+  const ink = kabineku ? rgb(32/255,41/255,53/255) : color(PALETTE.ink);
   const inkSoft = color(PALETTE.inkSoft);
   const rule = color(PALETTE.rule);
   const ruleLight = color(PALETTE.ruleLight);
@@ -100,7 +105,30 @@ export async function buildInvoicePdf({
 
   const bandHeight = 96;
 
+  function drawKabinekuMark(target, x, top) {
+    // Temporary vector reconstruction, not an official master asset.
+    target.drawText('kabi', {x, y:top-22, size:28, font:bold, color:ink});
+    for (const [i,label,fill] of [[0,'ne',brand],[1,'ku',green]]) {
+      target.drawRectangle({x:x+i*35,y:top-53,width:32,height:27,color:fill});
+      target.drawText(label,{x:x+i*35+5,y:top-46,size:20,font:bold,color:ink});
+    }
+    target.drawText('by Noir Living Indonesia',{x,y:top-65,size:6.8,font,color:inkSoft});
+  }
+
   function drawBand(target) {
+    if (kabineku) {
+      target.drawRectangle({x:0,y:PAGE.height-7,width:PAGE.width,height:7,color:brand});
+      drawKabinekuMark(target, PAGE.marginX, PAGE.height-16);
+      const right=PAGE.width-PAGE.marginX;
+      target.drawText('INVOICE',{x:right-bold.widthOfTextAtSize('INVOICE',24),y:PAGE.height-42,size:24,font:bold,color:ink});
+      let iy=PAGE.height-57;
+      for(const text of [invoice.issuer?.name, invoice.issuer?.address, invoice.issuer?.contact]) {
+        if(!text) continue;
+        const fitted=fitLine(text,font,8,CONTENT_WIDTH*0.55);
+        target.drawText(fitted.text,{x:right-fitted.width,y:iy,size:8,font,color:inkSoft}); iy-=11;
+      }
+      return PAGE.height-bandHeight;
+    }
     target.drawRectangle({
       x: 0,
       y: PAGE.height - bandHeight,
@@ -224,7 +252,7 @@ export async function buildInvoicePdf({
   function drawContinuationHeader(target, pageNo) {
     const h = 34;
     target.drawRectangle({ x: 0, y: PAGE.height - h, width: PAGE.width, height: h, color: brand });
-    if (logo) {
+    if (logo && !kabineku) {
       target.drawImage(logo, { x: PAGE.marginX, y: PAGE.height - h + 5, width: 24, height: 24 });
     }
     const left = 'INVOICE';
@@ -233,7 +261,7 @@ export async function buildInvoicePdf({
       y: PAGE.height - h + 12,
       size: 11,
       font: bold,
-      color: white,
+      color: kabineku ? ink : white,
     });
     const no = asText(invoice.invoiceNo).trim();
     const right = no ? `No. ${no}` : 'Draf tanpa nomor';
@@ -243,7 +271,7 @@ export async function buildInvoicePdf({
       y: PAGE.height - h + 13,
       size: 8,
       font,
-      color: white,
+      color: kabineku ? ink : white,
     });
     return PAGE.height - h - 6;
   }
@@ -346,18 +374,18 @@ export async function buildInvoicePdf({
       y: topY - headHeight,
       width: CONTENT_WIDTH,
       height: headHeight,
-      color: brand,
+      color: kabineku ? cream : brand,
     });
     const baseline = topY - headHeight + 6;
-    target.drawText('No', { x: COLUMNS.no.x + CELL_PAD, y: baseline, size: FONT_SIZE.tableHead, font: bold, color: white });
-    target.drawText('Desc', { x: COLUMNS.desc.x + CELL_PAD, y: baseline, size: FONT_SIZE.tableHead, font: bold, color: white });
+    target.drawText('No', { x: COLUMNS.no.x + CELL_PAD, y: baseline, size: FONT_SIZE.tableHead, font: bold, color: kabineku ? ink : white });
+    target.drawText('Desc', { x: COLUMNS.desc.x + CELL_PAD, y: baseline, size: FONT_SIZE.tableHead, font: bold, color: kabineku ? ink : white });
     const qtyText = 'Qty';
     target.drawText(qtyText, {
       x: COLUMNS.qty.x + COLUMNS.qty.width / 2 - bold.widthOfTextAtSize(qtyText, FONT_SIZE.tableHead) / 2,
       y: baseline,
       size: FONT_SIZE.tableHead,
       font: bold,
-      color: white,
+      color: kabineku ? ink : white,
     });
     const meaText = 'Mea';
     target.drawText(meaText, {
@@ -365,7 +393,7 @@ export async function buildInvoicePdf({
       y: baseline,
       size: FONT_SIZE.tableHead,
       font: bold,
-      color: white,
+      color: kabineku ? ink : white,
     });
     const priceText = 'Price';
     target.drawText(priceText, {
@@ -373,7 +401,7 @@ export async function buildInvoicePdf({
       y: baseline,
       size: FONT_SIZE.tableHead,
       font: bold,
-      color: white,
+      color: kabineku ? ink : white,
     });
     const amountText = 'Amount';
     target.drawText(amountText, {
@@ -381,7 +409,7 @@ export async function buildInvoicePdf({
       y: baseline,
       size: FONT_SIZE.tableHead,
       font: bold,
-      color: white,
+      color: kabineku ? ink : white,
     });
     return topY - headHeight;
   }
@@ -685,6 +713,33 @@ export async function buildInvoicePdf({
     return h;
   })();
 
+  if (closingHeight > PAGE.height - footerReserve - 50) {
+    // Oversized optional content flows line by line, not an unbreakable group.
+    const flow = (value, { heading = false, payment = false } = {}) => {
+      const size = heading ? 9 : FONT_SIZE.small;
+      const fnt = heading ? bold : font;
+      for (const line of wrapText(value, fnt, size, CONTENT_WIDTH - 12)) {
+        ensureSpace(17, { tableHead: false });
+        if (kabineku && payment) page.drawRectangle({x:PAGE.marginX,y:y-16,width:CONTENT_WIDTH,height:17,color:brand});
+        page.drawText(line,{x:PAGE.marginX+6,y:y-11,size,font:fnt,color:ink});
+        y -= 16;
+      }
+    };
+    for(const row of summaryRows) flow(`${row.label}: ${row.value}`, {heading:row.strong});
+    if(scheduleLines.length) {
+      flow('Payment Schedule:',{heading:true});
+      for(const line of scheduleLines) flow(line.text);
+    }
+    y -= 8;
+    flow(`Transfer via ${transferVia || '__________________'}`,{heading:true,payment:true});
+    flow(bankLines || '(rekening belum diisi — bukan rekening contoh)',{payment:true});
+    if(instructions) flow(instructions,{payment:true});
+    if(notes) { flow('Catatan:',{heading:true});flow(notes); }
+    ensureSpace(85,{tableHead:false});
+    y -= 12; flow('Yours sincerely,'); y -= 32;
+    flow(signerName || '(nama penandatangan belum diisi)',{heading:true});
+    if(signerTitle) flow(signerTitle);
+  } else {
   ensureSpace(closingHeight, { tableHead: false });
   const blockTop = y;
 
@@ -712,7 +767,7 @@ export async function buildInvoicePdf({
       y: ty,
       size,
       font: fnt,
-      color: ink,
+      color: kabineku && isStrong ? accent : ink,
     });
     const valueText = fitLine(row.value, fnt, size, COLUMNS.amount.width - CELL_PAD * 2).text;
     page.drawText(valueText, {
@@ -720,7 +775,7 @@ export async function buildInvoicePdf({
       y: ty,
       size,
       font: fnt,
-      color: ink,
+      color: kabineku && isStrong ? accent : ink,
     });
     if (isStrong) {
       page.drawLine({
@@ -745,10 +800,14 @@ export async function buildInvoicePdf({
   let py = summaryBottom - 8;
 
   // Olive label chip like cell B28 in the source ("Transfer via" on FF959676).
+  if (kabineku) {
+    const bannerHeight = 35 + Math.max(1,bankWrap.length)*10 + instrWrap.length*10 + (instrWrap.length ? 4 : 0);
+    page.drawRectangle({x:PAGE.marginX,y:py-bannerHeight+13,width:CONTENT_WIDTH,height:bannerHeight,color:brand});
+  }
   const chipText = 'Transfer via';
   const chipW = bold.widthOfTextAtSize(chipText, 8.2) + 12;
   page.drawRectangle({ x: PAGE.marginX, y: py - 3, width: chipW, height: 14, color: brand });
-  page.drawText(chipText, { x: PAGE.marginX + 6, y: py + 1.2, size: 8.2, font: bold, color: white });
+  page.drawText(chipText, { x: PAGE.marginX + 6, y: py + 1.2, size: 8.2, font: bold, color: kabineku ? ink : white });
   const viaText = transferVia || '__________________';
   page.drawText(viaText, {
     x: PAGE.marginX + chipW + 8,
@@ -770,7 +829,7 @@ export async function buildInvoicePdf({
       y: py,
       size: FONT_SIZE.small - 0.4,
       font: italic,
-      color: placeholder,
+      color: kabineku ? ink : placeholder,
     });
     py -= FONT_SIZE.small + 2.4;
   }
@@ -834,15 +893,17 @@ export async function buildInvoicePdf({
     });
   }
 
+  } // normal closing group
+
   // --------------------------------------------------- watermark + footers
   const totalPages = pages.length;
   pages.forEach((p, index) => {
     drawFooter(p, index, totalPages);
   });
 
-  doc.setTitle(`Invoice ${asText(invoice.invoiceNo).trim() || '(draft)'} — Noir`);
+  doc.setTitle(`Invoice ${asText(invoice.invoiceNo).trim() || '(draft)'} — ${templateName}`);
   doc.setAuthor(asText(invoice.issuer?.name).trim() || 'Noir Invoice Generator');
-  doc.setSubject('Invoice (A4, template Noir)');
+  doc.setSubject(`Invoice (A4, template ${templateName})`);
   doc.setCreator('noir-invoice-generator');
   doc.setProducer('noir-invoice-generator (pdf-lib)');
   const stamp = now instanceof Date ? now : new Date(now);

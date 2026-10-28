@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Noir Invoice Generator — lokal</title>
+    <title>Invoice Noir / Kabineku — lokal</title>
     <meta name="description" content="Generator invoice Noir: form, draft lokal, preview dan PDF A4." />
   </head>
   <body>
@@ -11,7 +11,7 @@
       <div class="brand">
         <img src="./src/assets/noir-logo.jpg" alt="Noir" width="34" height="34" />
         <div>
-          <strong>Noir Invoice Generator</strong>
+          <strong>Invoice Noir / Kabineku</strong>
           <span class="brand-sub">lokal · tanpa server · tanpa akun</span>
         </div>
       </div>
@@ -26,6 +26,15 @@
 
     <main class="workspace">
       <section class="panel form-panel" aria-label="Form invoice">
+        <div class="template-picker">
+          <h2>Satu form. Dua tampilan invoice.</h2>
+          <p>Ganti template tanpa mengubah isi, hitungan, termin, atau rekening.</p>
+          <div class="template-cards" role="group" aria-label="Template dokumen">
+            <button type="button" data-template="noir" aria-pressed="true"><strong>NOIR</strong><span>Template yang sekarang</span></button>
+            <button type="button" data-template="kabineku" aria-pressed="false"><strong>KABINEKU</strong><span>Kuning madu + hijau</span></button>
+          </div>
+          <small>Logo Kabineku: rekonstruksi vector sementara, bukan master resmi.</small>
+        </div>
         <nav class="tabs" role="tablist">
           <button type="button" class="tab is-active" data-tab="invoice" role="tab">Invoice</button>
           <button type="button" class="tab" data-tab="items" role="tab">Baris &amp; termin</button>
@@ -219,7 +228,8 @@
         <div class="preview-scroll">
           <div class="paper" id="paper">
             <div class="paper-band">
-              <img src="./src/assets/noir-logo.jpg" alt="Noir" class="paper-logo" />
+              <img src="./src/assets/noir-logo.jpg" alt="Noir" class="paper-logo" id="pv-noir-logo" />
+              <div id="pv-kabineku-logo" class="kabineku-logo" hidden aria-label="Kabineku — logo sementara"><strong>kabi</strong><div><b>ne</b><b>ku</b></div><small>by Noir Living Indonesia</small></div>
               <div class="paper-band-right">
                 <div class="paper-title">INVOICE</div>
                 <div class="paper-issuer" id="pv-issuer"></div>

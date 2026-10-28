@@ -4,6 +4,7 @@
  */
 
 import './styles.css';
+import './kabineku.css';
 import { formatRupiah } from './lib/money.js';
 import {
   applyDefaultTermSchedule,
@@ -12,6 +13,7 @@ import {
   createLine,
   createTerm,
   normalizeInvoice,
+  selectTemplate,
   validateForFinal,
 } from './lib/model.js';
 import {
@@ -265,6 +267,15 @@ async function exportPdf() {
 }
 
 function wire() {
+  document.querySelectorAll('.template-cards [data-template]').forEach((button) => {
+    button.addEventListener('click', () => {
+      // Do not use onFormInput: switching must never auto-fill term amounts.
+      invoice = selectTemplate(readInvoiceFromForm(document, invoice), button.dataset.template);
+      totals = computeTotals(invoice);
+      renderPreview(document, invoice, totals);
+      dirty = true;
+    });
+  });
   document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
