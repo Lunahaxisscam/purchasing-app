@@ -6,7 +6,7 @@ const db=JSON.parse(fs.readFileSync(input));
 const mapped={}; for(const [a,b] of Object.entries({tukangs:'upah_tukang',projects:'upah_projects',items:'upah_items',kasbon:'upah_kasbon',totalans:'upah_totalan',totalanProjects:'upah_totalan_projects',totalanKasbon:'upah_totalan_kasbon',adjustments:'upah_penyesuaian'}))mapped[a]=db[b];
 const source=fs.readFileSync(root+'/public/upah-kasbon-prototype.html','utf8');
 const main=source.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/bootMaster\(\)\s*$/,'');
-const nodes=new Map();const element=()=>({value:'',textContent:'',innerHTML:'',style:{},classList:{toggle(){},add(){}},addEventListener(){},querySelectorAll(){return[]},reset(){},insertAdjacentHTML(){}});
+const nodes=new Map();const element=()=>({value:'',textContent:'',innerHTML:'',style:{},classList:{toggle(){},add(){}},addEventListener(){},querySelectorAll(){return[]},reset(){},insertAdjacentHTML(position,html){this.innerHTML+=html}});
 const document={body:element(),getElementById(id){if(!nodes.has(id))nodes.set(id,element());return nodes.get(id)},querySelectorAll(){return[]},addEventListener(){}};
 let timers=0;
 const c={window:{parent:{__UPAH_READ_ONLY__:true},UpahSync:UP,UpahTotalanHistory:UI},document,console,localStorage:{getItem(){throw Error('no local cache')},setItem(){throw Error('no local writes')}},setTimeout(){timers++;return 0},clearTimeout(){},Map,Set};
@@ -17,7 +17,9 @@ for(const opening of [-100,0,100]){
  const t=c.hitungTotalans(signed)[0];assert.equal(t.hakBersih,800+opening);assert.equal(t.saldoAkhir,0);
  assert.ok(UI.render(t,signed,{money:String,date:String,projectTotal:()=>1000}).includes('Lunas'));
 }
-c.testState=state;vm.runInContext('state=testState; renderTotalans()',c);
+c.testState=state;vm.runInContext('state=testState; render()',c);
+assert.doesNotMatch(nodes.get('totalanTableWrap').innerHTML,/penyesuaianHak|Penyesuaian hak|CONSUMED|ACTIVE|pembayaran existing IDs/,'technical audit section must not render');
+assert.equal(d.adjustments.length,db.upah_penyesuaian.filter(a=>a.tukang_id===(d.dbId||d.id)).length,'adjustment records retained');
 const totals=c.hitungTotalans(d);assert.equal(totals.length,5);
 const rows=[];
 for(const t of totals){

@@ -891,7 +891,7 @@ function render(){
   document.getElementById('cardSisa').textContent = fmtRp(dash.sisaSaldo)
   const ra = ringkasanArsip(d)
   document.getElementById('cardHakSub').textContent = ra.jumlah ? ('Sudah lunas & masuk arsip: ' + ra.jumlah + ' proyek · ' + fmtRp(ra.total) + ' — tidak di-carry over') : 'Belum ada proyek yang lunas / masuk arsip'
-  renderProyekList(); renderProyekDetail(); renderKasbon(); renderTotalanForm(); renderTotalans(); renderPenyesuaian(); renderSlip()
+  renderProyekList(); renderProyekDetail(); renderKasbon(); renderTotalanForm(); renderTotalans(); renderSlip()
   renderProjectOptions() // pertahankan pilihan yang sedang ada di form
   saveState()
 }

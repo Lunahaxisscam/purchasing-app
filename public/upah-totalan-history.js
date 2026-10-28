@@ -36,7 +36,7 @@
       '<div class="history-scroll" tabindex="0" role="region" aria-label="Rincian kasbon dipotong"><table><thead><tr><th>Tanggal</th><th>Uraian</th><th class="num">Nominal</th></tr></thead><tbody>' + (kasbon.join('') || '<tr><td colspan="3">Tidak ada kasbon dipotong.</td></tr>') + '</tbody></table></div>' +
       row('Total kasbon', t.kasbonDipotong, true) + '</div></div>' +
       '<div class="history-settlement"><h4>Ringkasan penyelesaian</h4><div class="history-equation">' + row('Upah bruto', t.totalUpah) + row('Saldo awal (+ / −)', v.opening) + row('− Kasbon dipotong', t.kasbonDipotong) + row('= Hak bersih', v.net, true) + row('− Pembayaran aktual (tunai / transfer)', t.pembayaranAktual) + row('= Saldo akhir', v.ending, true) + '</div>' +
-      (v.carried ? '<p class="history-carry">Dibawa ke totalan berikutnya: <b>' + amount(t.carriedResidual) + '</b>. Ini pengalihan saldo, bukan pembayaran tunai.</p>' : '') +
+      (v.carried ? '<p class="history-carry">Dibawa ke totalan berikutnya: <b>' + amount(t.carriedResidual) + '</b></p>' : '') +
       '<p class="note">Saldo awal positif menambah hak; negatif mengurangi hak. Angka mengikuti dokumen tersimpan.</p></div></article>';
   }
   const api = { summary, render };

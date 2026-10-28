@@ -36,6 +36,7 @@ assert.match(html, /Saldo awal/);
 assert.match(html, /Saldo akhir/);
 assert.match(html, /Dibawa ke totalan berikutnya/);
 assert.match(html, /Pembayaran aktual/);
+assert.doesNotMatch(html, /Ini pengalihan saldo, bukan pembayaran tunai\./);
 assert.match(html, /Selesai \/ Ditutup/);
 assert.match(html, /Project &lt;unsafe&gt;/);
 assert.doesNotMatch(html, /<script>/);
