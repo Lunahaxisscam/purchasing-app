@@ -18,4 +18,4 @@ http.createServer((req,res) => {
     if(req.method==='HEAD'){res.end();return;}
     const stream=fs.createReadStream(file);stream.on('error',()=>res.destroy());stream.pipe(res);
   });
-}).listen(3088,'100.91.244.41',()=>console.log('Totalan staging read-only http://100.91.244.41:3088/'));
+}).listen(Number(process.env.PORT || 3088),'100.91.244.41',()=>console.log('Totalan staging read-only port '+(process.env.PORT || 3088)));

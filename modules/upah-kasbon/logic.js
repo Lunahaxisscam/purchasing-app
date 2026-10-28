@@ -259,12 +259,22 @@ export function proyekSiapTotalan(project) {
  *  Proyek yang sudah diarsipkan dan kasbon yang sudah terpotong adalah
  *  urusan periode yang sudah ditutup — tidak ikut hitungan ini. */
 export function sisaHakPeriodeBerjalan(state) {
-  const dash = ringkasanDashboard(state)
-  const ra = ringkasanArsip(state)
-  const totalAktif = dash.totalHakUpah - ra.total
-  const kasbonBelum = dash.kasbonBelumTerpotong
-  const jumlahProyek = state && Array.isArray(state.projects) ? state.projects.length : 0
-  return { totalAktif, kasbonBelum, sisa: totalAktif - kasbonBelum, jumlahAktif: jumlahProyek - ra.jumlah }
+  const { projects = [], upahItems = [], projectOverrides = {}, totalans = [], kasbon = [], adjustments = [] } = state || {}
+  // Final membership closes a job regardless of its display/archive flag.
+  // A draft (including one labelled Lunas) is not a historical closure.
+  const closed = new Set(totalans.filter(t => t.final === true).flatMap(t => t.projectIds || []))
+  const open = projects.filter(p => !closed.has(p.id) && p.arsipManual !== true)
+  const pekerjaan = ringkasanProyek(open, upahItems, projectOverrides).reduce((s, p) => s + p.total, 0)
+  const penyesuaian = adjustments.filter(a => a.status === 'ACTIVE').reduce((s, a) => s + toNum(a.nominal), 0)
+  const totalAktif = pekerjaan + penyesuaian
+  const closedIds = new Set(totalans.filter(t => t.final === true).map(t => t.id))
+  const allocated = alokasiKasbon(state).perKasbon
+  const remaining = kasbon.filter(k => String(k.jenis || '').toUpperCase() === 'KASBON' && toNum(k.nominal) !== 0 && !closedIds.has(allocated.get(k.id)?.totalanId))
+  const kasbonBelum = remaining.reduce((s, k) => s + toNum(k.nominal), 0)
+  // Preserve the settlement contract: consumed carry is already in opening;
+  // final cash/history must never be subtracted from a new running period.
+  const settlement = totalans.filter(t => t.final !== true).reduce((s, t) => s + toNum(t.openingAdjustment) - toNum(t.pembayaranAktual) - toNum(t.carriedResidual), 0)
+  return { totalAktif, kasbonBelum, sisa: totalAktif - kasbonBelum + settlement, jumlahAktif: open.length, jumlahKasbon: remaining.length, pekerjaan, penyesuaian }
 }
 
 /** Nomor totalan berikutnya: 'TOT-001', 'TOT-002', ... dari nomor terbesar
