@@ -34,6 +34,7 @@ const dom = new JSDOM(html, {
   virtualConsole
 })
 const w = dom.window
+w.UpahTotalanHistory = require(path.join(root, 'public', 'upah-totalan-history.js'))
 w.confirm = () => true
 
 // Mount a real snapshot-shaped final totalan after standalone boot.
@@ -51,7 +52,7 @@ w.eval('state = ' + JSON.stringify({
 const projectRow = [...w.document.querySelectorAll('#proyekTableWrap tr')].find(r => r.textContent.includes('Project Historis'))
 const itemRow = [...w.document.querySelectorAll('#proyekDetailWrap tr')].find(r => r.textContent.includes('Kabinet'))
 const cashbonRow = [...w.document.querySelectorAll('#kasbonTableWrap tr')].find(r => r.textContent.includes('Kasbon mingguan'))
-const totalanRow = [...w.document.querySelectorAll('#totalanTableWrap tr')].find(r => r.textContent.includes('TOT-001'))
+const totalanRow = [...w.document.querySelectorAll('#totalanTableWrap tr, #totalanTableWrap article')].find(r => r.textContent.includes('TOT-001'))
 
 console.log('Historical data lock UI:')
 cek('project final tidak punya aksi arsip/hapus', !!projectRow && !projectRow.querySelector('[data-arsip-proyek], [data-aktifkan-proyek], [data-del-proyek]'))

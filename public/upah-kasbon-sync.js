@@ -274,6 +274,17 @@
         ops.push({ kind: 'update', table: 'upah_tukang', row: { nama: nd.name, unit_bisnis: nd.unit || 'Noir Living' }, id: tid })
       }
 
+      const finalLocks = { projects: new Set(), kasbon: new Set(), totalans: new Set() }
+      const finalRows = [
+        ...((pd && pd.totalans) || []).filter(t => t.final === true),
+        ...((nd && nd.totalans) || []).filter(t => t.final === true)
+      ]
+      for (const t of finalRows) {
+        finalLocks.totalans.add(t.id)
+        ;(t.projectIds || []).forEach(id => finalLocks.projects.add(id))
+        ;(t.kasbonIds || []).forEach(id => finalLocks.kasbon.add(id))
+      }
+
       DS_TABLES.forEach(spec => {
         const prevArr = (pd && pd[spec.arr]) || []
         const nextArr = nd[spec.arr] || []
@@ -283,7 +294,10 @@
         // inserts + updates
         nextArr.forEach(r => {
           const o = prevMap[r.id]
-          if (spec.table === 'upah_totalan' && o && o.final) return
+          if (spec.table === 'upah_totalan' && ((o && o.final) || r.final)) return
+          if (spec.table === 'upah_projects' && o && finalLocks.projects.has(r.id)) return
+          if (spec.table === 'upah_items' && o && finalLocks.projects.has(r.projectId)) return
+          if (spec.table === 'upah_kasbon' && o && finalLocks.kasbon.has(r.id)) return
           if (!o) {
             if (spec.table === 'upah_projects') ops.push({ kind: 'insert', table: spec.table, row: rowProject(r, tid), provId: r.id })
             else if (spec.table === 'upah_items') ops.push({ kind: 'insert', table: spec.table, row: rowItem(r, r.projectId), provId: r.id })
@@ -320,7 +334,13 @@
 
         // deletes (anak dulu baru parent di level luar)
         prevArr.forEach(r => {
-          if (!nextMap[r.id]) ops.push({ kind: 'delete', table: spec.table, id: r.id })
+          if (!nextMap[r.id]) {
+            if (spec.table === 'upah_totalan' && (r.final || finalLocks.totalans.has(r.id))) return
+            if (spec.table === 'upah_projects' && finalLocks.projects.has(r.id)) return
+            if (spec.table === 'upah_items' && finalLocks.projects.has(r.projectId)) return
+            if (spec.table === 'upah_kasbon' && finalLocks.kasbon.has(r.id)) return
+            ops.push({ kind: 'delete', table: spec.table, id: r.id })
+          }
         })
       })
     })
@@ -355,12 +375,14 @@
       case 'upah_items:harga_satuan': return nOr(o.hargaSatuan)
       case 'upah_items:upah_rincian': return nOr(o.upahRincian) || 0
       case 'upah_items:catatan': return o.catatan || null
+      case 'upah_items:sort_order': return 0
       case 'upah_kasbon:tanggal': return o.tanggal
       case 'upah_kasbon:jenis': return o.jenis === 'Pelunasan' ? 'PELUNASAN' : 'KASBON'
       case 'upah_kasbon:deskripsi': return o.deskripsi || null
       case 'upah_kasbon:metode': return o.metode || null
       case 'upah_kasbon:nominal': return nOr(o.nominal) || 0
       case 'upah_kasbon:bukti': return o.bukti || null
+      case 'upah_kasbon:sort_order': return 0
       case 'upah_totalan:no_totalan': return o.no
       case 'upah_totalan:tanggal': return o.tanggal
       case 'upah_totalan:seq': return o.seq || 0

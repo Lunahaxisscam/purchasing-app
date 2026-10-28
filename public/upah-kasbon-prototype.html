@@ -690,18 +690,24 @@ async function persistNow(){
       if(Object.keys(idMap).length){
         // id sementara -> UUID lalu ambil ulang supaya junction rapi
         state.tukangs.forEach(d => UP.applyIdMap(d, idMap))
-        const fresh = await UP.fetchAll(MASTER.client)
-        state = UP.stateFromDb(fresh)
-        if(!state.tukangs.some(t => t.key === state.activeKey)) state.activeKey = state.tukangs[0].key
-        render()
       }
+      const fresh = await UP.fetchAll(MASTER.client)
+      state = UP.stateFromDb(fresh)
+      if(!state.tukangs.some(t => t.key === state.activeKey)) state.activeKey = state.tukangs[0].key
+      render()
     }
     MASTER.last = UP.clone(state)
     masterStatus('Tersimpan ke database.')
   }catch(e){
-    // last TIDAK diubah: percobaan berikutnya mendiff ulang operasi yang sama
-    masterStatus('GAGAL SIMPAN ke database: ' + (e.message || e) + ' — coba lagi / muat ulang.', true)
-    clearTimeout(MASTER.timer); MASTER.timer = setTimeout(persistNow, 5000)
+    const msg = (e && (e.message || e.code)) ? (e.message || e.code) : String(e)
+    const isLockErr = /final.*(locked|kunci|terkunci)|historical upah record is final and locked/i.test(msg)
+    if(isLockErr){
+      clearTimeout(MASTER.timer)
+      masterStatus('Data historis totalan final terkunci dan tidak dapat diubah.', true, true)
+    } else {
+      masterStatus('GAGAL SIMPAN ke database: ' + msg + ' — coba lagi / muat ulang.', true)
+      clearTimeout(MASTER.timer); MASTER.timer = setTimeout(persistNow, 5000)
+    }
   }finally{ MASTER.busy = false }
 }
 /* Daftar master Projects untuk mode LEGACY / uji tanpa Supabase:
@@ -723,6 +729,8 @@ function loadMasterProjectsFromWindow(){
   }catch(e){ return false }
 }
 async function bootMaster(){
+  if(MASTER.booting) return
+  MASTER.booting = true
   loadMasterProjectsFromWindow()
   let sbClient = getParentSb()
   for (let i = 0; i < 20 && !sbClient; i++) {
@@ -733,6 +741,7 @@ async function bootMaster(){
     render();
     document.querySelectorAll('form input, form select, form button, form textarea').forEach(e=>{e.disabled=true})
     masterStatus('Baca-saja: sesi aplikasi/database utama tidak tersedia. Buka melalui aplikasi dan login admin.',true,true)
+    MASTER.booting = false
     return
   }
   MASTER.client = sbClient
@@ -767,6 +776,8 @@ async function bootMaster(){
     state = blankState() // fail-closed: JANGAN pakai cache lokal
     render()
     masterStatus('GAGAL MEMUAT DATABASE: ' + (e.message || e) + ' — mode baca-saja, perubahan tidak disimpan.', true, true)
+  }finally{
+    MASTER.booting = false
   }
 }
 function nextId(p){ const d = D(); d.idCounter = (d.idCounter || 0) + 1; return p + d.idCounter.toString(36) + Date.now().toString(36) }
