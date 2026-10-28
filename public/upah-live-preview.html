@@ -179,13 +179,14 @@
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
     }
   </style>
+  <script src="/upah-preview-readonly.js"></script>
   <script src="/vendor/supabase.js"></script>
 </head>
 <body>
   <header>
     <div class="brand-meta">
       <span class="badge-staging">preview aplikasi, data utama/live</span>
-      <span class="title">NOIR LIVING — Preview Totalan</span>
+      <span class="title">NOIR LIVING — Staging riwayat totalan · BACA SAJA</span>
       <span class="db-ref" title="Database utama/live">db: wuurovgjflrhczlsbixm</span>
     </div>
 
@@ -252,6 +253,7 @@
         return null;
       }
       return supabase.createClient(LIVE_URL, LIVE_ANON, {
+        global: { fetch: window.upahPreviewReadFetch },
         auth: {
           persistSession: true,
           autoRefreshToken: true,

@@ -1,0 +1,16 @@
+.history-document{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:16px;margin:16px 0 24px;font-variant-numeric:tabular-nums}
+.history-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;background:white;border:1px solid var(--line);border-radius:9px;padding:16px;margin-bottom:14px}
+.history-header h3{font-size:19px;margin:0 0 6px}.history-header h3 span{font-weight:400;color:var(--muted);padding:0 8px}
+.history-header p{margin:0;font-size:12px;color:var(--muted)}
+.history-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}.history-actions button{min-height:40px}
+.history-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.history-panel{min-width:0;display:flex;flex-direction:column;background:white;padding:16px;border:1px solid var(--line);border-radius:9px}
+.history-document h4{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.4px;font-weight:650}
+.history-panel p{margin:0 0 8px}.history-scroll{overflow:auto;max-height:330px;scrollbar-gutter:stable;flex:1;outline-offset:3px}
+.history-document table{table-layout:fixed;margin:0;font-size:13px}.history-document th{position:sticky;top:0;z-index:1;background:var(--olive-50);color:var(--ink);font-size:12px}
+.history-document td,.history-document th{white-space:normal;overflow-wrap:anywhere;padding:10px 8px}.history-document .num{white-space:nowrap;width:155px}.history-panel:nth-child(2) th:first-child{width:96px}
+.history-amount{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.history-amount b{white-space:nowrap;font-weight:600}.history-amount.emphasis{font-size:15px;font-weight:650}.history-panel>.history-amount{margin-top:14px;border:0;padding-bottom:0}
+.history-settlement{margin-top:16px;padding:16px;background:var(--olive-50);border:1px solid var(--olive-200);border-radius:9px}.history-equation{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}.history-settlement .note{margin-bottom:0}.history-carry{font-size:13px;color:var(--olive-dark);line-height:1.6}
+@media(max-width:800px){.history-columns,.history-equation{grid-template-columns:minmax(0,1fr)}.history-header{flex-direction:column}.history-actions{justify-content:flex-start}.history-actions button{min-height:44px}.history-document{padding:10px}.history-panel{padding:12px}.history-document td,.history-document th{padding:9px 4px;font-size:12px}.history-document .num{width:125px}.history-panel:nth-child(2) th:first-child{width:70px}.history-scroll{max-height:300px}.history-amount{font-size:12px;gap:8px}.history-amount.emphasis{font-size:14px}.history-amount span{min-width:0}.history-header h3{font-size:17px}}
+/* The staging wrapper opts into safe, read-only UI; main app is unaffected. */
+.upah-read-only form,.upah-read-only button:not([data-slip]):not(#btnPrint):not(#btnGoList):not(nav.tabs button),.upah-read-only .tukangbar .sep{display:none!important}

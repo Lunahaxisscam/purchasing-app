@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Modul Upah &amp; Kasbon — Noir Living</title>
+<link rel="stylesheet" href="/upah-totalan-history.css?v=totalan-layout-1">
 <style>
   :root{
     --olive:#6B7A45; --olive-dark:#57653a; --olive-50:#eef0e6; --olive-200:#d5dbc2;
@@ -264,8 +265,19 @@
 
 <script src="/upah-kasbon-sync.js"></script>
 <script src="/upah-penyesuaian.js"></script>
+<script src="/upah-totalan-history.js?v=totalan-layout-1"></script>
 <script>
 'use strict'
+if(window.parent.__UPAH_READ_ONLY__){
+  document.body.classList.add('upah-read-only')
+  document.addEventListener('submit', e => { e.preventDefault(); e.stopImmediatePropagation() }, true)
+  document.addEventListener('click', e => {
+    const button = e.target.closest('button')
+    if(button && !button.matches('nav.tabs button, [data-slip], #btnPrint, #btnGoList')){
+      e.preventDefault(); e.stopImmediatePropagation()
+    }
+  }, true)
+}
 /* ===== Salinan logic.js (modules/upah-kasbon/logic.js) — JAGA TETAP SAMA ===== */
 // ============================================================
 // modules/upah-kasbon/logic.js — PERHITUNGAN MURNI UPAH & KASBON
@@ -642,6 +654,7 @@ function loadState(){
   return blankState()
 }
 function saveState(){
+  if(window.parent.__UPAH_READ_ONLY__) return
   if(MASTER.last && JSON.stringify(MASTER.last)===JSON.stringify(state)) return
   const sbClient = getParentSb()
   if(sbClient){ // mode master
@@ -664,6 +677,7 @@ function snapTotalan(t, d){
   }catch(e){ return {} }
 }
 async function persistNow(){
+  if(window.parent.__UPAH_READ_ONLY__) return
   if(MASTER.busy){ clearTimeout(MASTER.timer); MASTER.timer = setTimeout(persistNow, 1200); return }
   MASTER.busy = true
   try{
@@ -1053,25 +1067,10 @@ function renderTotalans(){
   const d = D(); const wrap = document.getElementById('totalanTableWrap')
   const tots = hitungTotalans(d)
   if(!tots.length){ wrap.innerHTML = '<div class="empty">Belum ada totalan untuk tukang ini.</div>'; return }
-  // Dokumen tutup buku (final) tidak boleh dihapus dari UI — samakan dengan
-  // kunci proyek/rincian/kasbon sumbernya (assertFinalHistoryImmutable).
-  const adaFinal = tots.some(t => t.final === true)
-  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px"><b>Daftar Riwayat Totalan (' + tots.length + ')</b>' + (adaFinal
-    ? '<button type="button" class="small danger" id="btnClearTotalanTukang" disabled title="Ada totalan final (tutup buku) — riwayat tidak boleh dihapus massal">Hapus Semua Totalan &amp; Slip</button>'
-    : '<button type="button" class="small danger" id="btnClearTotalanTukang">Hapus Semua Totalan &amp; Slip</button>') + '</div>'
-  html += '<table><tr><th>No. Totalan</th><th>Tanggal</th><th>Proyek</th><th class="num">Total Upah</th><th class="num">Kasbon Dipotong</th><th class="num">Hak Bersih</th><th class="num">Pembayaran Aktual</th><th class="num">Saldo Akhir</th><th>Status</th><th></th></tr>'
-  for(const t of tots){
-    const names = (t.projectIds || []).map(projectName).join(', ')
-    const badge = t.status === 'Lunas' ? 'lunas' : (t.status === 'Nomor duplikat' ? 'dup' : 'cek')
-    html += '<tr><td>' + esc(t.no) + '</td><td>' + fmtTgl(t.tanggal) + '</td><td>' + esc(names) + '</td><td class="num">' + fmtRp(t.totalUpah) + '</td><td class="num">' + fmtRp(t.kasbonDipotong) + '</td><td class="num">' + fmtRp(t.hakBersih) + '</td><td class="num">' + fmtRp(t.pembayaranAktual) + '</td><td class="num">' + fmtRp(t.saldoAkhir) + '</td><td><span class="badge ' + badge + '">' + esc(t.status) + '</span></td><td style="white-space:nowrap"><button class="small" data-slip="' + t.id + '">Slip</button> ' + (t.final ? '<span class="badge grey">Dikunci — totalan final</span>' : '<button class="small danger" data-del-totalan="' + t.id + '">Hapus</button>') + '</td></tr>'
-    if(t.potonganDetail && t.potonganDetail.length){
-      html += '<tr><td colspan="10" style="font-size:12px;color:var(--muted);padding-left:18px">Kasbon terpotong di totalan ini: ' + t.potonganDetail.map(x => fmtTgl(x.tanggal) + ' · ' + esc(x.deskripsi || 'kasbon') + ' · ' + fmtRp(x.nominal)).join(' &nbsp;|&nbsp; ') + '</td></tr>'
-    } else {
-      html += '<tr><td colspan="10" style="font-size:12px;color:var(--muted);padding-left:18px">Tidak ada kasbon yang dipotong di totalan ini.</td></tr>'
-    }
-  }
-  html += '</table>'
-  wrap.innerHTML = html
+  const helpers = { money:fmtRp, date:fmtTgl,
+    projectTotal: id => totalUpahProyek(d.upahItems, id, (d.projectOverrides || {})[id]) }
+  wrap.innerHTML = '<h3>Daftar Riwayat Totalan (' + tots.length + ')</h3>' +
+    tots.map(t => window.UpahTotalanHistory.render(t, d, helpers)).join('')
 }
 
 function renderSlip(){
@@ -1080,6 +1079,7 @@ function renderSlip(){
   if(!t){ wrap.style.display = 'none'; return }
   wrap.style.display = 'block'
   const names = (t.projectIds || []).map(projectName).join(', ')
+  const history = window.UpahTotalanHistory.summary(t)
   el.innerHTML =
     '<h3>NOIR LIVING — SLIP PEMBAYARAN UPAH</h3><div class="co">Interior Design &amp; Build</div>' +
     '<table>' +
@@ -1088,16 +1088,18 @@ function renderSlip(){
     '<tr><td>Tukang / Subkon</td><td>' + esc(d.name) + '</td></tr>' +
     '<tr><td>Proyek</td><td>' + esc(names) + '</td></tr>' +
     '<tr><td>Total Upah</td><td>' + fmtRp(t.totalUpah) + '</td></tr>' +
+    '<tr><td>Saldo awal (+ / −)</td><td>' + fmtRp(history.opening) + '</td></tr>' +
     '<tr><td>Kasbon Dipotong</td><td>' + fmtRp(t.kasbonDipotong) + '</td></tr>' +
     (t.potonganDetail && t.potonganDetail.length
       ? t.potonganDetail.map(x => '<tr><td style="padding-left:22px;color:#555;font-size:12.5px">— kasbon ' + fmtTgl(x.tanggal) + (x.deskripsi ? ' · ' + esc(x.deskripsi) : '') + '</td><td style="color:#555;font-size:12.5px">' + fmtRp(x.nominal) + '</td></tr>').join('')
       : '<tr><td style="padding-left:22px;color:#555;font-size:12.5px">— tidak ada kasbon dipotong</td><td></td></tr>') +
     '<tr><td>Hak Bersih</td><td><b>' + fmtRp(t.hakBersih) + '</b></td></tr>' +
     '<tr><td>Pembayaran Aktual</td><td>' + fmtRp(t.pembayaranAktual) + '</td></tr>' +
-    '<tr><td>Saldo Akhir</td><td>' + fmtRp(t.saldoAkhir) + '</td></tr>' +
-    '<tr><td>Status</td><td>' + esc(t.status) + '</td></tr>' +
+    '<tr><td>Saldo akhir</td><td>' + fmtRp(history.ending) + '</td></tr>' +
+    (history.carried ? '<tr><td>Dibawa ke totalan berikutnya (bukan tunai)</td><td>' + fmtRp(t.carriedResidual) + '</td></tr>' : '') +
+    '<tr><td>Status</td><td>' + esc(history.status) + '</td></tr>' +
     '</table>' +
-    '<p style="font-size:12.5px;color:#555;margin-top:14px">Dengan menandatangani slip ini, penerima menyatakan pembayaran telah diterima.</p>' +
+    '<p style="font-size:12.5px;color:#555;margin-top:14px">Pembayaran aktual di atas adalah tunai / transfer. Pengalihan saldo bukan pembayaran tunai.</p>' +
     '<div class="sign"><div>Penerima<div class="nm">' + esc(d.name) + '</div></div><div>Disetujui<div class="nm">&nbsp;</div></div></div>'
 }
 

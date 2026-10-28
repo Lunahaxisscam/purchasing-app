@@ -113,7 +113,7 @@
         pembayaranAktual: Number(t.pembayaran_aktual || 0),
         openingAdjustment: Number(t.opening_adjustment || 0),
         carriedResidual: Number(t.carried_residual || 0),
-        residualBeforeCarry: Number(t.residual_before_carry || 0),
+        residualBeforeCarry: t.residual_before_carry == null ? null : Number(t.residual_before_carry),
         kasbonIds: (jkByTotalan[t.id] || []).map(j => j.kasbon_id),
         // KUNCI HISTORIS (keputusan DAT 24 Okt 2026): totalan ber-`final` adalah
         // dokumen tutup buku — angkanya diambil apa adanya dari DB (hasil sheet),
