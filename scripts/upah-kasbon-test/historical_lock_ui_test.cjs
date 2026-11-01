@@ -13,6 +13,7 @@ virtualConsole.on('jsdomError', e => scriptErrors.push(e.message))
 const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', virtualConsole })
 const w = dom.window
 w.confirm = () => true
+w.UpahTotalanHistory = require(path.join(root, 'public/upah-totalan-history.js'))
 
 let pass = 0, fail = 0
 function check(name, condition, detail = '') {
@@ -42,7 +43,7 @@ w.eval('state = ' + JSON.stringify(fixture) + '; detailProjectId = "p-closed"; r
 const projectRow = [...w.document.querySelectorAll('#proyekTableWrap tr')].find(r => r.textContent.includes('Project Closed'))
 const itemRow = [...w.document.querySelectorAll('#proyekDetailWrap tr')].find(r => r.textContent.includes('Wardrobe'))
 const cashbonRow = [...w.document.querySelectorAll('#kasbonTableWrap tr')].find(r => r.textContent.includes('Kasbon mingguan'))
-const totalanRow = [...w.document.querySelectorAll('#totalanTableWrap tr')].find(r => r.textContent.includes('TOT-001'))
+const totalanRow = [...w.document.querySelectorAll('#totalanTableWrap tr, #totalanTableWrap article')].find(r => r.textContent.includes('TOT-001'))
 
 console.log('Historical source records are read-only:')
 check('closed project row has no archive/reactivate/delete action',

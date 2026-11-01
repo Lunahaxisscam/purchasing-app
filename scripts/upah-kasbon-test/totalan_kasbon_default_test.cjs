@@ -37,6 +37,7 @@ const dom = new JSDOM(html, {
 })
 const w = dom.window
 w.confirm = () => true
+w.UpahTotalanHistory = require(path.join(root, 'public', 'upah-totalan-history.js'))
 
 // Fixture: 1 proyek siap totalan + 2 kasbon belum terpotong.
 // k1 = masa lalu (<= hari ini), k2 = masa depan. Perilaku lama hanya
