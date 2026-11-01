@@ -827,7 +827,7 @@ export default function App() {
   return (
     <main className="shell">
       <Sidebar page={page} setPage={goTo} session={session} logout={logout} role={role} />
-      <section className="content">
+      <section className={`content ${page === 'upah_kasbon' ? 'content-fullwidth content-upah-kasbon' : ''}`}>
         <header>
           <div>
             <p className="eyebrow">OPERASIONAL INTERNAL</p>

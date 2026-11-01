@@ -27,22 +27,22 @@
   button.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
   button.small{padding:4px 9px;font-size:12.5px;border-radius:7px}
   button.danger{color:var(--danger)}
-  main{max-width:1180px;margin:0 auto;padding:16px 16px 60px}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0}
+  main{max-width:none;width:100%;margin:0;padding:12px 20px 48px;box-sizing:border-box}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0;width:100%}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
   .card .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
   .card .val{font-size:21px;font-weight:800;margin-top:4px}
   .card.blue{border-top:4px solid #3b6ea5}.card.red{border-top:4px solid #b04a4a}
   .card.green{border-top:4px solid #4a8a54}.card.amber{border-top:4px solid #c99a2e}
   .note{font-size:12.5px;color:var(--muted)}
-  .tukangbar{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+  .tukangbar{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;width:100%;box-sizing:border-box}
   .tukangbar b{color:var(--olive-dark)}
   .tukangbar select,.tukangbar input{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff}
   .tukangbar .sep{border-left:1px solid var(--line);padding-left:18px}
-  nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 0}
+  nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 0;width:100%}
   nav.tabs button{border-radius:10px 10px 0 0;border-bottom:none;padding:9px 16px;background:var(--olive-50);font-weight:600;color:var(--olive-dark)}
   nav.tabs button.active{background:var(--card);color:var(--ink);box-shadow:0 -1px 0 var(--line) inset}
-  section.panel{background:var(--card);border:1px solid var(--line);border-radius:0 var(--radius) var(--radius) var(--radius);padding:18px}
+  section.panel{background:var(--card);border:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius);padding:18px 20px;width:100%;box-sizing:border-box}
   section.panel h2{margin:0 0 4px;font-size:16px}
   form.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 14px;margin:14px 0;padding:14px;background:var(--olive-50);border-radius:var(--radius)}
   form.grid .wide{grid-column:span 2}
@@ -50,10 +50,35 @@
   label.f input,label.f select,label.f textarea{font:inherit;font-weight:400;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
   label.f input:focus,label.f select:focus{outline:2px solid var(--olive-200);border-color:var(--olive)}
   .formbtns{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
-  table{width:100%;border-collapse:collapse;margin-top:10px}
-  th{background:var(--olive);color:#fff;text-align:left;padding:8px 10px;font-size:12.5px}
-  td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .table-responsive{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;min-width:0}
+  table{width:100%;border-collapse:collapse;margin-top:0}
+  th{background:var(--olive);color:#fff;text-align:left;padding:10px 14px;font-size:13px;font-weight:600;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--line)}
+  td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:13.5px}
+  td.num,th.num,.col-num{text-align:right !important;font-variant-numeric:tabular-nums;white-space:nowrap !important}
+  table.rincian-table{min-width:860px;width:100%}
+  table.rincian-table th.col-pekerjaan,table.rincian-table td.col-pekerjaan{min-width:180px;white-space:normal;word-break:break-word}
+  table.rincian-table th.col-ukuran,table.rincian-table td.col-ukuran{width:110px;min-width:100px;white-space:nowrap !important;text-align:right}
+  table.rincian-table th.col-harga,table.rincian-table td.col-harga{width:145px;min-width:130px;white-space:nowrap !important;text-align:right}
+  table.rincian-table th.col-upah,table.rincian-table td.col-upah{width:160px;min-width:145px;white-space:nowrap !important;text-align:right;font-weight:700}
+  table.rincian-table th.col-catatan{min-width:220px;white-space:normal;word-break:break-word;overflow-wrap:anywhere;color:#fff !important}
+  table.rincian-table td.col-catatan{min-width:220px;white-space:normal;word-break:break-word;overflow-wrap:anywhere;color:var(--muted)}
+  table.rincian-table th.col-aksi,table.rincian-table td.col-aksi{width:110px;min-width:95px;white-space:nowrap !important;text-align:center}
+  table.proyek-table{min-width:840px;width:100%}
+  table.proyek-table th.col-proyek,table.proyek-table td.col-proyek{min-width:200px;white-space:normal;word-break:break-word}
+  table.proyek-table th.col-status,table.proyek-table td.col-status{width:135px;min-width:115px;white-space:nowrap !important}
+  table.proyek-table th.col-project-id,table.proyek-table td.col-project-id{width:165px;min-width:140px;white-space:normal}
+  table.proyek-table th.col-item,table.proyek-table td.col-item{width:125px;min-width:105px;white-space:nowrap !important;text-align:right}
+  table.proyek-table th.col-upah,table.proyek-table td.col-upah{width:165px;min-width:145px;white-space:nowrap !important;text-align:right}
+  table.proyek-table th.col-aksi,table.proyek-table td.col-aksi{width:180px;min-width:140px;white-space:nowrap !important}
+  table.kasbon-table{min-width:880px;width:100%}
+  table.kasbon-table th.col-tanggal,table.kasbon-table td.col-tanggal{width:115px;min-width:100px;white-space:nowrap !important}
+  table.kasbon-table th.col-jenis,table.kasbon-table td.col-jenis{width:100px;min-width:85px;white-space:nowrap !important}
+  table.kasbon-table th.col-deskripsi,table.kasbon-table td.col-deskripsi{min-width:160px;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
+  table.kasbon-table th.col-metode,table.kasbon-table td.col-metode{width:105px;min-width:90px;white-space:nowrap !important}
+  table.kasbon-table th.col-nominal,table.kasbon-table td.col-nominal{width:155px;min-width:135px;white-space:nowrap !important;text-align:right}
+  table.kasbon-table th.col-bukti,table.kasbon-table td.col-bukti{width:75px;min-width:60px;text-align:center}
+  table.kasbon-table th.col-status-potongan,table.kasbon-table td.col-status-potongan{width:195px;min-width:165px}
+  table.kasbon-table th.col-aksi,table.kasbon-table td.col-aksi{width:145px;min-width:105px;white-space:nowrap !important}
   tr.subtotal td{background:var(--olive-50);font-weight:700}
   tr.grand td{background:#e6ead6;font-weight:800}
   tr.clickable{cursor:pointer}
@@ -71,10 +96,12 @@
   .checks .amt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
   #notice{display:none;margin:12px 0 0;padding:10px 14px;border-radius:10px;background:var(--ok-bg);color:var(--ok);font-weight:600}
   #notice.err{background:var(--danger-bg);color:var(--danger)}
-  .detailbox{border:1px solid var(--olive-200);border-radius:var(--radius);padding:16px;margin-top:14px;background:#fbfcf8}
-  .rincian-layout{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+  .detailbox{border:none;border-radius:0;padding:4px 0 0;margin-top:10px;background:transparent}
+  .rincian-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;min-width:0;width:100%}
+  .rincian-main{min-width:0;width:100%}
   .rincian-side{position:static;margin-top:0}
-  .detailstats{display:flex;gap:10px 26px;flex-wrap:wrap;margin:8px 0}
+  .rincian-side.detailbox{border:1px solid var(--line);border-radius:var(--radius);padding:16px;background:#fbfcf8;margin-top:14px}
+  .detailstats{display:flex;gap:12px 24px;flex-wrap:wrap;align-items:center;margin:12px 0 16px;padding:10px 16px;background:var(--olive-50);border:1px solid var(--line);border-radius:8px}
   .detailstats .ds .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
   .detailstats .ds .val{font-size:17px;font-weight:800}
   .slipwrap{margin-top:18px}
@@ -937,25 +964,25 @@ function renderProyekList(){
   if(belumTerhubung){
     html += '<div class="note" style="margin-bottom:8px"><b>' + belumTerhubung + ' proyek Belum terhubung</b> ke master Projects. Buka <b>Edit</b> pada baris proyek untuk memilih Project ID — tidak ada penebakan otomatis dari nama.</div>'
   }
-  html += '<table><tr><th>Proyek Aktif (klik untuk rincian)</th><th>Status</th><th>Project ID (master)</th><th class="num">Item Pekerjaan</th><th class="num">Total Upah</th><th></th></tr>'
+  html += '<div class="table-responsive"><table class="proyek-table"><thead><tr><th class="col-proyek">Proyek Aktif (klik untuk rincian)</th><th class="col-status">Status</th><th class="col-project-id">Project ID (master)</th><th class="col-item num">Item Pekerjaan</th><th class="col-upah num">Total Upah</th><th class="col-aksi"></th></tr></thead><tbody>'
   let grand = 0
   if(!aktif.length) html += '<tr><td colspan="6" style="color:var(--muted)">Tidak ada proyek aktif — semua sudah lunas / diarsipkan.</td></tr>'
   for(const p of aktif){
     const r = ring.find(x => x.projectId === p.id); grand += r.total
     const terkunci = finalLocks.projects.has(p.id)
     const actions = '<button class="small" data-open-proyek="' + p.id + '">Rincian →</button>' + (terkunci ? '' : ' <button class="small" data-edit-proyek="' + p.id + '">Edit</button>') + (terkunci || lunas.has(p.id) ? '' : ' <button class="small" data-arsip-proyek="' + p.id + '">Arsipkan</button> <button class="small danger" data-del-proyek="' + p.id + '">Hapus</button>')
-    html += '<tr class="clickable" data-open-proyek="' + p.id + '" title="Klik untuk melihat rincian upah"><td><b>' + esc(p.name) + '</b>' + (terkunci ? ' <span class="badge grey">totalan final — dikunci</span>' : (sudahDipakai.has(p.id) ? ' <span class="badge cek">sudah ditotal — belum lunas</span>' : '')) + (lunas.has(p.id) ? ' <span class="badge lunas">lunas — ditahan aktif</span>' : '') + '</td><td>' + projectStatusSelect(p, terkunci) + '</td><td>' + projectLinkCell(p) + '</td><td class="num">' + r.jumlahItem + '</td><td class="num"><b>' + fmtRp(r.total) + '</b></td><td style="white-space:nowrap">' + actions + '</td></tr>'
+    html += '<tr class="clickable" data-open-proyek="' + p.id + '" title="Klik untuk melihat rincian upah"><td class="col-proyek"><b>' + esc(p.name) + '</b>' + (terkunci ? ' <span class="badge grey">totalan final — dikunci</span>' : (sudahDipakai.has(p.id) ? ' <span class="badge cek">sudah ditotal — belum lunas</span>' : '')) + (lunas.has(p.id) ? ' <span class="badge lunas">lunas — ditahan aktif</span>' : '') + '</td><td class="col-status">' + projectStatusSelect(p, terkunci) + '</td><td class="col-project-id">' + projectLinkCell(p) + '</td><td class="col-item num">' + r.jumlahItem + '</td><td class="col-upah num"><b>' + fmtRp(r.total) + '</b></td><td class="col-aksi" style="white-space:nowrap">' + actions + '</td></tr>'
   }
-  html += '<tr class="grand"><td colspan="4">TOTAL PROYEK AKTIF</td><td class="num">' + fmtRp(grand) + '</td><td></td></tr></table>'
+  html += '<tr class="grand"><td class="col-proyek" colspan="4">TOTAL PROYEK AKTIF</td><td class="col-upah num">' + fmtRp(grand) + '</td><td class="col-aksi"></td></tr></tbody></table></div>'
   if(arsip.length){
     html += '<h2 style="margin-top:22px">Arsip — Proyek Lunas / Ditutup (' + arsip.length + ')</h2><div class="note">Proyek di sini tidak muncul di pilihan totalan dan tidak di-carry over ke periode berikutnya. Totalnya tetap tercatat di riwayat dashboard.</div>'
-    html += '<table><tr><th>Proyek Arsip</th><th>Project ID (master)</th><th>Tanda</th><th class="num">Item</th><th class="num">Total Upah</th><th></th></tr>'
+    html += '<div class="table-responsive"><table class="proyek-table"><thead><tr><th class="col-proyek">Proyek Arsip</th><th class="col-project-id">Project ID (master)</th><th class="col-status">Tanda</th><th class="col-item num">Item</th><th class="col-upah num">Total Upah</th><th class="col-aksi"></th></tr></thead><tbody>'
     for(const p of arsip){
       const r = ring.find(x => x.projectId === p.id)
       const terkunci = finalLocks.projects.has(p.id)
-      html += '<tr><td><b>' + esc(p.name) + '</b></td><td>' + projectLinkCell(p) + '</td><td>' + (terkunci ? '<span class="badge grey">Totalan final — dikunci</span>' : (lunas.has(p.id) ? '<span class="badge lunas">Lunas</span>' : '<span class="badge grey">Arsip manual</span>')) + '</td><td class="num">' + r.jumlahItem + '</td><td class="num">' + fmtRp(r.total) + '</td><td style="white-space:nowrap"><button class="small" data-open-proyek="' + p.id + '">Rincian →</button>' + (terkunci ? '' : ' <button class="small" data-edit-proyek="' + p.id + '">Edit</button> <button class="small" data-aktifkan-proyek="' + p.id + '">Aktifkan Lagi</button>') + '</td></tr>'
+      html += '<tr><td class="col-proyek"><b>' + esc(p.name) + '</b></td><td class="col-project-id">' + projectLinkCell(p) + '</td><td class="col-status">' + (terkunci ? '<span class="badge grey">Totalan final — dikunci</span>' : (lunas.has(p.id) ? '<span class="badge lunas">Lunas</span>' : '<span class="badge grey">Arsip manual</span>')) + '</td><td class="col-item num">' + r.jumlahItem + '</td><td class="col-upah num">' + fmtRp(r.total) + '</td><td class="col-aksi" style="white-space:nowrap"><button class="small" data-open-proyek="' + p.id + '">Rincian →</button>' + (terkunci ? '' : ' <button class="small" data-edit-proyek="' + p.id + '">Edit</button> <button class="small data-aktifkan-proyek="' + p.id + '">Aktifkan Lagi</button>') + '</td></tr>'
     }
-    html += '</table>'
+    html += '</tbody></table></div>'
   }
   wrap.innerHTML = html
 }
@@ -991,11 +1018,11 @@ function renderProyekDetail(){
   html += '<div class="ds"><div class="lbl">Arsip / Lunas</div><div class="val" style="font-size:13px">' + (terkunciFinal ? '<span class="badge grey">Dikunci — totalan final</span>' : (arsipD ? (lunasD.has(p.id) ? '<span class="badge lunas">Lunas — diarsipkan</span> ' : '<span class="badge grey">Arsip manual</span> ') + '<button class="small" data-aktifkan-proyek="' + p.id + '">Aktifkan Lagi</button>' : '<button class="small" data-arsip-proyek="' + p.id + '">Arsipkan Proyek</button>')) + '</div></div></div>'
   if(!rows.length){ html += '<div class="empty">Proyek ini belum punya rincian upah.</div>' }
   else{
-    html += '<table><tr><th>Pekerjaan</th><th class="num">Ukuran</th><th class="num">Harga Satuan</th><th class="num">Upah Rincian</th><th>Catatan</th><th></th></tr>'
+    html += '<div class="table-responsive"><table class="rincian-table"><thead><tr><th class="col-pekerjaan">Pekerjaan</th><th class="col-ukuran num">Ukuran</th><th class="col-harga num">Harga Satuan</th><th class="col-upah num">Upah Rincian</th><th class="col-catatan">Catatan</th><th class="col-aksi"></th></tr></thead><tbody>'
     for(const it of rows){
-      html += '<tr><td>' + esc(it.pekerjaan) + '</td><td class="num">' + (it.ukuran !== '' && it.ukuran != null ? String(it.ukuran).replace('.', ',') : '-') + (it.satuanUkuran ? ' ' + esc(it.satuanUkuran) : '') + '</td><td class="num">' + fmtRp(it.hargaSatuan) + '</td><td class="num">' + fmtRp(it.upahRincian) + '</td><td>' + esc(it.catatan || '') + '</td><td style="white-space:nowrap">' + (terkunciFinal ? '<span class="badge grey">Dikunci</span>' : '<button class="small" data-edit-upah="' + it.id + '">Edit</button> <button class="small danger" data-del-upah="' + it.id + '">Hapus</button>') + '</td></tr>'
+      html += '<tr><td class="col-pekerjaan">' + esc(it.pekerjaan) + '</td><td class="col-ukuran num">' + (it.ukuran !== '' && it.ukuran != null ? String(it.ukuran).replace('.', ',') : '-') + (it.satuanUkuran ? ' ' + esc(it.satuanUkuran) : '') + '</td><td class="col-harga num">' + fmtRp(it.hargaSatuan) + '</td><td class="col-upah num">' + fmtRp(it.upahRincian) + '</td><td class="col-catatan">' + esc(it.catatan || '') + '</td><td class="col-aksi" style="white-space:nowrap">' + (terkunciFinal ? '<span class="badge grey">Dikunci</span>' : '<button class="small" data-edit-upah="' + it.id + '">Edit</button> <button class="small danger" data-del-upah="' + it.id + '">Hapus</button>') + '</td></tr>'
     }
-    html += '<tr class="subtotal"><td colspan="3">Total — ' + esc(p.name) + (r.override != null ? ' (manual)' : '') + '</td><td class="num">' + fmtRp(r.total) + '</td><td colspan="2"></td></tr></table>'
+    html += '<tr class="subtotal"><td class="col-pekerjaan" colspan="3">Total — ' + esc(p.name) + (r.override != null ? ' (manual)' : '') + '</td><td class="col-upah num">' + fmtRp(r.total) + '</td><td class="col-catatan" colspan="2"></td></tr></tbody></table></div>'
   }
   if(!terkunciFinal) html += '<div style="margin-top:12px"><button type="button" class="small primary" data-open-rincian-form>+ Tambah Rincian</button></div>'
   html += '</div>'
@@ -1012,7 +1039,7 @@ function renderKasbon(){
   const rows = [...d.kasbon].sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)))
   if(!rows.length){ wrap.innerHTML = '<div class="empty">Belum ada kasbon untuk tukang ini.</div>' }
   else{
-    let html = '<table><tr><th>Tanggal</th><th>Jenis</th><th>Deskripsi</th><th>Metode</th><th class="num">Nominal</th><th>Bukti</th><th>Status Potongan</th><th></th></tr>'
+    let html = '<div class="table-responsive"><table class="kasbon-table"><thead><tr><th class="col-tanggal">Tanggal</th><th class="col-jenis">Jenis</th><th class="col-deskripsi">Deskripsi</th><th class="col-metode">Metode</th><th class="col-nominal num">Nominal</th><th class="col-bukti">Bukti</th><th class="col-status-potongan">Status Potongan</th><th class="col-aksi"></th></tr></thead><tbody>'
     const petaStatus = new Map(statusKasbon(d).map(k => [k.id, k]))
     let totK = 0
     for(const k of rows){
@@ -1022,13 +1049,14 @@ function renderKasbon(){
         : (stK && stK.terpotong ? '<span class="badge lunas">Terpotong — ' + esc(stK.totalanNo) + '</span>' + (stK.modeAlokasi === 'otomatis' ? ' <span class="badge grey">totalan lama</span>' : '')
         : '<span class="badge cek">Belum terpotong</span>')
       const actions = finalLocks.kasbon.has(k.id) ? '<span class="badge grey">Dikunci — ' + esc(finalNoByKasbon.get(k.id) || 'totalan final') + '</span>' : '<button class="small" data-edit-kasbon="' + k.id + '">Edit</button> <button class="small danger" data-del-kasbon="' + k.id + '">Hapus</button>'
-      html += '<tr><td>' + fmtTgl(k.tanggal) + '</td><td>' + esc(k.jenis) + '</td><td>' + esc(k.deskripsi || '') + '</td><td>' + esc(k.metode || '') + '</td><td class="num">' + fmtRp(k.nominal) + '</td><td>' + (k.bukti ? ('<a href="' + esc(k.bukti) + '" target="_blank" rel="noopener">lihat</a>') : '') + '</td><td>' + selStatus + '</td><td style="white-space:nowrap">' + actions + '</td></tr>'
+      html += '<tr><td class="col-tanggal">' + fmtTgl(k.tanggal) + '</td><td class="col-jenis">' + esc(k.jenis) + '</td><td class="col-deskripsi">' + esc(k.deskripsi || '') + '</td><td class="col-metode">' + esc(k.metode || '') + '</td><td class="col-nominal num">' + fmtRp(k.nominal) + '</td><td class="col-bukti">' + (k.bukti ? ('<a href="' + esc(k.bukti) + '" target="_blank" rel="noopener">lihat</a>') : '') + '</td><td class="col-status-potongan">' + selStatus + '</td><td class="col-aksi" style="white-space:nowrap">' + actions + '</td></tr>'
     }
+    html += '</tbody></table></div>'
     wrap.innerHTML = html
   }
   const rek = rekapKasbonBulanan(d.kasbon)
   document.getElementById('rekapKasbonWrap').innerHTML = rek.length
-    ? '<table><tr><th>Bulan / Periode</th><th class="num">Jumlah Transaksi</th><th class="num">Total Kasbon</th></tr>' + rek.map(r => '<tr><td>' + esc(r.bulan) + '</td><td class="num">' + r.jumlah + '</td><td class="num">' + fmtRp(r.total) + '</td></tr>').join('') + '</table>'
+    ? '<div class="table-responsive"><table><thead><tr><th>Bulan / Periode</th><th class="num">Jumlah Transaksi</th><th class="num">Total Kasbon</th></tr></thead><tbody>' + rek.map(r => '<tr><td>' + esc(r.bulan) + '</td><td class="num">' + r.jumlah + '</td><td class="num">' + fmtRp(r.total) + '</td></tr>').join('') + '</tbody></table></div>'
     : '<div class="empty">Belum ada rekap.</div>'
 }
 

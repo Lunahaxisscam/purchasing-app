@@ -2,20 +2,29 @@
    modules/upah-kasbon/upah-kasbon.css
    ============================================================
    Gaya pembungkus modul Upah & Kasbon. Prototipe di dalam iframe
-   punya CSS sendiri (terisolasi), jadi file ini HANYA mengatur
-   bingkai + catatan di sekelilingnya.
-
-   Kenapa iframe dibuat tinggi tetap (calc(100vh - 210px)):
-   prototipe punya header + tab sendiri dan scroll internal; kalau
-   iframe diberi height:auto isinya terpotong jadi 150px (default
-   iframe). Kalau 100vh penuh, header app + catatan jadi terdorong
-   keluar layar.
+   punya CSS sendiri (terisolasi). Wrapper ini mengizinkan modul
+   tampil full-width tanpa bubble / border wrapper bertingkat.
    ============================================================ */
+
+.content.content-fullwidth,
+.content:has(.upah-kasbon-wrap) {
+  max-width: none !important;
+  width: 100% !important;
+  padding: 14px 20px 0 20px !important;
+  margin: 0 !important;
+}
+
+.content.content-fullwidth > header,
+.content:has(.upah-kasbon-wrap) > header {
+  margin-bottom: 10px !important;
+}
 
 .upah-kasbon-wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
+  width: 100%;
+  flex: 1;
 }
 
 .upah-kasbon-note {
@@ -27,6 +36,7 @@
   font-size: 12.5px;
   line-height: 1.5;
   color: #1d3b32;
+  margin-bottom: 10px;
 }
 
 .upah-kasbon-note b {
@@ -35,18 +45,22 @@
 
 .upah-kasbon-frame {
   width: 100%;
-  height: calc(100vh - 210px);
-  min-height: 620px;
-  border: 1px solid #dde0d2;
-  border-radius: 12px;
+  height: calc(100vh - 120px);
+  min-height: 720px;
+  border: none;
+  border-radius: 0;
   background: #f6f7f2;
   display: block;
 }
 
 /* Layar sempit: beri ruang lebih sedikit untuk header */
 @media (max-width: 900px) {
+  .content.content-fullwidth,
+  .content:has(.upah-kasbon-wrap) {
+    padding: 10px 12px 0 12px !important;
+  }
   .upah-kasbon-frame {
-    height: calc(100vh - 250px);
-    min-height: 520px;
+    height: calc(100vh - 135px);
+    min-height: 580px;
   }
 }
