@@ -106,8 +106,8 @@ export function createEmptyInvoice(now = new Date()) {
       label: '',
     },
     payment: {
-      transferVia: '',
-      bankLines: '',
+      transferVia: 'BCA',
+      bankLines: '6040359867 Daril Aldian',
       instructions: '',
     },
     signature: {

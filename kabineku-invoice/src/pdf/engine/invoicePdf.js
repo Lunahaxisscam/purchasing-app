@@ -107,7 +107,7 @@ export async function buildInvoicePdf({
 
   function drawKabinekuMark(target, x, top) {
     // Temporary vector reconstruction, not an official master asset.
-    target.drawText('kabi', {x, y:top-22, size:28, font:bold, color:ink});
+    target.drawText('kabi', {x, y:top-26, size:28, font:bold, color:ink});
     for (const [i,label,fill] of [[0,'ne',brand],[1,'ku',green]]) {
       target.drawRectangle({x:x+i*35,y:top-53,width:32,height:27,color:fill});
       target.drawText(label,{x:x+i*35+5,y:top-46,size:20,font:bold,color:ink});
@@ -387,7 +387,7 @@ export async function buildInvoicePdf({
       font: bold,
       color: kabineku ? ink : white,
     });
-    const meaText = 'Mea';
+    const meaText = 'Unit';
     target.drawText(meaText, {
       x: COLUMNS.unit.x + COLUMNS.unit.width / 2 - bold.widthOfTextAtSize(meaText, FONT_SIZE.tableHead) / 2,
       y: baseline,
@@ -708,6 +708,7 @@ export async function buildInvoicePdf({
     h += 20; // transfer chip
     h += bankWrap.length ? bankWrap.length * (FONT_SIZE.small + 2.4) : FONT_SIZE.small + 2.4;
     if (instructions) h += 4 + instrWrap.length * (FONT_SIZE.small + 2.4);
+    if (kabineku) h += 32; // padded payment panel + notes clearance
     if (notes) h += 16 + notesWrap.length * (FONT_SIZE.small + 2.4);
     h += 78; // signature block
     return h;
@@ -731,7 +732,7 @@ export async function buildInvoicePdf({
       for(const line of scheduleLines) flow(line.text);
     }
     y -= 8;
-    flow(`Transfer via ${transferVia || '__________________'}`,{heading:true,payment:true});
+    flow(`Payment transfer to: ${transferVia || '__________________'}`,{heading:true,payment:true});
     flow(bankLines || '(rekening belum diisi — bukan rekening contoh)',{payment:true});
     if(instructions) flow(instructions,{payment:true});
     if(notes) { flow('Catatan:',{heading:true});flow(notes); }
@@ -799,48 +800,29 @@ export async function buildInvoicePdf({
   // ------------------------------------------------------- transfer + notes
   let py = summaryBottom - 8;
 
-  // Olive label chip like cell B28 in the source ("Transfer via" on FF959676).
-  if (kabineku) {
-    const bannerHeight = 35 + Math.max(1,bankWrap.length)*10 + instrWrap.length*10 + (instrWrap.length ? 4 : 0);
-    page.drawRectangle({x:PAGE.marginX,y:py-bannerHeight+13,width:CONTENT_WIDTH,height:bannerHeight,color:brand});
+  // Payment content and geometry use the same measured cursor; notes start
+  // strictly below the panel, never beneath a guessed-height rectangle.
+  const paymentTop = py + 12;
+  const paymentHeading = `Payment transfer to: ${transferVia || '__________________'}`;
+  const paymentLines = wrapText(paymentHeading, bold, 8.6, CONTENT_WIDTH - 24);
+  const paymentBank = bankLines ? wrapText(bankLines, bold, 9.5, CONTENT_WIDTH - 24) : ['(rekening belum diisi)'];
+  const paymentInstructions = instructions ? wrapText(instructions, font, FONT_SIZE.small, CONTENT_WIDTH - 24) : [];
+  const paymentHeight = 24 + paymentLines.length * 12 + paymentBank.length * 13 + (paymentInstructions.length ? 6 + paymentInstructions.length * 10 : 0);
+  const paymentBottom = paymentTop - paymentHeight;
+  page.drawRectangle({x:PAGE.marginX,y:paymentBottom,width:CONTENT_WIDTH,height:paymentHeight,color:cream});
+  page.drawRectangle({x:PAGE.marginX,y:paymentBottom,width:3,height:paymentHeight,color:brand});
+  let cursor = paymentTop - 17;
+  for (const line of paymentLines) {
+    page.drawText(line,{x:PAGE.marginX+12,y:cursor,size:8.6,font:bold,color:ink}); cursor -= 12;
   }
-  const chipText = 'Transfer via';
-  const chipW = bold.widthOfTextAtSize(chipText, 8.2) + 12;
-  page.drawRectangle({ x: PAGE.marginX, y: py - 3, width: chipW, height: 14, color: brand });
-  page.drawText(chipText, { x: PAGE.marginX + 6, y: py + 1.2, size: 8.2, font: bold, color: kabineku ? ink : white });
-  const viaText = transferVia || '__________________';
-  page.drawText(viaText, {
-    x: PAGE.marginX + chipW + 8,
-    y: py + 1.2,
-    size: FONT_SIZE.small,
-    font: bold,
-    color: transferVia ? ink : placeholder,
-  });
-  py -= 16;
-
-  if (bankWrap.length) {
-    bankWrap.forEach((line) => {
-      page.drawText(line, { x: PAGE.marginX + 4, y: py, size: FONT_SIZE.small, font, color: ink });
-      py -= FONT_SIZE.small + 2.4;
-    });
-  } else {
-    page.drawText('(rekening belum diisi — bukan rekening contoh)', {
-      x: PAGE.marginX + 4,
-      y: py,
-      size: FONT_SIZE.small - 0.4,
-      font: italic,
-      color: kabineku ? ink : placeholder,
-    });
-    py -= FONT_SIZE.small + 2.4;
+  for (const line of paymentBank) {
+    page.drawText(line,{x:PAGE.marginX+12,y:cursor,size:9.5,font:bold,color:ink}); cursor -= 13;
   }
-
-  if (instrWrap.length) {
-    py -= 4;
-    instrWrap.forEach((line) => {
-      page.drawText(line, { x: PAGE.marginX + 4, y: py, size: FONT_SIZE.small, font, color: inkSoft });
-      py -= FONT_SIZE.small + 2.4;
-    });
+  if(paymentInstructions.length) cursor -= 6;
+  for (const line of paymentInstructions) {
+    page.drawText(line,{x:PAGE.marginX+12,y:cursor,size:FONT_SIZE.small,font,color:inkSoft}); cursor -= 10;
   }
+  py = paymentBottom - 12;
 
   if (notesWrap.length) {
     py -= 10;
@@ -904,8 +886,8 @@ export async function buildInvoicePdf({
   doc.setTitle(`Invoice ${asText(invoice.invoiceNo).trim() || '(draft)'} — ${templateName}`);
   doc.setAuthor(asText(invoice.issuer?.name).trim() || 'Noir Invoice Generator');
   doc.setSubject(`Invoice (A4, template ${templateName})`);
-  doc.setCreator('noir-invoice-generator');
-  doc.setProducer('noir-invoice-generator (pdf-lib)');
+  doc.setCreator('kabineku-invoice-generator');
+  doc.setProducer('kabineku-invoice-generator (pdf-lib)');
   const stamp = now instanceof Date ? now : new Date(now);
   doc.setCreationDate(stamp);
   doc.setModificationDate(stamp);

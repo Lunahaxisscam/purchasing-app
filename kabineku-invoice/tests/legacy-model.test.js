@@ -15,13 +15,13 @@ function invoiceWith(overrides) {
 }
 
 describe('createEmptyInvoice', () => {
-  it('starts blank with no borrowed identity, number or bank data', () => {
+  it('starts with blank identity and number plus the approved Kabineku bank', () => {
     const inv = createEmptyInvoice(new Date('2026-05-02T00:00:00Z'));
     expect(inv.invoiceNo).toBe('');
     expect(inv.billTo.projectOwner).toBe('');
     expect(inv.issuer.name).toBe('');
-    expect(inv.payment.bankLines).toBe('');
-    expect(inv.payment.transferVia).toBe('');
+    expect(inv.payment.bankLines).toBe('6040359867 Daril Aldian');
+    expect(inv.payment.transferVia).toBe('BCA');
     expect(inv.signature.signerName).toBe('');
     expect(inv.tax.enabled).toBe(false);
     expect(inv.tax.rate).toBe('');
@@ -146,6 +146,7 @@ describe('validation', () => {
       issuer: { name: 'Noir Studio (contoh)', address: 'Jakarta', contact: 'halo@example.test' },
       lines: [createLine({ desc: 'Down Payment', unitPrice: '21.650.000' })],
     });
+    inv.payment.transferVia = ''; inv.payment.bankLines = '';
     const res = validateForFinal(inv);
     expect(res.ok).toBe(true);
     expect(res.warnings.join(' ')).toMatch(/pembayaran/i);
