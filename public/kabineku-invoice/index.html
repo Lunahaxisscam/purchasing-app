@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoice Kabineku — lokal</title>
+    <meta name="description" content="Generator invoice Noir: form, draft lokal, preview dan PDF A4." />
+    <script type="module" crossorigin src="/kabineku-invoice/assets/index-GR0w5gz6.js"></script>
+    <link rel="stylesheet" crossorigin href="/kabineku-invoice/assets/index-v9rO3uf3.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <strong style="color:#e1ae45">K</strong>
+        <div>
+          <strong>Invoice Kabineku</strong>
+          <span class="brand-sub">lokal · tanpa server · tanpa akun</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="storage-status" class="pill pill-muted">memeriksa penyimpanan…</span>
+        <button type="button" id="btn-new" class="btn btn-ghost">Invoice baru</button>
+        <button type="button" id="btn-save" class="btn btn-primary">Simpan di sesi</button>
+      </div>
+    </header>
+
+    <div id="banner" class="banner" hidden></div>
+
+    <main class="workspace">
+      <section class="panel form-panel" aria-label="Form invoice">
+        <div class="template-picker"><h2>Invoice Kabineku</h2><p>Manual dan PDF saja. Tidak terhubung ke database, CRM, proyek, transaksi, atau penomoran Noir.</p><small>Logo Kabineku: rekonstruksi vector sementara, bukan master resmi.</small></div><nav class="tabs" role="tablist">
+          <button type="button" class="tab is-active" data-tab="invoice" role="tab">Invoice</button>
+          <button type="button" class="tab" data-tab="items" role="tab">Baris &amp; termin</button>
+          <button type="button" class="tab" data-tab="issuer" role="tab">Penerbit &amp; pembayaran</button>
+          <button type="button" class="tab" data-tab="drafts" role="tab">Draft tersimpan <span id="draft-count" class="count">0</span></button>
+        </nav>
+
+        <!-- ---------------------------------------------------------- invoice -->
+        <div class="tabpane is-active" data-pane="invoice">
+          <div class="field-grid">
+            <label class="field">
+              <span>Nomor invoice <em>manual, disimpan apa adanya</em></span>
+              <input type="text" id="invoiceNo" placeholder="Nomor manual Kabineku" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Tanggal invoice</span>
+              <input type="date" id="invoiceDate" />
+            </label>
+            <label class="field">
+              <span>Jatuh tempo <em>opsional</em></span>
+              <input type="date" id="dueDate" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Bill To</h3>
+          <div class="field-grid">
+            <label class="field">
+              <span>Project owner / penerima</span>
+              <input type="text" id="billTo.projectOwner" placeholder="nama penerima tagihan" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Alamat</span>
+              <input type="text" id="billTo.address" placeholder="alamat penerima" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Referensi proyek <em>tampil sebagai “for project …”</em></span>
+              <input type="text" id="billTo.projectRef" placeholder="nama proyek / lokasi" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Catatan</h3>
+          <label class="field">
+            <span>Catatan invoice <em>opsional, ikut tercetak</em></span>
+            <textarea id="notes" rows="3" placeholder="catatan pembayaran, syarat, dsb."></textarea>
+          </label>
+        </div>
+
+        <!-- ------------------------------------------------------------ items -->
+        <div class="tabpane" data-pane="items">
+          <div class="pane-head">
+            <h3 class="section-title">Baris invoice</h3>
+            <div class="pane-head-actions">
+              <button type="button" class="btn btn-ghost" id="btn-add-line">+ Baris</button>
+              <button type="button" class="btn btn-ghost" id="btn-add-adjustment">+ Adjustment</button>
+            </div>
+          </div>
+          <p class="hint">
+            Adjustment memakai nominal bertanda: isi harga negatif untuk potongan (mis. <code>-200.000</code>),
+            positif untuk tambahan. Baris kosong tidak dihitung.
+          </p>
+          <div class="lines-head" aria-hidden="true">
+            <span>Uraian</span><span>Qty</span><span>Satuan</span><span>Harga satuan</span><span>Jumlah</span><span></span>
+          </div>
+          <div id="lines" class="lines"></div>
+
+          <h3 class="section-title">Pajak <em>opsional, tanpa tarif default</em></h3>
+          <label class="check">
+            <input type="checkbox" id="tax.enabled" />
+            <span>Hitung pajak pada invoice ini</span>
+          </label>
+          <div id="tax-fields" class="field-grid tax-fields" hidden>
+            <label class="field">
+              <span>Mode</span>
+              <select id="tax.mode">
+                <option value="percent">Persentase</option>
+                <option value="amount">Nominal tetap</option>
+              </select>
+            </label>
+            <label class="field" data-tax-mode="percent">
+              <span>Tarif (%) <em>diisi sendiri</em></span>
+              <input type="text" id="tax.rate" inputmode="decimal" placeholder="mis. 2,5" autocomplete="off" />
+            </label>
+            <label class="field" data-tax-mode="amount" hidden>
+              <span>Nominal pajak</span>
+              <input type="text" id="tax.amount" inputmode="decimal" placeholder="mis. 55.000" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Label baris pajak <em>opsional</em></span>
+              <input type="text" id="tax.label" placeholder="mis. PPh 23" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Payment schedule <em>opsional, terpisah dari nominal invoice</em></h3>
+          <label class="check">
+            <input type="checkbox" id="paymentSchedule.enabled" />
+            <span>Tampilkan jadwal termin di invoice</span>
+          </label>
+          <div id="schedule-fields" hidden>
+            <label class="field">
+              <span>Total proyek <em>nilai kontrak, bukan bukti pembayaran</em></span>
+              <input type="text" id="paymentSchedule.totalProject" inputmode="decimal" placeholder="mis. 43.300.000" autocomplete="off" />
+            </label>
+            <div class="terms-head" aria-hidden="true"><span>Label</span><span>%</span><span>Nominal</span><span></span></div>
+            <div id="terms" class="terms"></div>
+            <button type="button" class="btn btn-ghost" id="btn-add-term">+ Termin</button>
+          </div>
+        </div>
+
+        <!-- ----------------------------------------------------------- issuer -->
+        <div class="tabpane" data-pane="issuer">
+          <h3 class="section-title">Penerbit</h3>
+          <p class="hint">Semua field kosong secara default — tidak ada nama legal, rekening, atau tanda tangan yang dikarang.</p>
+          <div class="field-grid">
+            <label class="field">
+              <span>Nama penerbit</span>
+              <input type="text" id="issuer.name" placeholder="nama usaha / studio" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Alamat penerbit</span>
+              <input type="text" id="issuer.address" placeholder="alamat" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Kontak</span>
+              <input type="text" id="issuer.contact" placeholder="email / telepon" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Pembayaran</h3>
+          <div class="field-grid">
+            <label class="field">
+              <span>Transfer via</span>
+              <input type="text" id="payment.transferVia" placeholder="mis. Bank - IDR" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Rekening <em>isi hanya nomor yang sudah terverifikasi</em></span>
+              <input type="text" id="payment.bankLines" placeholder="nomor rekening & atas nama" autocomplete="off" />
+            </label>
+            <label class="field field-wide">
+              <span>Instruksi pembayaran</span>
+              <textarea id="payment.instructions" rows="2" placeholder="mis. cantumkan nomor invoice pada berita transfer"></textarea>
+            </label>
+          </div>
+
+          <h3 class="section-title">Penandatangan</h3>
+          <div class="field-grid">
+            <label class="field">
+              <span>Nama</span>
+              <input type="text" id="signature.signerName" placeholder="nama penandatangan" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Jabatan</span>
+              <input type="text" id="signature.signerTitle" placeholder="jabatan" autocomplete="off" />
+            </label>
+          </div>
+
+          <h3 class="section-title">Backup JSON</h3>
+          <p class="hint">Ekspor/impor draft sebagai file JSON agar tidak hilang saat cache browser dibersihkan.</p>
+          <div class="button-row">
+            <button type="button" class="btn btn-ghost" id="btn-export">Ekspor JSON</button>
+            <label class="btn btn-ghost file-btn">
+              Impor JSON
+              <input type="file" id="import-file" accept="application/json,.json" hidden />
+            </label>
+          </div>
+        </div>
+
+        <!-- ----------------------------------------------------------- drafts -->
+        <div class="tabpane" data-pane="drafts">
+          <div class="pane-head">
+            <h3 class="section-title">Draft di penyimpanan lokal</h3>
+            <button type="button" class="btn btn-ghost" id="btn-refresh-drafts">Muat ulang daftar</button>
+          </div>
+          <p class="hint" id="storage-note"></p>
+          <div id="drafts" class="drafts"></div>
+        </div>
+      </section>
+
+      <section class="panel preview-panel" aria-label="Pratinjau invoice">
+        <div class="preview-head">
+          <div class="preview-title">
+            <strong>Pratinjau A4</strong>
+            <span id="draft-badge" class="pill pill-draft">DRAF</span>
+          </div>
+          <div class="preview-actions">
+            <button type="button" class="btn btn-primary" id="btn-pdf">Unduh PDF</button>
+          </div>
+        </div>
+
+        <div id="issues" class="issues" hidden></div>
+
+        <div class="preview-scroll">
+          <div class="paper" id="paper">
+            <div class="paper-band">
+              <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEA3ADcAAD/2wBDAAIBAQEBAQIBAQECAgICAgQDAgICAgUEBAMEBgUGBgYFBgYGBwkIBgcJBwYGCAsICQoKCgoKBggLDAsKDAkKCgr/2wBDAQICAgICAgUDAwUKBwYHCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgr/wAARCADqAOoDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD0iiiivzs7AooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAorvv2YPhBpHx4+OeifCvXdVuLG21YXIkurRVMkflW0swwGBByYwPoT7V9eD/gkN8LSM/wDC2fEH/gLB/hXZh8vxWKhz00rEucY6M+Ba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" alt="Kabineku" class="paper-logo" id="pv-noir-logo" />
+              <div id="pv-kabineku-logo" class="kabineku-logo" hidden aria-label="Kabineku — logo sementara"><strong>kabi</strong><div><b>ne</b><b>ku</b></div><small>by Noir Living Indonesia</small></div>
+              <div class="paper-band-right">
+                <div class="paper-title">INVOICE</div>
+                <div class="paper-issuer" id="pv-issuer"></div>
+              </div>
+            </div>
+            <div class="paper-status" id="pv-status">DRAF — BELUM DOKUMEN FINAL</div>
+            <div class="paper-meta">
+              <div class="paper-billto">
+                <h4>BILL TO</h4>
+                <div class="kv"><span>Project Owner:</span><strong id="pv-owner">—</strong></div>
+                <div class="kv"><span>Address:</span><span id="pv-address">—</span></div>
+              </div>
+              <div class="paper-invmeta">
+                <div class="kv right"><span>Invoice Date:</span><strong id="pv-date">—</strong></div>
+                <div class="kv right"><span>Invoice No:</span><strong id="pv-no">—</strong></div>
+                <div class="kv right" id="pv-due-row" hidden><span>Due Date:</span><strong id="pv-due">—</strong></div>
+              </div>
+            </div>
+
+            <table class="paper-table">
+              <thead>
+                <tr><th>No</th><th>Desc</th><th>Qty</th><th>Mea</th><th>Price</th><th>Amount</th></tr>
+              </thead>
+              <tbody id="pv-lines"></tbody>
+            </table>
+            <p class="paper-project" id="pv-project"></p>
+
+            <div class="paper-bottom">
+              <div class="paper-schedule" id="pv-schedule"></div>
+              <div class="paper-summary" id="pv-summary"></div>
+            </div>
+
+            <div class="paper-payment">
+              <div class="paper-chip">Transfer via</div>
+              <div class="paper-payment-body">
+                <div id="pv-via">—</div>
+                <div id="pv-bank" class="muted"></div>
+                <div id="pv-instructions" class="muted"></div>
+              </div>
+            </div>
+
+            <div class="paper-notes" id="pv-notes"></div>
+
+            <div class="paper-sign">
+              <div class="paper-sign-label">Your sincerely,</div>
+              <div class="paper-sign-line"></div>
+              <div class="paper-sign-name" id="pv-signer">(nama penandatangan belum diisi)</div>
+              <div class="paper-sign-title" id="pv-signer-title"></div>
+            </div>
+
+            <div class="paper-footer">
+              <span id="pv-footer-left"></span>
+              <span>Pratinjau HTML — PDF final dihasilkan pdf-lib</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </body>
+</html>

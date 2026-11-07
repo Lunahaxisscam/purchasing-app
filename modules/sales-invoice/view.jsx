@@ -116,6 +116,10 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   const [busyId, setBusyId] = useState(null)
   const [dialog, setDialog] = useState(null) // { type, invoice }
   const [salesView, setSalesView] = useState('daftar') // 'daftar' | 'generator' — holder isolasi (t_32990a92), tanpa fetch Supabase
+  const [invoiceBrand, setInvoiceBrand] = useState('noir')
+  const [brandPickerOpen, setBrandPickerOpen] = useState(false)
+  const isKabineku = invoiceBrand === 'kabineku'
+  const generatorUrl = isKabineku ? '/kabineku-invoice/index.html' : '/noir-invoice/index.html'
   const [actionError, setActionError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -136,6 +140,8 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
   projectsRef.current = (allProjects && allProjects.length > 0) ? allProjects : (projects || [])
 
   const pushCrmToFrame = useCallback(() => {
+    // Kabineku is an opaque-origin manual document, never a Noir data recipient.
+    if (invoiceBrand === 'kabineku') return
     const payload = crmRef.current || { status: 'error', items: [], message: '' }
     try {
       if (typeof window !== 'undefined') {
@@ -150,7 +156,7 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         fn({ items: payload.items, status: payload.status, message: payload.message || '' })
       }
     } catch (e) { /* iframe belum siap / lintas origin — generator tetap manual */ }
-  }, [])
+  }, [invoiceBrand])
 
   useEffect(() => {
     let alive = true
@@ -191,7 +197,7 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
         fail('Data CRM tidak termuat — isi manual')
       }
     }
-    loadCustomers()
+    if (invoiceBrand !== 'kabineku') loadCustomers()
     return () => { alive = false }
   }, [pushCrmToFrame])
 
@@ -388,25 +394,39 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
           <strong>Invoice Penjualan</strong>
         </div>
         <div className="si-header-actions">
-          <button type="button" className="si-btn-create" onClick={() => setSalesView('generator')} title="Buka Noir Invoice Generator">
+          <button type="button" className="si-btn-create" onClick={() => setBrandPickerOpen(true)} title="Pilih invoice Noir atau Kabineku">
             + Buat Invoice Penjualan
           </button>
         </div>
       </div>
 
-      {storageBanner && (
+      {salesView === 'daftar' && storageBanner && (
         <div className={`si-store-banner si-store-${storageBanner.tone}`} data-testid="si-storage-banner">
           {storageBanner.text}
         </div>
       )}
 
-      {numberingBanner && (
+      {salesView === 'daftar' && numberingBanner && (
         <div className={`si-store-banner si-store-${numberingBanner.tone}`} data-testid="si-numbering-banner">
           {numberingBanner.text}
         </div>
       )}
 
-      {loadError && <div className="si-alert si-alert-err">{loadError}</div>}
+      {salesView === 'daftar' && loadError && <div className="si-alert si-alert-err">{loadError}</div>}
+
+      {brandPickerOpen && (
+        <div className="si-modal-overlay" onClick={() => setBrandPickerOpen(false)}>
+          <div className="si-dialog-card" role="dialog" aria-modal="true" aria-labelledby="si-brand-title" onClick={e => e.stopPropagation()}>
+            <h4 id="si-brand-title">Pilih Invoice</h4>
+            <p className="si-dialog-sub">Pilih alur sebelum mengisi invoice. Data kedua brand tidak digabung.</p>
+            <button type="button" className="si-btn-submit" style={{width:'100%',marginBottom:12}} onClick={() => { setInvoiceBrand('noir'); setSalesView('generator'); setBrandPickerOpen(false) }}>Invoice Noir</button>
+            <p className="si-dialog-sub">Alur Noir yang sudah ada, dengan pilihan customer CRM.</p>
+            <button type="button" className="si-btn-submit" style={{width:'100%',background:'#e1ae45',color:'#243f34',borderColor:'#d19d35',marginBottom:12}} onClick={() => { setInvoiceBrand('kabineku'); setSalesView('generator'); setBrandPickerOpen(false) }}>Invoice Kabineku</button>
+            <p className="si-dialog-sub">Form manual dan PDF saja. Tidak terhubung ke customer, proyek, RAB, nomor, transaksi, atau database Noir.</p>
+            <button type="button" className="si-btn-cancel" onClick={() => setBrandPickerOpen(false)}>Batal</button>
+          </div>
+        </div>
+      )}
 
       {salesView === 'generator' ? (
         <div className="si-generator-holder" data-testid="sales-invoice-generator" style={{ background: '#fff', border: '1px solid #e0e2db', borderRadius: 12, overflow: 'hidden', margin: '0 0 16px' }}>
@@ -414,10 +434,10 @@ export default function SalesInvoiceModule({ invoices = null, allProjects = [], 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <button type="button" className="si-generator-back" onClick={() => setSalesView('daftar')} style={{ background: '#f4f5f1', color: '#4b523a', border: '1px solid #dcdfd6', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>← Kembali ke Daftar</button>
             </div>
-            <a className="si-generator-open" href="/noir-invoice/index.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: '#4b523a', textDecoration: 'underline', whiteSpace: 'nowrap' }}>Buka di tab baru ↗</a>
+            <a className="si-generator-open" href={generatorUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: '#4b523a', textDecoration: 'underline', whiteSpace: 'nowrap' }}>Buka di tab baru ↗</a>
           </div>
-          <iframe ref={generatorRef} onLoad={pushCrmToFrame} title="Noir Invoice Generator (isolated)" src="/noir-invoice/index.html" className="si-generator-frame" loading="lazy" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-popups" referrerPolicy="no-referrer" style={{ width: '100%', height: '78vh', minHeight: 620, border: 0, display: 'block', background: '#fff' }} />
-          <p className="si-generator-footnote" style={{ margin: 0, padding: '8px 14px', fontSize: 11, color: '#6b705c', background: '#f7f8f5', borderTop: '1px solid #e0e2db', lineHeight: 1.5 }}>Catatan isolasi: iframe ini TIDAK fetch Supabase sendiri — daftar customer CRM dibaca parent sekali saat mount lalu diinjeksikan sebagai window.__NOIR_CRM__ (baca saja: nama &amp; alamat, tanpa kredensial di iframe). Nomor invoice otomatis memakai counter per tahun di localStorage generator (noir-invoice-generator/v1:seq:&lt;tahun&gt;). Payment Schedule 50/40/10 otomatis dari Grand Total bila schedule enabled &amp; Grand Total&gt;0 — lihat noir-invoice/src/lib/model.js:applyDefaultTermSchedule. Bank placeholder di form: “mis. Bank - IDR” (bukan BCA hard-coded); PDF “— (belum diisi)” bila bank kosong.</p>
+          <iframe key={invoiceBrand} ref={generatorRef} onLoad={isKabineku ? undefined : pushCrmToFrame} title={isKabineku ? 'Kabineku Invoice Generator (manual)' : 'Noir Invoice Generator (isolated)'} src={generatorUrl} className="si-generator-frame" loading="lazy" sandbox={isKabineku ? 'allow-scripts allow-downloads allow-forms allow-modals' : 'allow-scripts allow-same-origin allow-downloads allow-forms allow-popups'} referrerPolicy="no-referrer" style={{ width: '100%', height: '78vh', minHeight: 620, border: 0, display: 'block', background: '#fff' }} />
+          <p className="si-generator-footnote" style={{ margin: 0, padding: '8px 14px', fontSize: 11, color: '#6b705c', background: '#f7f8f5', borderTop: '1px solid #e0e2db', lineHeight: 1.5 }}>{isKabineku ? 'Kabineku: hanya pembuatan dokumen manual dan PDF. Tidak membaca/menulis data Noir, tidak menerbitkan nomor proyek/invoice Noir, dan tidak masuk rekap. Nomor diisi manual; isian hilang saat ditutup kecuali diekspor sebagai file JSON.' : <>Catatan isolasi: iframe ini TIDAK fetch Supabase sendiri — daftar customer CRM dibaca parent sekali saat mount lalu diinjeksikan sebagai window.__NOIR_CRM__ (baca saja: nama &amp; alamat, tanpa kredensial di iframe). Nomor invoice otomatis memakai counter per tahun di localStorage generator (noir-invoice-generator/v1:seq:&lt;tahun&gt;). Payment Schedule 50/40/10 otomatis dari Grand Total bila schedule enabled &amp; Grand Total&gt;0 — lihat noir-invoice/src/lib/model.js:applyDefaultTermSchedule. Bank placeholder di form: “mis. Bank - IDR” (bukan BCA hard-coded); PDF “— (belum diisi)” bila bank kosong.</>}</p>
         </div>
       ) : (
       <>
