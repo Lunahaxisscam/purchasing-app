@@ -3,7 +3,7 @@
  * Both callers pass byte arrays, so the renderer stays environment agnostic.
  */
 
-import logoUrl from '../assets/noir-logo.jpg?url';
+import logoUrl from '../assets/kabineku-logo.jpg?url';
 import fontRegularUrl from '../assets/fonts/Carlito-Regular.ttf?url';
 import fontBoldUrl from '../assets/fonts/Carlito-Bold.ttf?url';
 

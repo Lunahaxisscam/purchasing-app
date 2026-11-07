@@ -106,13 +106,9 @@ export async function buildInvoicePdf({
   const bandHeight = 96;
 
   function drawKabinekuMark(target, x, top) {
-    // Temporary vector reconstruction, not an official master asset.
-    target.drawText('kabi', {x, y:top-26, size:28, font:bold, color:ink});
-    for (const [i,label,fill] of [[0,'ne',brand],[1,'ku',green]]) {
-      target.drawRectangle({x:x+i*35,y:top-53,width:32,height:27,color:fill});
-      target.drawText(label,{x:x+i*35+5,y:top-46,size:20,font:bold,color:ink});
-    }
-    target.drawText('by Noir Living Indonesia',{x,y:top-65,size:6.8,font,color:inkSoft});
+    if (!logo) return;
+    const dims = logo.scaleToFit(94, 65);
+    target.drawImage(logo, {x, y:top-dims.height, width:dims.width, height:dims.height});
   }
 
   function drawBand(target) {

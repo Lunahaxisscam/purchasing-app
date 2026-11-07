@@ -5,7 +5,7 @@ import {createEmptyInvoice} from '../src/lib/model.js';
 import {buildInvoicePdf} from '../src/pdf/invoicePdf.js';
 it('creates real Kabineku A4 PDF, including multipage synthetic content',async()=>{
  const invoice=createEmptyInvoice();invoice.invoiceNo='SYNTHETIC-TEST';invoice.billTo.projectOwner='SYNTHETIC TEST ONLY';invoice.lines[0]={...invoice.lines[0],desc:'SYNTHETIC furniture',qty:'1',unitPrice:'100.000'};
- const assets={logoBytes:new Uint8Array(fs.readFileSync(new URL('../src/assets/noir-logo.jpg',import.meta.url))),fontRegular:new Uint8Array(fs.readFileSync(new URL('../src/assets/fonts/Carlito-Regular.ttf',import.meta.url))),fontBold:new Uint8Array(fs.readFileSync(new URL('../src/assets/fonts/Carlito-Bold.ttf',import.meta.url)))};
+ const assets={logoBytes:new Uint8Array(fs.readFileSync(new URL('../src/assets/kabineku-logo.jpg',import.meta.url))),fontRegular:new Uint8Array(fs.readFileSync(new URL('../src/assets/fonts/Carlito-Regular.ttf',import.meta.url))),fontBold:new Uint8Array(fs.readFileSync(new URL('../src/assets/fonts/Carlito-Bold.ttf',import.meta.url)))};
  for(const long of [false,true]){
   if(long)invoice.lines=Array.from({length:70},(_,i)=>({...invoice.lines[0],id:String(i),desc:'SYNTHETIC ITEM '+i}));
   const out=await buildInvoicePdf({invoice,...assets,mode:'sample',watermark:'SYNTHETIC TEST'});const doc=await PDFDocument.load(out.bytes);
