@@ -712,13 +712,13 @@ export async function buildInvoicePdf({
 
   if (closingHeight > PAGE.height - footerReserve - 50) {
     // Oversized optional content flows line by line, not an unbreakable group.
-    const flow = (value, { heading = false, payment = false } = {}) => {
+    const flow = (value, { heading = false, payment = false, alignRight = false } = {}) => {
       const size = heading ? 9 : FONT_SIZE.small;
       const fnt = heading ? bold : font;
       for (const line of wrapText(value, fnt, size, CONTENT_WIDTH - 12)) {
         ensureSpace(17, { tableHead: false });
         if (kabineku && payment) page.drawRectangle({x:PAGE.marginX,y:y-16,width:CONTENT_WIDTH,height:17,color:brand});
-        page.drawText(line,{x:PAGE.marginX+6,y:y-11,size,font:fnt,color:ink});
+        page.drawText(line,{x:alignRight ? PAGE.width-PAGE.marginX-fnt.widthOfTextAtSize(line,size) : PAGE.marginX+6,y:y-11,size,font:fnt,color:ink});
         y -= 16;
       }
     };
@@ -733,9 +733,9 @@ export async function buildInvoicePdf({
     if(instructions) flow(instructions,{payment:true});
     if(notes) { flow('Catatan:',{heading:true});flow(notes); }
     ensureSpace(85,{tableHead:false});
-    y -= 12; flow('Yours sincerely,'); y -= 32;
-    flow(signerName || '(nama penandatangan belum diisi)',{heading:true});
-    if(signerTitle) flow(signerTitle);
+    y -= 12; flow('Yours sincerely,',{alignRight:true}); y -= 32;
+    flow(signerName || '(nama penandatangan belum diisi)',{heading:true,alignRight:true});
+    if(signerTitle) flow(signerTitle,{alignRight:true});
   } else {
   ensureSpace(closingHeight, { tableHead: false });
   const blockTop = y;
@@ -837,7 +837,7 @@ export async function buildInvoicePdf({
   const sigWidth = 150;
   let sy = py - 18;
   page.drawText('Yours sincerely,', {
-    x: sigRight - sigWidth,
+    x: sigRight - font.widthOfTextAtSize('Yours sincerely,', FONT_SIZE.small),
     y: sy,
     size: FONT_SIZE.small,
     font,
