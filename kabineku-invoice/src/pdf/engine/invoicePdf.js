@@ -118,7 +118,7 @@ export async function buildInvoicePdf({
       const right=PAGE.width-PAGE.marginX;
       target.drawText('INVOICE',{x:right-bold.widthOfTextAtSize('INVOICE',24),y:PAGE.height-42,size:24,font:bold,color:ink});
       let iy=PAGE.height-57;
-      for(const text of [invoice.issuer?.name, invoice.issuer?.address, invoice.issuer?.contact]) {
+      for(const text of [invoice.issuer?.address, invoice.issuer?.contact]) {
         if(!text) continue;
         const fitted=fitLine(text,font,8,CONTENT_WIDTH*0.55);
         target.drawText(fitted.text,{x:right-fitted.width,y:iy,size:8,font,color:inkSoft}); iy-=11;

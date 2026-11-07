@@ -236,8 +236,8 @@ export function renderPreview(root, invoice, totals) {
     if (el) el.textContent = value;
   };
 
-  const issuerLines = [invoice.issuer.name, invoice.issuer.address, invoice.issuer.contact].filter((v) => v && v.trim());
-  text('pv-issuer', issuerLines.join('\n') || 'Penerbit belum diisi');
+  const issuerLines = [invoice.issuer.address, invoice.issuer.contact].filter((v) => v && v.trim());
+  text('pv-issuer', issuerLines.join('\n'));
   text('pv-owner', invoice.billTo.projectOwner || '—');
   text('pv-address', invoice.billTo.address || '—');
   text('pv-date', formatDateShort(invoice.invoiceDate) || '—');
