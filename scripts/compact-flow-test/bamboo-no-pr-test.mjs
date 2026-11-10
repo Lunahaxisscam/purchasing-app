@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
+import {resolve,dirname} from 'node:path'
+const root=process.cwd(),cache=new Map()
+async function load(file){file=resolve(root,file);if(cache.has(file))return cache.get(file);let src=readFileSync(file,'utf8');const specs=[...src.matchAll(/from\s+['"](\.[^'"]+)['"]/g)].map(m=>m[1]);for(const spec of new Set(specs)){let p=resolve(dirname(file),spec);if(!/\.[cm]?jsx?$/.test(p))p+='.js';let url=await load(p);src=src.split("'"+spec+"'").join("'"+url+"'").split('"'+spec+'"').join('"'+url+'"')};const url='data:text/javascript;base64,'+Buffer.from(src).toString('base64');cache.set(file,url);return url}
+const purchase=await import(await load('modules/receivings/purchaseLogic.js'))
+const handover=await import(await load('modules/handovers/compactLogic.js'))
+const rows={receivings:[{id:'rec',purchase_request_id:null,project_id:'proj',status:'DIBELI',invoice_no:'SYNTHETIC-NO-PR',note:'[Tahap: DIBELI] [Nominal: Rp 258.000]'}],receivingItems:[{id:'item',receiving_id:'rec',pr_item_id:null,item_name:'Synthetic edging',quantity_received:43,unit:'meter'}],projects:[{id:'proj',name:'Synthetic project'}]}
+const history=purchase.buildHistoryRows(rows);assert.equal(history.length,1);assert.equal(history[0].qtyTotal,43);assert.equal(history[0].prNumber,'');console.log('PASS history shows no-PR item and 43 units')
+const physical=handover.distributionRows(rows);assert.equal(physical.length,1);assert.equal(physical[0].remaining,43);assert.equal(physical[0].projectId,'proj');assert.equal(physical[0].prNumber,'Belanja langsung');console.log('PASS handover queue retains project, quantity and no-PR label')
+assert.match(handover.validateTransfer({source:'PURCHASE',destination:'GUDANG',quantity:1,available:43}),/material/i);assert.equal(handover.validateTransfer({source:'PURCHASE',destination:'GUDANG',quantity:1,available:43,materialId:'mat'}),'');assert.equal(handover.validateTransfer({source:'PURCHASE',destination:'TUKANG',quantity:1,available:43,projectId:'proj',receiver:'Synthetic'}),'');console.log('PASS no-PR warehouse and tukang require valid identities')
+const mixed={...rows,receivings:[{...rows.receivings[0],project_id:null}],receivingItems:[{...rows.receivingItems[0],note:'[Proyek: proj]'}]};const mixedPhysical=handover.distributionRows(mixed);assert.equal(mixedPhysical[0].projectId,'proj','mixed purchase must retain line project for tukang handover');console.log('PASS mixed project allocation survives handover')

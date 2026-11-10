@@ -196,6 +196,11 @@ BEGIN
                                   'detail', 'total tidak sama dengan material+biaya-diskon');
     END IF;
 
+    -- Serialize with native corrections as well: different events and evidence
+    -- can refer to the same vendor invoice. SELECT alone is a TOCTOU race.
+    -- Admin/physical write parity is still a release gate, not proved by this.
+    PERFORM pg_advisory_xact_lock(1102026110);
+
     -- ---------- 3) Klaim event (atomik via UNIQUE dedup_key) ----------
     INSERT INTO public.bakpau_events (dedup_key, kind, status, payload)
     VALUES ('evt:' || v_event_key, 'event', 'claimed',

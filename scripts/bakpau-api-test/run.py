@@ -95,7 +95,15 @@ shutil.copy(os.path.join(HERE, 'mock-supabaseClient.mjs'),
 shutil.copy(os.path.join(HERE, 'api_fixtures.mjs'), os.path.join(SB, 'api_fixtures.mjs'))
 shutil.copy(os.path.join(HERE, 'api_test.mjs'), os.path.join(SB, 'api_test.mjs'))
 shutil.copy(os.path.join(REPO, 'scripts', 'bakpau-api-client', 'client.mjs'), os.path.join(SB, 'client.mjs'))
-os.symlink(os.path.join(REPO, 'node_modules'), os.path.join(SB, 'node_modules'))
+try:
+    os.symlink(os.path.join(REPO, 'node_modules'), os.path.join(SB, 'node_modules'))
+except OSError:
+    if os.name != 'nt':
+        raise
+    # Directory junction needs no Windows symlink/elevation privilege.
+    subprocess.run(['cmd', '/d', '/c', 'mklink', '/J',
+                    os.path.join(SB, 'node_modules'), os.path.join(REPO, 'node_modules')],
+                   check=True, stdout=subprocess.DEVNULL)
 open(os.path.join(SB, 'package.json'), 'w').write('{ "type": "module" }')
 
 shutil.copy(os.path.join(REPO, 'scripts', 'vendors-toolbar-test', 'compile_sandbox.mjs'), SB)
@@ -109,4 +117,11 @@ if r.returncode:
 
 print('\n=== api_test.mjs ===')
 r = subprocess.run(['node', 'api_test.mjs'], cwd=SB)
+if r.returncode:
+    sys.exit(r.returncode)
+print('\n=== intake_regression.mjs (SINTETIS) ===')
+env = dict(os.environ, BAKPAU_TEST_SANDBOX=SB)
+r = subprocess.run(['node', os.path.join(HERE, 'intake_regression.mjs')], env=env)
+if r.returncode:
+    sys.exit(r.returncode)
 sys.exit(r.returncode)
