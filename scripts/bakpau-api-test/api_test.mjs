@@ -665,14 +665,34 @@ group('E. CREATE — SUKSES, READBACK, IDEMPOTENSI, NOTIFIKASI')
     { itemName: 'SINTETIS Triplek 9mm', qty: 1, harga: 120000, unit: 'Lembar', projectId: F.PROJECTS[1].id }
   ]
   const r32 = await callCreate({ body: multi, transport: fakeTransport() })
-  eq('E32 nota dua proyek -> 201', r32.statusCode, 201)
-  const head32 = rowsOf('receivings').find(r => r.id === r32.body.receivingId)
-  eq('E33 header tanpa proyek tunggal (tidak memilih salah satu)', head32.project_id, null)
-  const it32 = rowsOf('receiving_items').filter(i => i.receiving_id === r32.body.receivingId)
-  ok('E34 dua baris dengan proyek berbeda', it32.length === 2
-    && it32.some(i => String(i.note).includes(F.PROJECTS[0].id))
-    && it32.some(i => String(i.note).includes(F.PROJECTS[1].id)),
-    it32.map(i => i.note))
+  eq('E32 nota dua proyek -> 422', r32.statusCode, 422)
+  eq('E33 multi-project rejected before RPC', atomicCalls().length, 0)
+
+  for (const variant of ['missing', 'partial', 'conflict', 'unknown', 'ambiguous', 'pr-conflict', 'item-only']) {
+    mock.__reset({ tables: tables() })
+    const body = F.validCreatePayload({ idempotencyKey: `mapping-${variant}` })
+    delete body.purchase.projectId
+    delete body.purchase.projectRef
+    body.purchase.items = multi.purchase.items.map((it, i) => ({ ...it, itemName: `${it.itemName} ${i}`, projectId: F.PROJECTS[0].id }))
+    if (variant === 'missing') body.purchase.items.forEach(it => { delete it.projectId })
+    if (variant === 'partial') delete body.purchase.items[1].projectId
+    if (variant === 'conflict') body.purchase.projectId = F.PROJECTS[1].id
+    if (variant === 'pr-conflict') {
+      body.purchase.items.forEach(it => { it.projectId = F.PROJECTS[1].id })
+      body.purchase.items[0].prItemId = F.PR_ITEMS[0].id
+    }
+    if (variant === 'unknown') body.purchase.items[0].projectId = '00000000-0000-4000-8000-000000000001'
+    if (variant === 'ambiguous') {
+      delete body.purchase.items[0].projectId
+      body.purchase.items[0].ambiguous = true
+    }
+    const result = await callCreate({ body, transport: fakeTransport() })
+    eq(`mapping ${variant} status`, result.statusCode, variant === 'item-only' ? 201 : 422)
+    if (variant === 'item-only') {
+      const head = rowsOf('receivings').find(r => r.id === result.body.receivingId)
+      eq('item-only canonical header persisted', head.project_id, F.PROJECTS[0].id)
+    } else eq(`mapping ${variant} no RPC`, atomicCalls().length, 0)
+  }
 }
 
 // ============================================================

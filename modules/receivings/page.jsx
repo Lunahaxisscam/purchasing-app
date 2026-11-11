@@ -44,7 +44,7 @@ import { format, rupiah } from '../../lib/constants'
 import { parseItemPrice } from '../../lib/purchaseNote'
 import {
   TAB_READY, TAB_HISTORY,
-  buildReadyRows, filterReadyRows, readyFilterOptions,
+  buildReadyRows, filterReadyRows, readyFilterOptions, buildMonitoringRows, filterMonitoringRows,
   buildHistoryRows, historySummary, groupByVendor
 } from './purchaseLogic'
 import PurchaseForm from './purchaseForm'
@@ -135,6 +135,11 @@ export default function PurchasePage({ rows, refresh, say }) {
   const materials = rows?.materials || []
 
   const [tab, setTab] = useState(TAB_READY)
+  const [monitorStatus, setMonitorStatus] = useState('remaining')
+  const [monitorProject, setMonitorProject] = useState('')
+  const [monitorQuery, setMonitorQuery] = useState('')
+  const monitoringAll = useMemo(() => buildMonitoringRows({ prItems, requests, projects, vendors, receivings, receivingItems }), [prItems, requests, projects, vendors, receivings, receivingItems])
+  const monitoringRows = useMemo(() => filterMonitoringRows(monitoringAll, { status: monitorStatus, projectId: monitorProject, q: monitorQuery }), [monitoringAll, monitorStatus, monitorProject, monitorQuery])
   const [selected, setSelected] = useState(() => new Set())
   const [vendorFilter, setVendorFilter] = useState('')
   const [projectFilter, setProjectFilter] = useState('')
@@ -157,7 +162,10 @@ export default function PurchasePage({ rows, refresh, say }) {
     receivings, receivingItems, vendors, projects, requests
   }), [receivings, receivingItems, vendors, projects, requests])
 
-  const options = useMemo(() => readyFilterOptions(readyAll), [readyAll])
+  const options = useMemo(() => readyFilterOptions(monitoringAll), [monitoringAll])
+  const tableRows = filterMonitoringRows(monitoringAll, { status: monitorStatus, projectId: projectFilter, q }).filter(row => !vendorFilter || row.vendorId === vendorFilter)
+  const [expandedItems, setExpandedItems] = useState(() => new Set())
+  function toggleInvoices(key) { setExpandedItems(prev => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next }) }
   const selectedRows = useMemo(
     () => readyAll.filter(r => selected.has(r.prItemId)),
     [readyAll, selected]
@@ -276,7 +284,7 @@ export default function PurchasePage({ rows, refresh, say }) {
           onClick={() => setTab(TAB_READY)}
           data-testid="tab-ready"
         >
-          <span className="purchase-tab-title">Belum Tuntas</span>
+          <span className="purchase-tab-title">Pembelian</span>
           <span className="purchase-tab-count">{readyAll.length}</span>
         </button>
         <button
@@ -296,6 +304,7 @@ export default function PurchasePage({ rows, refresh, say }) {
         <>
           <div className="purchase-toolbar">
             <div className="purchase-filters">
+              <label className="purchase-filter"><span>Pemenuhan</span><select value={monitorStatus} onChange={e => setMonitorStatus(e.target.value)}><option value="remaining">Belum selesai</option><option value="all">Semua</option><option value="complete">Selesai</option></select></label>
               <label className="purchase-filter purchase-filter-search">
                 <span>Cari barang</span>
                 <input
@@ -362,7 +371,7 @@ export default function PurchasePage({ rows, refresh, say }) {
                 </span>
               ) : (
                 <span className="purchase-select-hint" id="purchase-select-hint" data-testid="select-empty-hint">
-                  Pilih barang untuk satu nota/toko: centang kotak di kolom <b>Pilih</b>, lalu klik <b>Proses Pembelian</b>.
+                  Pilih barang untuk satu nota/toko: centang kotak di kolom <b>Aksi</b>, lalu klik <b>Proses Pembelian</b>.
                 </span>
               )}
             </div>
@@ -384,133 +393,30 @@ export default function PurchasePage({ rows, refresh, say }) {
             </div>
           )}
 
-          {/* ===== TABEL SIAP DIBELI — 7 kolom (t_4f9625b3) =====
-              Urutan konsisten diminta DAT: PILIH · NOMOR PR · PROJECT ·
-              QUANTITY · BARANG (Nama + kode/satuan) · TOKO / VENDOR ·
-              ESTIMASI. Setiap informasi berdiri di kolomnya sendiri —
-              tidak ada yang digabung/dihilangkan. */}
-          <div className="panel table desktop-table-view">
+          <div className="panel table purchase-shared-table" role="region" aria-label="Pembelian dan rincian invoice" tabIndex={0}>
             <table className="purchase-table">
-              <thead>
-                <tr>
-                  <th className="purchase-select-col" scope="col">
-                    <label className="purchase-select-all-label">
-                      <input
-                        type="checkbox"
-                        checked={allVisibleSelected}
-                        onChange={toggleAllVisible}
-                        title="Pilih semua barang yang tampil"
-                        data-testid="select-all"
-                        aria-label="Pilih semua barang yang tampil"
-                      />
-                      <span>Pilih</span>
-                    </label>
-                  </th>
-                  <th>PR / Proyek</th>
-                  <th>Barang / Spesifikasi</th>
-                  <th style={{ width: '104px' }}>Jumlah</th>
-                  <th style={{ width: '132px', textAlign: 'right' }}>Harga</th>
-                  <th style={{ width: '104px' }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {readyRows.length ? readyRows.map(r => {
-                  const on = selected.has(r.prItemId)
-                  const hargaBeli = actualPriceFor(r.prItemId)
-                  return (
-                    <tr key={r.prItemId} className={on ? 'purchase-row-on' : undefined} data-testid={`ready-row-${r.prItemId}`}>
-                      <td className="purchase-select-col">
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          onChange={() => toggleOne(r)}
-                          data-testid={`check-${r.prItemId}`}
-                          aria-label={`Pilih ${r.itemName}`}
-                        />
-                      </td>
-                      {/* PR + Proyek satu sel (pola sama dengan modul PR): nomor di
-                          atas, proyek kecil di bawah. Dulu dua kolom terpisah —
-                          nomor PR panjang meluber dan menimpa nama proyek. */}
-                      <td className="purchase-cell-wrap">
-                        <b className="purchase-pr-number">{r.prNumber || '—'}</b>
-                        <small className="compact-flow-sub">{r.projectName}</small>
-                      </td>
-                      <td className="purchase-cell-wrap">
-                        <b>{r.itemName}</b>
-                        <small className="compact-flow-sub">{r.kode || ''}</small>
-                      </td>
-                      {/* Jumlah + realisasi satu kolom: "Dibeli/Sisa" hanya muncul
-                          bila memang sudah ada pembelian (tidak mengulang 0). */}
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {r.qtyPr} {r.unit}
-                        {r.qtyBought > 0 && (
-                          <small className="compact-flow-sub">Dibeli {r.qtyBought} · Sisa {r.qtySisa} {r.unit}</small>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {r.estimasi !== null ? rupiah(r.estimasi) : <span className="purchase-muted">—</span>}
-                        {hargaBeli !== '—' && <small className="compact-flow-sub">Beli: {hargaBeli}</small>}
-                      </td>
-                      <td><div className="compact-flow-actions"><button onClick={()=>setFormRows({rows:[r],vendorId:r.vendorId||'',vendorName:r.vendorName||''})}>{r.qtyBought>0?'Beli Sisa':'Beli'}</button><details><summary>Detail</summary><ReturnRequest pr={requests.find(p=>p.id===r.prId)} refresh={refresh} say={say}/><small>Rencana toko: {r.vendorName||'Belum ditentukan'}. Harga beli aktual dan riwayat per nota ada di Riwayat Pembelian.</small></details></div></td>
-                    </tr>
-                  )
-                }) : (
+              <thead><tr><th>PR No</th><th>Project</th><th>Barang</th><th>Jumlah</th><th>Harga</th><th>Total</th><th>Aksi</th></tr></thead>
+              <tbody>{tableRows.length ? tableRows.map(row => {
+                const ready = readyAll.find(r => r.prItemId === row.key)
+                const open = expandedItems.has(row.key)
+                return <React.Fragment key={row.key}>
                   <tr>
-                    <td colSpan={6} className="empty">
-                      Tidak ada sisa kebutuhan. Barang muncul setelah PR di-submit.
-                    </td>
+                    <td><b>{row.prNumber}</b></td><td>{row.projectName}</td><td><b>{row.itemName}</b>{row.kode && <small className="compact-flow-sub">{row.kode}</small>}</td>
+                    <td>{row.qtyPr ?? '—'} {row.unit}</td><td>{row.estimatedPrice === null ? '—' : <>{rupiah(row.estimatedPrice)}<small className="compact-flow-sub">Estimasi PR</small></>}</td><td>{row.estimatedTotal === null ? '—' : <>{rupiah(row.estimatedTotal)}<small className="compact-flow-sub">Estimasi PR</small></>}</td>
+                    <td><div className="compact-flow-actions">
+                      {ready && <><label><input type="checkbox" checked={selected.has(ready.prItemId)} onChange={() => toggleOne(ready)} aria-label={`Pilih ${row.itemName}`} /> Pilih</label><button onClick={() => setFormRows({ rows: [ready], vendorId: ready.vendorId || '', vendorName: ready.vendorName || '' })}>Beli</button></>}
+                      <button className="outline" aria-expanded={open} onClick={() => toggleInvoices(row.key)}>Invoice ({row.invoices.length})</button>
+                      <details><summary>Detail PR</summary><ReturnRequest pr={requests.find(p => p.id === prItems.find(i => i.id === row.key)?.pr_id)} refresh={refresh} say={say}/></details>
+                    </div></td>
                   </tr>
-                )}
-              </tbody>
+                  {open && (row.invoices.length ? row.invoices.map((invoice, index) => <tr key={invoice.id || index} className="purchase-invoice-row">
+                    <td></td><td><b>Invoice {invoice.invoiceNo}</b>{invoice.internal && <small> (ref. internal)</small>}<small className="compact-flow-sub">{invoice.vendorName} · {invoice.date ? format(invoice.date) : 'Tanggal belum tersedia'}</small>{invoice.unverified && <small role="status">Data lama: perlu verifikasi status pembelian</small>}</td>
+                    <td>{row.itemName}</td><td>{invoice.quantity} {row.unit}</td><td>{invoice.unitPrice === null ? 'Belum tersedia' : rupiah(invoice.unitPrice)}</td><td>{invoice.subtotal === null ? 'Belum tersedia' : rupiah(invoice.subtotal)}</td>
+                    <td><button className="outline" onClick={() => { setExpanded(invoice.receivingId); setTab(TAB_HISTORY) }}>Detail invoice</button></td>
+                  </tr>) : <tr><td></td><td colSpan={6}>Belum ada pembelian tercatat untuk item ini.</td></tr>)}
+                </React.Fragment>
+              }) : <tr><td colSpan={7} className="empty">Tidak ada kebutuhan sesuai filter.</td></tr>}</tbody>
             </table>
-          </div>
-
-          {/* Kartu mobile tab Siap Dibeli */}
-          <div className="mobile-cards-view">
-            {readyRows.length ? readyRows.map(r => {
-              const on = selected.has(r.prItemId)
-              return (
-                <div className={`mobile-card ${on ? 'purchase-card-on' : ''}`} key={r.prItemId}>
-                  <div className="mobile-card-header">
-                    <label className="purchase-card-check">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => toggleOne(r)}
-                        data-testid={`check-mobile-${r.prItemId}`}
-                        aria-label={`Pilih ${r.itemName}`}
-                      />
-                      <b className="mobile-card-title">{r.itemName}</b>
-                    </label>
-                  </div>
-                  <div className="mobile-card-body">
-                    <div className="mobile-card-row">
-                      <span className="mobile-label">Qty PR</span>
-                      <span className="mobile-val">
-                        {r.qtyPr} {r.unit} · Dibeli {r.qtyBought}
-                        <strong className="compact-flow-remaining">Sisa {r.qtySisa} {r.unit}</strong>
-                      </span>
-                    </div>
-                    <div className="mobile-card-row">
-                      <span className="mobile-label">Proyek</span>
-                      <span className="mobile-val">{r.projectName} · {r.prNumber}</span>
-                    </div>
-                    <div className="mobile-card-row">
-                      <span className="mobile-label">Toko</span>
-                      <span className="mobile-val">{r.vendorName || 'Belum ditentukan'}</span>
-                    </div>
-                    <div className="mobile-card-row">
-                      <span className="mobile-label">Est. Harga Satuan</span>
-                      <span className="mobile-val">{r.estimasi !== null ? rupiah(r.estimasi) : '—'}</span>
-                    </div>
-                    <div className="mobile-card-row"><span>Harga Beli</span><span>{actualPriceFor(r.prItemId)}</span></div>
-                    <div className="compact-flow-actions"><button onClick={()=>setFormRows({rows:[r],vendorId:r.vendorId||'',vendorName:r.vendorName||''})}>{r.qtyBought>0?'Beli Sisa':'Beli'}</button><details><summary>Detail</summary><ReturnRequest pr={requests.find(p=>p.id===r.prId)} refresh={refresh} say={say}/></details></div>
-                  </div>
-                </div>
-              )
-            }) : (
-              <div className="panel empty">Tidak ada barang yang siap dibeli.</div>
-            )}
           </div>
 
           {/* Footer: hanya muncul saat ADA pilihan (t_cde1b8ad) — tombol primer
@@ -780,6 +686,7 @@ export default function PurchasePage({ rows, refresh, say }) {
           vendorId={formRows.vendorId}
           vendors={vendors}
           projects={projects}
+          materials={materials}
           receivings={receivings}
           receivingItems={receivingItems}
           close={cancelPurchaseQueue}

@@ -125,6 +125,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
   // mode edit TIDAK menghitung ulang dari histori terbaru (arahan snapshot
   // t_ac0b39c0). Hanya item BARU tanpa harga yang diisi otomatis saat ditambah.
   const [prItemsList, setPrItemsList] = useState(() => (editItems || []).map(it => ({
+    est_manual: it.estimated_price !== null && it.estimated_price !== undefined && it.estimated_price !== '',
     id: it.id,
     material_id: it.material_id,
     kode: it.kode || '',
@@ -171,7 +172,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
 
   // Acuan utk material+vendor (dipakai addItemToPR & updateItemVendor).
   function estimateForItem(material, vendorId) {
-    return Est.estimateFor(material, { vendorId: vendorId || null })
+    return Est.estimateFor(material, { vendorId: vendorId || null, supplierOnly: true })
   }
 
   // Harga acuan utk material + vendor → format input rupiah ('' bila tidak
@@ -277,7 +278,7 @@ export default function Create({ page, allProjects = [], allMaterials = [], allV
     setPrItemsList(prItemsList.map((it, i) => {
       if (i !== idx) return it
       const formatted = formatNominalInput(val)
-      return { ...it, estimated_price: formatted, est_manual: parsePriceValue(formatted) !== null }
+      return { ...it, estimated_price: formatted, est_manual: true }
     }))
   }
   // "Pakai acuan" — kembalikan harga item ke acuan auto (per vendor bila ada,

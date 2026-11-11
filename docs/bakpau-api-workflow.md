@@ -78,8 +78,10 @@ Aturan yang **tidak boleh dilanggar**:
    sama (server akan menjawab `ignored_duplicate_event` bila sudah tercatat).
 4. **Raw image ref bukan OCR.** Kalau file hanya berupa gambar dan agen tidak
    bisa mengekstrak, kirim ke manusia untuk klarifikasi. API tidak melakukan OCR.
-5. **Satu nota = satu vendor + satu tanggal.** Nota lintas proyek boleh (alokasi
-   per baris), tetapi proyek harus eksplisit per baris.
+5. **Satu nota = satu vendor + satu tanggal + satu proyek.** Setiap barang wajib
+   memiliki proyek valid (boleh mewarisi proyek header). API menolak lintas proyek
+   sampai penyimpanan alokasi dan laporan mendukungnya secara utuh. Tahan untuk
+   penanganan manual; jangan pecah invoice atau mencatat ulang otomatis.
 6. **Pembelian bukan penerimaan fisik.** Jangan mengharapkan serah terima,
    invoice, atau pembayaran otomatis dari create.
 
@@ -94,8 +96,11 @@ node client.mjs read purchases --id <receivingId>
 node client.mjs read purchase-items --receiving-id <receivingId>
 ```
 
-Bandingkan `items[].qty`/`harga`/`project_id` dengan payload yang dikirim.
-Kalau berbeda, laporkan sebagai kegagalan — jangan dianggap sukses.
+Respons create memakai `items[].qty`/`harga`/`projectId`; bandingkan dengan
+payload yang disetujui. Read `purchase-items` memberikan baris mentah: harga dan
+proyek dapat berupa marker di `note`, bukan kolom ternormalisasi. Periksa juga
+`purchases.project_id`. Kalau berbeda atau belum dapat diverifikasi, laporkan
+belum selesai — jangan dianggap sukses.
 
 ## 5. Kode hasil yang perlu ditangani berbeda
 

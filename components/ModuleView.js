@@ -392,14 +392,14 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
           allProjects={allProjects}
           allMaterials={allMaterials}
           allVendors={allVendors}
-          existingRequests={displayRows}
+          existingRequests={allRequests}
           allRequestsFull={allRequests}
           close={() => { setOpen(false); setEditRow(null); setCreateMode('standard'); }}
           refresh={refresh}
           say={say}
         />
       )}
-      <div className="panel table desktop-table-view">
+      <div className={`panel table ${page === 'requests' ? 'pr-shared-table' : 'desktop-table-view'}`}>
         <table className={renderModuleTableClass(page)}>
           <thead>
             <tr>
@@ -415,7 +415,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
                 </th>
               ))}
               {(hasDeleteAction || page === 'approvals') && (
-                <th style={{ width: page === 'approvals' ? '11%' : (page === 'requests' ? '5%' : '8%'), textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: page === 'approvals' ? '11%' : (page === 'requests' ? undefined : '8%'), textAlign: 'center' }}>Aksi</th>
               )}
             </tr>
           </thead>
@@ -457,7 +457,7 @@ export default function Module({ page, rows, allProjects, allMaterials = [], all
         </table>
       </div>
       {/* ===== MOBILE CARDS VIEW (Khusus Layar HP <= 900px) ===== */}
-      <div className="mobile-cards-view">
+      <div className={page === 'requests' ? 'pr-hidden-cards' : 'mobile-cards-view'}>
         {visibleRows.length ? (
           visibleRows.map((r, i) => {
             const card = renderModuleMobileCard(page, r, ctx)

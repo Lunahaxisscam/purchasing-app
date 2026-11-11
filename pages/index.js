@@ -883,7 +883,7 @@ export default function App() {
           )
         ) : page === 'project_finance' ? (
           role === 'admin' ? (
-            <ProjectFinance rows={rows} session={session} />
+            <ProjectFinance rows={rows} session={session} refresh={loadAll} />
           ) : (
             <div className="panel empty">Halaman ini khusus administrator.</div>
           )

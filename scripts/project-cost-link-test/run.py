@@ -23,6 +23,9 @@ FILES = [
     'lib/projectCrosswalk.js',
     'lib/projectCostBreakdown.js',
     'lib/purchaseNote.js',
+    'lib/projectPurchaseRows.js',
+    'modules/materials/acuan.js',
+    'lib/constants.js',
 ]
 
 
@@ -35,7 +38,7 @@ def main():
                 print(json.dumps({'pass': 0, 'fail': 1, 'failures': [f'{rel} belum ada']}, indent=2))
                 return 1
             body = open(src, encoding='utf-8').read()
-            body = re.sub(r"(from\s+')(\./[^']+?)(\.js)?(')",
+            body = re.sub(r"(from\s+')(\.[^']+?)(\.js)?(')",
                           lambda m: f"{m.group(1)}{m.group(2)}.mjs{m.group(4)}", body)
             out = os.path.join(sandbox, rel.replace('.js', '.mjs'))
             os.makedirs(os.path.dirname(out), exist_ok=True)

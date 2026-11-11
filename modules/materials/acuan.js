@@ -203,6 +203,7 @@ export function makeAcuanHelpers({ allPrItems = [], allReceivingItems = [], allR
       out.push({
         key: `hist-${ri.id}`,
         vendor: vendor || null,
+        vendorId: rec.vendor_id || null,
         price,
         unit: mUnit,
         date: entryDate(rec),

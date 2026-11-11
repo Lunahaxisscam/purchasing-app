@@ -166,9 +166,10 @@ export function makePrEstimator({ allPrItems = [], allReceivingItems = [], allRe
    * price null pada NO_ENTRY/UNKNOWN_MATERIAL — penelepon wajib memperlakukan
    * null sebagai "Belum ada acuan", bukan 0.
    */
-  function estimateFor(material, { vendorId = null } = {}) {
+  function estimateFor(material, { vendorId = null, supplierOnly = false } = {}) {
     if (!material?.id) return { ...NO_ENTRY, status: 'UNKNOWN_MATERIAL' }
     const unit = materialUnit(material)
+    if (supplierOnly && !vendorId) return { ...NO_ENTRY, unit }
     const entries = A.entriesFor(material)
 
     // 1) Prioritas: HISTORIS (harga aktual) dari vendor terpilih (satuan
@@ -177,11 +178,11 @@ export function makePrEstimator({ allPrItems = [], allReceivingItems = [], allRe
     let pick = null
     if (vendorId) {
       const vName = A.vendorById.get(vendorId)?.name || null
-      if (vName) pick = entries.find(e => e.source === 'HISTORIS' && e.vendor === vName) || null
+      if (vName) pick = entries.find(e => e.source === 'HISTORIS' && e.vendorId === vendorId) || null
     }
     // 2) Acuan terbaik yang valid: histori aktual terbaru → master →
     //    estimasi PR terdahulu (kategori paling akhir, diberi label jujur).
-    if (!pick) pick = A.bestEntry(material)
+    if (!pick && !supplierOnly) pick = A.bestEntry(material)
 
     if (!pick || validPrice(pick.price) === null) return { ...NO_ENTRY, unit }
     return {

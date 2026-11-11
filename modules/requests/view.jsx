@@ -230,10 +230,11 @@ export function statusBadge(r, ctx = {}) {
 
 // --- Header kolom khusus: ikon prioritas (bukan teks "Priority") ---
 export function header(h) {
-  if (h === 'pr_number') return 'PR / Proyek'
-  if (h === 'materials_summary') return 'Barang / Spesifikasi'
+  if (h === 'pr_number') return 'PR No'
+  if (h === 'project_name') return 'Project'
+  if (h === 'materials_summary') return 'Barang'
   if (h === 'items_qty') return 'Jumlah'
-  if (h === 'estimated_unit') return 'Est. Harga Satuan'
+  if (h === 'estimated_unit') return 'Estimasi Harga'
   if (h === 'estimated_total') return 'Est. Total'
   if (h === 'priority') {
     return <span className="prio-dot prio-header" title="Prioritas — klik untuk urutkan" />

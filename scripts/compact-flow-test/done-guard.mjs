@@ -16,7 +16,7 @@ async function load(file) {
   // lib/supabaseClient memakai paket npm (tidak bisa di-resolve dari data: URL).
   // Guard proyek berjalan SEBELUM tulisan DB, jadi cukup stub yang selalu
   // menolak — kalau guard bocor, test akan melihat error DB, bukan lolos.
-  if (file.endsWith('/lib/supabaseClient.js')) {
+  if (file.split(String.fromCharCode(92)).join('/').endsWith('/lib/supabaseClient.js')) {
     const stub = 'data:text/javascript;base64,' + Buffer.from(
       "export const supabase={from(){throw new Error('DB tidak boleh tersentuh saat guard aktif')},rpc(){throw new Error('DB tidak boleh tersentuh saat guard aktif')}}"
     ).toString('base64')

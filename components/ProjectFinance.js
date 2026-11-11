@@ -1,3 +1,4 @@
+import { buildProjectPurchaseRows } from '../lib/projectPurchaseRows'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { rupiah, persen, formatDateTime, timeAgo, normalizeStatus, planningStatusStyle } from '../lib/constants'
@@ -62,7 +63,7 @@ const PROJECT_STATUS_FILTERS = [
   { value: 'all', label: 'Semua Proyek', emptyText: 'belum ada proyek terdaftar' }
 ]
 
-export default function ProjectFinance({ rows, initialDriveRows, initialPlans, initialView, initialStatusFilter }) {
+export default function ProjectFinance({ rows, initialDriveRows, initialPlans, initialView, initialStatusFilter, refresh }) {
   const [projectId, setProjectId] = useState('')
   const [view, setView] = useState(initialView || 'revenue')
   // t_57f6a3f9: filter status proyek — 'active' | 'done' | 'all'.
@@ -183,6 +184,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
       receivings: rows.receivings || [],
       receivingItems: rows.receiving_items || [],
       vendors: rows.vendors || [],
+      requests: rows.requests || [], prItems: rows.pr_items || [],
       summaryRows: driveRows || []
     }),
     [rows, driveRows]
@@ -196,41 +198,16 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
 
   // 🧱 Material — rincian pengadaan internal proyek ini: estimasi PR vs
   // purchase riil (nominal dari nota penerimaan), per nomor PR.
-  const materialPrRows = useMemo(() => {
-    if (!project) return []
-    const prs = (rows.requests || []).filter(pr => pr.project_id === project.id)
-    const prItems = rows.pr_items || []
-    const receivings = rows.receivings || []
-    return prs.map(pr => {
-      const items = prItems.filter(it => it.pr_id === pr.id)
-      const est = items.reduce((sum, it) => {
-        const p = Number(it.estimated_price)
-        const q = Number(it.quantity)
-        if (!isFinite(p) || p <= 0) return sum
-        return sum + p * (isFinite(q) && q > 0 ? q : 1)
-      }, 0)
-      let real = null
-      for (const r of receivings.filter(r => r.purchase_request_id === pr.id)) {
-        const n = parseNominalFromNote(r.note)
-        if (n !== null) real = (real || 0) + n
-      }
-      return {
-        id: pr.id,
-        pr_number: pr.pr_number || '—',
-        title: pr.title || '—',
-        status: pr.status || '—',
-        est,
-        real,
-        diff: (real !== null && est > 0) ? real - est : null
-      }
-    }).sort((a, b) => String(a.pr_number).localeCompare(String(b.pr_number), 'id', { numeric: true }))
-  }, [rows, project])
-
-  const materialPrTotals = useMemo(() => {
-    const est = materialPrRows.reduce((s, p) => s + p.est, 0)
-    const real = materialPrRows.reduce((s, p) => s + (p.real || 0), 0)
-    return { est, real, count: materialPrRows.length }
-  }, [materialPrRows])
+  const purchaseBreakdown = useMemo(() => buildProjectPurchaseRows({
+    projects: rows.projects || [], requests: rows.requests || [], prItems: rows.pr_items || [],
+    receivings: rows.receivings || [], receivingItems: rows.receiving_items || []
+  }), [rows])
+  const materialPrRows = project ? purchaseBreakdown.forProject(project.id) : []
+  const materialPrTotals = {
+    real: materialPrRows.reduce((sum, row) => sum + row.total, 0),
+    count: materialPrRows.length,
+    incomplete: materialPrRows.some(row => row.incomplete)
+  }
 
   // Ringkasan margin — Project Margin (Gross Profit) murni sesuai keputusan
   // brainstorm DAT:
@@ -328,7 +305,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
           )}
         </div>
         <div className="toolbar-actions">
-          <button type="button" className="outline" onClick={() => load(false)} style={{ padding: '9px 14px', fontSize: '13px' }}>
+          <button type="button" className="outline" onClick={async () => { await Promise.all([load(false), refresh?.()]) }} style={{ padding: '9px 14px', fontSize: '13px' }}>
             ↻ Perbarui
           </button>
         </div>
@@ -578,47 +555,18 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
                 </table>
               </div>
 
-              <div className="panel table desktop-table-view">
+              <div className="panel finance-purchase-table" tabIndex={0} role="region" aria-label="Rincian pembelian proyek">
+                <h2>Rincian Pembelian</h2>
+                <p className="muted">Harga Beli = jumlah aktual × harga aktual pada nota yang sudah dibeli, termasuk barang yang belum diserahterimakan. Tidak ditambahkan ke ringkasan eksternal di atas.</p>
                 <table>
-                  <thead>
-                    <tr>
-                      <th>No. PR</th>
-                      <th>Judul Kebutuhan</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Estimasi</th>
-                      <th style={{ textAlign: 'right' }}>Purchase Riil</th>
-                      <th style={{ textAlign: 'right' }}>Selisih</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {materialPrRows.length ? materialPrRows.map(p => (
-                      <tr key={p.id}>
-                        <td><b>{p.pr_number}</b></td>
-                        <td style={{ whiteSpace: 'normal', maxWidth: '220px' }}>{p.title}</td>
-                        <td><span className={`badge status-${p.status}`} style={{ fontSize: '11px' }}>{p.status}</span></td>
-                        <td style={{ textAlign: 'right' }}>{p.est > 0 ? rupiah(p.est) : '—'}</td>
-                        <td style={{ textAlign: 'right' }}>{p.real !== null ? rupiah(p.real) : '—'}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>
-                          {p.diff === null ? '—' : rupiah(p.diff)}
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr><td colSpan={6} className="empty">
-                        Belum ada Purchase Request untuk proyek ini. Rincian pengadaan muncul di sini setelah PR dibuat di modul Purchase Request.
-                      </td></tr>
-                    )}
-                  </tbody>
-                  {materialPrRows.length > 0 && (
-                    <tfoot>
-                      <tr style={{ background: 'var(--olive-50)', fontWeight: 800 }}>
-                        <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL</td>
-                        <td style={{ textAlign: 'right' }}>{materialPrTotals.est > 0 ? rupiah(materialPrTotals.est) : '—'}</td>
-                        <td style={{ textAlign: 'right' }}>{materialPrTotals.real > 0 ? rupiah(materialPrTotals.real) : '—'}</td>
-                        <td></td>
-                      </tr>
-                    </tfoot>
-                  )}
+                  <thead><tr><th>No PR</th><th>Barang</th><th style={{ textAlign: 'right' }}>Harga Beli</th></tr></thead>
+                  <tbody>{materialPrRows.length ? materialPrRows.map(p => <tr key={p.id}>
+                    <td>{p.prNumber}</td><td>{p.itemName}</td>
+                    <td style={{ textAlign: 'right' }}>{p.incomplete ? `Belum lengkap${p.total ? ` · tercatat ${rupiah(p.total)}` : ''}` : rupiah(p.total)}</td>
+                  </tr>) : <tr><td colSpan={3}>Belum ada pembelian tercatat untuk proyek ini.</td></tr>}</tbody>
+                  {materialPrRows.length > 0 && <tfoot><tr><th colSpan={2}>Total Pembelian Tercatat{materialPrTotals.incomplete ? ' (belum lengkap)' : ''}</th><th style={{ textAlign: 'right' }}>{rupiah(materialPrTotals.real)}</th></tr></tfoot>}
                 </table>
+                {purchaseBreakdown.diagnostics.length > 0 && <details><summary>Data pembelian perlu verifikasi ({purchaseBreakdown.diagnostics.length})</summary><ul>{purchaseBreakdown.diagnostics.map((d, i) => <li key={d.id || i}>{d.itemName}: {d.message}</li>)}</ul></details>}
               </div>
 
               {/* ============================================================
@@ -699,33 +647,7 @@ export default function ProjectFinance({ rows, initialDriveRows, initialPlans, i
                 </ul>
               </div>
 
-              {/* Kartu mobile */}
-              <div className="mobile-cards-view">
-                <div className="panel">
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Cost Material (Drive):</span><b>{drive ? rupiah(summary.material) : '—'}</b>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-                    <span>Minggu Ini:</span><span>{drive ? rupiah(drive.current_week_expense || 0) : '—'}</span>
-                  </div>
-                </div>
-                {materialPrRows.length ? materialPrRows.map(p => (
-                  <div className="mobile-card" key={p.id}>
-                    <div className="mobile-card-header">
-                      <div>
-                        <b className="mobile-card-title">{p.pr_number}</b>
-                        <div className="mobile-card-sub">{p.title}</div>
-                      </div>
-                    </div>
-                    <div className="mobile-card-body">
-                      <div className="mobile-card-row"><span className="mobile-label">Status:</span><span className="mobile-val">{p.status}</span></div>
-                      <div className="mobile-card-row"><span className="mobile-label">Estimasi:</span><span className="mobile-val">{p.est > 0 ? rupiah(p.est) : '—'}</span></div>
-                      <div className="mobile-card-row"><span className="mobile-label">Purchase Riil:</span><span className="mobile-val" style={{ fontWeight: 700 }}>{p.real !== null ? rupiah(p.real) : '—'}</span></div>
-                      <div className="mobile-card-row"><span className="mobile-label">Selisih:</span><span className="mobile-val" style={{ fontWeight: 700, color: p.diff === null ? 'var(--text-muted)' : (p.diff > 0 ? 'var(--danger)' : 'var(--ok)') }}>{p.diff === null ? '—' : rupiah(p.diff)}</span></div>
-                    </div>
-                  </div>
-                )) : <div className="panel empty">Belum ada Purchase Request untuk proyek ini.</div>}
-              </div>
+
             </>
           )}
         </>

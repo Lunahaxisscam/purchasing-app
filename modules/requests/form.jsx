@@ -199,7 +199,7 @@ export function formBody(ctx) {
           boleh wrap — informasi tidak ada yang dihapus. */}
       <style jsx>{`
         :global(.material-picker-box .pr-items-table) {
-          min-width: 0 !important;
+          min-width: 720px !important;
           width: 100% !important;
           table-layout: auto !important;
         }
@@ -220,52 +220,10 @@ export function formBody(ctx) {
         }
       `}</style>
 
-      {/* ============================================================
-          KONTEKS ALUR (t_cde1b8ad): satu kalimat supaya user paham PR
-          berhenti di permintaan barang — toko dipilih saat Purchase.
-          ============================================================ */}
-      <div
-        className="pr-form-note"
-        style={{
-          background: '#f4f7f5', border: '1px solid #dde7e1', borderRadius: '8px',
-          padding: '7px 10px', fontSize: '11.5px', color: '#485653', lineHeight: 1.45,
-          marginBottom: '8px'
-        }}
-      >
-        🧾 <b>PR = permintaan barang.</b> Cukup isi proyek, judul, prioritas, material, qty &
-        estimasi. <b>Toko/vendor aktual dipilih di modul Purchase</b> saat nota dicatat.
-      </div>
-
-      {/* Banner / switch ke Form Lapangan bila baru tambah PR */}
-      {!isEdit && setInputMode && (
-        <div
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            background: fieldFormState?.seeded ? '#f0fdf4' : '#f8fafc',
-            border: `1px solid ${fieldFormState?.seeded ? '#bbf7d0' : '#e2e8f0'}`,
-            borderRadius: '8px', padding: '6px 10px', fontSize: '11px',
-            marginBottom: '8px', flexWrap: 'wrap', gap: '6px'
-          }}
-        >
-          <span style={{ color: fieldFormState?.seeded ? '#166534' : '#475569', fontWeight: 500 }}>
-            {fieldFormState?.seeded
-              ? `✓ Data dari Form Lapangan berhasil dimuat (${prItemsList.length} item). Anda dapat memeriksa atau menambah item.`
-              : `📋 Tersedia mode input cepat berbasis Form Lapangan (template PDF).`}
-          </span>
-          <button
-            type="button"
-            className="outline btn-switch-field-form"
-            style={{ fontSize: '10.5px', padding: '2px 8px' }}
-            onClick={() => setInputMode('field-form')}
-          >
-            {fieldFormState?.seeded ? '← Kembali ke Form Lapangan' : 'Buka Form Lapangan 📋'}
-          </button>
-        </div>
-      )}
-
       {/* Header form SATU BARIS desktop (steer DAT t_ac0b39c0): Project (kiri
           ~40%) + Judul Kebutuhan (kanan ~60%) — tetap DUA field terpisah,
           tidak digabung input. Mobile (<=640px) stack agar readable. */}
+      <label>Nomor PR (otomatis)<input value={form.pr_number || ''} readOnly /><small>Pratinjau — nomor final ditetapkan saat simpan.</small></label>
       <div className="pr-header-row">
         <label style={{ margin: 0 }}>Project
           <select
@@ -288,7 +246,7 @@ export function formBody(ctx) {
           </select>
         </label>
         <label style={{ margin: 0 }}>
-          Judul Kebutuhan
+          Kebutuhan untuk
           <input
             type="text"
             value={form.title || ''}
@@ -297,12 +255,12 @@ export function formBody(ctx) {
           />
         </label>
       </div>
-      <label>Prioritas
+      <details><summary>Prioritas (opsional)</summary>      <label>Prioritas
         <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
           <option value="NORMAL">Standard</option>
           <option value="URGENT">Prioritas</option>
         </select>
-      </label>
+      </label></details>
 
       {/* ITEM MATERIAL — 1 pengadaan bisa banyak item.
           t_cde1b8ad: minWidth:0 pada kotak ini + kontainer item wajib — tanpa
@@ -379,184 +337,43 @@ export function formBody(ctx) {
           </button>
         </div>
 
-        {prItemsList.length > 0 ? (
-          <React.Fragment>
+        <React.Fragment>
           {/* Total + warning + disclaimer DI LUAR area scroll — Total Estimasi
               PR wajib selalu terlihat tanpa scroll daftar item (review run 86).
               t_cde1b8ad: overflowX juga di-scroll di dalam kotaknya sendiri
               supaya tabel item tidak pernah mendorong lebar body (mobile). */}
           <div style={{ marginTop: '10px', maxHeight: '240px', overflowY: 'auto', overflowX: 'auto' }}>
             <table className="pr-items-table" style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#eef3f1', textAlign: 'left' }}>
-                  <th style={{ padding: '4px 6px' }}>Kode</th>
-                  <th style={{ padding: '4px 6px' }}>Nama Material</th>
-                  <th style={{ padding: '4px 6px', width: '60px' }}>Qty</th>
-                  <th style={{ padding: '4px 6px', width: '60px' }}>Satuan</th>
-                  <th style={{ padding: '4px 6px', width: '96px', textAlign: 'right' }}>Subtotal</th>
-                  <th style={{ padding: '4px 6px', width: '40px', textAlign: 'center' }}>Aksi</th>
+              <thead><tr><th>Barang</th><th>Qty</th><th>Harga</th><th>Supplier</th><th>Aksi</th></tr></thead>
+              <tbody>{prItemsList.length === 0 ? (
+                <tr><td colSpan={5}>Belum ada item. Pilih material di atas lalu + Tambah Item, atau import dari Excel.</td></tr>
+              ) : prItemsList.map((it, idx) => {
+                const savedVendor = vendorNameOf(it, allVendors)
+                return <tr key={it.id || it.material_id || idx}>
+                  <td><b>{it.name || it.kode}</b><small className="compact-flow-sub">{it.kode} · {it.satuan || '—'}</small>
+                    <details><summary>Acuan &amp; kategori</summary>{sourceLabelFor(it)}
+                      {it.est_vendor && <div>Supplier acuan: {it.est_vendor}</div>}
+                      {it.est_date && <div>Tanggal: {String(it.est_date).slice(0, 10)}</div>}
+                      {!vendorEligibleForItem(it, it.vendor_id) && it.vendor_id && <div role="status">Supplier tersimpan perlu verifikasi kategori aktif.</div>}
+                      <label>Kategori supplier<select value={it.supplier_category || ''} onChange={e => updateItemSupplier(idx, e.target.value)}><option value="">-- Pilih Kategori --</option>{materialCategories.map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+                    </details>
+                  </td>
+                  <td><input aria-label={`Qty ${it.name || it.kode}`} type="number" min="0.001" step="any" value={it.qty} onChange={e => updateItemQty(idx, e.target.value)} /><small>{it.satuan}</small></td>
+                  <td><input aria-label={`Estimasi harga ${it.name || it.kode}`} type="text" inputMode="numeric" placeholder="Belum ada acuan" value={it.estimated_price ?? ''} onChange={e => updateItemPrice(idx, e.target.value)} style={{ minWidth: '110px' }}/>
+                    <small className="compact-flow-sub">{!it.vendor_id ? 'Pilih supplier dahulu untuk acuan' : !String(it.estimated_price ?? '') ? 'Belum ada acuan supplier ini — isi manual' : it.est_manual ? 'Manual / snapshot — tidak ditimpa otomatis' : 'Acuan supplier terpilih'}</small>
+                    <button type="button" className="outline" disabled={!it.vendor_id} onClick={() => applyAcuanToItem(idx)}>Pakai acuan</button>
+                  </td>
+                  <td><select aria-label={`Supplier ${it.name || it.kode}`} value={it.vendor_id || ''} onChange={e => updateItemVendor(idx, e.target.value)} style={{ minWidth: '140px' }}>
+                    <option value="">-- Pilih Supplier dahulu --</option>
+                    {it.vendor_id && !vendorsForItem(it).some(v => v.id === it.vendor_id) && <option value={it.vendor_id}>{savedVendor || 'Supplier tersimpan (perlu verifikasi)'}</option>}
+                    {vendorsForItem(it).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                  </select></td>
+                  <td><button type="button" className="btn-delete" aria-label={`Hapus ${it.name || it.kode}`} onClick={() => removeItemFromPR(idx)}>Hapus</button></td>
                 </tr>
-              </thead>
-              <tbody>
-                {prItemsList.map((it, idx) => {
-                  const digits = String(it.estimated_price ?? '').replace(/[^\d]/g, '')
-                  const unitPrice = digits ? Number(digits) : null
-                  const qtyNum = Number(it.qty)
-                  const subtotal = (unitPrice !== null && isFinite(qtyNum) && qtyNum > 0)
-                    ? Math.round(unitPrice * qtyNum)
-                    : null
-                  const vendorNotEligible = !vendorEligibleForItem(it, it.vendor_id)
-                  const savedVendor = vendorNameOf(it, allVendors)
-                  return (
-                  <React.Fragment key={it.material_id || idx}>
-                  <tr style={{ borderBottom: '1px dashed #e1e7e4' }}>
-                    <td style={{ padding: '4px 6px' }}><b>{it.kode}</b></td>
-                    <td style={{ padding: '4px 6px' }}>{it.name}</td>
-                    <td style={{ padding: '4px 6px' }}>
-                      <input
-                        type="number"
-                        min="1"
-                        value={it.qty}
-                        onChange={e => updateItemQty(idx, e.target.value)}
-                        style={{ width: '52px', padding: '2px 4px', fontSize: '11px' }}
-                      />
-                    </td>
-                    <td style={{ padding: '4px 6px' }}>{it.satuan || '—'}</td>
-                    <td className="pr-num" style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {subtotal !== null
-                        ? <b style={{ color: '#137333' }}>{rupiah(subtotal)}</b>
-                        : <span className="muted">—</span>}
-                    </td>
-                    <td style={{ padding: '4px 6px', textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        className="btn-delete"
-                        style={{ padding: '2px 5px', fontSize: '10px' }}
-                        onClick={() => removeItemFromPR(idx)}
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #e1e7e4' }}>
-                    <td colSpan={6} style={{ padding: '3px 6px 6px', background: '#fafcfb' }}>
-                      {/* ===== BARIS 1 (selalu terlihat): ESTIMASI HARGA =====
-                          Hanya harga & acuan yang tampil di muka — ini inti PR.
-                          t_cde1b8ad: pemilih Kategori/Vendor TIDAK lagi di sini. */}
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
-                          💰 Estimasi Harga
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="Rp…"
-                            value={it.estimated_price || ''}
-                            onChange={e => updateItemPrice(idx, e.target.value)}
-                            style={{ width: '96px', padding: '2px 4px', fontSize: '10px' }}
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          className="outline"
-                          style={{ padding: '2px 6px', fontSize: '10px', fontWeight: 600 }}
-                          onClick={() => applyAcuanToItem(idx)}
-                          title="Isi ulang harga dari acuan terbaru (histori vendor terpilih → acuan terbaru)"
-                        >
-                          ↺ Pakai acuan
-                        </button>
-                        <span style={{ fontSize: '10px', color: '#71817d' }}>
-                          {subtotal !== null ? <>Subtotal <b style={{ color: '#137333' }}>{rupiah(subtotal)}</b></> : 'Subtotal —'}
-                        </span>
-                      </div>
-                      {/* Sumber acuan + vendor referensi + tanggal (bila nyata) */}
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
-                        {sourceLabelFor(it)}
-                        {it.est_vendor && (
-                          <span style={{ fontSize: '10px', color: '#485653' }}>
-                            🏷️ ref: <b>{it.est_vendor}</b>
-                          </span>
-                        )}
-                        {it.est_date && (
-                          <span style={{ fontSize: '10px', color: '#485653' }}>
-                            📅 {String(it.est_date).slice(0, 10)}
-                          </span>
-                        )}
-                        {it.est_source === 'HISTORIS' && it.est_price_per !== null && digits && Number(digits) !== it.est_price_per && (
-                          <span style={{ fontSize: '10px', color: '#b45309' }}>
-                            harga acuan terakhir {rupiah(it.est_price_per)}/{it.est_unit || it.satuan || ''}
-                          </span>
-                        )}
-                        {it.est_source === 'PR_ESTIMATE' && it.est_vendor && (
-                          <span style={{ fontSize: '10px', color: '#556260' }}>
-                            vendor referensi PR — belum tentu supplier aktual
-                          </span>
-                        )}
-                        {vendorNotEligible && (
-                          <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
-                            ⚠️ vendor tersimpan tidak aktif utk kategori material ini (lihat modul Vendor)
-                          </span>
-                        )}
-                        {unitPrice === null && (
-                          <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
-                            Belum ada acuan — isi estimasi manual
-                          </span>
-                        )}
-                        {/* Saran vendor (t_a5a73034): OPSIONAL. Klik = mengisi
-                            rencana toko + harga acuan vendor itu (bila ada);
-                            klik lagi = batal. Tidak ada vendor yang dipaksa. */}
-                        <VendorSuggestion
-                          it={it}
-                          suggestions={vendorSuggestionsForItem ? vendorSuggestionsForItem(it) : []}
-                          onPick={(vid) => updateItemVendor(idx, vid)}
-                          eligible={vendorEligibleForItem(it, it.vendor_id)}
-                          savedName={savedVendor}
-                        />
-                      </div>
-                      {/* ===== BARIS 2 (LIPAT, default tertutup): RENCANA TOKO =====
-                          t_cde1b8ad: pemilihan toko dipindah ke Purchase. Kontrol
-                          ini tetap ada HANYA untuk melihat/mengoreksi data lama &
-                          memutus jalan buntu validasi vendor (save.js menolak vendor
-                          yang tidak eligible). Tidak ada field wajib di sini. */}
-                      <details className="pr-item-toko" style={{ marginTop: '5px' }}>
-                        <summary style={{ cursor: 'pointer', fontSize: '10px', fontWeight: 600, color: '#5b6b66', listStyle: 'revert' }}>
-                          🏷️ Rencana toko (opsional){savedVendor ? ` — tersimpan: ${savedVendor}` : ' — tidak dipilih di PR'}
-                        </summary>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
-                          <span style={{ fontSize: '10px', color: '#71817d' }}>
-                            Toko aktual dicatat di Purchase. Isian di sini hanya rencana/referensi lama.
-                          </span>
-                          <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
-                            Kategori
-                            <select
-                              value={it.supplier_category || ''}
-                              onChange={e => updateItemSupplier(idx, e.target.value)}
-                              style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
-                            >
-                              <option value="">-- Pilih Kategori --</option>
-                              {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                          </label>
-                          <label style={{ margin: 0, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600, color: '#485653' }}>
-                            Vendor
-                            <select
-                              value={it.vendor_id || ''}
-                              onChange={e => updateItemVendor(idx, e.target.value)}
-                              style={{ width: 'auto', maxWidth: '150px', padding: '2px 4px', fontSize: '10px' }}
-                            >
-                              <option value="">-- Pilih Vendor --</option>
-                              {vendorsForItem(it).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                            </select>
-                          </label>
-                        </div>
-                      </details>
-                    </td>
-                  </tr>
-                  </React.Fragment>
-                  )
-                })}
-              </tbody>
+              })}</tbody>
             </table>
           </div>
+          {prItemsList.length > 0 && <React.Fragment>
           {/* ===== TOTAL ESTIMASI PR (t_ac0b39c0) — di luar area scroll =====
               t_cde1b8ad: dulu ini <table> (6 kolom, tanpa table-layout). Lebar
               min-content-nya (≈820px) merambat ke grid dialog dan membuat
@@ -598,19 +415,58 @@ export function formBody(ctx) {
             {itemsWithToko.length > 0 && (
               <small style={{ display: 'block', color: '#556260', fontSize: '9.5px', marginTop: '4px' }}>
                 ℹ️ {itemsWithToko.length} item menyimpan rencana toko dari data lama — nilainya dipertahankan
-                (buka "Rencana toko" pada baris item untuk melihat/mengubah).
+                (supplier tetap dapat dikoreksi pada baris item).
               </small>
             )}
             <small style={{ display: 'block', color: '#71817d', fontSize: '9.5px', marginTop: '4px' }}>
               Harga estimasi = harga satuan material murni (tanpa ongkir/admin). Sumber acuan belum tersimpan permanen ke DB (lihat catatan pada modul Material).
             </small>
-          </React.Fragment>
-        ) : (
-          <p className="muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
-            💡 Belum ada item. Pilih material di atas lalu "+ Tambah Item", atau import dari Excel.
-          </p>
-        )}
+          </React.Fragment>}
+        </React.Fragment>
       </div>
+
+      {/* ============================================================
+          KONTEKS ALUR (t_cde1b8ad): satu kalimat supaya user paham PR
+          berhenti di permintaan barang — toko dipilih saat Purchase.
+          ============================================================ */}
+      <div
+        className="pr-form-note"
+        style={{
+          background: '#f4f7f5', border: '1px solid #dde7e1', borderRadius: '8px',
+          padding: '7px 10px', fontSize: '11.5px', color: '#485653', lineHeight: 1.45,
+          marginBottom: '8px'
+        }}
+      >
+        <b>PR = permintaan barang.</b> Pilih proyek, barang dan supplier dahulu.
+        Acuan hanya dari supplier terpilih; estimasi dapat diisi manual. Toko aktual dikonfirmasi saat pembelian.
+      </div>
+
+      {/* Banner / switch ke Form Lapangan bila baru tambah PR */}
+      {!isEdit && setInputMode && (
+        <div
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: fieldFormState?.seeded ? '#f0fdf4' : '#f8fafc',
+            border: `1px solid ${fieldFormState?.seeded ? '#bbf7d0' : '#e2e8f0'}`,
+            borderRadius: '8px', padding: '6px 10px', fontSize: '11px',
+            marginBottom: '8px', flexWrap: 'wrap', gap: '6px'
+          }}
+        >
+          <span style={{ color: fieldFormState?.seeded ? '#166534' : '#475569', fontWeight: 500 }}>
+            {fieldFormState?.seeded
+              ? `✓ Data dari Form Lapangan berhasil dimuat (${prItemsList.length} item). Anda dapat memeriksa atau menambah item.`
+              : `📋 Tersedia mode input cepat berbasis Form Lapangan (template PDF).`}
+          </span>
+          <button
+            type="button"
+            className="outline btn-switch-field-form"
+            style={{ fontSize: '10.5px', padding: '2px 8px' }}
+            onClick={() => setInputMode('field-form')}
+          >
+            {fieldFormState?.seeded ? '← Kembali ke Form Lapangan' : 'Buka Form Lapangan 📋'}
+          </button>
+        </div>
+      )}
 
       {/* ============================================================
           CATATAN — OPSIONAL & DILIPAT (t_cde1b8ad)

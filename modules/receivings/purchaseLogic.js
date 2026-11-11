@@ -1,3 +1,4 @@
+import { receivingItemActualPrice } from '../materials/acuan'
 // ============================================================
 // modules/receivings/purchaseLogic.js — LOGIKA MURNI MODUL PURCHASE (belanja)
 // ============================================================
@@ -19,7 +20,7 @@
 // lewat receiving_items.pr_item_id.
 // ============================================================
 
-import { parsePurchaseNote, isPurchasedNota, buildItemPriceNote } from '../../lib/purchaseNote'
+import { parsePurchaseNote, isPurchasedNota, buildItemPriceNote, parseItemPrice } from '../../lib/purchaseNote'
 import { isLeanRequest } from '../requests/leanRequest'
 
 export const TAB_READY = 'ready'
@@ -193,6 +194,60 @@ export function buildReadyRows({
     return a.itemName.localeCompare(b.itemName, 'id', { sensitivity: 'base' })
   })
   return rows
+}
+
+// Monitoring is deliberately separate from the actionable buying queue.
+// Positive linked quantities follow the existing queue's legacy semantics.
+// A positive legacy line is not proof of payment; expose unconfirmed headers.
+export function buildMonitoringRows({ prItems = [], requests = [], projects = [], vendors = [], receivings = [], receivingItems = [] } = {}) {
+  const requestById = new Map(requests.map(r => [r.id, r]))
+  const projectById = new Map(projects.map(r => [r.id, r]))
+  const vendorById = new Map(vendors.map(r => [r.id, r]))
+  const recById = new Map(receivings.map(r => [r.id, r]))
+  const invoicesByItem = new Map()
+  for (const item of receivingItems) {
+    const quantity = Number(item.quantity_received)
+    if (!item.pr_item_id || !Number.isFinite(quantity) || quantity <= 0) continue
+    const rec = recById.get(item.receiving_id)
+    if (!rec) continue
+    const price = receivingItemActualPrice(item)
+    const detail = {
+      id: item.id, receivingId: rec.id,
+      invoiceNo: rec.invoice_no || rec.delivery_note || 'Referensi belum tersedia',
+      internal: /^PH-|^BK-/i.test(String(rec.invoice_no || '')),
+      vendorName: vendorById.get(rec.vendor_id)?.name || 'Vendor belum tersedia',
+      date: rec.received_date || '', quantity,
+      unverified: !isPurchasedNota(rec),
+      unitPrice: price, subtotal: price === null ? null : Math.round(quantity * price)
+    }
+    const details = invoicesByItem.get(item.pr_item_id) || []
+    details.push(detail)
+    invoicesByItem.set(item.pr_item_id, details)
+  }
+  return prItems.flatMap(item => {
+    const request = requestById.get(item.pr_id)
+    const invoices = invoicesByItem.get(item.id) || []
+    if (!isBuyable({ item, request }) && !invoices.length) return []
+    const quantity = Number(item.quantity)
+    const qtyPr = Number.isFinite(quantity) && quantity >= 0 ? quantity : null
+    const estimatedPrice = item.estimated_price !== null && item.estimated_price !== undefined && item.estimated_price !== '' && Number.isFinite(Number(item.estimated_price)) && Number(item.estimated_price) >= 0 ? Number(item.estimated_price) : null
+    const qtyBought = Number(invoices.reduce((sum, invoice) => sum + invoice.quantity, 0).toFixed(9))
+    const projectId = item.project_id || request?.project_id || null
+    const project = projectById.get(projectId)
+    return [{
+      key: item.id, vendorId: item.vendor_id || '', vendorName: vendorById.get(item.vendor_id)?.name || '', prNumber: request?.pr_number || '—', itemName: item.item_name || item.kode || '—',
+      kode: item.kode || '', unit: item.unit || '', projectId,
+      projectName: labelProject(project) || 'Proyek belum tersedia', qtyPr, qtyBought, estimatedPrice, estimatedTotal: estimatedPrice !== null && qtyPr !== null ? Math.round(qtyPr * estimatedPrice) : null,
+      qtySisa: qtyPr === null ? null : Math.max(0, Number((qtyPr - qtyBought).toFixed(9))),
+      qtyOver: qtyPr === null ? null : Math.max(0, Number((qtyBought - qtyPr).toFixed(9))),
+      invoices: invoices.sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    }]
+  })
+}
+
+export function filterMonitoringRows(rows, { status = 'remaining', projectId = '', q = '' } = {}) {
+  return filterReadyRows(rows, { projectId, q }).filter(row => status === 'all'
+    || (status === 'complete' ? row.qtySisa === 0 : row.qtySisa === null || row.qtySisa > EPS))
 }
 
 // Filter tab Siap Dibeli: per vendor/toko atau per proyek (+ pencarian teks).

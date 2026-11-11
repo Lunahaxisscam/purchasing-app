@@ -32,4 +32,16 @@ for(const [label,result,expected] of [['fresh submitted',{data:{id:'p',status:'S
  const c={from:()=>({select:()=>({eq:()=>({single:async()=>result})})})}
  const actual=await workflow.verifyRequestEditable(c,'p');test(label+' edit boundary',()=>assert.equal(actual.ok,expected))
 }
+test('successful create unmounts form; next open starts fresh',()=>{const host=readFileSync('components/ModuleView.js','utf8');assert.match(host,/\(open \|\| editRow\) &&/);assert.match(host,/close=\{\(\) => \{ setOpen\(false\); setEditRow\(null\)/);assert.match(readFileSync('components/CreateModal.js','utf8'),/useState\(\(\) => \(editItems \|\| \[\]\)/)})
+const {filterRows}=await import(await load('modules/shared/filterRows.js'))
+const filterFixture=[{id:1,status:'DRAFT'},{id:2,status:'REVISI'},{id:3,status:'SUBMITTED'},{id:4,status:'APPROVED'},{id:5,status:'LEGACY'},{id:6,status:null}]
+test('PR active display only drafts and revisions',()=>assert.deepEqual(filterRows({page:'requests',rows:filterFixture,prFilter:'all'}).map(r=>r.id),[1,2]))
+test('PR history preserves submitted and unknown legacy statuses',()=>assert.deepEqual(filterRows({page:'requests',rows:filterFixture,prFilter:'HISTORY'}).map(r=>r.id),[3,4,5,6]))
+test('filter does not mutate shared requests',()=>{filterRows({page:'requests',rows:filterFixture,prFilter:'all'});assert.equal(filterFixture.length,6);assert.equal(workflow.isActiveRequest(filterFixture[2]),true)})
+const monitoringFixture={...fixture,projects:[{id:'project',kode:'P-1',name:'Workshop'}],requests:[{...fixture.requests[0],project_id:'project'}],receivings:Array.from({length:12},(_,i)=>({id:'r'+i,status:'DIBELI',invoice_no:'N-'+i})),receivingItems:Array.from({length:12},(_,i)=>({id:'ri'+i,receiving_id:'r'+i,pr_item_id:'i',quantity_received:0.5,note:i===0?'':'[Harga: 100]'}))}
+test('monitoring keeps unlimited invoice details and actual prices',()=>{const [r]=purchase.buildMonitoringRows(monitoringFixture);assert.equal(r.invoices.length,12);assert.equal(r.qtyBought,6);assert.equal(r.qtySisa,0);assert.equal(r.qtyOver,1);assert.equal(r.projectName,'[P-1] Workshop');assert.equal(r.invoices[0].unitPrice,null);assert.equal(r.invoices[1].subtotal,50)})
+test('monitoring complete stays outside default buying queue',()=>{assert.equal(purchase.buildReadyRows(monitoringFixture).length,0);const rows=purchase.buildMonitoringRows(monitoringFixture);assert.equal(purchase.filterMonitoringRows(rows).length,0);assert.equal(purchase.filterMonitoringRows(rows,{status:'complete'}).length,1);assert.equal(purchase.filterMonitoringRows(rows,{status:'all'}).length,1)})
+test('monitoring partial quantities match buying queue',()=>{const [r]=purchase.buildMonitoringRows(fixture);assert.equal(r.qtySisa,2);assert.equal(r.qtyBought,3)})
+test('invoice headers alone never attribute purchases to PR items',()=>assert.equal(purchase.buildMonitoringRows({...fixture,receivingItems:[{...fixture.receivingItems[0],pr_item_id:'other'}]})[0].qtyBought,0))
+test('positive legacy quantities retain queue totals but expose unverified status',()=>{const [r]=purchase.buildMonitoringRows({...fixture,receivings:[{id:'r',status:'NORMAL'}]});assert.equal(r.qtyBought,3);assert.equal(r.invoices[0].unverified,true)})
 console.log(JSON.stringify({pass,fail}));process.exitCode=fail?1:0

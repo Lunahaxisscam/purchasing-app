@@ -56,6 +56,7 @@
 import { supabase } from '../../lib/supabaseClient'
 import { buildPurchaseNote, PURCHASED_STATUS, TAHAP_DIBELI, isPurchasedNota, itemPriceNoteOf } from '../../lib/purchaseNote'
 import { buildSavePlan } from './purchaseLogic'
+import { detectItemProjectCapability } from './projectCapability'
 
 function isCheckViolation(error) {
   const code = String(error?.code || '')
@@ -167,7 +168,8 @@ export async function savePurchaseWithClient({
   projectIdOverride = null,
   prIdOverride = null,
   queueHandover = true,
-  internalRefPrefix = 'PH'
+  internalRefPrefix = 'PH',
+  adminProjectPreflight = false
 } = {}) {
   if (!client) return { ok: false, error: 'Supabase tidak tersedia.' }
 
@@ -196,8 +198,13 @@ export async function savePurchaseWithClient({
     for (const it of items.filter(x => x.prItemId)) {
       const { data: sourceItem, error: itemReadError } = await client.from('pr_items').select('id,pr_id').eq('id', it.prItemId).single()
       if (itemReadError || !sourceItem) return { ok: false, error: `Tidak dapat memverifikasi item PR: ${itemReadError?.message || 'data tidak ditemukan'}. Muat ulang.` }
-      const { data: parent, error: parentReadError } = await client.from('purchase_requests').select('id,status').eq('id', sourceItem.pr_id).single()
+      const { data: parent, error: parentReadError } = await client.from('purchase_requests').select(adminProjectPreflight ? 'id,status,project_id' : 'id,status').eq('id', sourceItem.pr_id).single()
       if (parentReadError || !parent || !['SUBMITTED', 'APPROVED'].includes(String(parent.status).toUpperCase())) return { ok: false, error: 'PR telah dikembalikan atau belum di-submit. Muat ulang sebelum membeli.' }
+      if (adminProjectPreflight) {
+        if (!parent.project_id) return { ok: false, reason: 'unresolved_pr_project', error: 'Proyek item PR belum dapat dipastikan. Muat ulang dan periksa proyek PR sebelum menyimpan.' }
+        it.projectId = parent.project_id
+        it.prId = sourceItem.pr_id
+      }
     }
   }
 
@@ -245,7 +252,7 @@ export async function savePurchaseWithClient({
   const shellIsFinishedNota = !!shellHeader && (
     isPurchasedNota(shellHeader) || !!String(shellHeader.invoice_no || '').trim()
   )
-  const reuseId = shellReceivingId
+  let reuseId = shellReceivingId
     ? String(shellReceivingId)
     : (shellHeader && !shellIsFinishedNota ? shellHeader.id : null)
   const reuseRow = reuseId
@@ -278,15 +285,40 @@ export async function savePurchaseWithClient({
     const prOfItem = ri?.pr_id || it.prId
     if (prOfItem) prIds.add(prOfItem)
     const rec = ri ? (receivings || []).find(r => r.id === ri.receiving_id) : null
-    const projOfItem = rec?.project_id || it.projectId
+    const source = (prItems || []).find(p => p.id === it.prItemId)
+    const request = (requests || []).find(p => p.id === source?.pr_id)
+    const projOfItem = adminProjectPreflight
+      ? it.projectId || source?.project_id || request?.project_id || (it.prItemId ? null : projectIdOverride) || null
+      : rec?.project_id || it.projectId
+    if (adminProjectPreflight) it.projectId = projOfItem
     if (projOfItem) projectIds.add(projOfItem)
   }
   const prId = prIdOverride
     ? String(prIdOverride)
     : (prIds.size === 1 ? [...prIds][0] : null)
-  const projectId = projectIdOverride
+  let projectId = projectIdOverride
     ? String(projectIdOverride)
     : (projectIds.size === 1 ? [...projectIds][0] : null)
+
+  // Admin only: capability is proved by a read, never by a speculative write.
+  let itemProjectsSupported = false
+  if (adminProjectPreflight) {
+    const capability = await detectItemProjectCapability(client)
+    itemProjectsSupported = capability.state === 'supported'
+    for (const it of items) {
+      const source = (prItems || []).find(p => p.id === it.prItemId)
+      const request = (requests || []).find(p => p.id === source?.pr_id)
+      it.projectId = it.projectId || source?.project_id || request?.project_id || (it.prItemId ? null : projectIdOverride) || null
+      if (it.prItemId && !it.projectId) return { ok: false, reason: 'unresolved_pr_project', error: 'Proyek item PR belum dapat dipastikan. Periksa proyek PR sebelum menyimpan.' }
+    }
+    const allocations = new Set(items.map(it => it.projectId))
+    // A mixed-project nota must not retain a single-project shell header.
+    if (allocations.size > 1) { reuseId = null; projectId = null }
+    else projectId = [...allocations][0] || null
+    if (allocations.size > 1 && (!itemProjectsSupported || allocations.has(null))) {
+      return { ok: false, reason: 'project_allocation_unavailable', error: 'Alokasi proyek per barang belum dapat dipastikan. Pisahkan pencatatan nota per proyek sebelum menyimpan.' }
+    }
+  }
 
   const note = buildPurchaseNote({
     material: header.material,
@@ -329,7 +361,7 @@ export async function savePurchaseWithClient({
     // dari beberapa PR, FK lama TIDAK dikosongkan (jejak tidak boleh hilang).
     const patch = { ...baseHeader }
     if (prId) patch.purchase_request_id = prId
-    if (projectId) patch.project_id = projectId
+    if (adminProjectPreflight || projectId) patch.project_id = projectId
     let { error } = await client.from('receivings').update({ ...patch, status: PURCHASED_STATUS }).eq('id', receivingId)
     if (error && isCheckViolation(error)) {
       statusFallback = true
@@ -376,6 +408,7 @@ export async function savePurchaseWithClient({
       quantity_received: it.qty,
       note: itemNote
     }
+    if (adminProjectPreflight && itemProjectsSupported) payload.project_id = it.projectId
     // Pakai ulang baris HANYA bila baris itu memang milik nota yang sedang
     // ditulis, atau bila ia masih baris cangkang kosong (qty 0 — belum pernah
     // mencatat pembelian). Baris yang sudah mencatat pembelian nyata di nota
@@ -514,7 +547,7 @@ export async function savePurchaseWithClient({
 // Semua pemanggil lama (pages/index.js, form pembelian) tetap memakai nama ini;
 // yang berubah hanya DI MANA klien datang. Tidak ada logika tulis kedua.
 export async function savePurchase(args = {}) {
-  return savePurchaseWithClient({ client: supabase, ...args })
+  return savePurchaseWithClient({ client: supabase, ...args, adminProjectPreflight: true })
 }
 
 // Total dari payload — bukan hitungan ulang yang bisa berbeda.

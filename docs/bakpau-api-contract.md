@@ -238,8 +238,11 @@ bila tidak ada baris yang cocok proyeknya. Sekarang `readbackPurchaseStrict`:
   identitas lengkap: nama + satuan + qty + `pr_item_id` + proyek;
 * 0 kandidat → `item_hilang`; >1 kandidat → `item_ganda`; **tidak ada fallback**;
 * jumlah baris DB harus sama persis (tidak boleh ada baris ekstra);
-* proyek header diperiksa; bila nota lintas proyek, header **harus** kosong
-  (`project_id_should_be_empty`), bukan dipilih salah satu.
+* proyek header diperiksa dan wajib sesuai satu proyek efektif seluruh barang.
+  API create saat ini **menolak nota lintas proyek sebelum RPC**, karena marker
+  proyek per barang belum menjadi sumber alokasi kanonik untuk laporan biaya.
+  Jangan memecah invoice asli atau memilih salah satu proyek untuk mengakalinya.
+  Pemeriksaan header kosong pada helper bersama bukan izin create lintas proyek.
 
 ### 4.3 Jaminan lain
 
