@@ -55,13 +55,14 @@ await test('actual create caller persists line-only single-project header and st
  assert.equal(out.ok,true);assert.equal(out.status,'tercatat')
  assert.equal(mock.__rows('receivings')[0].project_id,F.PROJECTS[0].id)
 })
-await test('actual create caller clears default header for mixed explicit line allocations',async()=>{
+await test('actual create caller rejects mixed explicit line allocations before writing',async()=>{
  reset();const p=F.validCreatePayload()
  p.purchase.items=[{...p.purchase.items[0],qty:1},{...p.purchase.items[0],qty:1,projectId:F.PROJECTS[1].id}]
  const out=await create(p)
- assert.equal(out.ok,true);assert.equal(out.status,'tercatat')
- assert.equal(mock.__rows('receivings')[0].project_id,null)
- assert.equal(mock.__rows('receiving_items').length,2)
+ assert.equal(out.ok,false);assert.equal(out.reason,'invalid_payload')
+ assert.equal(mock.__rows('receivings').length,0)
+ assert.equal(mock.__rows('receiving_items').length,0)
+ assert.equal(mock.__rows('bakpau_events').length,0)
 })
 await test('verified duplicate replay returns original id without second RPC write',async()=>{
  reset();const p=F.validCreatePayload();const first=await create(p);const second=await create(p)
